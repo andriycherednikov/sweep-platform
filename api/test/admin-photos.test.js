@@ -8,6 +8,7 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { photo, person, team } from '../src/db/schema.js'
+import { person as personT } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const PASS = '1234'
@@ -48,4 +49,57 @@ test('GET /api/admin/photos/:id/file streams the pending image to the admin', as
   expect(res.statusCode).toBe(200)
   expect(res.headers['content-type']).toMatch(/image\//)
   expect(res.rawPayload.toString()).toBe('img')
+})
+
+test('approve a fan photo → moves file, status approved, emits photo-approved', async () => {
+  const published = []
+  const app2 = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's', publish: (e) => published.push(e) })
+  await app2.ready()
+  const ck = (await app2.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  const [t] = await db.select().from(team).limit(1)
+  await app2.photos.writePending('appr.jpg', Buffer.from('img'))
+  await db.insert(photo).values({ id: 'ph2', kind: 'fan', uploaderName: 'Priya', teamCode: t.code, filePath: 'appr.jpg', thumbPath: 'appr.jpg', status: 'pending' })
+
+  const res = await app2.inject({ method: 'POST', url: '/api/admin/photos/ph2', headers: { cookie: ck }, payload: { action: 'approve' } })
+  expect(res.statusCode).toBe(200)
+  const [row] = await db.select().from(photo).where(eq(photo.id, 'ph2'))
+  expect(row.status).toBe('approved')
+  expect(published).toContainEqual({ type: 'photo-approved', id: 'ph2', kind: 'fan', team: t.code })
+  await app2.close()
+})
+
+test('approve a profile photo sets person.avatar_path and supersedes prior', async () => {
+  const [p] = await db.select().from(personT).limit(1)
+  await app.photos.writePending('prof.jpg', Buffer.from('img'))
+  await db.insert(photo).values({ id: 'ph3', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'prof.jpg', thumbPath: 'prof.jpg', status: 'pending' })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph3', headers: { cookie }, payload: { action: 'approve' } })
+  expect(res.statusCode).toBe(200)
+  const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
+  expect(pp.avatarPath).toBe('/photos/prof.jpg')
+})
+
+test('reject leaves no served file and marks rejected', async () => {
+  await seedPending()
+  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph1', headers: { cookie }, payload: { action: 'reject' } })
+  expect(res.statusCode).toBe(200)
+  const [row] = await db.select().from(photo).where(eq(photo.id, 'ph1'))
+  expect(row.status).toBe('rejected')
+})
+
+test('remove an approved profile reverts the person to initials and emits photo-removed', async () => {
+  const published = []
+  const app3 = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's', publish: (e) => published.push(e) })
+  await app3.ready()
+  const ck = (await app3.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  const [p] = await db.select().from(personT).limit(1)
+  await app3.photos.writePending('rm.jpg', Buffer.from('img')); await app3.photos.moveToApproved('rm.jpg')
+  await db.update(personT).set({ avatarPath: '/photos/rm.jpg' }).where(eq(personT.id, p.id))
+  await db.insert(photo).values({ id: 'ph4', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'rm.jpg', thumbPath: 'rm.jpg', status: 'approved' })
+
+  const res = await app3.inject({ method: 'POST', url: '/api/admin/photos/ph4', headers: { cookie: ck }, payload: { action: 'remove' } })
+  expect(res.statusCode).toBe(200)
+  const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
+  expect(pp.avatarPath).toBe(null)
+  expect(published).toContainEqual({ type: 'photo-removed', id: 'ph4', kind: 'profile', person: p.id })
+  await app3.close()
 })

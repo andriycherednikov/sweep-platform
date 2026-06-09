@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
-import { photo } from '../db/schema.js'
+import { photo, person } from '../db/schema.js'
 import { ADMIN_COOKIE, COOKIE_MAX_AGE, verifyPasscode, requireAdmin } from '../auth.js'
 
 const loginBody = {
@@ -51,5 +51,52 @@ export async function adminRoutes(app) {
     return reply.send(createReadStream(path))
   })
 
-  // moderation added in Task 7 (same file, reuse `admin`).
+  const moderateBody = {
+    type: 'object', required: ['action'], additionalProperties: false,
+    properties: { action: { type: 'string', enum: ['approve', 'reject', 'remove'] } },
+  }
+
+  app.post('/api/admin/photos/:id', { preHandler: admin, schema: { body: moderateBody } }, async (req, reply) => {
+    const { id } = req.params
+    const { action } = req.body
+    const [p] = await app.db.select().from(photo).where(eq(photo.id, id))
+    if (!p) return reply.code(404).send({ error: 'not_found' })
+
+    if (action === 'approve') {
+      // supersede a prior approved profile photo for this person
+      if (p.kind === 'profile') {
+        const prior = await app.db.select().from(photo)
+          .where(and(eq(photo.kind, 'profile'), eq(photo.personId, p.personId), eq(photo.status, 'approved')))
+        for (const old of prior) {
+          await app.photos.removeApproved(old.filePath)
+          await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, old.id))
+        }
+      }
+      await app.photos.moveToApproved(p.filePath)
+      if (p.thumbPath) await app.photos.moveToApproved(p.thumbPath).catch(() => {})
+      await app.db.update(photo).set({ status: 'approved', moderatedAt: new Date() }).where(eq(photo.id, id))
+      if (p.kind === 'profile') {
+        await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(eq(person.id, p.personId))
+      }
+      await app.publish({ type: 'photo-approved', id, kind: p.kind, ...(p.kind === 'fan' ? { team: p.teamCode } : { person: p.personId }) })
+      return { id, status: 'approved' }
+    }
+
+    if (action === 'reject') {
+      await app.photos.removePending(p.filePath)
+      if (p.thumbPath) await app.photos.removePending(p.thumbPath).catch(() => {})
+      await app.db.update(photo).set({ status: 'rejected', moderatedAt: new Date() }).where(eq(photo.id, id))
+      return { id, status: 'rejected' }
+    }
+
+    // remove (an approved photo)
+    await app.photos.removeApproved(p.filePath)
+    if (p.thumbPath) await app.photos.removeApproved(p.thumbPath).catch(() => {})
+    await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, id))
+    if (p.kind === 'profile' && p.personId) {
+      await app.db.update(person).set({ avatarPath: null }).where(eq(person.id, p.personId))
+    }
+    await app.publish({ type: 'photo-removed', id, kind: p.kind, ...(p.kind === 'fan' ? { team: p.teamCode } : { person: p.personId }) })
+    return { id, status: 'removed' }
+  })
 }
