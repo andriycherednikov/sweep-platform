@@ -14,7 +14,7 @@ export function isLiveWindow(now, kickoffs, windowMin = 150) {
  * Poll all in-play fixtures and update score/minute/status for the ones we know.
  * @returns {Promise<number>} count of fixtures updated
  */
-export async function pollLive(db, provider) {
+export async function pollLive(db, provider, publish = () => {}) {
   try {
     const live = await provider.fetchLive()
     let updated = 0
@@ -23,7 +23,10 @@ export async function pollLive(db, provider) {
         .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, updatedAt: new Date() })
         .where(eq(fixture.id, f.id))
         .returning({ id: fixture.id })
-      updated += res.length
+      if (res.length) {
+        updated += res.length
+        publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute })
+      }
     }
     await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'ok', counts: { live: live.length, updated } })
     return updated

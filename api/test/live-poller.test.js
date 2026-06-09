@@ -42,3 +42,10 @@ test('pollLive updates score/minute/status for in-play fixtures only', async () 
   const other = (await db.select().from(fixture).where(eq(fixture.id, '9001')))[0]
   expect(other.status).toBe('final') // untouched
 })
+
+test('pollLive publishes a score event for each updated fixture', async () => {
+  const liveProvider = createRecordedProvider({ live: load('fixtures-live') }) // fixture 9002 → 2H 63' 1-0
+  const events = []
+  await pollLive(db, liveProvider, (e) => events.push(e))
+  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'live', score: [1, 0], minute: 63 })
+})
