@@ -5,6 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing, syncLog } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
+import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
@@ -19,7 +20,14 @@ beforeAll(async () => {
   await db.update(teamCrosswalk).set({ providerTeamId: 3002 }).where(eq(teamCrosswalk.teamCode, 'be'))
   await db.update(teamCrosswalk).set({ providerTeamId: 3003 }).where(eq(teamCrosswalk.teamCode, 'gh'))
 })
-afterAll(async () => { await pool.end() })
+// This suite prunes the shared fixture table down to the provider set; restore the
+// Phase-1 seed afterwards so other test files (which depend on the global seed) still pass.
+afterAll(async () => {
+  await db.delete(fixture)
+  await db.delete(standing)
+  await seed(db)
+  await pool.end()
+})
 
 test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', async () => {
   await syncBaseline(db, provider, { season: 2026 })

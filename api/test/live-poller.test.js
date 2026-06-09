@@ -2,10 +2,11 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, fixture } from '../src/db/schema.js'
+import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { pollLive, isLiveWindow } from '../src/worker/live-poller.js'
+import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
@@ -16,7 +17,14 @@ beforeAll(async () => {
   }
   await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026 })
 })
-afterAll(async () => { await pool.end() })
+// beforeAll prunes the shared fixture table to the provider set; restore the Phase-1
+// seed afterwards so other test files (which depend on the global seed) still pass.
+afterAll(async () => {
+  await db.delete(fixture)
+  await db.delete(standing)
+  await seed(db)
+  await pool.end()
+})
 
 test('isLiveWindow is true within ±N minutes of any kickoff', () => {
   const kickoffs = [new Date('2026-06-16T09:00:00Z')]
