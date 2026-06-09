@@ -1,43 +1,47 @@
 /* ============================================================
    THE SWEEP — main screens: Home, Schedule, Standings, Knockouts
    ============================================================ */
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, Flag, Av, AvStack, ProbBar, MatchCard, HomeHeader, PageHeader,
-  useCountdown, useIsDesktop,
+  Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, PageHeader,
+  SearchInput, useCountdown, useIsDesktop,
 } from "./components.jsx";
-import { useSocial, getMe, isWatching } from "./social.js";
+import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
 
 /* ---------------- HOME ---------------- */
 export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
   const next = S.nextMatch;
   const t1 = S.team(next.t1), t2 = S.team(next.t2);
   const o = S.ownersForFixture(next);
-  const cd = useCountdown(3*3600 + 42*60 + 11);
-
-  const order = { live:0, upcoming:1, final:2 };
-  const todayMatches = S.fixtures
-    .filter(f => f.dayKey === S.todayKey && f.id !== next.id)
-    .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
-    .slice(0,8);
-  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,3);
-  const groupA = S.standings["A"];
+  const cd = useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
 
   useSocial(); // re-render on identity / watch / support changes
   const me = getMe();
-  const watchOrder = { live:0, upcoming:1, final:2 };
-  const watching = S.fixtures
-    .filter(f => isWatching(f.id))
-    .sort((a,b)=> (watchOrder[a.status]-watchOrder[b.status]) || (a.ko-b.ko));
 
-  // personalized: my teams' next upcoming game(s)
-  const myUpcoming = me ? S.fixtures
-    .filter(f => f.status!=="final" && (me.teams.indexOf(f.t1)>=0 || me.teams.indexOf(f.t2)>=0))
-    .sort((a,b)=> (watchOrder[a.status]-watchOrder[b.status]) || (a.ko-b.ko))
-    .slice(0,2) : [];
+  const order = { live:0, upcoming:1, final:2 };
+  // soonest games, in natural order — your games are highlighted inline (not floated to the top)
+  const nextMatches = S.fixtures
+    .filter(f => f.status !== "final" && f.id !== next.id)
+    .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
+    .slice(0,8);
+  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,3);
+  // pick a random group for the side standings — chosen once per mount so it stays stable across re-renders
+  const groupKeys = Object.keys(S.standings);
+  const grpKey = useMemo(() => groupKeys.length ? groupKeys[Math.floor(Math.random()*groupKeys.length)] : "A", [groupKeys.join(",")]);
+  const groupStand = S.standings[grpKey] || [];
 
-  const approved = S.photos.filter(p=>p.status==="approved");
+  // top 4 people by team wins (across finished matches)
+  const finals = S.fixtures.filter(f => f.status === "final" && f.score);
+  const winnerOf = (f) => f.score[0] > f.score[1] ? f.t1 : f.score[1] > f.score[0] ? f.t2 : null;
+  const topWinners = S.people
+    .map(p => ({ person: p, wins: finals.reduce((n,f)=> n + (p.teams.indexOf(winnerOf(f))>=0 ? 1 : 0), 0) }))
+    .filter(r => r.wins > 0)
+    .sort((a,b)=> b.wins - a.wins)
+    .slice(0,4);
+  const accurate = predictionLeaderboard(4); // top predictors by correct crowd calls
+
+  const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
   useEffect(()=>{ const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
   const photo = approved[pi];
@@ -49,9 +53,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
       {/* hero next match */}
       <section className="hero">
         <div className="hero-top">
-          {next.derby
-            ? <span className="derby-tag"><span className="dot"></span> Community Derby</span>
-            : <span className="derby-tag" style={{background:"#5b6f8e"}}>Next match</span>}
+          <span className="derby-tag" style={{background:"#5b6f8e"}}>Next match</span>
           <span className="hero-when">Kicks off in</span>
         </div>
         <div className="match-line">
@@ -60,8 +62,8 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
             <span className="nm">{t1.name.toUpperCase()}</span>
           </div>
           <div className="vs-cd">
-            <span className="cd">{cd.hms}</span>
-            <span className="cdl">HRS · MIN · SEC</span>
+            <span className="cd">{cd.display}</span>
+            <span className="cdl">{cd.unit}</span>
           </div>
           <div className="team" onClick={()=>openTeam(next.t2)}>
             <Flag code={next.t2} w={46} h={34} />
@@ -74,15 +76,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
           <span><b>{next.prob.d}%</b> Draw</span>
           <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob.b}%</b></span>
         </div>
+        <CrowdPick f={next} onToast={toast} light locked={next.status !== "upcoming"} />
         <div className="hero-owners">
           <div className="ostack">
-            <div className="lbl">{t1.name} · our people</div>
-            <AvStack people={o.t1} size={24} light max={4}/>
+            <div className="lbl">{t1.name} · owners</div>
+            <AvStack people={o.t1} size={32} light max={4}/>
             <div className="owner-names">{o.t1.map(p=>p.short).join(" · ")}</div>
           </div>
           <div className="ostack">
-            <div className="lbl">{t2.name} · our people</div>
-            <AvStack people={o.t2} size={24} light max={4}/>
+            <div className="lbl">{t2.name} · owners</div>
+            <AvStack people={o.t2} size={32} light max={4}/>
             <div className="owner-names">{o.t2.map(p=>p.short).join(" · ")}</div>
           </div>
         </div>
@@ -91,41 +94,59 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
       <div className="wrap">
        <div className="deskhome">
         <div className="deskhome-main">
-        {me && myUpcoming.length>0 && <>
-          <div className="sec-h"><h2><span className="watch-eye"><Av p={me} size={17}/></span> Your next {myUpcoming.length>1?"games":"game"}</h2><span className="lnk" onClick={()=>openPerson ? openPerson(me) : go("people")}>Your profile →</span></div>
-          <div className="mgrid">{myUpcoming.map(f=> <MatchCard key={"me"+f.id} f={f} onOpen={openMatch} />)}</div>
-        </>}
-        {watching.length>0 && <>
-          <div className="sec-h"><h2><span className="watch-eye"><Icon.eyefill/></span> You're watching</h2><span className="lnk">{watching.length} match{watching.length>1?"es":""}</span></div>
-          <div className="mgrid">{watching.map(f=> <MatchCard key={"w"+f.id} f={f} onOpen={openMatch} />)}</div>
-        </>}
-        <div className="sec-h"><h2>Today</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
-        <div className="mgrid">{todayMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
+        <div className="sec-h"><h2>Next games</h2>{me ? <span className="lnk" onClick={()=>openPerson ? openPerson(me) : go("people")}>Your profile →</span> : <span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span>}</div>
+        <div className="mgrid">{nextMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
+        </div>
 
-        <div className="sec-h"><h2>Latest results</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
-        <div className="mgrid">{results.map(f=>{
+        <div className="deskhome-side">
+        {topWinners.length>0 && <>
+        <div className="sec-h"><h2>Most wins</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
+        <div className="ranklist">{topWinners.map((r,i)=>(
+          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
+            <span className="rk">{i+1}</span>
+            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+            <span className="rname">{r.person.name}</span>
+            <b className="rval">{r.wins}<i>W</i></b>
+          </div>
+        ))}</div>
+        </>}
+
+        {results.length>0 && <>
+        <div className="sec-h"><h2>Latest scores</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
+        <div className="sidescores">{results.map(f=>{
           const ta=S.team(f.t1), tb=S.team(f.t2);
           return (
             <div className="res" key={f.id} onClick={()=>openMatch(f)}>
-              <div className="rt"><Flag code={f.t1} w={24} h={18}/><span className="nm">{ta.name}</span></div>
+              <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
               <span className="rscore">{f.score[0]} – {f.score[1]}</span>
-              <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={24} h={18}/></div>
+              <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
               <span className="ft">FT</span>
             </div>
           );
         })}</div>
-        </div>
+        </>}
 
-        <div className="deskhome-side">
-        <div className="sec-h"><h2>Standings · Group A</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
+        {accurate.length>0 && <>
+        <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
+        <div className="ranklist">{accurate.map((r,i)=>(
+          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
+            <span className="rk">{i+1}</span>
+            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+            <span className="rname">{r.person.name}</span>
+            <b className="rval">{r.correct}</b>
+          </div>
+        ))}</div>
+        </>}
+
+        <div className="sec-h"><h2>Standings · Group {grpKey}</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
         <div className="stand">
           <div className="strow compact" style={{paddingBottom:2}}>
             <span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">GD</span><span className="hd">PTS</span>
           </div>
-          {groupA.map((t,i)=>(
-            <div className={"strow compact" + (i<2?" q":i===2?" q3":"")} key={t.code} onClick={()=>openTeam(t.code)}>
+          {groupStand.map((t,i)=>(
+            <div className={"strow compact" + (i<2?" q":i===2?" q3":"") + (me && me.teams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
               <span className="pos">{i+1}</span>
-              <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span>{t.owners.length>0 && <span className="owndot" title="Owned in the sweep"></span>}</span>
+              <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
               <span className="num">{t.played}</span>
               <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
               <span className="pts">{t.pts}</span>
@@ -135,7 +156,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
 
         <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
         <div className="fan" onClick={()=>openTeam(photo.team)}>
-          <div className="ph"><span>FAN PHOTO · 16:10</span></div>
+          {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           <div className="badge"><img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span></div>
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
         </div>
@@ -157,10 +178,27 @@ export function ScheduleScreen({ openMatch, openPerson }) {
   if (person) list = list.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   if (team) list = list.filter(f => f.t1===team || f.t2===team);
 
-  // group by day
+  // group by day (fixtures arrive in chronological order, so dayKeys do too)
   const days = [];
   const byDay = {};
   list.forEach(f=>{ if(!byDay[f.dayKey]){ byDay[f.dayKey]=[]; days.push(f.dayKey);} byDay[f.dayKey].push(f); });
+
+  // scroll target: today if it has matches, else the first day after today
+  const todayKey = S.todayKey;
+  const scrollKey = byDay[todayKey] ? todayKey : (days.find(dk => dk > todayKey) || null);
+
+  // on first load (once data is present), bring that day to the top of the list
+  const scrollRef = useRef(null);
+  const targetRef = useRef(null);
+  const didScroll = useRef(false);
+  useEffect(() => {
+    if (didScroll.current || !scrollKey) return;
+    const el = targetRef.current, sc = scrollRef.current;
+    if (!el || !sc) return;
+    const top = el.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop;
+    sc.scrollTo({ top: Math.max(0, top - 8) });
+    didScroll.current = true;
+  });
 
   return (
     <div className="viewport-inner" style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -176,16 +214,16 @@ export function ScheduleScreen({ openMatch, openPerson }) {
         </button>
       </div>
 
-      <div className="scroll pad screen-anim" style={{paddingTop:4}}>
+      <div className="scroll pad screen-anim" style={{paddingTop:4}} ref={scrollRef}>
         <div className="wrap">
           {days.length===0 && <div className="empty"><div className="ic">🗓️</div><h3>No matches</h3><p>Nothing matches that filter yet.</p></div>}
           {days.map(dk=>{
             const fs = byDay[dk];
             const d = fs[0];
-            const isToday = dk === S.todayKey;
+            const isToday = dk === todayKey;
             return (
-              <div key={dk}>
-                <div className="daydiv">
+              <div key={dk} ref={dk===scrollKey ? targetRef : null}>
+                <div className={"daydiv" + (isToday ? " today":"")}>
                   <span className="d">{isToday ? "Today" : d.dayLabel}</span>
                   <span className="ln"></span>
                   <span className="ct">{fs.length} {fs.length>1?"matches":"match"}</span>
@@ -207,6 +245,15 @@ export function ScheduleScreen({ openMatch, openPerson }) {
 }
 
 export function PickSheet({ kind, onClose, onPerson, onTeam }) {
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+  const people = ql
+    ? S.people.filter(p => p.name.toLowerCase().includes(ql) || p.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
+    : S.people;
+  const groups = S.groups
+    .map(g => ({ g, teams: ql ? S.standings[g].filter(t => t.name.toLowerCase().includes(ql)) : S.standings[g] }))
+    .filter(x => x.teams.length > 0);
+  const empty = kind==="person" ? people.length===0 : groups.length===0;
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"80%"}}>
@@ -214,11 +261,13 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
         <div className="sheet-head"><h3>{kind==="person"?"Filter by person":"Filter by team"}</h3>
           <button className="x" onClick={onClose}><Icon.x/></button></div>
         <div className="sheet-body">
+          <SearchInput value={q} onChange={setQ} placeholder={kind==="person"?"Search people…":"Search teams…"} autoFocus />
+          {empty && <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",padding:"18px 0"}}>No {kind==="person"?"people":"teams"} match “{q}”.</p>}
           {kind==="person" ? (
             <div className="plist">
-              {S.people.map(p=>(
+              {people.map(p=>(
                 <div className="prow" key={p.id} onClick={()=>onPerson(p)} style={{padding:"9px 12px"}}>
-                  <span className="pav" style={{background:p.av,width:38,height:38,fontSize:15}}>{p.initials}</span>
+                  <PersonAvatar p={p} cls="pav" style={{width:57,height:57,fontSize:22}}/>
                   <div className="pi"><b style={{fontSize:16}}>{p.name}</b>
                     <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
                   </div>
@@ -228,10 +277,10 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
             </div>
           ) : (
             <div>
-              {S.groups.map(g=>(
+              {groups.map(({g, teams})=>(
                 <div key={g} style={{marginBottom:14}}>
                   <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>Group {g}</div>
-                  {S.standings[g].map(t=>(
+                  {teams.map(t=>(
                     <div className="prow" key={t.code} onClick={()=>onTeam(t.code)} style={{padding:"8px 12px",marginBottom:7}}>
                       <img className="flag" src={S.flag(t.code,80)} alt="" style={{width:34,height:25,borderRadius:4}}/>
                       <div className="pi"><b style={{fontSize:16}}>{t.name}</b>
@@ -253,6 +302,9 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
 export function StandingsScreen({ openTeam, openKnockouts }) {
   const desktop = useIsDesktop();
   const [g, setG] = useState("A");
+  useSocial();
+  const me = getMe();
+  const myTeams = me ? me.teams : [];
 
   function GroupTable({ grp }) {
     const table = S.standings[grp];
@@ -261,9 +313,9 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
         <div className="gh"><b>Group {grp}</b><span className="leg"><i></i> Top 2 advance</span></div>
         <div className="strow"><span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">W</span><span className="hd">D</span><span className="hd">L</span><span className="hd">GD</span><span className="hd">PTS</span></div>
         {table.map((t,i)=>(
-          <div className={"strow"+(i<2?" q":i===2?" q3":"")} key={t.code} onClick={()=>openTeam(t.code)}>
+          <div className={"strow"+(i<2?" q":i===2?" q3":"")+(myTeams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
             <span className="pos">{i+1}</span>
-            <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span>{t.owners.length>0 && <span className="owndot" title="Owned in the sweep"></span>}</span>
+            <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
             <span className="num">{t.played}</span>
             <span className="num">{t.win}</span>
             <span className="num">{t.draw}</span>
@@ -285,12 +337,11 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
           <div className="wrap">
             <div className="stand-desk-head">
               <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
-                Tables update automatically twice a day from the results feed. <b style={{color:"var(--accent)"}}>●</b> marks a team someone in the sweep drew — tap any to open it.
+                Tables update automatically twice a day from the results feed — tap any team to open it.
               </div>
               <div className="legend">
                 <span><i style={{background:"var(--live)"}}></i> Advance</span>
                 <span><i style={{background:"var(--gold)"}}></i> Play-off (3rd)</span>
-                <span><i style={{background:"var(--accent)"}}></i> Owned</span>
               </div>
             </div>
             <div className="standings-grid">
@@ -315,7 +366,7 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
         <div className="wrap">
           <GroupTable grp={g}/>
           <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
-            Tables update automatically twice a day from the results feed. <b style={{color:"var(--accent)"}}>●</b> marks a team someone in the sweep drew.
+            Tables update automatically twice a day from the results feed.
           </p>
         </div>
       </div>

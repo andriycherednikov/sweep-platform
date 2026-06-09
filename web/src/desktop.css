@@ -16,7 +16,7 @@
   .sidebar{ width:252px; flex-shrink:0; background:linear-gradient(180deg,#0b1f3a,#091628); color:#fff; display:flex; flex-direction:column; padding:22px 16px 16px; position:relative; overflow:hidden; }
   .sidebar::after{ content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.035) 0 2px, transparent 2px 9px); pointer-events:none; }
   .sb-brand{ display:flex; align-items:center; gap:11px; padding:4px 8px 20px; position:relative; z-index:1; }
-  .sb-brand .mark{ width:40px; height:40px; border-radius:12px; background:var(--accent); display:grid; place-items:center; font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:#fff; box-shadow:0 6px 16px rgba(233,79,55,.45); }
+  .sb-brand .mark{ width:34px; height:62px; border-radius:0; background:transparent; box-shadow:none; display:grid; place-items:center; }
   .sb-brand b{ font-family:'Barlow Condensed'; font-weight:800; font-size:24px; letter-spacing:.5px; line-height:1; white-space:nowrap; }
   .sb-brand small{ display:block; font-size:9.5px; letter-spacing:2.5px; color:#9fb6d6; font-weight:600; margin-top:2px; white-space:nowrap; }
   .sb-sec{ font-family:'Barlow Semi Condensed'; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#5f78a0; padding:14px 12px 7px; position:relative; z-index:1; }
@@ -40,10 +40,15 @@
   .deskmain .tabs{ display:none; }
   .deskscreen .scroll.pad{ padding-bottom:30px; }
 
-  /* full-bleed shell, but cap the readable content and center it */
-  .deskscreen .top{ padding-left:36px; padding-right:36px; }
-  .deskscreen .top > *{ max-width:1540px; margin-left:auto; margin-right:auto; width:100%; }
-  .deskscreen .wrap{ padding-left:36px; padding-right:36px; max-width:1612px; margin-left:auto; margin-right:auto; width:100%; }
+  /* full-bleed shell, but cap the readable content and center it.
+     The gutter lives INSIDE the capped+centered box (same model as .wrap) so the
+     header content lines up with the body content at every viewport width. */
+  .deskscreen .top{ padding-left:0; padding-right:0; }
+  .deskscreen .top > *{ max-width:2000px; margin-left:auto; margin-right:auto; width:100%; padding-left:36px; padding-right:36px; box-sizing:border-box; }
+  .deskscreen .wrap{ padding-left:36px; padding-right:36px; max-width:2000px; margin-left:auto; margin-right:auto; width:100%; }
+
+  /* filter bar aligns with the content wrap (same gutters + cap) */
+  .deskscreen .filterbar{ padding-left:36px; padding-right:36px; max-width:2000px; margin-left:auto; margin-right:auto; width:100%; overflow:visible; }
 
   /* no top bar on desktop — the sidebar carries brand, nav and date */
   .deskscreen .home-top{ display:none; }
@@ -60,15 +65,15 @@
   .deskscreen .page-top .iconbtn svg{ stroke:var(--ink); }
 
   /* hero: flush to the top, inset from the sides */
-  .deskscreen .hero{ width:calc(100% - 72px); max-width:1540px; margin:0 auto; padding:22px 30px 24px; border-radius:20px; }
+  .deskscreen .hero{ width:min(100% - 72px, 1928px); margin:18px auto 0; padding:24px 36px 26px; border-radius:20px; }
 
   /* detail-page headers (Person / Team) match the light page headers on desktop */
   .deskscreen .top{ background:#fff; }
   .deskscreen .top::after{ display:none; }
   .deskscreen .top > .detail-hero,
-  .deskscreen .top > .team-banner{ max-width:none; width:100%; background:#fff; color:var(--ink); border-bottom:1px solid var(--line); padding-left:36px; padding-right:36px; }
+  .deskscreen .top > .team-banner{ max-width:none; width:100%; background:#fff; color:var(--ink); border-bottom:1px solid var(--line); padding-left:0; padding-right:0; }
   .deskscreen .detail-hero > *,
-  .deskscreen .team-banner .tb-inner{ max-width:1540px; margin-left:auto; margin-right:auto; width:100%; }
+  .deskscreen .team-banner .tb-inner{ max-width:2000px; margin-left:auto; margin-right:auto; width:100%; padding-left:36px; padding-right:36px; box-sizing:border-box; }
 
   .deskscreen .detail-hero .dh-person h2{ color:var(--ink); }
   .deskscreen .detail-hero .dh-person .meta{ color:var(--muted); }
@@ -89,14 +94,33 @@
   .deskscreen .team-banner .backbtn svg,
   .deskscreen .team-banner .iconbtn svg{ stroke:var(--ink); }
   .deskscreen .hero::before, .deskscreen .hero::after{ display:none; }
-  .deskscreen .hero-top, .deskscreen .match-line, .deskscreen .prob, .deskscreen .prob-key, .deskscreen .hero-owners{ max-width:660px; margin-left:auto; margin-right:auto; }
+  /* hero fills its width: a big match with each side's owners centred beneath it */
+  .deskscreen .hero-top, .deskscreen .match-line, .deskscreen .prob, .deskscreen .prob-key, .deskscreen .hero-owners{ max-width:none; margin-left:0; margin-right:0; }
+  /* teams sit at the outer edges (aligned with the cards below); timer centred */
+  .deskscreen .match-line{ gap:24px; padding:8px 0 6px; }
+  .deskscreen .match-line .team{ flex-direction:row; align-items:center; gap:16px; }
+  .deskscreen .match-line .team:first-child{ justify-content:flex-start; }
+  .deskscreen .match-line .team:last-child{ justify-content:flex-start; flex-direction:row-reverse; }
+  .deskscreen .match-line .team img{ width:72px; height:54px; }
+  .deskscreen .match-line .team .nm{ font-size:27px; }
+  .deskscreen .vs-cd .cd{ font-size:48px; }
+  .deskscreen .vs-cd .cdl{ font-size:10px; }
+  .deskscreen .prob-key{ font-size:15px; margin-top:9px; }
+  .deskscreen .prob-key b{ font-size:19px; }
+  .deskscreen .prob{ margin-top:18px; }
+  .deskscreen .hero-owners{ margin-top:20px; padding-top:16px; }
+  .deskscreen .ostack{ display:flex; flex-direction:column; }
+  .deskscreen .ostack:first-child{ align-items:flex-start; text-align:left; }
+  .deskscreen .ostack:last-child{ align-items:flex-end; text-align:right; }
+  .deskscreen .ostack .lbl{ font-size:10px; }
+  .deskscreen .ostack .owner-names{ font-size:13px; margin-top:5px; }
   .deskscreen .match-line .team img{ width:60px; height:44px; }
   .deskscreen .vs-cd .cd{ font-size:30px; }
 
   /* 2-column home: events main + aside (only when there's room — see 1180 query) */
-  .deskhome{ display:block; }
+  .deskhome{ display:block; margin-top:24px; }
   .deskhome-main > .sec-h:first-child,
-  .deskhome-side > .sec-h:first-child{ margin-top:6px; }
+  .deskhome-side > .sec-h:first-child{ margin-top:0; }
 
   /* match-card / results grid */
   .mgrid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(316px,1fr)); gap:11px; }
@@ -106,6 +130,10 @@
   .deskscreen .plist{ display:grid; grid-template-columns:repeat(auto-fill,minmax(330px,1fr)); gap:11px; }
   .deskscreen .plist .prow{ margin:0; }
   .sheet .plist{ display:flex; }
+
+  /* fan photos render larger + clearer on desktop */
+  .deskscreen .photogrid{ grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:12px; }
+  .deskscreen .deskhome-side .fan{ aspect-ratio:4/3; }
 
   /* schedule day blocks */
   .deskscreen .daydiv{ margin-top:24px; }
@@ -137,5 +165,7 @@
   .deskhome-main .mgrid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
 }
 @media (min-width:1500px){
-  .deskscreen .wrap{ padding-left:48px; padding-right:48px; }
+  .deskscreen .wrap, .deskscreen .filterbar,
+  .deskscreen .top > *, .deskscreen .detail-hero > *, .deskscreen .team-banner .tb-inner{ padding-left:48px; padding-right:48px; }
+  .deskscreen .hero{ width:min(100% - 96px, 1904px); padding-left:48px; padding-right:48px; }
 }

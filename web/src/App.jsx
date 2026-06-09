@@ -1,7 +1,8 @@
 /* ============================================================
-   THE SWEEP — app shell, routing, modals
+   THE SWEEP — app shell, history-synced routing, modals
    ============================================================ */
 import { useState, useEffect, useRef } from "react";
+import { SWEEP as S } from "./data.js";
 import {
   Icon, BottomNav, Sidebar, IdentitySheet, useIsDesktop,
 } from "./components.jsx";
@@ -14,25 +15,71 @@ import {
   UploadSheet, MatchSheet, AdminScreen,
 } from "./screens-detail.jsx";
 
+const TABS = ["schedule", "people", "teams", "standings"];
+
+/* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
+function urlFor(v) {
+  if (v.overlay?.type === "team") return `/teams/${v.overlay.code}`;
+  if (v.overlay?.type === "person") return `/people/${v.overlay.id}`;
+  if (v.overlay?.type === "knockouts") return "/knockouts";
+  if (v.overlay?.type === "admin") return "/admin";
+  return v.tab === "home" ? "/" : `/${v.tab}`;
+}
+function readView(path) {
+  const seg = path.split("/").filter(Boolean);
+  const base = { tab: "home", overlay: null, modal: null, identity: false };
+  if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
+  if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
+  if (seg[0] === "knockouts") return { ...base, tab: "standings", overlay: { type: "knockouts" } };
+  if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
+  return { ...base, tab: TABS.includes(seg[0]) ? seg[0] : "home" };
+}
+
 export default function App() {
-  const [tab, setTab] = useState("home");
-  const [overlay, setOverlay] = useState(null);   // person | team | admin | knockouts
-  const [modal, setModal] = useState(null);       // match | upload
+  const [view, setView] = useState(() => readView(window.location.pathname));
   const [toast, setToast] = useState(null);
-  const [identity, setIdentity] = useState(false);
+  const viewRef = useRef(view);
   const toastTimer = useRef();
 
   function showToast(msg){ setToast(msg); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(()=>setToast(null), 1900); }
-  useEffect(()=>{ setGlobalToast(showToast); window.__sweepPickMe = ()=>setIdentity(true); },[]);
-  const go = (name) => { if (name==="upload"){ setModal({type:"upload",team:null}); return; } setOverlay(null); setTab(name); };
-  const openPerson = (p) => setOverlay({ type:"person", person:p });
-  const openTeam   = (c) => setOverlay({ type:"team", code:c });
-  const openMatch  = (f) => setModal({ type:"match", f });
-  const openUpload = (c) => setModal({ type:"upload", team:c||null });
-  const openProfileUpload = () => setModal({ type:"upload", kind:"profile" });
-  const openAdmin  = () => setOverlay({ type:"admin" });
-  const openKnock  = () => setOverlay({ type:"knockouts" });
-  const back = () => setOverlay(null);
+
+  // forward navigation: merge a change into the view + push a history entry
+  function navigate(partial) {
+    const v = { ...viewRef.current, ...partial };
+    viewRef.current = v;
+    window.history.pushState(v, "", urlFor(v));
+    setView(v);
+  }
+  const goBack = () => window.history.back(); // in-app back / close = browser back
+
+  useEffect(() => {
+    setGlobalToast(showToast);
+    window.__sweepPickMe = () => navigate({ identity: true });
+    // seed the current entry with state so the first Back has something to restore
+    window.history.replaceState(viewRef.current, "", urlFor(viewRef.current));
+    const onPop = (e) => {
+      const v = e.state || readView(window.location.pathname);
+      viewRef.current = v;
+      setView(v);
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+
+  const { tab, overlay, modal, identity } = view;
+
+  const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload", team: null } }); return; } navigate({ tab: name, overlay: null }); };
+  const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id } });
+  const openTeam   = (c) => navigate({ overlay: { type: "team", code: c } });
+  const openMatch  = (f) => navigate({ modal: { type: "match", id: f.id } });
+  const openUpload = (c) => navigate({ modal: { type: "upload", team: c || null } });
+  const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
+  const openAdmin  = () => navigate({ overlay: { type: "admin" } });
+  const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+
+  // resolve serializable ids back into the live objects the screens expect
+  const person = overlay?.type === "person" ? S.peopleById[overlay.id] : null;
+  const matchF = modal?.type === "match" ? S.fixtures.find((x) => x.id === modal.id) : null;
 
   let base = null;
   if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} onAdmin={openAdmin}/>;
@@ -42,20 +89,18 @@ export default function App() {
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
 
   let ov = null, ovZ = 25;
-  if (overlay) {
-    if (overlay.type==="person")    ov = <PersonDetail person={overlay.person} onBack={back} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
-    if (overlay.type==="team")      ov = <TeamDetail code={overlay.code} onBack={back} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
-    if (overlay.type==="knockouts") ov = <KnockoutsScreen onBack={back}/>;
-    if (overlay.type==="admin")   { ov = <AdminScreen onBack={back} onToast={showToast}/>; ovZ = 60; }
-  }
+  if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
+  else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
+  else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
+  else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin")) ? overlay.type : tab;
   const modals = (
     <>
-      {modal && modal.type==="match" && <MatchSheet f={modal.f} onClose={()=>setModal(null)} onToast={showToast} openTeam={openTeam} openPerson={openPerson}/>}
-      {modal && modal.type==="upload" && <UploadSheet presetTeam={modal.team} kind={modal.kind||"fan"} onClose={()=>setModal(null)} onToast={showToast}/>}
-      {identity && <IdentitySheet onClose={()=>setIdentity(false)}/>}
+      {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson}/>}
+      {modal?.type==="upload" && <UploadSheet presetTeam={modal.team} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
+      {identity && <IdentitySheet onClose={goBack}/>}
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>
   );

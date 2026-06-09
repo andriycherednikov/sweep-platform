@@ -61,6 +61,29 @@ export function setSupport(mid, code){
   postSupport(mid, meId, code).catch(()=>{ support = prev; notifySocial(); toast("Couldn't update — try again"); });
 }
 
+/* prediction accuracy leaderboard — how many finished matches each person
+   called correctly (winner picked via the crowd call). Draws count as a miss. */
+export function predictionLeaderboard(limit = 4){
+  const stats = {};
+  for (const f of S.fixtures){
+    if (f.status !== "final" || !f.score) continue;
+    const [a, b] = f.score;
+    const winner = a > b ? f.t1 : b > a ? f.t2 : null;
+    const picks = support[f.id];
+    if (!picks) continue;
+    for (const pid of Object.keys(picks)){
+      const s = stats[pid] || (stats[pid] = { correct: 0, total: 0 });
+      s.total++;
+      if (winner && picks[pid] === winner) s.correct++;
+    }
+  }
+  return Object.keys(stats)
+    .map(pid => ({ person: S.people.find(p => p.id === pid), correct: stats[pid].correct, total: stats[pid].total }))
+    .filter(x => x.person)
+    .sort((a, b) => b.correct - a.correct || (b.correct / b.total) - (a.correct / a.total))
+    .slice(0, limit);
+}
+
 export function useSocial(){
   const [,force] = useState(0);
   useEffect(()=>{ const fn=()=>force(x=>x+1); socialListeners.add(fn); return ()=>socialListeners.delete(fn); },[]);

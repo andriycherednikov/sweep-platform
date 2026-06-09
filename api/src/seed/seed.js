@@ -1,6 +1,24 @@
+import { mkdir, writeFile, access } from 'node:fs/promises'
+import { resolve, join } from 'node:path'
+import sharp from 'sharp'
 import { generate } from './generate.js'
 import * as s from '../db/schema.js'
 import { createPool, createDb } from '../db/client.js'
+
+/** Generate placeholder image files for the seeded approved fan photos (CLI only). */
+async function seedPhotoFiles(g) {
+  const dir = join(resolve(process.env.PHOTOS_DIR ?? './photos-data'), 'approved', 'seed')
+  await mkdir(dir, { recursive: true })
+  const esc = (str) => str.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]))
+  for (const ph of g.photos) {
+    if (ph.status !== 'approved') continue
+    const file = join(dir, `${ph.id}.jpg`)
+    try { await access(file); continue } catch { /* generate below */ }
+    const color = g.teams[ph.team]?.color ?? '#12305c'
+    const svg = `<svg width="1280" height="800" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${color}"/><stop offset="1" stop-color="#0b1f3a"/></linearGradient></defs><rect width="1280" height="800" fill="url(#g)"/><text x="64" y="540" font-family="Arial, sans-serif" font-size="96" font-weight="800" fill="rgba(255,255,255,.18)">FAN PHOTO</text><text x="64" y="724" font-family="Arial, sans-serif" font-size="48" font-weight="700" fill="#ffffff">${esc(ph.caption)}</text></svg>`
+    await writeFile(file, await sharp(Buffer.from(svg)).jpeg({ quality: 82 }).toBuffer())
+  }
+}
 
 export async function seed(db) {
   const g = generate()
@@ -61,6 +79,7 @@ export async function seed(db) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const pool = createPool()
   await seed(createDb(pool))
+  await seedPhotoFiles(generate())
   await pool.end()
   console.log('seed complete')
 }

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, Flag, AvStack, MatchCard, PageHeader, resultFor, useCountdown,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, resultFor, useCountdown,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
@@ -14,17 +14,26 @@ import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto 
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
+  const [q, setQ] = useState("");
+  const ql = q.trim().toLowerCase();
+  const list = ql
+    ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
+    : S.money;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <PageHeader title="People" sub={S.people.length + " in the sweep · ranked by best team"} tall />
       <div className="scroll pad screen-anim" style={{paddingTop:14}}>
         <div className="wrap">
+          <div style={{maxWidth:440,margin:"2px 0 14px"}}>
+            <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
+          </div>
+          {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
           <div className="plist">
-            {S.money.map(m=>{
+            {list.map(m=>{
               const p = m.person;
               return (
                 <div className="prow" key={p.id} onClick={()=>openPerson(p)}>
-                  <span className="pav" style={{background:p.av}}>{p.initials}</span>
+                  <PersonAvatar p={p} cls="pav"/>
                   <div className="pi">
                     <b>{p.name}</b>
                     <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
@@ -49,7 +58,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
   const isMe = getMe()?.id === person.id;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
-  const cd = next ? useCountdown(Math.max(60, Math.floor((next.ko - new Date("2026-06-13T08:00:00Z"))/1000) + 3*3600)) : null;
+  const cd = next ? useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now())/1000))) : null;
   const money = S.money.find(m=>m.person.id===person.id);
   const myTeams = person.teams.map(c=>S.team(c));
   const played = myFixtures.filter(f=>f.status==="final");
@@ -59,16 +68,15 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <header className="top" style={{padding:0,overflow:"visible"}}>
         <div className="detail-hero" style={{paddingTop:14}}>
-          <div className="phead" style={{marginBottom:14}}>
-            <button className="backbtn" onClick={onBack}><Icon.back/></button>
-            <div className="spacer" style={{flex:1}}></div>
-          </div>
           <div className="dh-person">
-            <span className="pav" style={{background:person.av}}>{person.initials}</span>
-            <div style={{minWidth:0}}>
+            <button className="backbtn" onClick={onBack}><Icon.back/></button>
+            <div className="dh-av">
+              <PersonAvatar p={person} cls="pav"/>
+              {isMe && <button className="av-cam" onClick={()=>openProfileUpload && openProfileUpload()} aria-label="Upload profile photo" title="Upload profile photo"><Icon.camera/></button>}
+            </div>
+            <div className="dh-id" style={{minWidth:0}}>
               <h2>{person.name}</h2>
               <div className="meta">In the money: <b style={{color:"#fff"}}>#{money.rank}</b> · {money.tag}</div>
-              {isMe && <button className="idchip dark" style={{marginTop:10}} onClick={()=>openProfileUpload && openProfileUpload()}><Icon.camera/> Upload profile photo</button>}
             </div>
           </div>
           <div className="dh-stats">
@@ -82,7 +90,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
         <div className="wrap" style={{marginTop:16}}>
           {next && (
             <>
-              <div className="sec-h"><h2>Next up</h2><span className="lnk">{cd.hms}</span></div>
+              <div className="sec-h"><h2>Next up</h2><span className="lnk cd-lnk">{cd.display}</span></div>
               <MatchCard f={next} onOpen={openMatch} />
             </>
           )}
@@ -114,10 +122,11 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                     <div className="d">{f.dayLabel.split(",")[0]}</div>
                   </div>
                   <div className="opp">
-                    <Flag code={oppCode} w={24} h={18}/>
+                    <Flag code={myCode} w={24} h={18}/>
+                    <span className="nm">{S.team(myCode).name}</span>
                     <span className="vs">v</span>
+                    <Flag code={oppCode} w={24} h={18}/>
                     <span className="nm">{S.team(oppCode).name}</span>
-                    {f.derby && <span className="derbydot" title="Community derby"></span>}
                   </div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
@@ -157,19 +166,22 @@ export function TeamsScreen({ openTeam }) {
   );
 }
 export function TeamGroup({ title, teams, openTeam, rank }) {
+  useSocial();
+  const me = getMe();
+  const myTeams = me ? me.teams : [];
   return (
     <div style={{marginBottom:6}}>
       <div className="sec-h" style={{marginBottom:7}}><h2>{title}</h2></div>
       <div className="plist" style={{marginBottom:12}}>
         {teams.map((t,i)=>(
-          <div className="prow" key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px"}}>
+          <div className={"prow"+(myTeams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px"}}>
             {rank && <span className="pos" style={{width:14,fontFamily:"'Barlow Condensed'",fontWeight:800,color:i<2?"var(--live)":i===2?"var(--gold)":"var(--muted2)"}}>{i+1}</span>}
             <img className="flag" src={S.flag(t.code,160)} alt="" style={{width:40,height:29,borderRadius:5}}/>
             <div className="pi">
               <b>{t.name}</b>
               <div className="tms">
                 {t.owners.length>0
-                  ? <span className="t"><AvStack people={t.owners} size={17} max={4}/> <span style={{marginLeft:4}}>{t.owners.length} owner{t.owners.length!==1?"s":""}</span></span>
+                  ? <span className="t"><AvStack people={t.owners} size={30} max={4}/> <span style={{marginLeft:4}}>{t.owners.length} owner{t.owners.length!==1?"s":""}</span></span>
                   : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
               </div>
             </div>
@@ -196,14 +208,10 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
           <div className="bgflag" style={{backgroundImage:`url(${S.flag(code,320)})`}}></div>
           <div className="ov"></div>
           <div className="tb-inner">
-            <div className="phead" style={{marginBottom:14}}>
-              <button className="backbtn" onClick={onBack}><Icon.back/></button>
-              <div className="spacer" style={{flex:1}}></div>
-              <button className="iconbtn" onClick={()=>openUpload(code)}><Icon.camera/></button>
-            </div>
             <div className="tb-top">
+              <button className="backbtn" onClick={onBack}><Icon.back/></button>
               <img className="flag" src={S.flag(code,320)} alt=""/>
-              <div>
+              <div className="tb-id" style={{flex:1, minWidth:0}}>
                 <h2>{t.name}</h2>
                 <div className="meta">
                   <span className="b">Group {t.group}</span>
@@ -211,6 +219,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                   <span className="b">{pos}{pos===1?"st":pos===2?"nd":pos===3?"rd":"th"} · {t.pts} pts</span>
                 </div>
               </div>
+              <button className="iconbtn" onClick={()=>openUpload(code)} aria-label="Add a fan photo"><Icon.camera/></button>
             </div>
           </div>
         </div>
@@ -229,7 +238,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
             <div className="owners-grid">
               {t.owners.map(p=>(
                 <div className="ochip" key={p.id} onClick={()=>openPerson(p)}>
-                  <span className="av" style={{background:p.av}}>{p.initials}</span>
+                  <PersonAvatar p={p} cls="av"/>
                   <b>{p.name}</b>
                 </div>
               ))}
@@ -250,7 +259,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                     <div className="t">{live?f.minute+"'":f.status==="final"?"FT":f.timeLabel.replace(" ","")}</div>
                     <div className="d">{f.dayLabel.split(",")[0]}</div>
                   </div>
-                  <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span>{f.derby && <span className="derbydot"></span>}</div>
+                  <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
@@ -266,7 +275,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
             <div className="photogrid">
               {photos.map(p=>(
                 <div className="photocell" key={p.id}>
-                  <div className="lbl">FAN PHOTO</div>
+                  {p.src ? <img className="pcimg" src={p.src} alt={p.caption||"Fan photo"} loading="lazy"/> : <div className="lbl">FAN PHOTO</div>}
                   <div className="by">{p.caption} · {p.uploader.split(" ")[0]}</div>
                 </div>
               ))}
@@ -397,15 +406,6 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
           <button className="x" onClick={onClose}><Icon.x/></button>
         </div>
         <div className="sheet-body">
-          {f.derby && <div style={{display:"flex",alignItems:"center",gap:8,background:"#fff6f3",border:"1px solid #f3cabd",borderRadius:12,padding:"10px 13px",marginBottom:14}}>
-            <span className="derby-tag" style={{flexShrink:0}}><span className="dot"></span> Derby</span>
-            <span style={{fontSize:12.5,color:"#5a3a30",fontWeight:600,lineHeight:1.35}}>
-              {f.doubleOwners.length>0
-                ? <>Heads up — <b>{f.doubleOwners.map(p=>p.short).join(", ")}</b> own <i>both</i> sides of this one.</>
-                : <>Community derby: <b>{o.t1.map(p=>p.short).join(", ")}</b> vs <b>{o.t2.map(p=>p.short).join(", ")}</b>.</>}
-            </span>
-          </div>}
-
           <div className="match-line" style={{padding:"4px 0 14px"}}>
             <div className="team" style={{flex:1}} onClick={()=>{onClose();openTeam(f.t1);}}>
               <Flag code={f.t1} w={56} h={42}/>
@@ -439,7 +439,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
                 <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}><img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/><b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15}}>{S.team(code).name}</b></div>
                 {o[k].length>0 ? o[k].map(p=>(
                   <div key={p.id} onClick={()=>{onClose();openPerson(p);}} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
-                    <span className="av" style={{background:p.av,width:22,height:22,border:0,margin:0,fontSize:9}}>{p.initials}</span>
+                    <PersonAvatar p={p} cls="av" style={{width:33,height:33,border:0,margin:0,fontSize:14}}/>
                     <span style={{fontSize:13,fontWeight:600}}>{p.short}</span>
                   </div>
                 )) : <span style={{fontSize:12,color:"var(--muted2)",fontWeight:600}}>No owner</span>}
@@ -451,28 +451,38 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
             <Icon.pin style={{width:15,height:15,stroke:"var(--muted)"}}/> {f.venue} · {f.city}
           </div>
 
-          {/* back a team */}
-          <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{mySup ? "You're backing " + S.team(mySup).name : "Back a team"}</div>
+          {/* back a team — locks once the match kicks off */}
+          {(() => {
+            const locked = f.status !== "upcoming";
+            return <>
+          <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{locked ? "Who'll win? · locked" : mySup ? "You're backing " + S.team(mySup).name : "Who'll win? · back a team"}</div>
           <div style={{display:"flex",gap:10,marginBottom:16}}>
             {[f.t1,f.t2].map(code=>{
               const backers = sup[code] || [];
               const on = mySup===code;
               return (
-                <button key={code} className={"backteam"+(on?" on":"")} onClick={()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+S.team(code).name+" 📣"); }}>
-                  <img className="flag" src={S.flag(code,80)} alt="" style={{width:30,height:22}}/>
-                  <b>{S.team(code).name}</b>
-                  <div className="bk">{backers.length>0 ? <><AvStack people={backers} size={20} max={5}/><span>{backers.length} backing</span></> : <span className="none">No backers yet</span>}</div>
+                <button key={code} disabled={locked} className={"backteam"+(on?" on":"")+(locked?" locked":"")}
+                  onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+S.team(code).name+" 📣"); }}>
+                  <span className="bt-team">
+                    <img className="flag" src={S.flag(code,80)} alt="" style={{width:30,height:22}}/>
+                    <b>{S.team(code).name}</b>
+                  </span>
+                  <div className="bk">{backers.length>0
+                    ? <><AvStack people={backers} size={24} max={4}/><span>{backers.length} backing</span></>
+                    : <span className="none">{locked ? "No backers" : "No backers yet"}</span>}</div>
                 </button>
               );
             })}
           </div>
+            </>;
+          })()}
 
           {/* who's watching */}
           <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Who's watching{watchPeople.length>0 ? " · "+watchPeople.length : ""}</div>
           <div className="block" style={{padding:"11px 13px",marginBottom:16}}>
             {watchPeople.length>0 ? (
               <div style={{display:"flex",alignItems:"center",gap:11}}>
-                <AvStack people={watchPeople} size={26} max={7}/>
+                <AvStack people={watchPeople} size={39} max={7}/>
                 <span style={{fontSize:12.5,color:"var(--muted)",fontWeight:600,lineHeight:1.35}}>{watchPeople.map(p=>p.short).join(", ")} {watchPeople.length===1?"is":"are"} tuning in</span>
               </div>
             ) : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>Nobody's marked this yet — be the first.</span>}

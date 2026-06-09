@@ -1,9 +1,16 @@
 const SYD = 'Australia/Sydney'
 
+// Our team codes aren't all ISO 3166-1 alpha-2; map the odd ones to flagcdn codes.
+const FLAG_FIX = {
+  bih: 'ba', cgo: 'cd', cpv: 'cv', cur: 'cw', cze: 'cz',
+  hai: 'ht', irq: 'iq', jor: 'jo', pan: 'pa', sco: 'gb-sct', uzb: 'uz',
+}
+
 export function flag(code, size) {
   size = size || 80
-  if (code.indexOf('gb-') === 0) return 'https://flagcdn.com/' + code + '.svg'
-  return 'https://flagcdn.com/w' + size + '/' + code + '.png'
+  const c = FLAG_FIX[code] || code
+  if (c.indexOf('gb-') === 0) return 'https://flagcdn.com/' + c + '.svg'
+  return 'https://flagcdn.com/w' + size + '/' + c + '.png'
 }
 
 export function gd(t) { return t.gf - t.ga }

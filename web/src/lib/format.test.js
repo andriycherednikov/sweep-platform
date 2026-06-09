@@ -6,6 +6,12 @@ test('flag builds flagcdn urls (gb- subteams use svg)', () => {
   expect(flag('gb-eng')).toBe('https://flagcdn.com/gb-eng.svg')
 })
 
+test('flag maps non-ISO team codes to valid flagcdn codes', () => {
+  expect(flag('cze', 40)).toBe('https://flagcdn.com/w40/cz.png') // Czech Republic
+  expect(flag('cgo')).toBe('https://flagcdn.com/w80/cd.png')     // Congo DR
+  expect(flag('sco')).toBe('https://flagcdn.com/gb-sct.svg')     // Scotland → svg
+})
+
 test('gd is goal difference', () => {
   expect(gd({ gf: 5, ga: 2 })).toBe(3)
 })
