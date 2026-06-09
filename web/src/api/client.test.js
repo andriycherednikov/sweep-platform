@@ -72,3 +72,39 @@ test('a non-ok POST throws', async () => {
   const { postWatch } = await import('./client.js')
   await expect(postWatch('m1', 'p1')).rejects.toThrow(/watch/i)
 })
+
+test('uploadPhoto POSTs FormData to /api/photos', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'x', status: 'pending' }) } }))
+  const { uploadPhoto } = await import('./client.js')
+  const fd = new FormData()
+  const res = await uploadPhoto(fd)
+  expect(res.id).toBe('x') // returns the parsed created-photo body
+  expect(calls[0].url).toMatch(/\/api\/photos$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.body).toBe(fd) // raw FormData, no JSON content-type
+})
+
+test('adminLogin posts the passcode and includes credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ admin: true }) } }))
+  const { adminLogin } = await import('./client.js')
+  await adminLogin('1234')
+  expect(calls[0].url).toMatch(/\/api\/admin\/login$/)
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ passcode: '1234' })
+})
+
+test('fetchAdminPhotos GETs the queue with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ pending: [], approved: [] }) } }))
+  const { fetchAdminPhotos } = await import('./client.js')
+  await fetchAdminPhotos()
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('adminLogin throws on 401', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })))
+  const { adminLogin } = await import('./client.js')
+  await expect(adminLogin('nope')).rejects.toThrow(/login/i)
+})
