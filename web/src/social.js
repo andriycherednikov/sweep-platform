@@ -1,18 +1,18 @@
 /* ============================================================
-   THE SWEEP — social store (per-device, localStorage):
-   identity + watching + support
+   THE SWEEP — social store: identity (localStorage) +
+   watching/support (server-backed, hydrated via setSocialData,
+   optimistic writes reconciled by SSE).
    ============================================================ */
 import { useState, useEffect } from "react";
 import { SWEEP as S } from "./data.js";
+import { postWatch, postSupport } from "./api/client.js";
 
-const ME_KEY = "sweep.me.v1", WATCH_KEY = "sweep.watchers.v1", SUP_KEY = "sweep.support.v1";
+const ME_KEY = "sweep.me.v1";
 const socialListeners = new Set();
 let globalToast = null;
 export function setGlobalToast(fn){ globalToast = fn; }
 export function toast(msg){ if (globalToast) globalToast(msg); }
 function notifySocial(){ socialListeners.forEach(fn=>fn()); }
-function loadJSON(k, fb){ try { var v = JSON.parse(localStorage.getItem(k)); return (v==null) ? fb : v; } catch(e){ return fb; } }
-function saveJSON(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 
 /* identity — nobody is auto-selected; "none" = explicitly cleared */
 let _meRaw = localStorage.getItem(ME_KEY);
@@ -20,34 +20,45 @@ let meId = (_meRaw === null) ? null : (_meRaw === "none" ? null : _meRaw);
 export function getMe(){ return meId ? S.people.find(p=>p.id===meId) : null; }
 export function setMe(id){ meId = id; try { localStorage.setItem(ME_KEY, id || "none"); } catch(e){} notifySocial(); }
 
-/* watchers: { matchId: [personId] } — localStorage-only until Phase 4 (server-backed) */
-let watchers = loadJSON(WATCH_KEY, {});
+/* server-backed state, hydrated by the ['social'] query + kept live by SSE */
+let watchers = {};          // { fixtureId: [personId] }
+let support = {};           // { fixtureId: { personId: teamCode } }
+export function setSocialData(server){
+  watchers = (server && server.watch) ? server.watch : {};
+  support  = (server && server.support) ? server.support : {};
+  notifySocial();
+}
+
 export function watchersOf(mid){ return (watchers[mid]||[]).map(id=>S.people.find(p=>p.id===id)).filter(Boolean); }
 export function isWatching(mid){ return !!(meId && (watchers[mid]||[]).indexOf(meId) >= 0); }
-export function toggleWatch(mid){
-  if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return false; }
-  var arr = watchers[mid] ? watchers[mid].slice() : [];
-  var i = arr.indexOf(meId);
-  if (i>=0) arr.splice(i,1); else arr.push(meId);
-  watchers = Object.assign({}, watchers, { [mid]: arr });
-  saveJSON(WATCH_KEY, watchers); notifySocial(); return true;
-}
 export function myWatching(){ if (!meId) return []; return Object.keys(watchers).filter(mid=>watchers[mid].indexOf(meId)>=0); }
 
-/* support: { matchId: { personId: teamCode } } — localStorage-only until Phase 4 */
-let support = loadJSON(SUP_KEY, {});
+export function toggleWatch(mid){
+  if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return false; }
+  const prev = watchers;
+  const arr = watchers[mid] ? watchers[mid].slice() : [];
+  const i = arr.indexOf(meId);
+  if (i>=0) arr.splice(i,1); else arr.push(meId);
+  watchers = Object.assign({}, watchers, { [mid]: arr });
+  notifySocial();
+  postWatch(mid, meId).catch(()=>{ watchers = prev; notifySocial(); toast("Couldn't update — try again"); });
+  return true;
+}
+
 export function supportOf(mid){
-  var m = support[mid] || {}, out = {};
-  Object.keys(m).forEach(pid=>{ var p=S.people.find(x=>x.id===pid); if(p){ (out[m[pid]]=out[m[pid]]||[]).push(p); } });
+  const m = support[mid] || {}, out = {};
+  Object.keys(m).forEach(pid=>{ const p=S.people.find(x=>x.id===pid); if(p){ (out[m[pid]]=out[m[pid]]||[]).push(p); } });
   return out;
 }
 export function mySupport(mid){ return meId ? ((support[mid]||{})[meId] || null) : null; }
 export function setSupport(mid, code){
   if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return; }
-  var m = Object.assign({}, support[mid] || {});
+  const prev = support;
+  const m = Object.assign({}, support[mid] || {});
   if (m[meId] === code) delete m[meId]; else m[meId] = code;
   support = Object.assign({}, support, { [mid]: m });
-  saveJSON(SUP_KEY, support); notifySocial();
+  notifySocial();
+  postSupport(mid, meId, code).catch(()=>{ support = prev; notifySocial(); toast("Couldn't update — try again"); });
 }
 
 export function useSocial(){
