@@ -23,5 +23,22 @@ export async function socialRoutes(app) {
     return { watch: watch_, support: support_ }
   })
 
-  // POST /api/watch and /api/support are added in Tasks 5 & 6 (same file).
+  app.post('/api/watch', { schema: { body: watchBody } }, async (req, reply) => {
+    const { fixtureId, personId } = req.body
+    const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
+    if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
+    const [p] = await app.db.select().from(person).where(eq(person.id, personId))
+    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+
+    const where = and(eq(watch.fixtureId, fixtureId), eq(watch.personId, personId))
+    const existing = await app.db.select().from(watch).where(where)
+    let watching
+    if (existing.length) { await app.db.delete(watch).where(where); watching = false }
+    else { await app.db.insert(watch).values({ fixtureId, personId }); watching = true }
+
+    await app.publish({ type: 'watch', fixtureId })
+    return { fixtureId, personId, watching }
+  })
+
+  // POST /api/support is added in Task 6 (same file).
 }

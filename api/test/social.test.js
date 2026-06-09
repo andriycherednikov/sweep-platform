@@ -38,3 +38,27 @@ test('GET /api/social groups watchers by fixture and support by fixture→person
   expect(new Set(body.watch[f.id])).toEqual(new Set([p1.id, p2.id]))
   expect(body.support[f.id][p1.id]).toBe(f.t1Code)
 })
+
+test('POST /api/watch toggles the row and publishes a watch event', async () => {
+  const f = await aFixture()
+  const [p1] = await twoPeople()
+
+  const on = await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: f.id, personId: p1.id } })
+  expect(on.json()).toMatchObject({ fixtureId: f.id, personId: p1.id, watching: true })
+
+  const off = await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: f.id, personId: p1.id } })
+  expect(off.json().watching).toBe(false)
+
+  expect(published).toEqual([{ type: 'watch', fixtureId: f.id }, { type: 'watch', fixtureId: f.id }])
+})
+
+test('POST /api/watch 400s on unknown fixture or person', async () => {
+  const f = await aFixture()
+  const [p1] = await twoPeople()
+  expect((await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: 'nope', personId: p1.id } })).statusCode).toBe(400)
+  expect((await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: f.id, personId: 'nope' } })).statusCode).toBe(400)
+})
+
+test('POST /api/watch 400s on a malformed body (schema)', async () => {
+  expect((await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: 'x' } })).statusCode).toBe(400)
+})
