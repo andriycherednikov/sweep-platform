@@ -53,6 +53,9 @@ export function Flag({ code, w, h, cls }) {
 /* avatar */
 export function Av({ p, size, light }) {
   const s = size || 24;
+  if (p && p.avatarPath) {
+    return <img className="av" src={p.avatarPath} alt={p.initials || ""} style={{ width:s, height:s, objectFit:"cover", borderColor: light?"#fff":undefined }} />;
+  }
   return <span className="av" style={{ background:p.av, width:s, height:s, fontSize:s*0.42, borderColor: light?"#fff":undefined }}>{p.initials}</span>;
 }
 export function AvStack({ people, size, light, max }) {

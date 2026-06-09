@@ -49,6 +49,13 @@ test('on (re)open it catches up by invalidating both queries', () => {
   expect(spy).toHaveBeenCalledWith({ queryKey: ['social'] })
 })
 
+test('photo-approved/photo-removed events invalidate the sweep query', () => {
+  const { spy, es } = setup()
+  es.emit({ type: 'photo-approved', id: 'p1', kind: 'fan' })
+  es.emit({ type: 'photo-removed', id: 'p2', kind: 'profile' })
+  expect(spy.mock.calls.filter((c) => c[0]?.queryKey?.[0] === 'sweep')).toHaveLength(2)
+})
+
 test('closes the stream on unmount', () => {
   const qc = new QueryClient()
   const wrapper = ({ children }) => <QueryClientProvider client={qc}>{children}</QueryClientProvider>

@@ -21,7 +21,7 @@ export function useEventStream() {
       let ev
       try { ev = JSON.parse(e.data) } catch { return }
       if (ev.type === 'watch' || ev.type === 'support') qc.invalidateQueries({ queryKey: ['social'] })
-      else if (ev.type === 'score' || ev.type === 'sync') qc.invalidateQueries({ queryKey: ['sweep'] })
+      else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') qc.invalidateQueries({ queryKey: ['sweep'] })
     }
     return () => es.close()
   }, [qc])
