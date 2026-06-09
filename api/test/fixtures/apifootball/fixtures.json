@@ -1,0 +1,16 @@
+{
+  "response": [
+    {
+      "fixture": { "id": 9001, "date": "2026-06-13T03:30:00+00:00", "status": { "short": "FT", "elapsed": 90 }, "venue": { "name": "Estadio Akron", "city": "Guadalajara" } },
+      "league": { "id": 1, "season": 2026, "round": "Group L - 1" },
+      "teams": { "home": { "id": 3001, "name": "Croatia" }, "away": { "id": 3002, "name": "Belgium" } },
+      "goals": { "home": 2, "away": 1 }
+    },
+    {
+      "fixture": { "id": 9002, "date": "2026-06-16T09:00:00+00:00", "status": { "short": "NS", "elapsed": null }, "venue": { "name": "MetLife Stadium", "city": "New York / NJ" } },
+      "league": { "id": 1, "season": 2026, "round": "Group L - 2" },
+      "teams": { "home": { "id": 3001, "name": "Croatia" }, "away": { "id": 3003, "name": "Ghana" } },
+      "goals": { "home": null, "away": null }
+    }
+  ]
+}

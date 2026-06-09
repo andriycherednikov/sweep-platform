@@ -1,0 +1,7 @@
+{
+  "response": [
+    { "team": { "id": 3001, "name": "Croatia", "code": "CRO", "country": "Croatia" } },
+    { "team": { "id": 3002, "name": "Belgium", "code": "BEL", "country": "Belgium" } },
+    { "team": { "id": 3003, "name": "Ghana", "code": "GHA", "country": "Ghana" } }
+  ]
+}
