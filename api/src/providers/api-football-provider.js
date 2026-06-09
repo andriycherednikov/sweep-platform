@@ -1,0 +1,51 @@
+import { mapFixture, mapStanding, mapPrediction, mapTeam } from './mapping.js'
+
+const BASE = 'https://v3.football.api-sports.io'
+const LEAGUE = 1
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
+
+/**
+ * @param {{apiKey:string, fetch?:typeof fetch, retries?:number, retryDelayMs?:number, base?:string}} opts
+ * @returns {import('./football-provider.js').FootballProvider}
+ */
+export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, retries = 3, retryDelayMs = 500, base = BASE }) {
+  async function get(path, params = {}) {
+    const url = new URL(base + path)
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, String(v))
+    let lastErr
+    for (let attempt = 0; attempt < retries; attempt++) {
+      try {
+        const res = await fetch(url.toString(), { headers: { 'x-apisports-key': apiKey } })
+        if (res.ok) return await res.json()
+        lastErr = new Error(`api-football ${path} → HTTP ${res.status}`)
+        if (res.status < 500 && res.status !== 429) break // client errors don't retry (except rate-limit)
+      } catch (e) { lastErr = e }
+      if (attempt < retries - 1) await sleep(retryDelayMs * 2 ** attempt)
+    }
+    throw lastErr ?? new Error(`api-football ${path} failed`)
+  }
+
+  return {
+    async fetchFixtures(season) {
+      const j = await get('/fixtures', { league: LEAGUE, season })
+      return (j.response ?? []).map(mapFixture)
+    },
+    async fetchLive() {
+      const j = await get('/fixtures', { live: 'all' })
+      return (j.response ?? []).filter((r) => r.league?.id === LEAGUE).map(mapFixture)
+    },
+    async fetchStandings(season) {
+      const j = await get('/standings', { league: LEAGUE, season })
+      return (j.response?.[0]?.league?.standings ?? []).flat().map(mapStanding)
+    },
+    async fetchPredictions(fixtureId) {
+      const j = await get('/predictions', { fixture: fixtureId })
+      return mapPrediction(j)
+    },
+    async fetchTeams(season) {
+      const j = await get('/teams', { league: LEAGUE, season })
+      return (j.response ?? []).map(mapTeam)
+    },
+  }
+}
