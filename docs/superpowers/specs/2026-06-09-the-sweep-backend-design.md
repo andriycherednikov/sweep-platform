@@ -75,7 +75,8 @@ Five containers orchestrated by Docker Compose:
 ## 3. Data model (Postgres, via Drizzle)
 
 **Reference / sweep data** (seeded once from `data.js`, admin-editable):
-- `person` — `id`, `name`, `short`, `initials`, `av_color`
+- `person` — `id`, `name`, `short`, `initials`, `av_color`, `avatar_path?` (approved
+  profile image; null → fall back to the initials + `av_color` avatar)
 - `team` — `code` (PK), `name`, `group`, `pool`, `color`, `strength`, `flag_code`
 - `ownership` — `person_id` × `team_code` (many-to-many)
 - `scoring_config` — single row: `rule = 'top3'`, `co_owners = 'all_win'`
@@ -91,8 +92,13 @@ Five containers orchestrated by Docker Compose:
 **Social + photos** (viewer writes via light identity):
 - `watch` — (`fixture_id`, `person_id`) unique — who's watching
 - `support` — (`fixture_id`, `person_id`) → `team_code`, unique per person per fixture — who's backing
-- `photo` — `id`, `uploader_name`, `person_id?`, `team_code`, `file_path`, `thumb_path`,
-  `caption`, `status` (pending/approved/rejected/removed), `created_at`, `moderated_at`
+- `photo` — `id`, `kind` (`fan` | `profile`), `uploader_name`, `person_id?`,
+  `team_code?`, `file_path`, `thumb_path`, `caption`, `status`
+  (pending/approved/rejected/removed), `created_at`, `moderated_at`
+  - `kind='fan'` → tagged to a `team_code` (current behaviour).
+  - `kind='profile'` → the subject is `person_id` (you upload your own); `team_code` null.
+    On approval the file becomes the person's `avatar_path` and any prior approved profile
+    photo for that person is superseded (status → `removed`).
 
 **Derived at read-time (no table):**
 - Derby / double-owner flags are computed in the worker and stored on `fixture`.
@@ -169,6 +175,15 @@ appear within ~1s, no refresh. Auto-reconnect with backoff + catch-up refetch.
 - `watchersOf` / `supportOf` read from server state (seeded into Query, kept live by SSE).
 - This fixes the "biggest lie" — watching/backing become genuinely shared across all ~45 people.
 
+**Avatars & profile photos:**
+- The `Av`/`AvStack` components render the person's `avatar_path` image when present, falling
+  back to the existing initials + `av_color` chip otherwise. Single-component change,
+  reflected everywhere avatars appear (owners, watchers, backers, identity chip, people list).
+- The identity ("Who are you?") sheet and the current user's Person detail gain an **"Upload
+  profile photo"** action, reusing the existing upload sheet with `kind='profile'`. It enters
+  the admin queue; the uploader sees an "awaiting approval" state while others keep seeing the
+  initials avatar until it's approved.
+
 **Loading & error states** (new, since data is remote):
 - Shell renders instantly; cards show shimmer on first load.
 - Per-query error → inline retry; global "scores may be delayed" banner when `stale:true`.
@@ -178,19 +193,30 @@ appear within ~1s, no refresh. Auto-reconnect with backoff + catch-up refetch.
 
 ## 6. Photos & admin (write paths)
 
-**Fan photo upload** — `POST /api/photos` (multipart) `{uploaderName, personId?, teamCode, file}`:
-- Validate: type allowlist (jpg/png/webp), 8 MB cap.
+**Photo upload** — `POST /api/photos` (multipart) `{kind, uploaderName, personId?, teamCode?, file}`:
+- `kind='fan'` → tagged to `teamCode` (fan photo). `kind='profile'` → tagged to the
+  uploader's own `personId` (profile picture); `teamCode` omitted.
+- Validate: type allowlist (jpg/png/webp), 8 MB cap. Profile uploads are cropped/resized to
+  a square avatar; fan photos keep their aspect ratio.
 - Server **re-encodes, strips EXIF**, generates a thumbnail.
 - Stored to the **pending** path (not web-served), status `pending`. **Nothing is public
-  until approved** — the key safeguard, since kids may appear.
-- **One pending upload per person**, enforced server-side.
+  until approved** — the key safeguard for both kinds, since kids may appear.
+- **One pending upload per person, per kind**, enforced server-side (a pending profile photo
+  doesn't block a fan-photo upload, and vice-versa).
+- Note: under light identity, someone could upload a profile photo for a name they picked;
+  admin approval is the safeguard that catches misuse.
 
 **Admin** (server-side, cookie-gated):
 - `POST /api/admin/login {passcode}` → verify against `ADMIN_PASSCODE` (bcrypt-hashed env
   var) → set **httpOnly, signed, short-TTL cookie**. The client-side `2026` check is removed.
 - All admin routes verify the cookie; login attempts rate-limited.
-- `POST /api/admin/photos/:id {approve|reject|remove}` — **approve** moves the file to the
-  web-served path + flips status → SSE `photo-approved` → appears live on team page + home banner.
+- `POST /api/admin/photos/:id {approve|reject|remove}` — the **same queue moderates both
+  fan and profile photos** (shown tagged "Fan · {team}" or "Profile · {person}"). **Approve**
+  moves the file to the web-served path + flips status; for `kind='profile'` it also sets the
+  person's `avatar_path` (superseding any previous one). SSE `photo-approved` → fan photos
+  appear live on team page + home banner; approved profile avatars update live everywhere the
+  person's avatar renders. **Remove** on an active profile reverts that person to their
+  initials avatar.
 - Admin write access also to: fixture overrides (correct score/status), sweep data
   (ownership, people, scoring config), and `POST /api/admin/sync`.
 
@@ -239,7 +265,8 @@ docs/   this spec + plan
    static `data.js`; loading/error states.
 4. **Social layer + SSE** — watch/support endpoints, `/api/stream`, `useEventStream`,
    optimistic updates; live poller in the worker.
-5. **Photos + admin** — upload + validation + moderation queue, admin auth/cookie, approve→live.
+5. **Photos + admin** — upload + validation + moderation queue (fan **and** profile photos),
+   admin auth/cookie, approve→live; `Av` renders approved `avatar_path` with initials fallback.
 6. **Prod deploy** — Caddy container, prod Compose, TLS, env, smoke test on a real domain.
 
 Each step is independently testable and leaves the app working.
