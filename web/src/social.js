@@ -14,17 +14,14 @@ function notifySocial(){ socialListeners.forEach(fn=>fn()); }
 function loadJSON(k, fb){ try { var v = JSON.parse(localStorage.getItem(k)); return (v==null) ? fb : v; } catch(e){ return fb; } }
 function saveJSON(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
 
-/* identity — default to a named participant so the feature is visible; "none" = explicitly cleared */
+/* identity — nobody is auto-selected; "none" = explicitly cleared */
 let _meRaw = localStorage.getItem(ME_KEY);
-let meId = (_meRaw === null) ? "p4" : (_meRaw === "none" ? null : _meRaw);
+let meId = (_meRaw === null) ? null : (_meRaw === "none" ? null : _meRaw);
 export function getMe(){ return meId ? S.people.find(p=>p.id===meId) : null; }
 export function setMe(id){ meId = id; try { localStorage.setItem(ME_KEY, id || "none"); } catch(e){} notifySocial(); }
 
-/* watchers: { matchId: [personId] } — seeded so the group activity is visible */
-const seedWatchers = {};
-seedWatchers[S.nextMatch.id] = ["p4","p5","p6","p1","p2"];
-if (S.liveMatch) seedWatchers[S.liveMatch.id] = ["p0","p1","p3"];
-let watchers = loadJSON(WATCH_KEY, seedWatchers);
+/* watchers: { matchId: [personId] } — localStorage-only until Phase 4 (server-backed) */
+let watchers = loadJSON(WATCH_KEY, {});
 export function watchersOf(mid){ return (watchers[mid]||[]).map(id=>S.people.find(p=>p.id===id)).filter(Boolean); }
 export function isWatching(mid){ return !!(meId && (watchers[mid]||[]).indexOf(meId) >= 0); }
 export function toggleWatch(mid){
@@ -37,11 +34,8 @@ export function toggleWatch(mid){
 }
 export function myWatching(){ if (!meId) return []; return Object.keys(watchers).filter(mid=>watchers[mid].indexOf(meId)>=0); }
 
-/* support: { matchId: { personId: teamCode } } */
-const seedSupport = {};
-seedSupport[S.nextMatch.id] = { p4:"hr", p5:"hr", p1:"hr", p6:"gh", p2:"gh" };
-if (S.liveMatch) seedSupport[S.liveMatch.id] = { p0:"ar", p1:"ar", p3:"mx" };
-let support = loadJSON(SUP_KEY, seedSupport);
+/* support: { matchId: { personId: teamCode } } — localStorage-only until Phase 4 */
+let support = loadJSON(SUP_KEY, {});
 export function supportOf(mid){
   var m = support[mid] || {}, out = {};
   Object.keys(m).forEach(pid=>{ var p=S.people.find(x=>x.id===pid); if(p){ (out[m[pid]]=out[m[pid]]||[]).push(p); } });
