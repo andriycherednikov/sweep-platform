@@ -2,7 +2,7 @@
   "response": [
     {
       "fixture": { "id": 9002, "date": "2026-06-16T09:00:00+00:00", "status": { "short": "2H", "elapsed": 63 }, "venue": { "name": "MetLife Stadium", "city": "New York / NJ" } },
-      "league": { "id": 1, "season": 2026, "round": "Group L - 2" },
+      "league": { "id": 1, "season": 2026, "round": "Group Stage - 2" },
       "teams": { "home": { "id": 3001, "name": "Croatia" }, "away": { "id": 3003, "name": "Ghana" } },
       "goals": { "home": 1, "away": 0 }
     }

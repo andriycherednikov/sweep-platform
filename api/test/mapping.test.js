@@ -13,16 +13,17 @@ test('mapStatus maps API short codes to our status', () => {
   expect(mapStatus('PST')).toBe('upcoming')
 })
 
-test('parseRound extracts group letter, matchday, and stage', () => {
+test('parseRound: real "Group Stage - N" (no letter), embedded form, and knockout', () => {
+  expect(parseRound('Group Stage - 1')).toEqual({ group: '', matchday: 1, stage: 'group' })
+  expect(parseRound('Group Stage - 3')).toEqual({ group: '', matchday: 3, stage: 'group' })
   expect(parseRound('Group L - 1')).toEqual({ group: 'L', matchday: 1, stage: 'group' })
-  expect(parseRound('Group A - 3')).toEqual({ group: 'A', matchday: 3, stage: 'group' })
   expect(parseRound('Round of 16')).toEqual({ group: '', matchday: 0, stage: 'knockout' })
 })
 
-test('mapFixture turns a raw fixture into a DomainFixture', () => {
+test('mapFixture turns a raw fixture into a DomainFixture (group resolved later from standings)', () => {
   const [fin, ups] = load('fixtures').response.map(mapFixture)
   expect(fin).toMatchObject({
-    id: '9001', group: 'L', matchday: 1, stage: 'group',
+    id: '9001', group: '', matchday: 1, stage: 'group',
     homeProviderId: 3001, awayProviderId: 3002, status: 'final',
     score1: 2, score2: 1, venue: 'Estadio Akron', city: 'Guadalajara',
   })
@@ -30,9 +31,11 @@ test('mapFixture turns a raw fixture into a DomainFixture', () => {
   expect(ups).toMatchObject({ id: '9002', status: 'upcoming', score1: null, score2: null, minute: null })
 })
 
-test('mapStanding maps a raw row (lose→loss, goals.for/against→gf/ga)', () => {
+test('mapStanding maps a raw row (group label, lose→loss, goals.for/against→gf/ga)', () => {
   const rows = load('standings').response[0].league.standings.flat().map(mapStanding)
-  expect(rows[0]).toEqual({ providerTeamId: 3001, played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 1, pts: 3 })
+  expect(rows[0]).toEqual({ providerTeamId: 3001, group: 'L', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 1, pts: 3 })
+  // the "Ranking of third-placed teams" pseudo-group has no group letter
+  expect(rows.at(-1).group).toBeNull()
 })
 
 test('mapPrediction turns percent strings into integers, or null', () => {

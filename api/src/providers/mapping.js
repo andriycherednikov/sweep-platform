@@ -8,11 +8,25 @@ export function mapStatus(short) {
   return 'upcoming'
 }
 
-/** "Group L - 1" → {group:'L', matchday:1, stage:'group'}; non-group → {group:'',matchday:0,stage:'knockout'}. */
+/**
+ * Parse a fixture's `league.round` into matchday + stage.
+ * The real WC group stage reads "Group Stage - N" — the GROUP LETTER is NOT here
+ * (it lives on the /standings rows), so group is '' and resolved later from standings.
+ * Also tolerates the embedded form "Group A - 1". Non-group rounds → knockout.
+ */
 export function parseRound(round) {
-  const m = /Group\s+([A-L])\s*-\s*(\d+)/i.exec(round ?? '')
+  const s = round ?? ''
+  let m = /Group\s+Stage\s*-\s*(\d+)/i.exec(s)
+  if (m) return { group: '', matchday: Number(m[1]), stage: 'group' }
+  m = /Group\s+([A-L])\s*-\s*(\d+)/i.exec(s)
   if (m) return { group: m[1].toUpperCase(), matchday: Number(m[2]), stage: 'group' }
   return { group: '', matchday: 0, stage: 'knockout' }
+}
+
+/** "Group A" → "A". The "Ranking of third-placed teams" pseudo-group → null. */
+export function parseGroupLabel(label) {
+  const m = /Group\s+([A-L])/i.exec(label ?? '')
+  return m ? m[1].toUpperCase() : null
 }
 
 export function mapFixture(raw) {
@@ -33,9 +47,11 @@ export function mapFixture(raw) {
   }
 }
 
+/** A standings row → domain. `group` is the letter (A–L) or null for the third-placed ranking. */
 export function mapStanding(raw) {
   return {
     providerTeamId: raw.team.id,
+    group: parseGroupLabel(raw.group),
     played: raw.all.played, win: raw.all.win, draw: raw.all.draw, loss: raw.all.lose,
     gf: raw.all.goals.for, ga: raw.all.goals.against, pts: raw.points,
   }

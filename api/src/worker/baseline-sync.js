@@ -17,13 +17,20 @@ export async function syncBaseline(db, provider, { season }) {
       db.select().from(ownership),
     ])
 
+    // Group letters live on the standings rows ("Group A"); the third-placed ranking has none.
+    const realStandings = standings.filter((s) => s.group)
+    const groupByProvider = new Map(realStandings.map((s) => [s.providerTeamId, s.group]))
+
     const neededIds = rawFixtures.flatMap((f) => [f.homeProviderId, f.awayProviderId])
-      .concat(standings.map((s) => s.providerTeamId))
+      .concat(realStandings.map((s) => s.providerTeamId))
     assertResolved(crosswalk, neededIds)
 
-    // resolve provider ids → our codes
+    // resolve provider ids → our codes; resolve the group from /standings, not the round string
     const fixtures = rawFixtures.map((f) => ({
-      ...f, t1Code: crosswalk.get(f.homeProviderId), t2Code: crosswalk.get(f.awayProviderId),
+      ...f,
+      t1Code: crosswalk.get(f.homeProviderId),
+      t2Code: crosswalk.get(f.awayProviderId),
+      group: groupByProvider.get(f.homeProviderId) ?? groupByProvider.get(f.awayProviderId) ?? f.group ?? '',
     }))
     const flags = computeFlags(fixtures, ownershipRows)
 
@@ -60,7 +67,7 @@ export async function syncBaseline(db, provider, { season }) {
     const keep = fixtures.map((f) => f.id)
     if (keep.length) await db.delete(fixture).where(notInArray(fixture.id, keep))
 
-    for (const s of standings) {
+    for (const s of realStandings) {
       const teamCode = crosswalk.get(s.providerTeamId)
       await db.insert(standing).values({
         teamCode, played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga, pts: s.pts, updatedAt: new Date(),
@@ -72,9 +79,9 @@ export async function syncBaseline(db, provider, { season }) {
 
     await db.insert(syncLog).values({
       source: 'api-football', kind: 'baseline', status: 'ok',
-      counts: { fixtures: fixtures.length, standings: standings.length, predictions: probById.size },
+      counts: { fixtures: fixtures.length, standings: realStandings.length, predictions: probById.size },
     })
-    return { fixtures: fixtures.length, standings: standings.length }
+    return { fixtures: fixtures.length, standings: realStandings.length }
   } catch (err) {
     await db.insert(syncLog).values({ source: 'api-football', kind: 'baseline', status: 'error', error: String(err?.message ?? err) })
     throw err

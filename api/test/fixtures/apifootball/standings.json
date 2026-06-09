@@ -4,8 +4,11 @@
       "league": {
         "standings": [
           [
-            { "team": { "id": 3001, "name": "Croatia" }, "all": { "played": 1, "win": 1, "draw": 0, "lose": 0, "goals": { "for": 2, "against": 1 } }, "points": 3 },
-            { "team": { "id": 3002, "name": "Belgium" }, "all": { "played": 1, "win": 0, "draw": 0, "lose": 1, "goals": { "for": 1, "against": 2 } }, "points": 0 }
+            { "team": { "id": 3001, "name": "Croatia" }, "group": "Group L", "all": { "played": 1, "win": 1, "draw": 0, "lose": 0, "goals": { "for": 2, "against": 1 } }, "points": 3 },
+            { "team": { "id": 3002, "name": "Belgium" }, "group": "Group L", "all": { "played": 1, "win": 0, "draw": 0, "lose": 1, "goals": { "for": 1, "against": 2 } }, "points": 0 }
+          ],
+          [
+            { "team": { "id": 3001, "name": "Croatia" }, "group": "Ranking of third-placed teams", "all": { "played": 1, "win": 1, "draw": 0, "lose": 0, "goals": { "for": 2, "against": 1 } }, "points": 3 }
           ]
         ]
       }
