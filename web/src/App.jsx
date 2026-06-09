@@ -29,6 +29,7 @@ export default function App() {
   const openTeam   = (c) => setOverlay({ type:"team", code:c });
   const openMatch  = (f) => setModal({ type:"match", f });
   const openUpload = (c) => setModal({ type:"upload", team:c||null });
+  const openProfileUpload = () => setModal({ type:"upload", kind:"profile" });
   const openAdmin  = () => setOverlay({ type:"admin" });
   const openKnock  = () => setOverlay({ type:"knockouts" });
   const back = () => setOverlay(null);
@@ -42,7 +43,7 @@ export default function App() {
 
   let ov = null, ovZ = 25;
   if (overlay) {
-    if (overlay.type==="person")    ov = <PersonDetail person={overlay.person} onBack={back} openMatch={openMatch} openTeam={openTeam}/>;
+    if (overlay.type==="person")    ov = <PersonDetail person={overlay.person} onBack={back} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
     if (overlay.type==="team")      ov = <TeamDetail code={overlay.code} onBack={back} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
     if (overlay.type==="knockouts") ov = <KnockoutsScreen onBack={back}/>;
     if (overlay.type==="admin")   { ov = <AdminScreen onBack={back} onToast={showToast}/>; ovZ = 60; }
@@ -53,7 +54,7 @@ export default function App() {
   const modals = (
     <>
       {modal && modal.type==="match" && <MatchSheet f={modal.f} onClose={()=>setModal(null)} onToast={showToast} openTeam={openTeam} openPerson={openPerson}/>}
-      {modal && modal.type==="upload" && <UploadSheet presetTeam={modal.team} onClose={()=>setModal(null)} onToast={showToast}/>}
+      {modal && modal.type==="upload" && <UploadSheet presetTeam={modal.team} kind={modal.kind||"fan"} onClose={()=>setModal(null)} onToast={showToast}/>}
       {identity && <IdentitySheet onClose={()=>setIdentity(false)}/>}
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>

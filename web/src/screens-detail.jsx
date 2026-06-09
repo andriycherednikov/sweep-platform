@@ -1,7 +1,7 @@
 /* ============================================================
    THE SWEEP — detail screens + flows
    ============================================================ */
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, AvStack, MatchCard, PageHeader, resultFor, useCountdown,
@@ -10,6 +10,7 @@ import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf,
 } from "./social.js";
+import { uploadPhoto } from "./api/client.js";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
@@ -44,7 +45,8 @@ export function PeopleScreen({ openPerson }) {
 }
 
 /* ---------------- PERSON DETAIL ---------------- */
-export function PersonDetail({ person, onBack, openMatch, openTeam }) {
+export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
+  const isMe = getMe()?.id === person.id;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
   const cd = next ? useCountdown(Math.max(60, Math.floor((next.ko - new Date("2026-06-13T08:00:00Z"))/1000) + 3*3600)) : null;
@@ -66,6 +68,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam }) {
             <div style={{minWidth:0}}>
               <h2>{person.name}</h2>
               <div className="meta">In the money: <b style={{color:"#fff"}}>#{money.rank}</b> · {money.tag}</div>
+              {isMe && <button className="idchip dark" style={{marginTop:10}} onClick={()=>openProfileUpload && openProfileUpload()}><Icon.camera/> Upload profile photo</button>}
             </div>
           </div>
           <div className="dh-stats">
@@ -285,14 +288,34 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
 }
 
 /* ---------------- UPLOAD FLOW ---------------- */
-export function UploadSheet({ presetTeam, onClose, onToast }) {
-  const [name, setName] = useState(()=>{ const me = getMe(); return me ? me.name : ""; });
+export function UploadSheet({ presetTeam, kind = "fan", onClose, onToast }) {
+  const me = getMe();
+  const [name, setName] = useState(()=> me ? me.name : "");
   const [team, setTeam] = useState(presetTeam || null);
-  const [hasFile, setHasFile] = useState(false);
+  const [file, setFile] = useState(null);
+  const [caption, setCaption] = useState("");
+  const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  const ok = name.trim() && team && hasFile;
+  const inputRef = useRef(null);
+  const isProfile = kind === "profile";
+  const ok = name.trim() && file && (isProfile ? !!me : !!team) && !busy;
 
-  function submit(){ setDone(true); }
+  async function submit(){
+    if (!ok) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("kind", kind);
+      fd.append("uploaderName", name.trim());
+      if (isProfile) fd.append("personId", me.id); else fd.append("teamCode", team);
+      if (caption.trim()) fd.append("caption", caption.trim());
+      fd.append("file", file);
+      await uploadPhoto(fd);
+      setDone(true);
+    } catch (e) {
+      onToast(/pending_exists|409/.test(String(e.message)) ? "You already have a photo awaiting approval" : "Upload failed — try again");
+    } finally { setBusy(false); }
+  }
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -300,12 +323,13 @@ export function UploadSheet({ presetTeam, onClose, onToast }) {
         <div className="grab"></div>
         {!done ? (
           <>
-            <div className="sheet-head"><h3>Add a fan photo</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
+            <div className="sheet-head"><h3>{isProfile ? "Upload profile photo" : "Add a fan photo"}</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
             <div className="sheet-body">
-              <div className="dropzone" onClick={()=>setHasFile(true)} style={{cursor:"pointer",borderColor:hasFile?"var(--live)":"var(--line)",background:hasFile?"#f1faf4":"var(--card)"}}>
-                <div className="ic" style={{background:hasFile?"#e7f6ee":"#eef1f5"}}>{hasFile?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
-                <b>{hasFile?"photo-sweep.jpg":"Tap to add a photo"}</b>
-                <small>{hasFile?"Looks good — ready to send":"JPG or PNG · up to 8 MB"}</small>
+              <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>setFile(e.target.files?.[0]||null)} />
+              <div className="dropzone" onClick={()=>inputRef.current&&inputRef.current.click()} style={{cursor:"pointer",borderColor:file?"var(--live)":"var(--line)",background:file?"#f1faf4":"var(--card)"}}>
+                <div className="ic" style={{background:file?"#e7f6ee":"#eef1f5"}}>{file?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
+                <b>{file?file.name:"Tap to add a photo"}</b>
+                <small>{file?"Looks good — ready to send":"JPG, PNG or WebP · up to 8 MB"}</small>
               </div>
 
               <div className="field" style={{marginTop:16}}>
@@ -313,21 +337,23 @@ export function UploadSheet({ presetTeam, onClose, onToast }) {
                 <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Priya" />
               </div>
 
-              <div className="field">
-                <label>Tag a team</label>
-                <div className="teampick">
-                  {S.teamList.filter(t=>t.owners.length>0).slice(0,18).map(t=>(
-                    <button key={t.code} className={"tpk"+(team===t.code?" on":"")} onClick={()=>setTeam(t.code)}>
-                      <img src={S.flag(t.code,80)} alt=""/><span>{t.name.length>9?t.name.slice(0,8)+"…":t.name}</span>
-                    </button>
-                  ))}
+              {!isProfile && (
+                <div className="field">
+                  <label>Tag a team</label>
+                  <div className="teampick">
+                    {S.teamList.filter(t=>t.owners.length>0).slice(0,18).map(t=>(
+                      <button key={t.code} className={"tpk"+(team===t.code?" on":"")} onClick={()=>setTeam(t.code)}>
+                        <img src={S.flag(t.code,80)} alt=""/><span>{t.name.length>9?t.name.slice(0,8)+"…":t.name}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="note-line"><Icon.shield style={{stroke:"var(--live)"}}/><span>Every upload is checked by the admin before it appears anywhere. One pending photo per person at a time.</span></div>
 
-              <button className={"cta"} onClick={ok?submit:undefined} style={{marginTop:18,opacity:ok?1:.5}}>
-                <Icon.camera/> Send for approval
+              <button className={"cta"} onClick={submit} style={{marginTop:18,opacity:ok?1:.5}}>
+                <Icon.camera/> {busy ? "Sending…" : "Send for approval"}
               </button>
             </div>
           </>
@@ -335,7 +361,7 @@ export function UploadSheet({ presetTeam, onClose, onToast }) {
           <div className="success">
             <div className="ring"><Icon.check/></div>
             <h3>Sent for approval</h3>
-            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {team?S.team(team).name:""} photo is in the queue. The admin will approve it before it shows on the team page and home banner.</p>
+            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (team?S.team(team).name:"")+" photo"} is in the queue. The admin will approve it before it shows{isProfile ? " as your avatar." : " on the team page and home banner."}</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}
