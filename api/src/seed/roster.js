@@ -15,7 +15,7 @@ export const roster = [
   { name: 'Sarah Holland', teams: ['gb-eng', 'ec'] },   // England / Ecuador
   { name: 'Skye Holland', teams: ['ir', 'eg'] },        // Iran / Egypt
   { name: 'Jake Holland', teams: ['ch', 'sa'] },        // Switzerland / Saudi Arabia
-  { name: 'Darius Afshar', teams: ['se', 'tn'] },       // Sweden / Tunisia
+  { name: 'Darius Baker', teams: ['se', 'tn'] },        // Sweden / Tunisia
   { name: 'Sarah Afshar', teams: ['sn', 'qa'] },        // Senegal / Qatar
   { name: 'Eva Afshar', teams: ['be', 'cur'] },         // Belgium / Curaçao
   { name: 'Mia Afshar', teams: ['us', 'cur'] },         // USA / Curaçao
@@ -50,7 +50,7 @@ export const roster = [
   { name: 'Nick Heath', teams: ['pt', 'eg'] },          // Portugal / Egypt
   { name: 'Jude Heath', teams: ['tr', 'dz'] },          // Türkiye / Algeria
   { name: 'Andriy Cherednikov', teams: ['hr', 'bih'] }, // Croatia / Bosnia & Herzegovina
-  { name: 'Leonard Cherednikov', teams: ['de', 'gh'] }, // Germany / Ghana
+  { name: 'Maryna Cherednikova', teams: ['de', 'gh'] }, // Germany / Ghana
   { name: 'Chris Pullin-Lopez', teams: ['ir', 'irq'] }, // Iran / Iraq
   { name: 'Carolina Pullin-Lopez', teams: ['fr', 'za'] }, // France / South Africa
 ]
