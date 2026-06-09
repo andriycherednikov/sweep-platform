@@ -5,6 +5,7 @@ import { standingsRoutes } from './routes/standings.js'
 import { peopleRoutes } from './routes/people.js'
 import { teamRoutes } from './routes/teams.js'
 import { photoRoutes } from './routes/photos.js'
+import { syncStatusRoutes } from './routes/sync-status.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -16,5 +17,6 @@ export function buildApp(db, opts = {}) {
   app.register(peopleRoutes)
   app.register(teamRoutes)
   app.register(photoRoutes)
+  app.register(syncStatusRoutes)
   return app
 }
