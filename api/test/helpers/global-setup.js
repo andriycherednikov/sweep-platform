@@ -10,6 +10,8 @@ export async function setup() {
   const { runMigrations } = await import('../../src/db/migrate.js')
   const pool = createPool(process.env.DATABASE_URL)
   await runMigrations(createDb(pool))
+  const { seed } = await import('../../src/seed/seed.js')
+  await seed(createDb(pool))
   await pool.end()
 }
 
