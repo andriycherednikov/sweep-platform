@@ -9,12 +9,28 @@ import { syncStatusRoutes } from './routes/sync-status.js'
 import { streamRoutes } from './routes/stream.js'
 import { socialRoutes } from './routes/social.js'
 import { createBus } from './events/bus.js'
+import multipart from '@fastify/multipart'
+import fstatic from '@fastify/static'
+import { resolve } from 'node:path'
+import { createStorageSync } from './photos/storage.js'
+import { MAX_BYTES } from './photos/process.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
   app.decorate('db', db)
   app.decorate('bus', opts.bus ?? createBus())
   app.decorate('publish', opts.publish ?? ((event) => app.bus.publish(event)))
+
+  const photosDir = resolve(opts.photosDir ?? process.env.PHOTOS_DIR ?? './photos-data')
+  const store = createStorageSync(photosDir)
+  app.decorate('photos', store)
+  app.register(multipart, { limits: { fileSize: MAX_BYTES, files: 1 } })
+  // serve approved/ at /photos (in prod Caddy does this; harmless to also expose here)
+  app.register(fstatic, { root: store.approvedDir, prefix: '/photos/', decorateReply: false })
+
+  app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
+  app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
+
   app.get('/api/health', async () => ({ ok: true }))
   app.register(bootstrapRoutes)
   app.register(fixtureRoutes)
