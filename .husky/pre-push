@@ -1,0 +1,2 @@
+echo "[pre-push] full validation: web tests + api tests (Docker) + build…"
+npm run test -w web && npm run test -w api && npm run build

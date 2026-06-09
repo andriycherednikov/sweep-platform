@@ -1,0 +1,2 @@
+echo "[pre-commit] validating web: unit tests + build…"
+npm run test -w web && npm run build
