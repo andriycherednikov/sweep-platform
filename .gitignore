@@ -6,3 +6,5 @@ dist
 design_unpack
 .env
 .claude/settings.local.json
+photos-data/
+api/photos-data/
