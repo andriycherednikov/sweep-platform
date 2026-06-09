@@ -45,6 +45,11 @@ npm run db:generate -w api  # drizzle-kit: generate migration SQL from schema
 npm run db:migrate -w api   # apply migrations
 npm run db:seed -w api      # seed Postgres from the ported generator
 
+# football worker (Phase 2 — requires API_FOOTBALL_KEY in .env)
+npm run crosswalk:sync -w api  # fill team_crosswalk provider ids from API-Football /teams
+npm run sync -w api            # one-shot baseline pull (fixtures/standings/predictions)
+npm run worker -w api          # long-running worker: baseline schedule + windowed live poller
+
 # dev stack (postgres + api)
 cp .env.example .env
 docker compose -f infra/docker-compose.dev.yml --env-file .env up --build
