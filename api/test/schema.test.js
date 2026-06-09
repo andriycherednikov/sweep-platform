@@ -11,4 +11,7 @@ test('reference tables exist', async () => {
   for (const t of ['person', 'team', 'ownership', 'scoring_config', 'team_crosswalk']) {
     expect(names).toContain(t)
   }
+  for (const t of ['fixture', 'standing', 'sync_log', 'watch', 'support', 'photo']) {
+    expect(names).toContain(t)
+  }
 })
