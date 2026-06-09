@@ -12,7 +12,8 @@
     "db:seed": "node --env-file=../.env src/seed/seed.js",
     "worker": "node --env-file=../.env src/worker.js",
     "sync": "node --env-file=../.env src/worker/run-baseline.js",
-    "crosswalk:sync": "node --env-file=../.env src/worker/crosswalk-sync.js"
+    "crosswalk:sync": "node --env-file=../.env src/worker/crosswalk-sync.js",
+    "cutover": "node --env-file=../.env src/worker/cutover.js"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
