@@ -15,7 +15,7 @@ export const roster = [
   { name: 'Sarah Holland', teams: ['gb-eng', 'ec'] },   // England / Ecuador
   { name: 'Skye Holland', teams: ['ir', 'eg'] },        // Iran / Egypt
   { name: 'Jake Holland', teams: ['ch', 'sa'] },        // Switzerland / Saudi Arabia
-  { name: 'Darius Baker', teams: ['se', 'tn'] },        // Sweden / Tunisia
+  { name: 'Baker', teams: ['se', 'tn'] },               // Sweden / Tunisia
   { name: 'Sarah Afshar', teams: ['sn', 'qa'] },        // Senegal / Qatar
   { name: 'Eva Afshar', teams: ['be', 'cur'] },         // Belgium / Curaçao
   { name: 'Mia Afshar', teams: ['us', 'cur'] },         // USA / Curaçao
