@@ -62,3 +62,26 @@ test('POST /api/watch 400s on unknown fixture or person', async () => {
 test('POST /api/watch 400s on a malformed body (schema)', async () => {
   expect((await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: 'x' } })).statusCode).toBe(400)
 })
+
+test('POST /api/support sets, switches, and toggles-off backing; publishes each time', async () => {
+  const f = await aFixture()
+  const [p1] = await twoPeople()
+
+  const set = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.t1Code } })
+  expect(set.json()).toMatchObject({ fixtureId: f.id, personId: p1.id, supporting: f.t1Code })
+
+  const switched = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.t2Code } })
+  expect(switched.json().supporting).toBe(f.t2Code)
+
+  const off = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.t2Code } })
+  expect(off.json().supporting).toBe(null)
+
+  expect(published.filter((e) => e.type === 'support')).toHaveLength(3)
+})
+
+test('POST /api/support 400s when teamCode is not one of the fixture teams', async () => {
+  const f = await aFixture()
+  const [p1] = await twoPeople()
+  const bad = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'zz' } })
+  expect(bad.statusCode).toBe(400)
+})

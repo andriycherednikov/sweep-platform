@@ -40,5 +40,26 @@ export async function socialRoutes(app) {
     return { fixtureId, personId, watching }
   })
 
-  // POST /api/support is added in Task 6 (same file).
+  app.post('/api/support', { schema: { body: supportBody } }, async (req, reply) => {
+    const { fixtureId, personId, teamCode } = req.body
+    const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
+    if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
+    const [p] = await app.db.select().from(person).where(eq(person.id, personId))
+    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    if (teamCode !== f.t1Code && teamCode !== f.t2Code) return reply.code(400).send({ error: 'invalid_team' })
+
+    const where = and(eq(support.fixtureId, fixtureId), eq(support.personId, personId))
+    const [existing] = await app.db.select().from(support).where(where)
+    let supporting
+    if (existing && existing.teamCode === teamCode) {
+      await app.db.delete(support).where(where); supporting = null
+    } else if (existing) {
+      await app.db.update(support).set({ teamCode }).where(where); supporting = teamCode
+    } else {
+      await app.db.insert(support).values({ fixtureId, personId, teamCode }); supporting = teamCode
+    }
+
+    await app.publish({ type: 'support', fixtureId })
+    return { fixtureId, personId, supporting }
+  })
 }
