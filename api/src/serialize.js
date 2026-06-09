@@ -4,3 +4,12 @@ export function serializeTeam(t) {
 export function serializePerson(p) {
   return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath }
 }
+export function serializeFixture(f) {
+  return {
+    id: f.id, group: f.group, matchday: f.matchday, t1: f.t1Code, t2: f.t2Code,
+    ko: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
+    score: f.score1 == null ? null : [f.score1, f.score2], minute: f.minute,
+    prob: { a: f.probA, d: f.probD, b: f.probB },
+    stage: f.stage, derby: f.derby, doubleOwner: f.doubleOwner,
+  }
+}
