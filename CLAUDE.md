@@ -52,27 +52,26 @@ docker compose -f infra/docker-compose.dev.yml --env-file .env up --build
 
 ## Local database (dev)
 
-A dedicated Postgres 16 container for day-to-day dev (this machine already runs another
-project's Postgres on 5432, so ours uses **5433**):
+Dev uses the **existing shared Postgres** already running on this machine (port **5432**),
+in a dedicated `sweep` database. Do NOT stop/drop that instance — other projects share it.
 
-- Container `sweep-postgres` · `postgres:16-alpine` · host port **5433** · volume `sweep_pgdata`
-- Host connection (running the api outside compose):
-  `DATABASE_URL=postgres://sweep:sweep@localhost:5433/sweep`
+- Host: `localhost:5432` · database `sweep` · user `localuser` (superuser) · Postgres 12.4
+- Connection string lives in the git-ignored root `.env` as `DATABASE_URL`
+  (`postgres://localuser:<password>@localhost:5432/sweep`). Never commit the password.
+- From inside a container (compose), reach it via `host.docker.internal:5432`.
 
 ```bash
-docker start sweep-postgres     # start (data persists)
-docker stop sweep-postgres      # stop
-PGPASSWORD=sweep psql -h localhost -p 5433 -U sweep -d sweep   # connect
-# wipe & recreate from scratch:
-docker rm -f sweep-postgres && docker volume rm sweep_pgdata && \
-docker run -d --name sweep-postgres -e POSTGRES_USER=sweep -e POSTGRES_PASSWORD=sweep \
-  -e POSTGRES_DB=sweep -p 5433:5432 -v sweep_pgdata:/var/lib/postgresql/data postgres:16-alpine
+# open a SQL shell (password is in .env):
+PGPASSWORD=<password> psql -h localhost -p 5432 -U localuser -d sweep
+# reset the schema for a clean reseed (drops only our tables, not the database):
+PGPASSWORD=<password> psql -h localhost -p 5432 -U localuser -d sweep \
+  -c "drop schema public cascade; create schema public;"
 ```
 
-- **Tests** use Testcontainers (ephemeral Postgres) — they only need Docker running, not this
-  container.
-- The Phase 1 dev compose brings its own Postgres on the **same 5433 host port** — `docker stop
-  sweep-postgres` before `docker compose -f infra/docker-compose.dev.yml up`, or they'll clash.
+- **Tests** use Testcontainers (ephemeral Postgres 16) — they only need Docker running and
+  never touch the shared `sweep` database, so dev data stays intact.
+- Note the dev DB is Postgres 12.4 while tests/prod target 16; our schema (text, integer,
+  timestamptz, jsonb, serial, boolean) is compatible with both.
 
 ## Build order (one plan per phase — see spec §8)
 

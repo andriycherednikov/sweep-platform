@@ -67,8 +67,9 @@ Five containers orchestrated by Docker Compose:
   `/api/*`. Pending photos live in a path the api can read but Caddy will not serve, so
   nothing unapproved is ever publicly reachable.
 - **worker** shares the api image (same adapter/db code), different entrypoint.
-- **Dev mode**: `docker-compose.dev.yml` runs Postgres + api; Vite runs locally with HMR,
-  proxying `/api` to the api container.
+- **Dev mode**: the api + worker run on the host against the **existing local Postgres** (a
+  dedicated `sweep` database on the shared 5432 instance); Vite runs locally with HMR, proxying
+  `/api`. The bundled-Postgres container is a **prod** concern (the prod `docker-compose.yml`).
 
 ---
 
@@ -235,7 +236,8 @@ docs/   this spec + plan
 **Deploy:**
 - `docker-compose.yml` (prod): caddy + api + worker + postgres + one-shot `migrate`.
   Caddy auto-TLS from the domain.
-- `docker-compose.dev.yml`: postgres + api; Vite local with HMR proxying `/api`.
+- Dev: api/worker on the host against the existing local Postgres (`sweep` db); Vite local with
+  HMR proxying `/api`. (No dev compose — the bundled-Postgres container is prod-only.)
 - Config via `.env`: DB creds, `API_FOOTBALL_KEY`, `ADMIN_PASSCODE`, `SESSION_SECRET`,
   `PHOTOS_DIR`, `SITE_ORIGIN`.
 

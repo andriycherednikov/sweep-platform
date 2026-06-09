@@ -38,9 +38,11 @@ api/
     helpers/global-setup.js       starts PG container, migrates, seeds
     helpers/db.js                 test db handle
     *.test.js
-infra/
-  docker-compose.dev.yml          postgres + api (dev)
+.env.example                      dev config template (real .env is git-ignored)
 ```
+
+> Dev targets the existing host Postgres (port 5432, `sweep` db). No container infra in
+> Phase 1 — the prod Dockerfile + Caddy + bundled Postgres come in Phase 6.
 
 ---
 
@@ -125,12 +127,12 @@ git commit -m "chore: convert to npm workspaces, move app into web/"
   "type": "module",
   "version": "1.0.0",
   "scripts": {
-    "dev": "node --watch src/server.js",
+    "dev": "node --env-file=../.env --watch src/server.js",
     "start": "node src/server.js",
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "node src/db/migrate.js",
-    "db:seed": "node src/seed/seed.js"
+    "db:migrate": "node --env-file=../.env src/db/migrate.js",
+    "db:seed": "node --env-file=../.env src/seed/seed.js"
   },
   "dependencies": {
     "drizzle-orm": "^0.36.4",
@@ -1073,104 +1075,63 @@ git commit -m "feat(api): GET /api/people, /api/teams/:code, /api/photos"
 
 ---
 
-## Task 10: Dev Docker Compose + manual smoke
+## Task 10: Wire dev env + smoke test against the existing Postgres
+
+Dev runs against the **existing shared Postgres** on the host (port 5432, `sweep` database,
+user `localuser`). The `sweep` database already exists and the root `.env` already holds the
+real `DATABASE_URL` (created during setup — git-ignored). The api's `db:migrate`/`db:seed`/`dev`
+scripts load it via `--env-file=../.env`.
+
+> The production Dockerfile + Caddy + a bundled Postgres container are built in **Phase 6
+> (deploy)** — Phase 1 deliberately targets the existing host DB and needs no container infra.
 
 **Files:**
-- Create: `infra/docker-compose.dev.yml`, `api/Dockerfile`, `api/.dockerignore`, `.env.example`
+- Create: `.env.example` (committed template — no real password)
 
 - [ ] **Step 1: Create `.env.example`**
 
 ```
-POSTGRES_USER=sweep
-POSTGRES_PASSWORD=sweep
-POSTGRES_DB=sweep
-# Inside compose the api reaches the `postgres` service on the internal network:
-DATABASE_URL=postgres://sweep:sweep@postgres:5432/sweep
-# Running the api on the host instead (npm run dev:api) use the published port 5433:
-#   DATABASE_URL=postgres://sweep:sweep@localhost:5433/sweep
+# Local dev uses the existing host Postgres (port 5432), dedicated `sweep` database.
+# Copy to .env and set the real password (never commit it).
+DATABASE_URL=postgres://localuser:YOUR_PASSWORD@localhost:5432/sweep
+# If the api runs inside a container instead, reach the host DB via host.docker.internal:
+#   DATABASE_URL=postgres://localuser:YOUR_PASSWORD@host.docker.internal:5432/sweep
 PORT=3000
 ```
 
-> This machine already runs another project's Postgres on host port 5432, so the dev compose
-> publishes **5433**. Stop the standalone `sweep-postgres` container before `docker compose up`
-> (both want 5433). See `CLAUDE.md` → "Local database (dev)".
+- [ ] **Step 2: Confirm the DB is reachable and empty**
 
-- [ ] **Step 2: Create `api/Dockerfile`**
+Run: `PGPASSWORD=<password> psql -h localhost -p 5432 -U localuser -d sweep -tAc "select 1"`
+Expected: `1`. (Docker is running and the shared Postgres container is up.)
 
-```dockerfile
-FROM node:22-alpine
-WORKDIR /app
-COPY package.json package-lock.json ./
-COPY api/package.json ./api/package.json
-COPY web/package.json ./web/package.json
-RUN npm install --omit=dev --workspace @sweep/api
-COPY api ./api
-WORKDIR /app/api
-EXPOSE 3000
-CMD ["node", "src/server.js"]
-```
+- [ ] **Step 3: Apply migrations to the existing Postgres**
 
-- [ ] **Step 3: Create `api/.dockerignore`**
+Run: `npm run db:migrate -w api`
+Expected: `migrations applied`; the 11 tables now exist in the `sweep` database.
 
-```
-node_modules
-test
-```
+- [ ] **Step 4: Seed it**
 
-- [ ] **Step 4: Create `infra/docker-compose.dev.yml`**
+Run: `npm run db:seed -w api`
+Expected: `seed complete` (idempotent — safe to re-run).
 
-```yaml
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports: ["5433:5432"]
-    volumes: ["pgdata:/var/lib/postgresql/data"]
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
-      interval: 3s
-      timeout: 3s
-      retries: 10
-  api:
-    build:
-      context: ..
-      dockerfile: api/Dockerfile
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-      PORT: 3000
-    depends_on:
-      postgres: { condition: service_healthy }
-    command: sh -c "node src/db/migrate.js && node src/seed/seed.js && node src/server.js"
-    ports: ["3000:3000"]
-volumes:
-  pgdata:
-```
+- [ ] **Step 5: Start the server and smoke-test the endpoints**
 
-- [ ] **Step 5: Smoke test the stack**
-
-Run:
+Run (in one shell, then curl in another — or background the server):
 ```bash
-cp .env.example .env
-docker compose -f infra/docker-compose.dev.yml --env-file .env up --build -d
-sleep 8
+npm run dev:api &
+sleep 2
 curl -s localhost:3000/api/health
 curl -s localhost:3000/api/standings | head -c 200
 curl -s "localhost:3000/api/fixtures?team=hr" | head -c 200
+kill %1
 ```
 Expected: `{"ok":true}`; standings JSON with groups A–L; Croatia fixtures.
 
-- [ ] **Step 6: Tear down**
-
-Run: `docker compose -f infra/docker-compose.dev.yml down`
-
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add -A
-git commit -m "chore(infra): dev docker-compose with postgres + api (migrate+seed+serve)"
+git commit -m "chore: .env.example for local dev against existing Postgres"
 ```
 
 ---
@@ -1178,6 +1139,7 @@ git commit -m "chore(infra): dev docker-compose with postgres + api (migrate+see
 ## Done criteria for Phase 1
 
 - `npm run test -w api` is fully green (health, schema, seed, bootstrap, fixtures, standings, detail).
-- `docker compose -f infra/docker-compose.dev.yml up` serves all read endpoints from a seeded Postgres.
+- `npm run db:migrate -w api && npm run db:seed -w api` populates the existing `sweep` Postgres,
+  and `npm run dev:api` serves all read endpoints from it.
 - The web app still builds; with `npm run dev -w web` + the api running, `/api/*` proxies through.
 - **Next phase:** the football worker (provider adapter, baseline sync + live poller) replaces seeded fixture/standing data with API-Football data.
