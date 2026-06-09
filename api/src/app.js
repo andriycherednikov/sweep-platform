@@ -11,9 +11,12 @@ import { socialRoutes } from './routes/social.js'
 import { createBus } from './events/bus.js'
 import multipart from '@fastify/multipart'
 import fstatic from '@fastify/static'
+import cookie from '@fastify/cookie'
+import rateLimit from '@fastify/rate-limit'
 import { resolve } from 'node:path'
 import { createStorageSync } from './photos/storage.js'
 import { MAX_BYTES } from './photos/process.js'
+import { adminRoutes } from './routes/admin.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -30,6 +33,8 @@ export function buildApp(db, opts = {}) {
 
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
+  app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
+  app.register(rateLimit, { global: false })
 
   app.get('/api/health', async () => ({ ok: true }))
   app.register(bootstrapRoutes)
@@ -41,5 +46,6 @@ export function buildApp(db, opts = {}) {
   app.register(syncStatusRoutes)
   app.register(streamRoutes)
   app.register(socialRoutes)
+  app.register(adminRoutes)
   return app
 }
