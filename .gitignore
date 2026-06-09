@@ -4,3 +4,5 @@ dist
 *.local
 .vite
 design_unpack
+.env
+.claude/settings.local.json
