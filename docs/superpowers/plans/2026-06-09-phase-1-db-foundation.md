@@ -1084,9 +1084,16 @@ git commit -m "feat(api): GET /api/people, /api/teams/:code, /api/photos"
 POSTGRES_USER=sweep
 POSTGRES_PASSWORD=sweep
 POSTGRES_DB=sweep
+# Inside compose the api reaches the `postgres` service on the internal network:
 DATABASE_URL=postgres://sweep:sweep@postgres:5432/sweep
+# Running the api on the host instead (npm run dev:api) use the published port 5433:
+#   DATABASE_URL=postgres://sweep:sweep@localhost:5433/sweep
 PORT=3000
 ```
+
+> This machine already runs another project's Postgres on host port 5432, so the dev compose
+> publishes **5433**. Stop the standalone `sweep-postgres` container before `docker compose up`
+> (both want 5433). See `CLAUDE.md` → "Local database (dev)".
 
 - [ ] **Step 2: Create `api/Dockerfile`**
 
@@ -1120,7 +1127,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]

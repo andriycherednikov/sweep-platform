@@ -50,6 +50,30 @@ cp .env.example .env
 docker compose -f infra/docker-compose.dev.yml --env-file .env up --build
 ```
 
+## Local database (dev)
+
+A dedicated Postgres 16 container for day-to-day dev (this machine already runs another
+project's Postgres on 5432, so ours uses **5433**):
+
+- Container `sweep-postgres` · `postgres:16-alpine` · host port **5433** · volume `sweep_pgdata`
+- Host connection (running the api outside compose):
+  `DATABASE_URL=postgres://sweep:sweep@localhost:5433/sweep`
+
+```bash
+docker start sweep-postgres     # start (data persists)
+docker stop sweep-postgres      # stop
+PGPASSWORD=sweep psql -h localhost -p 5433 -U sweep -d sweep   # connect
+# wipe & recreate from scratch:
+docker rm -f sweep-postgres && docker volume rm sweep_pgdata && \
+docker run -d --name sweep-postgres -e POSTGRES_USER=sweep -e POSTGRES_PASSWORD=sweep \
+  -e POSTGRES_DB=sweep -p 5433:5432 -v sweep_pgdata:/var/lib/postgresql/data postgres:16-alpine
+```
+
+- **Tests** use Testcontainers (ephemeral Postgres) — they only need Docker running, not this
+  container.
+- The Phase 1 dev compose brings its own Postgres on the **same 5433 host port** — `docker stop
+  sweep-postgres` before `docker compose -f infra/docker-compose.dev.yml up`, or they'll clash.
+
 ## Build order (one plan per phase — see spec §8)
 
 1. **DB foundation** — *planned, ready to execute* (`docs/superpowers/plans/2026-06-09-phase-1-db-foundation.md`)
