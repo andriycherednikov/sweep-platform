@@ -17,3 +17,17 @@ export async function fetchAll() {
   ])
   return { bootstrap, fixtures, standings, photos, syncStatus }
 }
+
+async function post(path, body) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
+  return res.json()
+}
+
+export const fetchSocial = () => get('/api/social')
+export const postWatch = (fixtureId, personId) => post('/api/watch', { fixtureId, personId })
+export const postSupport = (fixtureId, personId, teamCode) => post('/api/support', { fixtureId, personId, teamCode })
