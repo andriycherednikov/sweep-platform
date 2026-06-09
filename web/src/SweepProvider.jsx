@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { fetchAll } from './api/client.js'
+import { fetchAll, fetchSocial } from './api/client.js'
 import { setSweepData } from './data.js'
+import { setSocialData } from './social.js'
 import { assembleSweep } from './lib/assemble.js'
+import { useEventStream } from './hooks/useEventStream.js'
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 60_000, refetchOnWindowFocus: false } } })
 
@@ -14,6 +16,17 @@ function Gate({ children }) {
       return api.syncStatus
     },
   })
+
+  useQuery({
+    queryKey: ['social'],
+    queryFn: async () => {
+      const social = await fetchSocial()
+      setSocialData(social)
+      return social
+    },
+  })
+
+  useEventStream()
 
   if (isLoading) {
     return (
