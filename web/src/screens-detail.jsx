@@ -10,7 +10,7 @@ import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf,
 } from "./social.js";
-import { uploadPhoto } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
@@ -493,13 +493,14 @@ export function AdminScreen({ onBack, onToast }) {
   const [code, setCode] = useState("");
   const [unlocked, setUnlocked] = useState(false);
   const [shake, setShake] = useState(false);
-  const PASS = "2026";
 
+  useEffect(()=>{ fetchAdminMe().then(()=>setUnlocked(true)).catch(()=>{}); },[]);
+
+  function fail(){ setShake(true); setTimeout(()=>{ setShake(false); setCode(""); }, 400); }
   function press(d){
     if(code.length>=4) return;
-    const nc = code + d;
-    setCode(nc);
-    if(nc.length===4){ setTimeout(()=>{ if(nc===PASS){ setUnlocked(true);} else { setShake(true); setTimeout(()=>{setShake(false);setCode("");},400);} },120); }
+    const nc = code + d; setCode(nc);
+    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setUnlocked(true); } catch { fail(); } }, 120); }
   }
   function del(){ setCode(c=>c.slice(0,-1)); }
 
@@ -510,7 +511,7 @@ export function AdminScreen({ onBack, onToast }) {
         <div className="scroll passpad screen-anim" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
           <div className="lockic"><Icon.lock/></div>
           <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Enter passcode</h3>
-          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center"}}>Admin only. Try <b style={{color:"var(--navy)"}}>2026</b> for the demo.</p>
+          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center"}}>Admin only.</p>
           <div className={"passdots"} style={{transform:shake?"translateX(0)":"none",animation:shake?"shake .4s":"none"}}>
             {[0,1,2,3].map(i=><i key={i} className={i<code.length?"f":""}></i>)}
           </div>
@@ -529,43 +530,51 @@ export function AdminScreen({ onBack, onToast }) {
 }
 
 export function AdminQueue({ onBack, onToast }) {
-  const [photos, setPhotos] = useState(()=>S.photos.map(p=>({...p})));
+  const [data, setData] = useState({ pending: [], approved: [] });
   const [tab, setTab] = useState("pending");
-  const pending = photos.filter(p=>p.status==="pending");
-  const approved = photos.filter(p=>p.status==="approved");
-  const list = tab==="pending"?pending:approved;
+  const [busy, setBusy] = useState(null);
 
-  function act(id, status){
-    setPhotos(ps=>ps.map(p=>p.id===id?{...p,status}:p));
-    onToast(status==="approved"?"Photo approved":status==="rejected"?"Photo rejected":"Photo removed");
+  async function load(){ try { setData(await fetchAdminPhotos()); } catch { onToast("Couldn't load the queue"); } }
+  useEffect(()=>{ load(); },[]);
+
+  const list = tab==="pending" ? data.pending : data.approved;
+
+  async function act(id, action){
+    setBusy(id);
+    try {
+      await moderatePhoto(id, action);
+      onToast(action==="approve"?"Photo approved":action==="reject"?"Photo rejected":"Photo removed");
+      await load();
+    } catch { onToast("Action failed — try again"); }
+    finally { setBusy(null); }
   }
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Moderation" sub="Fan photo queue" onBack={onBack}
-        right={<div className="iconbtn"><Icon.shield/></div>} />
+      <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
       <div className="admintabs">
-        <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {pending.length>0 && <span className="ct">{pending.length}</span>}</button>
-        <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {approved.length}</button>
+        <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
+        <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {data.approved.length}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:10}}>
         <div className="wrap">
           {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
           {list.map(p=>(
             <div className="queueitem" key={p.id}>
-              <div className="qimg">
-                <div className="lbl">FAN PHOTO</div>
-                <div className="tag"><img src={S.flag(p.team,40)} alt=""/><span>{S.team(p.team).name}</span></div>
+              <div className="qimg" style={{backgroundImage:`url(${p.fileUrl})`,backgroundSize:"cover",backgroundPosition:"center"}}>
+                <div className="lbl">{p.kind==="profile"?"PROFILE":"FAN PHOTO"}</div>
+                {p.kind==="fan" && p.team && <div className="tag"><img src={S.flag(p.team,40)} alt=""/><span>{S.team(p.team)?.name||p.team}</span></div>}
+                {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
               </div>
-              <div className="qmeta"><b>{p.caption}</b><small>{p.uploader} · {p.ago} ago</small></div>
+              <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>
               {tab==="pending" ? (
                 <div className="qacts">
-                  <button className="qbtn rej" onClick={()=>act(p.id,"rejected")}><Icon.x/> Reject</button>
-                  <button className="qbtn app" onClick={()=>act(p.id,"approved")}><Icon.check/> Approve</button>
+                  <button className="qbtn rej" disabled={busy===p.id} onClick={()=>act(p.id,"reject")}><Icon.x/> Reject</button>
+                  <button className="qbtn app" disabled={busy===p.id} onClick={()=>act(p.id,"approve")}><Icon.check/> Approve</button>
                 </div>
               ) : (
                 <div className="qacts">
-                  <button className="qbtn rej" onClick={()=>act(p.id,"removed")} style={{flex:1}}><Icon.trash/> Remove from site</button>
+                  <button className="qbtn rej" disabled={busy===p.id} onClick={()=>act(p.id,"remove")} style={{flex:1}}><Icon.trash/> Remove from site</button>
                 </div>
               )}
             </div>
