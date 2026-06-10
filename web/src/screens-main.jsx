@@ -43,7 +43,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
 
   const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
-  useEffect(()=>{ const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
+  useEffect(()=>{ if(approved.length===0) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
   const photo = approved[pi];
 
   return (
@@ -155,12 +155,14 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
         </div>
 
         <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
+        {photo ? <>
         <div className="fan" onClick={()=>openTeam(photo.team)}>
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           <div className="badge"><img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span></div>
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
         </div>
         <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""}></i>)}</div>
+        </> : <div className="fan empty"><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap “Add yours”.</small></div></div>}
         </div>
        </div>
       </div>

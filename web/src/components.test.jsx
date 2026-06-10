@@ -8,6 +8,7 @@ vi.mock('./api/client.js', () => ({
 }))
 import { postSupport } from './api/client.js'
 import { Av, CrowdPick } from './components.jsx'
+import { HomeScreen } from './screens-main.jsx'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -70,4 +71,30 @@ test('CrowdPick renders nothing when locked with no calls', () => {
   setSocialData({ watch: {}, support: {} })
   const { container } = render(<CrowdPick f={{ ...F, status: 'final' }} locked />)
   expect(container.firstChild).toBeNull()
+})
+
+test('HomeScreen renders with zero approved fan photos (empty community state)', () => {
+  // Real-world prod state: nobody has uploaded/been-approved yet → photos: [].
+  // The "From the community" carousel must not crash on an undefined photo.
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 70 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [{ id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
+      prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText } = render(
+    <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
+  )
+  expect(getByText('From the community')).toBeTruthy()
 })
