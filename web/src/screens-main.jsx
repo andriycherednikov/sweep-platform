@@ -214,7 +214,7 @@ export function ScheduleScreen({ openMatch, openPerson }) {
           {person ? <><Av p={person} size={18}/> {person.short}</> : <><Icon.people style={{width:13,height:13}}/> By person</>}
         </button>
         <button className={"fchip" + (team ? " on accent":"")} onClick={()=>setPick("team")}>
-          {team ? <><img src={S.flag(team,40)} alt=""/> {S.team(team).name}</> : <><Icon.globe style={{width:13,height:13}}/> By team</>}
+          {team ? <><img src={S.flag(team,40)} alt=""/> {S.team(team).name}</> : <><Icon.ball style={{width:13,height:13}}/> By team</>}
         </button>
       </div>
 
