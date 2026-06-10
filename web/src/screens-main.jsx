@@ -48,7 +48,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   return (
     <div className="scroll pad screen-anim">
-      <HomeHeader onAdmin={onAdmin}/>
+      <HomeHeader onAdmin={onAdmin} go={go}/>
 
       {/* hero next match */}
       <section className="hero">

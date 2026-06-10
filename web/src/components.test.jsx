@@ -7,7 +7,7 @@ vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
 }))
 import { postSupport } from './api/client.js'
-import { Av, CrowdPick } from './components.jsx'
+import { Av, CrowdPick, IdentityControl } from './components.jsx'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -128,4 +128,26 @@ test('HomeScreen: empty community box prompts upload (go upload)', () => {
   const { getByText } = render(<HomeScreen go={go} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={() => {}} onAdmin={() => {}} />)
   fireEvent.click(getByText('No fan photos yet'))
   expect(go).toHaveBeenCalledWith('upload')
+})
+
+test('IdentityControl: avatar → your profile, ⇄ → change perspective', () => {
+  setMe('p1')
+  const viewMe = vi.fn(), pickMe = vi.fn()
+  window.__sweepViewMe = viewMe; window.__sweepPickMe = pickMe
+  const { getByLabelText } = render(<IdentityControl />)
+  fireEvent.click(getByLabelText('View your profile'))
+  expect(viewMe).toHaveBeenCalled()
+  fireEvent.click(getByLabelText('Change perspective'))
+  expect(pickMe).toHaveBeenCalled()
+  delete window.__sweepViewMe; delete window.__sweepPickMe
+})
+
+test('IdentityControl: with nobody picked, the chip opens the picker and hides ⇄', () => {
+  setMe(null)
+  const pickMe = vi.fn(); window.__sweepPickMe = pickMe
+  const { getByLabelText, queryByLabelText } = render(<IdentityControl />)
+  expect(queryByLabelText('Change perspective')).toBeNull()
+  fireEvent.click(getByLabelText('Pick who you are'))
+  expect(pickMe).toHaveBeenCalled()
+  delete window.__sweepPickMe
 })

@@ -20,6 +20,7 @@ export const Icon = {
   bars:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M5 21V9M12 21V4M19 21v-7"/></svg>,
   back:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   chev:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M9 5l7 7-7 7"/></svg>,
+  swap:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>,
   x:       (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M6 6l12 12M18 6L6 18"/></svg>,
   check:   (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M4 12l5 5L20 6"/></svg>,
   share:   (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><circle cx="6" cy="12" r="2.4"/><circle cx="17" cy="6" r="2.4"/><circle cx="17" cy="18" r="2.4"/><path d="M8 11l7-4M8 13l7 4"/></svg>,
@@ -214,22 +215,20 @@ export function MatchCard({ f, onOpen, onToast }) {
 }
 
 /* home header */
-export function HomeHeader({ onAdmin }) {
+export function HomeHeader({ onAdmin, go }) {
   return (
     <header className="top home-top">
       <div className="brandrow">
-        <div className="brand">
+        <button className="brand brand-btn" onClick={()=> go && go("home")} aria-label="Home">
           <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
           <div><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
-        </div>
+        </button>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div className="tz"><b>Sat 13 Jun</b>Sydney · AEST</div>
           <button onClick={onAdmin} aria-label="Admin" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}><Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/></button>
         </div>
       </div>
-      <button className="idchip dark" style={{marginTop:20,width:"100%"}} onClick={()=>window.__sweepPickMe && window.__sweepPickMe()}>
-        <IdentityInner/>
-      </button>
+      <IdentityControl dark style={{marginTop:20}}/>
     </header>
   );
 }
@@ -304,10 +303,10 @@ export function Sidebar({ current, go, onKnock, onAdmin }) {
   const pending = S.photos.filter(p => p.status === "pending").length;
   return (
     <aside className="sidebar">
-      <div className="sb-brand">
+      <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
         <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
         <div><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
-      </div>
+      </button>
       <div className="sb-sec">Browse</div>
       <nav className="sb-nav">
         {SB_NAV.map(([id,label,Ic])=>(
@@ -323,9 +322,7 @@ export function Sidebar({ current, go, onKnock, onAdmin }) {
         </button>
       </nav>
       <div className="sb-foot">
-        <button className="idchip dark" onClick={()=>window.__sweepPickMe && window.__sweepPickMe()}>
-          <IdentityInner/>
-        </button>
+        <IdentityControl dark/>
         <div className="dt" style={{marginTop:12}}><b>Sat 13 Jun</b>Sydney · AEST</div>
       </div>
     </aside>
@@ -350,27 +347,31 @@ export function SearchInput({ value, onChange, placeholder, autoFocus }){
 }
 
 /* identity ---------------------------------------------------- */
-function IdentityInner(){
+// Split control: tap the avatar/name → your own profile; tap the ⇄ button →
+// change perspective (pick a different person). With nobody picked yet, the
+// whole chip opens the picker and the ⇄ button is hidden.
+export function IdentityControl({ dark, style }){
   useSocial();
   const me = getMe();
+  const pick = () => window.__sweepPickMe && window.__sweepPickMe();
+  const view = () => { if (me) { window.__sweepViewMe && window.__sweepViewMe(); } else { pick(); } };
   return (
-    <>
-      {me
-        ? <PersonAvatar p={me} cls="av" style={{width:42,height:42,border:0,margin:0,fontSize:16}}/>
-        : <span className="idq">?</span>}
-      <span className="idtxt">
-        <small>{me ? "You're viewing as" : "Tap to pick"}</small>
-        <b>{me ? me.short : "Who are you?"}</b>
-      </span>
-      <Icon.chev className="idchev"/>
-    </>
-  );
-}
-export function IdentityChip(){
-  return (
-    <button className="idchip" onClick={()=>window.__sweepPickMe && window.__sweepPickMe()}>
-      <IdentityInner/>
-    </button>
+    <div className={"idchip" + (dark ? " dark" : "")} style={style}>
+      <button className="idmain" onClick={view} aria-label={me ? "View your profile" : "Pick who you are"}>
+        {me
+          ? <PersonAvatar p={me} cls="av" style={{width:42,height:42,border:0,margin:0,fontSize:16}}/>
+          : <span className="idq">?</span>}
+        <span className="idtxt">
+          <small>{me ? "You're viewing as" : "Tap to pick"}</small>
+          <b>{me ? me.short : "Who are you?"}</b>
+        </span>
+      </button>
+      {me && (
+        <button className="idswap" onClick={pick} aria-label="Change perspective" title="Change perspective">
+          <Icon.swap/>
+        </button>
+      )}
+    </div>
   );
 }
 export function IdentitySheet({ onClose }){
