@@ -43,7 +43,7 @@ a{color:inherit; text-decoration:none;}
    large/zoomed phones report >=480px and were wrongly getting the dark inset
    border + rounded corners. Desktop sidebar layout (>=900px) is untouched. */
 @media (pointer:coarse) and (max-width:899px){
-  .device{ width:100%; height:100dvh; max-height:100dvh; border-radius:0; padding:0; box-shadow:none; }
+  .device{ width:100%; height:100vh; height:100dvh; max-height:100vh; max-height:100dvh; border-radius:0; padding:0; box-shadow:none; }
   .viewport{ border-radius:0; }
 }
 
