@@ -131,7 +131,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[myCode===f.t1?"a":"b"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[myCode===f.t1?"a":"b"]}%</span>}
                   </div>
                 </div>
               );
@@ -263,7 +263,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[f.t1===code?"a":"b"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[f.t1===code?"a":"b"]}%</span>}
                   </div>
                 </div>
               );
@@ -423,7 +423,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
             </div>
           </div>
 
-          {!showScore && (
+          {!showScore && f.hasOdds && (
             <div className="block" style={{padding:"13px",marginBottom:14}}>
               <div className="prob-bar" style={{background:"#eef1f5"}}>
                 <i className="a" style={{width:f.prob.a+"%"}}></i><i className="d" style={{width:f.prob.d+"%",background:"#9aa1ad"}}></i><i className="b" style={{width:f.prob.b+"%"}}></i>

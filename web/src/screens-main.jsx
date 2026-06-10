@@ -70,12 +70,14 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
             <span className="nm">{t2.name.toUpperCase()}</span>
           </div>
         </div>
+        {next.hasOdds && <>
         <ProbBar prob={next.prob} />
         <div className="prob-key">
           <span><b>{next.prob.a}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
           <span><b>{next.prob.d}%</b> Draw</span>
           <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob.b}%</b></span>
         </div>
+        </>}
         <CrowdPick f={next} onToast={toast} light locked={next.status !== "upcoming"} />
         <div className="hero-owners">
           <div className="ostack">

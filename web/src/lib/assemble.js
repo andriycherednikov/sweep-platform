@@ -7,6 +7,18 @@ function titleOddsFor(s) {
   return Math.max(1, Math.round(Math.pow(Math.max(0, s - 50), 2) / 14))
 }
 
+// API-Football returns degenerate placeholder percentages for far-future
+// fixtures it can't model yet — all-equal (33/33/33) or the draw tying a win
+// side (50/50/0, 0/50/50). A real model never ties the draw to a win outcome,
+// so treat those (and absent values) as "no real odds" and let the UI hide them
+// until kickoff nears and real numbers arrive.
+function hasRealOdds(prob) {
+  if (!prob) return false
+  const { a, d, b } = prob
+  if (a == null || d == null || b == null) return false
+  return a !== d && d !== b
+}
+
 /**
  * Pure: turn the API bundle ({bootstrap, fixtures, standings, photos, syncStatus})
  * into the SWEEP-shaped object the components consume.
@@ -61,7 +73,7 @@ export function assembleSweep(api) {
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
-      prob: f.prob, stage: f.stage, derby, doubleOwners,
+      prob: f.prob, hasOdds: hasRealOdds(f.prob), stage: f.stage, derby, doubleOwners,
       timeLabel: fmtTime(ko), dayLabel: fmtDay(ko), dayKey: fmtDayKey(ko),
     }
   })

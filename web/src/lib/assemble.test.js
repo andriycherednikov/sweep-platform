@@ -54,6 +54,25 @@ test('fixtures get Date kickoff, time labels, and derby/owners from ownership', 
   expect(owners.t2).toEqual([])
 })
 
+test('hasOdds: true for real predictions, false for provider placeholders/absent', () => {
+  const odds = (prob) => assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'P', color: '#0a7', strength: 70 },
+        { code: 'gh', name: 'Ghana', group: 'L', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'gh', ko: '2026-06-13T09:00:00.000Z', venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob, stage: 'group' }],
+    standings: {}, photos: [],
+  }).fixtures[0].hasOdds
+  expect(odds({ a: 60, d: 22, b: 18 })).toBe(true)   // real model output
+  expect(odds({ a: 33, d: 33, b: 33 })).toBe(false)  // all-equal placeholder
+  expect(odds({ a: 50, d: 50, b: 0 })).toBe(false)   // draw ties home (API-Football future-fixture default)
+  expect(odds({ a: 0, d: 50, b: 50 })).toBe(false)   // draw ties away
+  expect(odds({ a: null, d: null, b: null })).toBe(false) // no prediction stored
+})
+
 test('standings are grouped and money is ranked by best-team strength', () => {
   const S = assembleSweep(api)
   expect(Object.keys(S.standings)).toEqual(expect.arrayContaining(['L', 'C']))

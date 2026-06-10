@@ -186,7 +186,7 @@ export function MatchCard({ f, onOpen, onToast }) {
           <span className="nm">{t1.name}</span>
           <div className="mc-h-sub">
             {o.t1.length>0 && <AvStack people={o.t1} size={28} max={3} />}
-            {!showScore && <span className="mc-h-wp">{f.prob.a}<i>%</i></span>}
+            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob.a}<i>%</i></span>}
           </div>
         </div>
         <div className="mc-h-mid">
@@ -198,7 +198,7 @@ export function MatchCard({ f, onOpen, onToast }) {
           <Flag code={f.t2} w={34} h={25} />
           <span className="nm">{t2.name}</span>
           <div className="mc-h-sub">
-            {!showScore && <span className="mc-h-wp">{f.prob.b}<i>%</i></span>}
+            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob.b}<i>%</i></span>}
             {o.t2.length>0 && <AvStack people={o.t2} size={28} max={3} />}
           </div>
         </div>
