@@ -43,14 +43,7 @@ function Gate({ children }) {
       </div>
     )
   }
-  return (
-    <>
-      {data?.stale && (
-        <div data-testid="stale-banner" className="stale-banner">Scores may be delayed</div>
-      )}
-      {children}
-    </>
-  )
+  return <>{children}</>
 }
 
 export function SweepProvider({ children }) {

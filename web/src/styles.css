@@ -92,6 +92,11 @@ a{color:inherit; text-decoration:none;}
 .sec-h h2 .watch-eye svg{width:15px; height:15px; fill:var(--accent); stroke:var(--accent);}
 .sec-h .lnk{font-size:11.5px; font-weight:700; color:var(--accent); letter-spacing:.3px;}
 .sec-h .lnk.cd-lnk{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.5px;}
+/* Clickable content elements (native <button>s already get cursor:pointer via button{}).
+   These onClick <div>/<span> elements did not, so links/cards/rows showed the text cursor. */
+.lnk, .card, .team, .prow, .rankrow, .res, .ochip, .fan, .mini-fx, .teamtile, .photocell, .dropzone,
+.strow:not(:has(.hd)){ cursor:pointer; }
+.lnk.cd-lnk{ cursor:default; }
 
 /* ===== next-match ticket hero ===== */
 .hero{margin:12px 14px 0; position:relative; z-index:2; background:linear-gradient(165deg,#12305c,#0b1f3a); color:#fff; border-radius:16px; padding:14px 15px 15px; box-shadow:var(--shadow); overflow:hidden;}

@@ -22,12 +22,13 @@ beforeEach(() => {
   }))
 })
 
-test('shows a loading state, then renders children with data populated + stale banner', async () => {
+test('shows a loading state, then renders children with data populated', async () => {
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
   expect(screen.getByTestId('sweep-loading')).toBeInTheDocument()
   await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
   expect(SWEEP.team('hr').name).toBe('Croatia')
-  expect(screen.getByTestId('stale-banner')).toBeInTheDocument() // syncStatus.stale === true
+  // stale sync no longer surfaces a banner (removed) even when syncStatus.stale === true
+  expect(screen.queryByTestId('stale-banner')).toBeNull()
 })
 
 test('subscribes to the SSE stream on mount', async () => {

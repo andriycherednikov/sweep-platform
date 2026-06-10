@@ -96,7 +96,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
       <div className="wrap">
        <div className="deskhome">
         <div className="deskhome-main">
-        <div className="sec-h"><h2>Next games</h2>{me ? <span className="lnk" onClick={()=>openPerson ? openPerson(me) : go("people")}>Your profile →</span> : <span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span>}</div>
+        <div className="sec-h"><h2>Next games</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
         <div className="mgrid">{nextMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
         </div>
 
