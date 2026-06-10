@@ -1,0 +1,94 @@
+# =============================================================================
+# The Sweep — Production Docker Compose
+# =============================================================================
+# Pulls pre-built images from GCP Artifact Registry and wires them into the
+# shared infrastructure on the server (shared Postgres + shared Caddy).
+#
+# PREREQUISITES (one-time — see README.md):
+#   1. Copy .env.docker.example to .env.docker and fill in real secrets.
+#   2. Create the `sweep` database in the shared simulation-postgres container.
+#   3. Authenticate Docker with GCP:
+#        gcloud auth configure-docker australia-southeast1-docker.pkg.dev
+#   4. The external Docker network `simulation-network` must already exist
+#      (shared with vcv-caddy + simulation-postgres).
+#   5. Append docker/caddy/sweep.Caddyfile to /root/caddy/Caddyfile and reload.
+#
+# USAGE (from this directory on the server):
+#   docker compose pull && docker compose up -d
+# =============================================================================
+
+name: sweep
+
+services:
+  # One-shot schema migration. Runs to completion before api/worker start.
+  migrate:
+    image: australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep/sweep-api:${VERSION:-latest}
+    container_name: sweep-migrate
+    command: ["node", "src/db/migrate.js"]
+    env_file:
+      - path: .env.docker
+        required: true
+    restart: "no"
+    networks:
+      - simulation-network
+
+  api:
+    image: australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep/sweep-api:${VERSION:-latest}
+    container_name: sweep-api
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        required: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - sweep-photos:/data/photos
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    networks:
+      - simulation-network
+
+  # Football-sync worker (baseline schedule + windowed live poller).
+  worker:
+    image: australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep/sweep-api:${VERSION:-latest}
+    container_name: sweep-worker
+    command: ["node", "src/worker.js"]
+    restart: unless-stopped
+    env_file:
+      - path: .env.docker
+        required: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - simulation-network
+
+  web:
+    image: australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep/sweep-web:${VERSION:-latest}
+    container_name: sweep-web
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - simulation-network
+
+networks:
+  simulation-network:
+    external: true
+    name: simulation-network
+
+volumes:
+  sweep-photos:

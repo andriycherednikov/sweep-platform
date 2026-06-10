@@ -1,0 +1,43 @@
+# Dependencies (reinstalled in the image via npm ci)
+node_modules
+**/node_modules
+
+# Build outputs (rebuilt in the image)
+web/dist
+**/dist
+
+# Environment files — secrets must never land in an image
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+docker/.env.docker
+
+# Stateful runtime data (lives on a volume, never baked in)
+photos-data
+api/photos-data
+**/photos-data
+
+# Logs
+*.log
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Editor / OS
+.vscode
+.idea
+*.swp
+.DS_Store
+Thumbs.db
+
+# Docs / planning (not needed at runtime)
+docs/superpowers
+design_unpack
+.remember
+*.md
+!README.md

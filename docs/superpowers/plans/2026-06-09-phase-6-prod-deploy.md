@@ -1,5 +1,15 @@
 # Phase 6 — Prod Deploy Implementation Plan
 
+> ⚠️ **SUPERSEDED (2026-06-10).** This self-contained design (its own Caddy on
+> :80/:443 + its own Postgres container) was **not** implemented. The target
+> server already runs a **shared Caddy** (`vcv-caddy`) and **shared Postgres**
+> (`simulation-postgres`), so the actual deployment instead **plugs into that
+> shared infra** and pushes images to GCP Artifact Registry, mirroring
+> `smart-recommendation`. See **`docker/README.md`** and the live files under
+> **`docker/`**, `api/Dockerfile`, `web/Dockerfile`. Keep this doc for the
+> Caddy/SSE/photo-volume design rationale only — do not execute it as-is.
+
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Ship The Sweep as a self-hosted, containerized stack — Caddy (TLS + static SPA + approved photos + `/api` proxy), the Fastify api, the football worker, Postgres, and a one-shot migrate — orchestrated by a single prod `docker-compose.yml`, verified end-to-end locally.

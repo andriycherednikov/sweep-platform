@@ -1,0 +1,15 @@
+# Internal static server for the SPA (sits behind the shared vcv-caddy).
+# Serves web/dist with client-side-routing history fallback + a /health probe.
+:80 {
+	encode gzip
+
+	handle /health {
+		respond "ok" 200
+	}
+
+	handle {
+		root * /usr/share/caddy
+		try_files {path} /index.html
+		file_server
+	}
+}

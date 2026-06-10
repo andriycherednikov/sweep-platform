@@ -9,7 +9,8 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-api dev-web test test-api test-web build \
         worker sync crosswalk cutover db-migrate db-seed import-roster \
-        provision db-reset psql admin-hash clean
+        provision db-reset psql admin-hash clean \
+        build-staging deploy-staging deploy staging docker-cleanup
 
 help: ## Show this help
 	@echo "The Sweep — make targets:"
@@ -89,3 +90,57 @@ admin-hash: ## Generate a bcrypt admin passcode hash:  make admin-hash PASS=1234
 
 clean: ## Remove build output + local photo uploads (keeps node_modules)
 	rm -rf web/dist photos-data api/photos-data
+
+# =============================================================================
+# DOCKER BUILD & DEPLOY  (server is x86_64; we cross-build amd64 from arm64 Mac)
+# =============================================================================
+# Images are built for linux/amd64, pushed to GCP Artifact Registry, and pulled
+# on the shared server. The app plugs into the shared Postgres + shared Caddy
+# (see docker/README.md). The compose file + .env.docker must already live at
+# $(STAGING_DIR) on the server (one-time scp — see README).
+
+REGISTRY       := australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep
+API_IMAGE      := $(REGISTRY)/sweep-api
+WEB_IMAGE      := $(REGISTRY)/sweep-web
+STAGING_HOST   := root@134.199.153.212
+STAGING_DIR    := /root/sweep
+STAGING_DOMAIN := sweep.andriycherednikov.com
+
+GREEN  := \033[0;32m
+YELLOW := \033[1;33m
+BLUE   := \033[0;34m
+RED    := \033[0;31m
+NC     := \033[0m
+
+build-staging: ## Build + push amd64 api & web images to Artifact Registry
+	@echo "$(BLUE)Building & pushing images for $(STAGING_DOMAIN)...$(NC)"
+	cd docker && chmod +x build-and-push.sh && ./build-and-push.sh
+	@echo "$(GREEN)Images pushed$(NC)"
+
+deploy-staging: build-staging ## Build, push, then pull & restart on the server
+	@echo "$(BLUE)Deploying The Sweep to $(STAGING_HOST)$(NC)"
+	@echo "$(YELLOW)[1/3] Authenticating Docker with GCP on the server...$(NC)"
+	@TOKEN=$$(gcloud auth print-access-token) && \
+		ssh $(STAGING_HOST) "echo '$$TOKEN' | docker login -u oauth2accesstoken --password-stdin australia-southeast1-docker.pkg.dev"
+	@echo "$(YELLOW)[2/3] Pulling and restarting containers...$(NC)"
+	@ssh $(STAGING_HOST) "cd $(STAGING_DIR) && docker compose pull && docker compose up -d"
+	@echo "$(YELLOW)[3/3] Verifying api health...$(NC)"
+	@sleep 5
+	@ssh $(STAGING_HOST) "docker exec sweep-api node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>r.json()).then(j=>{console.log(j);process.exit(j.ok?0:1)}).catch(e=>{console.error(e.message);process.exit(1)})\"" && \
+		echo "$(GREEN)Deploy complete → https://$(STAGING_DOMAIN)$(NC)" || \
+		(echo "$(RED)Health check failed — check: ssh $(STAGING_HOST) 'cd $(STAGING_DIR) && docker compose logs'$(NC)" && exit 1)
+
+deploy: deploy-staging   ## Alias of deploy-staging
+staging: deploy-staging  ## Alias of deploy-staging
+
+docker-cleanup: ## Remove old (non-:latest) image versions from Artifact Registry
+	@for img in $(API_IMAGE) $(WEB_IMAGE); do \
+		echo "$(YELLOW)Cleaning $$img...$(NC)"; \
+		gcloud artifacts docker images list $$img --include-tags \
+			--format="csv[no-heading](version,tags)" 2>/dev/null | \
+			while IFS=, read -r digest tags; do \
+				echo "$$tags" | grep -q "latest" || { \
+					echo "  deleting $$digest"; \
+					gcloud artifacts docker images delete "$$img@$$digest" --quiet --delete-tags 2>/dev/null || true; }; \
+			done; \
+	done

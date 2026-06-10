@@ -1,0 +1,69 @@
+# =============================================================================
+# The Sweep — Caddy site block
+# =============================================================================
+# Snippet to append to the shared /root/caddy/Caddyfile on the server. The
+# shared `vcv-caddy` holds :80/:443 and reaches our containers by name over the
+# shared `simulation-network`. TLS is automatic once DNS for the domain points
+# at this host.
+#
+# HOW TO APPLY:
+#   1. Back up:   cp /root/caddy/Caddyfile /root/caddy/Caddyfile.bak
+#   2. Append:    cat sweep.Caddyfile >> /root/caddy/Caddyfile
+#   3. Reload:    docker exec vcv-caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# Current home: sweep.andriycherednikov.com (temporary).
+# Permanent home: sweep.yowiebay.au — add it once that zone's DNS is live and
+# its A/AAAA points at this host, by making the site address a comma list:
+#
+#     sweep.andriycherednikov.com, sweep.yowiebay.au {
+#
+# Caddy auto-issues a separate Let's Encrypt cert per name. Do NOT add a name
+# that doesn't yet resolve to this host — its ACME challenge fails on a loop and
+# can trip Let's Encrypt rate limits (forcing the staging CA).
+# =============================================================================
+
+sweep.andriycherednikov.com {
+
+	encode gzip
+
+	# API — Fastify. flush_interval -1 disables response buffering so the
+	# Server-Sent Events stream (/api/stream) flushes immediately.
+	handle /api/* {
+		reverse_proxy sweep-api:3000 {
+			flush_interval -1
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-For {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	# Approved fan/profile photos — served by the api off the photos volume.
+	handle /photos/* {
+		reverse_proxy sweep-api:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Everything else — the static SPA (internal Caddy w/ history fallback).
+	handle /* {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+			X-Content-Type-Options nosniff
+			X-Frame-Options SAMEORIGIN
+			Referrer-Policy strict-origin-when-cross-origin
+		}
+		reverse_proxy sweep-web:80 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
