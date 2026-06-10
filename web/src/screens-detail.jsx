@@ -390,6 +390,29 @@ function WatchToggleCTA({ id, onToast }) {
     </button>
   );
 }
+/* fan-photo lightbox — opens an approved community photo "closer" */
+export function PhotoLightbox({ photo, onClose, openTeam }) {
+  if (!photo) return null;
+  return (
+    <div className="overlay lightbox" onClick={onClose}>
+      <div className="lb-inner" onClick={e=>e.stopPropagation()}>
+        <button className="lb-x" onClick={onClose} aria-label="Close"><Icon.x/></button>
+        {photo.src
+          ? <img className="lb-img" src={photo.src} alt={photo.caption||"Fan photo"}/>
+          : <div className="lb-img lb-ph"><span>FAN PHOTO</span></div>}
+        <div className="lb-meta">
+          {photo.team && (
+            <button className="lb-team" onClick={()=>{ onClose(); openTeam(photo.team); }}>
+              <img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span>
+            </button>
+          )}
+          {photo.caption && <b>{photo.caption}</b>}
+          <small>Posted by {photo.uploader} · approved</small>
+        </div>
+      </div>
+    </div>
+  );
+}
 export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
   useSocial();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);

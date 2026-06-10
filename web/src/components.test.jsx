@@ -98,3 +98,34 @@ test('HomeScreen renders with zero approved fan photos (empty community state)',
   )
   expect(getByText('From the community')).toBeTruthy()
 })
+
+function homeWith(photos) {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'gh', name: 'Ghana', group: 'L', pool: 'P', color: '#0a7', strength: 70 },
+        { code: 'mx', name: 'Mexico', group: 'L', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [{ id: 'p1', name: 'Jax', short: 'Jax', initials: 'J', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'L', matchday: 1, t1: 'gh', t2: 'mx', ko: '2026-06-12T18:00:00Z', venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' }],
+    standings: {}, photos,
+  }))
+}
+
+test('HomeScreen: clicking a community photo opens the lightbox (openPhoto)', () => {
+  homeWith([{ id: 'ph1', uploader: 'Jax', team: 'gh', caption: 'Ghana flag', status: 'approved', src: '/photos/x.jpg', kind: 'fan' }])
+  const openPhoto = vi.fn()
+  const { getByAltText } = render(<HomeScreen go={() => {}} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={openPhoto} onAdmin={() => {}} />)
+  fireEvent.click(getByAltText('Ghana flag'))
+  expect(openPhoto).toHaveBeenCalledWith(expect.objectContaining({ id: 'ph1' }))
+})
+
+test('HomeScreen: empty community box prompts upload (go upload)', () => {
+  homeWith([])
+  const go = vi.fn()
+  const { getByText } = render(<HomeScreen go={go} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={() => {}} onAdmin={() => {}} />)
+  fireEvent.click(getByText('No fan photos yet'))
+  expect(go).toHaveBeenCalledWith('upload')
+})

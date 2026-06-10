@@ -10,7 +10,7 @@ import {
 import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
 
 /* ---------------- HOME ---------------- */
-export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
+export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin }) {
   const next = S.nextMatch;
   const t1 = S.team(next.t1), t2 = S.team(next.t2);
   const o = S.ownersForFixture(next);
@@ -158,13 +158,13 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, onAdmin }) {
 
         <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
         {photo ? <>
-        <div className="fan" onClick={()=>openTeam(photo.team)}>
+        <div className="fan" onClick={()=>openPhoto(photo)}>
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           <div className="badge"><img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span></div>
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
         </div>
         <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""}></i>)}</div>
-        </> : <div className="fan empty"><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap “Add yours”.</small></div></div>}
+        </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
         </div>
        </div>
       </div>

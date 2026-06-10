@@ -12,7 +12,7 @@ import {
 } from "./screens-main.jsx";
 import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
-  UploadSheet, MatchSheet, AdminScreen,
+  UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
 
 const TABS = ["schedule", "people", "teams", "standings"];
@@ -72,6 +72,7 @@ export default function App() {
   const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id } });
   const openTeam   = (c) => navigate({ overlay: { type: "team", code: c } });
   const openMatch  = (f) => navigate({ modal: { type: "match", id: f.id } });
+  const openPhoto  = (p) => navigate({ modal: { type: "photo", id: p.id } });
   const openUpload = (c) => navigate({ modal: { type: "upload", team: c || null } });
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
@@ -80,9 +81,10 @@ export default function App() {
   // resolve serializable ids back into the live objects the screens expect
   const person = overlay?.type === "person" ? S.peopleById[overlay.id] : null;
   const matchF = modal?.type === "match" ? S.fixtures.find((x) => x.id === modal.id) : null;
+  const photoP = modal?.type === "photo" ? S.photos.find((x) => x.id === modal.id) : null;
 
   let base = null;
-  if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} onAdmin={openAdmin}/>;
+  if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin}/>;
   else if (tab==="schedule")  base = <ScheduleScreen openMatch={openMatch} openPerson={openPerson}/>;
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
@@ -100,6 +102,7 @@ export default function App() {
     <>
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson}/>}
       {modal?.type==="upload" && <UploadSheet presetTeam={modal.team} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
+      {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openTeam={openTeam}/>}
       {identity && <IdentitySheet onClose={goBack}/>}
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>
