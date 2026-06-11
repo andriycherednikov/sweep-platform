@@ -311,15 +311,31 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
   const isProfile = kind === "profile";
   const ok = name.trim() && file && (isProfile ? !!me : !!fixtureId) && !busy;
 
-  // taggable games: all fixtures, most-recent-first, searchable by team / matchup / city
+  // taggable games: all fixtures in kickoff (start-time) order, searchable
   const games = useMemo(() => {
     const ql = q.trim().toLowerCase();
     const matchup = (f) => `${S.team(f.t1).name} ${S.team(f.t2).name} ${f.city || ""}`.toLowerCase();
     return [...S.fixtures]
-      .sort((a, b) => b.ko - a.ko)
+      .sort((a, b) => a.ko - b.ko)
       .filter((f) => !ql || matchup(f).includes(ql));
   }, [q]);
   const pickedFixture = fixtureId ? S.fixture(fixtureId) : null;
+
+  // on open, scroll to today's first game — or the most recent game on/before today
+  const scrollToId = useMemo(() => {
+    const today = games.find((f) => f.dayKey === S.todayKey);
+    if (today) return today.id;
+    let prev = null;
+    for (const f of games) { if (f.dayKey <= S.todayKey) prev = f; else break; }
+    return (prev || games[0])?.id || null;
+  }, [games]);
+  const listRef = useRef(null);
+  const targetRef = useRef(null);
+  useEffect(() => {
+    if (q.trim() || isProfile) return;
+    const list = listRef.current, target = targetRef.current;
+    if (list && target) list.scrollTop = Math.max(0, target.offsetTop - list.clientHeight / 2 + target.clientHeight / 2);
+  }, [scrollToId, q, isProfile]);
 
   async function submit(){
     if (!ok) return;
@@ -362,9 +378,9 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                 <div className="field">
                   <label>Tag a game</label>
                   <SearchInput value={q} onChange={setQ} placeholder="Search by team or matchup" />
-                  <div className="gamepick">
+                  <div className="gamepick" ref={listRef}>
                     {games.map((f)=>(
-                      <button key={f.id} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(f.id)}>
+                      <button key={f.id} ref={f.id===scrollToId?targetRef:null} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(f.id)}>
                         <span className="gpk-teams">
                           <img src={S.flag(f.t1,40)} alt=""/>{S.team(f.t1).name}
                           <i>v</i>

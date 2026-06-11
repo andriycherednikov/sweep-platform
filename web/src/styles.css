@@ -488,7 +488,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .field input{width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:12px 13px; font-family:'Barlow'; font-weight:600; font-size:15px; color:var(--ink);}
 .field input:focus{outline:none; border-color:var(--accent);}
 /* searchable game picker (tag a game) */
-.gamepick{display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto; padding:2px; margin-top:8px;}
+.gamepick{position:relative; display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto; padding:2px; margin-top:8px;}
 .gpk{display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; text-align:left; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:8px 11px; transition:border-color .12s, background .12s;}
 .gpk.on{border-color:var(--accent); background:#fff6f3;}
 .gpk-teams{display:flex; align-items:center; gap:6px; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:13.5px; color:var(--navy);}
