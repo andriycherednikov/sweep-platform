@@ -104,7 +104,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                 <b>{t.name}</b>
                 <div className="sub"><span className="poolbadge">Pool {t.pool}</span><span>Group {t.group}</span><span>{t.outlook}</span></div>
               </div>
-              <div className="wbox"><b>{t.titleOdds}%</b><small>Title</small></div>
+              <div className="wbox"><b>{t.titleOdds}</b><small>Title rating</small></div>
             </div>
           ))}
 
@@ -229,7 +229,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{marginTop:14}}>
           <div className="dh-stats" style={{marginTop:0}}>
-            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.titleOdds}%</b><small style={{color:"var(--muted2)"}}>Title odds</small></div>
+            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.titleOdds}</b><small style={{color:"var(--muted2)"}}>Title rating</small></div>
             <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.win}-{t.draw}-{t.loss}</b><small style={{color:"var(--muted2)"}}>W-D-L</small></div>
             <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{S.gd(t)>0?"+":""}{S.gd(t)}</b><small style={{color:"var(--muted2)"}}>Goal diff</small></div>
           </div>
