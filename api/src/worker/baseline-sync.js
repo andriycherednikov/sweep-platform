@@ -34,10 +34,14 @@ export async function syncBaseline(db, provider, { season }) {
     }))
     const flags = computeFlags(fixtures, ownershipRows)
 
-    // predictions: best-effort per fixture (missing → leave prob null, never throw)
+    // win probabilities: prefer bookmaker odds, fall back to /predictions.
+    // best-effort per fixture (missing → leave prob null, never throw).
     const probById = new Map()
     for (const f of fixtures) {
-      try { const p = await provider.fetchPredictions(f.id); if (p) probById.set(f.id, p) } catch { /* best-effort */ }
+      let p = null
+      try { p = await provider.fetchOdds(f.id) } catch { /* best-effort */ }
+      if (!p) { try { p = await provider.fetchPredictions(f.id) } catch { /* best-effort */ } }
+      if (p) probById.set(f.id, p)
     }
 
     for (const f of fixtures) {
@@ -79,7 +83,7 @@ export async function syncBaseline(db, provider, { season }) {
 
     await db.insert(syncLog).values({
       source: 'api-football', kind: 'baseline', status: 'ok',
-      counts: { fixtures: fixtures.length, standings: realStandings.length, predictions: probById.size },
+      counts: { fixtures: fixtures.length, standings: realStandings.length, probs: probById.size },
     })
     return { fixtures: fixtures.length, standings: realStandings.length }
   } catch (err) {

@@ -1,0 +1,47 @@
+{
+  "response": [
+    {
+      "fixture": { "id": 9002 },
+      "bookmakers": [
+        {
+          "id": 8,
+          "name": "Bet365",
+          "bets": [
+            {
+              "id": 5,
+              "name": "Goals Over/Under",
+              "values": [
+                { "value": "Over 2.5", "odd": "1.90" },
+                { "value": "Under 2.5", "odd": "1.90" }
+              ]
+            },
+            {
+              "id": 1,
+              "name": "Match Winner",
+              "values": [
+                { "value": "Home", "odd": "1.80" },
+                { "value": "Draw", "odd": "3.60" },
+                { "value": "Away", "odd": "4.50" }
+              ]
+            }
+          ]
+        },
+        {
+          "id": 6,
+          "name": "Bwin",
+          "bets": [
+            {
+              "id": 1,
+              "name": "Match Winner",
+              "values": [
+                { "value": "Home", "odd": "1.85" },
+                { "value": "Draw", "odd": "3.50" },
+                { "value": "Away", "odd": "4.40" }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

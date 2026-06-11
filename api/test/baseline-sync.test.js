@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing, syncLog } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
+import { mapOdds, mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -46,6 +47,35 @@ test('is idempotent — second run changes nothing structural', async () => {
   expect((await db.select().from(fixture)).length).toBe(2)
   const cro = (await db.select().from(standing).where(eq(standing.teamCode, 'hr')))[0]
   expect(cro).toMatchObject({ played: 1, win: 1, pts: 3, gf: 2, ga: 1 })
+})
+
+test('prefers bookmaker odds, falls back to predictions when odds are absent', async () => {
+  const calls = { preds: [] }
+  const oddsProvider = {
+    ...provider,
+    async fetchOdds(fixtureId) { return fixtureId === '9002' ? mapOdds(load('odds')) : null },
+    async fetchPredictions(fixtureId) { calls.preds.push(fixtureId); return mapPrediction(load('predictions')) },
+  }
+  await syncBaseline(db, oddsProvider, { season: 2026 })
+  const fx = await db.select().from(fixture)
+  const f1 = fx.find((f) => f.id === '9001')
+  const f2 = fx.find((f) => f.id === '9002')
+  expect(f2).toMatchObject({ probA: 53, probD: 26, probB: 21 })   // odds-derived
+  expect(f2.probA + f2.probD + f2.probB).toBe(100)
+  expect(f1.probA).toBe(55)                                       // no odds → predictions fallback
+  expect(calls.preds).not.toContain('9002')                      // odds won → predictions skipped
+  expect(calls.preds).toContain('9001')                          // no odds → predictions tried
+})
+
+test('a failed odds+predictions fetch does not wipe prior prob', async () => {
+  const boomProbs = {
+    ...provider,
+    async fetchOdds() { throw new Error('odds 503') },
+    async fetchPredictions() { throw new Error('preds 503') },
+  }
+  await syncBaseline(db, boomProbs, { season: 2026 })
+  const f2 = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
+  expect(f2.probA).toBe(53)                                       // last-good odds untouched
 })
 
 test('a provider failure leaves last-good data and logs an error row', async () => {

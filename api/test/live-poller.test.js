@@ -5,7 +5,8 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow } from '../src/worker/live-poller.js'
+import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
@@ -48,4 +49,48 @@ test('pollLive publishes a score event for each updated fixture', async () => {
   const events = []
   await pollLive(db, liveProvider, (e) => events.push(e))
   expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'live', score: [1, 0], minute: 63 })
+})
+
+test('isLineupWindow is true ~45 min before kickoff (longer lead than scores)', () => {
+  const kickoffs = [new Date('2026-06-16T09:00:00Z')]
+  expect(isLineupWindow(new Date('2026-06-16T08:20:00Z'), kickoffs)).toBe(true)   // 40m before KO
+  expect(isLineupWindow(new Date('2026-06-16T08:05:00Z'), kickoffs)).toBe(false)  // 55m before → too early
+  expect(isLineupWindow(new Date('2026-06-16T09:30:00Z'), kickoffs)).toBe(true)   // 30m into match
+})
+
+test('pollLineups stores 2-team lineups and publishes a lineups event', async () => {
+  await db.update(fixture).set({ lineups: null }).where(eq(fixture.id, '9001'))
+  const crosswalk = await resolveCrosswalk(db)
+  const provider = createRecordedProvider({ lineups: load('lineups') })
+  const rows = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  const events = []
+  const n = await pollLineups(db, provider, rows, crosswalk, (e) => events.push(e))
+  expect(n).toBe(1)
+  const f = (await db.select().from(fixture).where(eq(fixture.id, '9001')))[0]
+  expect(f.lineups).toHaveLength(2)
+  expect(f.lineups[0]).toMatchObject({ teamCode: 'hr', formation: '4-3-3' })
+  expect(f.lineups[0].startXI).toHaveLength(11)
+  expect(events).toContainEqual({ type: 'lineups', fixtureId: '9001' })
+})
+
+test('pollLineups skips fixtures that already have a team sheet', async () => {
+  const sentinel = [{ teamCode: 'hr', formation: 'X', startXI: [] }]
+  await db.update(fixture).set({ lineups: sentinel }).where(eq(fixture.id, '9001'))
+  let called = 0
+  const provider = { async fetchLineups() { called++; return load('lineups') } }
+  const rows = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  await pollLineups(db, provider, rows, await resolveCrosswalk(db))
+  expect(called).toBe(0)
+  const f = (await db.select().from(fixture).where(eq(fixture.id, '9001')))[0]
+  expect(f.lineups).toEqual(sentinel)
+})
+
+test('pollLineups is best-effort: a failed fetch updates nothing and never throws', async () => {
+  await db.update(fixture).set({ lineups: null }).where(eq(fixture.id, '9002'))
+  const provider = { async fetchLineups() { throw new Error('lineups 503') } }
+  const rows = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  const n = await pollLineups(db, provider, rows, await resolveCrosswalk(db))
+  expect(n).toBe(0)
+  const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
+  expect(f.lineups).toBeNull()
 })

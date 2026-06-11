@@ -28,6 +28,12 @@ test('GET /api/fixtures?person=p4 returns Andriy\'s teams\' matches', async () =
   expect(list.every((f) => ['fr', 'hr'].includes(f.t1) || ['fr', 'hr'].includes(f.t2))).toBe(true)
 })
 
+test('fixtures carry a lineups field (null by default)', async () => {
+  const list = (await app.inject({ method: 'GET', url: '/api/fixtures' })).json()
+  expect(list.every((f) => 'lineups' in f)).toBe(true)
+  expect(list[0].lineups).toBeNull()
+})
+
 test('GET /api/fixtures/:id returns one fixture or 404', async () => {
   const all = (await app.inject({ method: 'GET', url: '/api/fixtures' })).json()
   const one = await app.inject({ method: 'GET', url: `/api/fixtures/${all[0].id}` })

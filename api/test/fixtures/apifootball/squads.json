@@ -1,0 +1,14 @@
+{
+  "response": [
+    {
+      "team": { "id": 3001, "name": "Croatia", "logo": "https://media.api-sports.io/football/teams/3001.png" },
+      "players": [
+        { "id": 1, "name": "D. Livakovic", "age": 29, "number": 1, "position": "Goalkeeper", "photo": "https://media.api-sports.io/football/players/1.png" },
+        { "id": 4, "name": "J. Gvardiol", "age": 22, "number": 20, "position": "Defender", "photo": "https://media.api-sports.io/football/players/4.png" },
+        { "id": 7, "name": "L. Modric", "age": 38, "number": 10, "position": "Midfielder", "photo": "https://media.api-sports.io/football/players/7.png" },
+        { "id": 9, "name": "A. Kramaric", "age": 32, "number": 9, "position": "Attacker", "photo": "https://media.api-sports.io/football/players/9.png" },
+        { "id": 12, "name": "N. Moro", "age": 23, "position": "Midfielder", "photo": "https://media.api-sports.io/football/players/12.png" }
+      ]
+    }
+  ]
+}

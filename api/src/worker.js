@@ -2,7 +2,8 @@ import cron from 'node-cron'
 import { createPool, createDb } from './db/client.js'
 import { createApiFootballProvider } from './providers/api-football-provider.js'
 import { syncBaseline } from './worker/baseline-sync.js'
-import { pollLive, isLiveWindow } from './worker/live-poller.js'
+import { pollLive, pollLineups, isLiveWindow, isLineupWindow } from './worker/live-poller.js'
+import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { fixture } from './db/schema.js'
 
@@ -24,13 +25,24 @@ cron.schedule('10 0,6,12,18 * * *', () => baseline('cron'))
 await baseline('boot')
 
 // Live tick every 60s, but only hit the API inside a kickoff window.
+// Scores poll in the ±150m live window; lineups in a wider ~45m pre-kickoff window.
 setInterval(async () => {
   try {
-    const kickoffs = (await db.select({ ko: fixture.kickoffUtc }).from(fixture)).map((r) => new Date(r.ko))
-    if (!isLiveWindow(new Date(), kickoffs)) return
-    const n = await pollLive(db, provider, (e) => publish(db, e))
-    if (n) console.log(`[live] updated ${n}`)
-  } catch (e) { console.error('[live] failed:', e.message) }
+    const rows = await db.select({ id: fixture.id, ko: fixture.kickoffUtc, lineups: fixture.lineups }).from(fixture)
+    const now = new Date()
+    const kickoffs = rows.map((r) => new Date(r.ko))
+    if (isLiveWindow(now, kickoffs)) {
+      const n = await pollLive(db, provider, (e) => publish(db, e))
+      if (n) console.log(`[live] updated ${n}`)
+    }
+    if (isLineupWindow(now, kickoffs)) {
+      const candidates = rows.filter((r) => !r.lineups && isLineupWindow(now, [new Date(r.ko)]))
+      if (candidates.length) {
+        const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db), (e) => publish(db, e))
+        if (m) console.log(`[lineups] updated ${m}`)
+      }
+    }
+  } catch (e) { console.error('[tick] failed:', e.message) }
 }, 60_000)
 
 console.log(`worker up — season ${season}`)

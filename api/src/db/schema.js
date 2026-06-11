@@ -17,6 +17,7 @@ export const team = pgTable('team', {
   color: text('color').notNull(),
   strength: integer('strength').notNull(),
   flagCode: text('flag_code').notNull(),
+  squad: jsonb('squad'),
 })
 
 export const ownership = pgTable('ownership', {
@@ -51,6 +52,7 @@ export const fixture = pgTable('fixture', {
   probA: integer('prob_a'),
   probD: integer('prob_d'),
   probB: integer('prob_b'),
+  lineups: jsonb('lineups'),
   stage: text('stage').notNull().default('group'),
   derby: boolean('derby').notNull().default(false),
   doubleOwner: boolean('double_owner').notNull().default(false),

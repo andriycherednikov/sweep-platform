@@ -16,3 +16,9 @@ test('GET /api/bootstrap returns teams, people, ownership, scoring', async () =>
   const andriy = body.people.find((p) => p.id === 'p4')
   expect(body.ownership[andriy.id]).toContain('hr')
 })
+
+test('bootstrap teams carry a squad field (null by default)', async () => {
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  expect(body.teams.every((t) => 'squad' in t)).toBe(true)
+  expect(body.teams[0].squad).toBeNull()
+})

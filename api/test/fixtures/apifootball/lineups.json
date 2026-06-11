@@ -1,0 +1,38 @@
+{
+  "response": [
+    {
+      "team": { "id": 3001, "name": "Croatia" },
+      "formation": "4-3-3",
+      "startXI": [
+        { "player": { "id": 1, "name": "D. Livakovic", "number": 1, "pos": "G", "grid": "1:1" } },
+        { "player": { "id": 2, "name": "J. Stanisic", "number": 2, "pos": "D", "grid": "2:4" } },
+        { "player": { "id": 3, "name": "J. Sutalo", "number": 21, "pos": "D", "grid": "2:3" } },
+        { "player": { "id": 4, "name": "J. Gvardiol", "number": 20, "pos": "D", "grid": "2:2" } },
+        { "player": { "id": 5, "name": "B. Sosa", "number": 19, "pos": "D", "grid": "2:1" } },
+        { "player": { "id": 6, "name": "M. Brozovic", "number": 11, "pos": "M", "grid": "3:3" } },
+        { "player": { "id": 7, "name": "L. Modric", "number": 10, "pos": "M", "grid": "3:2" } },
+        { "player": { "id": 8, "name": "M. Kovacic", "number": 8, "pos": "M", "grid": "3:1" } },
+        { "player": { "id": 9, "name": "A. Kramaric", "number": 9, "pos": "F", "grid": "4:3" } },
+        { "player": { "id": 10, "name": "B. Petkovic", "number": 16, "pos": "F", "grid": "4:2" } },
+        { "player": { "id": 11, "name": "I. Perisic", "number": 4, "pos": "F", "grid": "4:1" } }
+      ]
+    },
+    {
+      "team": { "id": 3002, "name": "Belgium" },
+      "formation": "3-4-2-1",
+      "startXI": [
+        { "player": { "id": 21, "name": "T. Courtois", "number": 1, "pos": "G", "grid": "1:1" } },
+        { "player": { "id": 22, "name": "J. Vertonghen", "number": 5, "pos": "D", "grid": "2:3" } },
+        { "player": { "id": 23, "name": "W. Faes", "number": 4, "pos": "D", "grid": "2:2" } },
+        { "player": { "id": 24, "name": "A. Theate", "number": 15, "pos": "D", "grid": "2:1" } },
+        { "player": { "id": 25, "name": "T. Castagne", "number": 21, "pos": "M", "grid": "3:4" } },
+        { "player": { "id": 26, "name": "A. Onana", "number": 17, "pos": "M", "grid": "3:3" } },
+        { "player": { "id": 27, "name": "K. De Bruyne", "number": 7, "pos": "M", "grid": "3:2" } },
+        { "player": { "id": 28, "name": "Y. Carrasco", "pos": "M", "grid": "3:1" } },
+        { "player": { "id": 29, "name": "J. Doku", "number": 22, "pos": "F", "grid": "4:2" } },
+        { "player": { "id": 30, "name": "L. Lukaku", "number": 9, "pos": "F", "grid": "4:1" } },
+        { "player": { "id": 31, "name": "L. Trossard", "number": 18, "pos": "F", "grid": "5:1" } }
+      ]
+    }
+  ]
+}

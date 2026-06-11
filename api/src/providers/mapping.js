@@ -68,6 +68,78 @@ export function mapPrediction(rawResponse) {
   return { a, d, b }
 }
 
+/** Largest-remainder rounding of fractional percents to ints summing to exactly 100. */
+function roundTo100(parts) {
+  const scaled = parts.map((p) => p * 100)
+  const floors = scaled.map(Math.floor)
+  let remainder = 100 - floors.reduce((s, n) => s + n, 0)
+  // hand out the leftover to the largest fractional parts (deterministic a→d→b on ties)
+  const order = scaled
+    .map((v, i) => ({ i, frac: v - Math.floor(v) }))
+    .sort((x, y) => (y.frac - x.frac) || (x.i - y.i))
+  const out = floors.slice()
+  for (let k = 0; k < order.length && remainder > 0; k++, remainder--) out[order[k].i] += 1
+  return out
+}
+
+/**
+ * /odds response → {a,d,b} implied win percents (home,draw,away), or null.
+ * Picks the first bookmaker carrying a complete "Match Winner" (1X2) market,
+ * converts decimal odds to implied probabilities (1/odd), strips the margin by
+ * normalizing, and rounds to ints summing to exactly 100.
+ */
+export function mapOdds(rawResponse) {
+  const bookmakers = rawResponse?.response?.[0]?.bookmakers ?? []
+  for (const bk of bookmakers) {
+    const bet = (bk.bets ?? []).find((b) => b.name === 'Match Winner')
+    if (!bet) continue
+    const pick = (label) => bet.values?.find((v) => v.value === label)?.odd
+    const odds = [pick('Home'), pick('Draw'), pick('Away')].map(Number)
+    if (odds.some((o) => !Number.isFinite(o) || o <= 1)) continue
+    const implied = odds.map((o) => 1 / o)
+    const sum = implied.reduce((s, n) => s + n, 0)
+    const [a, d, b] = roundTo100(implied.map((p) => p / sum))
+    return { a, d, b }
+  }
+  return null
+}
+
 export function mapTeam(raw) {
   return { providerTeamId: raw.team.id, name: raw.team.name, code: raw.team.code ?? null, country: raw.team.country ?? null }
+}
+
+/**
+ * /players/squads response → [{name, number, pos, photo}] for one team's roster, or null.
+ * A missing shirt number is kept (null), not dropped — squads list players without numbers.
+ */
+export function mapSquad(rawResponse) {
+  const players = rawResponse?.response?.[0]?.players ?? []
+  const out = players.map((p) => ({
+    name: p.name ?? null,
+    number: p.number ?? null,
+    pos: p.position ?? null,
+    photo: p.photo ?? null,
+  }))
+  return out.length ? out : null
+}
+
+/**
+ * /fixtures/lineups response + a crosswalk (Map<providerTeamId, teamCode>) →
+ * [{ teamCode, formation, startXI:[{name,number,pos}] }]. Teams not in the crosswalk
+ * are dropped; returns null if nothing resolves (so callers don't wipe prior data).
+ */
+export function mapLineups(rawResponse, crosswalkMap) {
+  const entries = rawResponse?.response ?? []
+  const out = []
+  for (const e of entries) {
+    const teamCode = crosswalkMap.get(e.team?.id)
+    if (!teamCode) continue
+    const startXI = (e.startXI ?? []).map(({ player }) => ({
+      name: player?.name ?? null,
+      number: player?.number ?? null,
+      pos: player?.pos ?? null,
+    }))
+    out.push({ teamCode, formation: e.formation ?? null, startXI })
+  }
+  return out.length ? out : null
 }
