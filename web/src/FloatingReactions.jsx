@@ -16,15 +16,22 @@ export function FloatingReactions() {
 
   useEffect(() => onNotification((n) => {
     // resolve from already-loaded data; skip silently if we can't render it
-    const person = S.peopleById[n.personId];
-    const team = S.team(n.teamCode);
     const fx = S.fixture(n.fixtureId);
-    if (!person || !team || !fx) return;
+    if (!fx) return;
+    let resolved;
+    if (n.kind === "match") {
+      resolved = { ...n, fx };
+    } else {
+      const person = S.peopleById[n.personId];
+      const team = S.team(n.teamCode);
+      if (!person || !team) return;
+      resolved = { ...n, person, team, fx };
+    }
     // random horizontal start, clamped to keep the whole card within the layer
     const w = (wrapRef.current && wrapRef.current.clientWidth) || 360;
     const span = Math.max(0, w - 2 * HALF);
-    const offset = Math.round((w - span) / 2 + Math.random() * span - w / 2);
-    setItems((xs) => [...xs, { ...n, person, team, fx, offset }]);
+    resolved.offset = Math.round((w - span) / 2 + Math.random() * span - w / 2);
+    setItems((xs) => [...xs, resolved]);
     setTimeout(() => setItems((xs) => xs.filter((x) => x.id !== n.id)), LIFETIME);
   }), []);
 
@@ -33,15 +40,63 @@ export function FloatingReactions() {
       {items.map((it) => (
         <div key={it.id} className="reaction-row">
           <div className="reaction" style={{ "--rx": it.offset + "px" }}>
-            <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
-            <div className="reaction-txt">
-              <small>{it.person.short} {it.action === "switch" ? "switched to" : "is backing"}</small>
-              <b><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</b>
-              <span className="reaction-mu">{S.team(it.fx.t1).name} v {S.team(it.fx.t2).name}</span>
-            </div>
+            {it.kind === "match" ? <MatchReaction it={it} /> : <BackReaction it={it} />}
           </div>
         </div>
       ))}
     </div>
+  );
+}
+
+function BackReaction({ it }) {
+  return (
+    <>
+      <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
+      <div className="reaction-txt">
+        <small>{it.person.short} {it.action === "switch" ? "switched to" : "is backing"}</small>
+        <b><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</b>
+        <span className="reaction-mu">{S.team(it.fx.t1).name} v {S.team(it.fx.t2).name}</span>
+      </div>
+    </>
+  );
+}
+
+function MatchReaction({ it }) {
+  const a = S.team(it.fx.t1), b = S.team(it.fx.t2);
+  const score = it.score ? `${it.score[0]}–${it.score[1]}` : null;
+  if (it.event === "goal") {
+    const scorer = S.team(it.teamCode);
+    return (
+      <>
+        <span className="reaction-badge">⚽</span>
+        <div className="reaction-txt">
+          <small>Goal!</small>
+          <b><img className="flag" src={S.flag(scorer.code, 40)} alt="" />{scorer.name}</b>
+          <span className="reaction-mu">{a.name} {score} {b.name}</span>
+        </div>
+      </>
+    );
+  }
+  if (it.event === "start") {
+    return (
+      <>
+        <span className="reaction-badge">🟢</span>
+        <div className="reaction-txt">
+          <small>Kick-off</small>
+          <b>{a.name} v {b.name}</b>
+          <span className="reaction-mu">Now live</span>
+        </div>
+      </>
+    );
+  }
+  return ( // full time
+    <>
+      <span className="reaction-badge">🏁</span>
+      <div className="reaction-txt">
+        <small>Full time</small>
+        <b>{a.name} {score} {b.name}</b>
+        <span className="reaction-mu">Result is in</span>
+      </div>
+    </>
   );
 }

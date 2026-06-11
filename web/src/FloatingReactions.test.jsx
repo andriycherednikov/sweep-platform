@@ -43,3 +43,20 @@ test('silently skips a notification it cannot resolve', () => {
   act(() => { pushNotification({ personId: 'nobody', teamCode: 'br', fixtureId: 'm1', action: 'pick' }) })
   expect(queryByText('Brazil')).toBeNull()
 })
+
+test('renders a GOAL match notification with the scoring team and score', () => {
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', score: [1, 0] }) })
+  expect(container.textContent).toContain('Goal!')
+  expect(container.textContent).toContain('Brazil')
+  expect(container.textContent).toContain('1–0')
+})
+
+test('renders kick-off and full-time match notifications', () => {
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'match', event: 'start', fixtureId: 'm1' }) })
+  expect(container.textContent).toContain('Kick-off')
+  act(() => { pushNotification({ kind: 'match', event: 'final', fixtureId: 'm1', score: [2, 1] }) })
+  expect(container.textContent).toContain('Full time')
+  expect(container.textContent).toContain('2–1')
+})

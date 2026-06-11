@@ -1,6 +1,7 @@
 // web/src/hooks/useEventStream.js
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { SWEEP as S } from '../data.js'
 import { pushNotification } from '../notifications.js'
 import { getAdminBadge, refreshAdminBadge } from '../admin.js'
 
@@ -31,7 +32,24 @@ export function useEventStream() {
       } else if (ev.type === 'photo-pending') {
         // a new upload landed in the queue — bump the admin badge (admins only)
         if (getAdminBadge().isAdmin) refreshAdminBadge()
-      } else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
+      } else if (ev.type === 'score') {
+        // derive a match-event reaction by diffing against the fixture we still hold
+        // (the invalidate below refetches asynchronously, so S.fixture is the prior state)
+        const prev = S.fixture(ev.fixtureId)
+        if (prev && Array.isArray(ev.score)) {
+          const [na, nb] = ev.score
+          const oa = prev.score ? prev.score[0] : 0
+          const ob = prev.score ? prev.score[1] : 0
+          if (prev.status !== 'live' && ev.status === 'live') {
+            pushNotification({ kind: 'match', event: 'start', fixtureId: ev.fixtureId })
+          } else if (prev.status === 'live' && ev.status === 'final') {
+            pushNotification({ kind: 'match', event: 'final', fixtureId: ev.fixtureId, score: ev.score })
+          } else if (ev.status === 'live' && (na > oa || nb > ob)) {
+            pushNotification({ kind: 'match', event: 'goal', fixtureId: ev.fixtureId, teamCode: na > oa ? prev.t1 : prev.t2, score: ev.score })
+          }
+        }
+        qc.invalidateQueries({ queryKey: ['sweep'] })
+      } else if (ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
         qc.invalidateQueries({ queryKey: ['sweep'] })
         if ((ev.type === 'photo-approved' || ev.type === 'photo-removed') && getAdminBadge().isAdmin) refreshAdminBadge()
       }

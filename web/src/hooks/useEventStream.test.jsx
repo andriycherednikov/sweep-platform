@@ -7,6 +7,22 @@ import { pushNotification } from '../notifications.js'
 const admin = vi.hoisted(() => ({ state: { isAdmin: false }, refresh: vi.fn() }))
 vi.mock('../admin.js', () => ({ getAdminBadge: () => admin.state, refreshAdminBadge: admin.refresh }))
 import { useEventStream } from './useEventStream.js'
+import { setSweepData } from '../data.js'
+import { assembleSweep } from '../lib/assemble.js'
+
+function seedFixture(status, score) {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: 'A', pool: 'P', color: '#6cf', strength: 90 },
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'A', matchday: 1, t1: 'ar', t2: 'mx', ko: '2026-06-13T06:30:00Z', venue: 'V', city: 'C', status, score, minute: status === 'live' ? 63 : null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' }],
+    standings: {}, photos: [],
+  }))
+}
 
 let instances
 class FakeES {
@@ -75,6 +91,34 @@ test('photo-approved/photo-removed events invalidate the sweep query', () => {
   es.emit({ type: 'photo-approved', id: 'p1', kind: 'fan' })
   es.emit({ type: 'photo-removed', id: 'p2', kind: 'profile' })
   expect(spy.mock.calls.filter((c) => c[0]?.queryKey?.[0] === 'sweep')).toHaveLength(2)
+})
+
+test('a kickoff (upcoming→live) pushes a match-start reaction', () => {
+  seedFixture('upcoming', null)
+  const { es } = setup()
+  es.emit({ type: 'score', fixtureId: 'm1', status: 'live', score: [0, 0], minute: 1 })
+  expect(pushNotification).toHaveBeenCalledWith(expect.objectContaining({ kind: 'match', event: 'start', fixtureId: 'm1' }))
+})
+
+test('a goal (score rises while live) pushes a match-goal reaction for the scorer', () => {
+  seedFixture('live', [0, 0])
+  const { es } = setup()
+  es.emit({ type: 'score', fixtureId: 'm1', status: 'live', score: [1, 0], minute: 20 })
+  expect(pushNotification).toHaveBeenCalledWith(expect.objectContaining({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'ar', score: [1, 0] }))
+})
+
+test('full time (live→final) pushes a match-final reaction', () => {
+  seedFixture('live', [2, 0])
+  const { es } = setup()
+  es.emit({ type: 'score', fixtureId: 'm1', status: 'final', score: [2, 0], minute: 90 })
+  expect(pushNotification).toHaveBeenCalledWith(expect.objectContaining({ kind: 'match', event: 'final', fixtureId: 'm1', score: [2, 0] }))
+})
+
+test('a minute tick (no score/status change) pushes no match reaction', () => {
+  seedFixture('live', [1, 0])
+  const { es } = setup()
+  es.emit({ type: 'score', fixtureId: 'm1', status: 'live', score: [1, 0], minute: 64 })
+  expect(pushNotification).not.toHaveBeenCalled()
 })
 
 test('closes the stream on unmount', () => {
