@@ -21,8 +21,16 @@ install: ## Install all workspace dependencies
 	npm install
 
 # ---- run ----
-dev: ## Run api (:3000) + web (:5173) together; Ctrl-C stops both
-	@echo "api → http://localhost:3000   web → http://localhost:5173"
+dev: ## Run the full stack — api (:3000) + web (:5173) + football worker; Ctrl-C stops all
+	@echo "api → http://localhost:3000   web → http://localhost:5173   worker → baseline + live/recovery (needs API_FOOTBALL_KEY)"
+	@trap 'kill 0' EXIT; \
+		npm run dev:api & \
+		npm run dev:web & \
+		npm run worker -w api & \
+		wait
+
+dev-front: ## Run api + web only, WITHOUT the worker (frontend work, no API-Football calls)
+	@echo "api → http://localhost:3000   web → http://localhost:5173   (no worker)"
 	@trap 'kill 0' EXIT; \
 		npm run dev:api & \
 		npm run dev:web & \
