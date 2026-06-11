@@ -30,7 +30,8 @@ test('reconcile keeps matched codes, inserts new, deletes absent', () => {
   expect(updates).toContainEqual({ code: 'tr', name: 'Türkiye', group: 'J', providerTeamId: 3009 })
   expect(deletes).toEqual(['it'])
   expect(inserts).toHaveLength(1)
-  expect(inserts[0]).toMatchObject({ code: 'pan', name: 'Panama', group: 'A', providerTeamId: 3020, strength: 70 })
+  // new team's strength comes from the canonical ratings map (Panama → 56), not a flat default
+  expect(inserts[0]).toMatchObject({ code: 'pan', name: 'Panama', group: 'A', providerTeamId: 3020, strength: 56 })
 })
 
 test('derived codes never collide with existing codes', () => {

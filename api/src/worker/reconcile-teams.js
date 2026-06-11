@@ -3,6 +3,7 @@
 // provider-id→group map (from /standings), decide what to update / insert / delete.
 // Matched teams KEEP their existing code (so ownership/photos survive); absent teams
 // are dropped; real teams we don't have are inserted with a derived code.
+import { strengthFor } from '../data/strengths.js'
 
 /** Strip accents, lowercase, collapse non-alphanumerics to single spaces. */
 export function normalizeName(s) {
@@ -58,7 +59,7 @@ export function reconcileTeams(ourTeams, realTeams, groupByProvider) {
       const code = deriveCode(rt, used)
       inserts.push({
         code, name: rt.name, group, providerTeamId: rt.providerTeamId,
-        flagCode: code, ...NEW_TEAM_DEFAULTS,
+        flagCode: code, ...NEW_TEAM_DEFAULTS, strength: strengthFor(code, NEW_TEAM_DEFAULTS.strength),
       })
     }
   }

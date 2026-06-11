@@ -4,6 +4,7 @@
    unchanged; only the final export is replaced with a pure
    generate() returning the shapes the DB seed consumes.
    ============================================================ */
+import { strengthFor } from '../data/strengths.js'
 
 // ---- seeded RNG (mulberry32) ----
 function rng(seed) {
@@ -37,7 +38,7 @@ const teams = {};
 Object.keys(GROUPS).forEach(function (g) {
   GROUPS[g].forEach(function (t, i) {
     teams[t[1]] = {
-      code: t[1], name: t[0], group: g, strength: t[2], color: t[3],
+      code: t[1], name: t[0], group: g, strength: strengthFor(t[1], t[2]), color: t[3],
       pool: i < 2 ? "A" : "B", win: 0, draw: 0, loss: 0, gf: 0, ga: 0, pts: 0, played: 0
     };
   });
