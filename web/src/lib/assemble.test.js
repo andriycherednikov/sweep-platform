@@ -73,11 +73,37 @@ test('hasOdds: true for real predictions, false for provider placeholders/absent
   expect(odds({ a: null, d: null, b: null })).toBe(false) // no prediction stored
 })
 
-test('standings are grouped and money is ranked by best-team strength', () => {
+test('standings are grouped and money is ranked by best-team strength (no wins yet → strength tiebreak)', () => {
   const S = assembleSweep(api)
   expect(Object.keys(S.standings)).toEqual(expect.arrayContaining(['L', 'C']))
   expect(S.money[0].strength).toBeGreaterThanOrEqual(S.money[1].strength)
   expect(S.money[0].person).toBeTruthy()
+})
+
+test('money sorts people by combined team wins (overrides strength) and reports the total', () => {
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'a', name: 'A', group: 'X', pool: 'P', color: '#000', strength: 60 },
+        { code: 'b', name: 'B', group: 'X', pool: 'P', color: '#000', strength: 90 },
+      ],
+      people: [
+        { id: 'p1', name: 'Strong', short: 'S', initials: 'S', av: '#000', avatarPath: null },
+        { id: 'p2', name: 'Winning', short: 'W', initials: 'W', av: '#000', avatarPath: null },
+      ],
+      ownership: { p1: ['b'], p2: ['a'] }, // p1 has the stronger team, p2 has more wins
+      scoring: null,
+    },
+    fixtures: [],
+    standings: { X: [
+      { code: 'a', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 },
+      { code: 'b', played: 3, win: 1, draw: 0, loss: 2, gf: 2, ga: 4, pts: 3 },
+    ] },
+    photos: [],
+  })
+  expect(S.money[0].person.id).toBe('p2') // 3 wins ranks above 1 win, despite weaker team
+  expect(S.money[0].wins).toBe(3)
+  expect(S.money[1].wins).toBe(1)
 })
 
 test('derby true when both sides owned by different people', () => {

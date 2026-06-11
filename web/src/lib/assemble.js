@@ -87,11 +87,13 @@ export function assembleSweep(api) {
   const liveMatch = fixtures.find((f) => f.status === 'live') || null
   const nextMatch = fixtures.find((f) => f.status === 'upcoming') || fixtures[0] || null
 
-  // "in the money": rank people by their best owned team's strength
+  // people ranked by their teams' combined wins (tiebreak: best-team strength)
   const money = people.map((p) => {
-    const best = p.teams.map((c) => teams[c]).filter(Boolean).sort((a, b) => b.strength - a.strength)[0]
-    return { person: p, team: best || null, odds: best ? best.titleOdds : 0, strength: best ? best.strength : 0 }
-  }).sort((a, b) => b.strength - a.strength)
+    const myTeams = p.teams.map((c) => teams[c]).filter(Boolean)
+    const best = myTeams.slice().sort((a, b) => b.strength - a.strength)[0]
+    const wins = myTeams.reduce((n, t) => n + (t.win || 0), 0)
+    return { person: p, team: best || null, odds: best ? best.titleOdds : 0, strength: best ? best.strength : 0, wins }
+  }).sort((a, b) => (b.wins - a.wins) || (b.strength - a.strength))
   money.forEach((m, i) => { m.rank = i + 1; m.tag = i === 0 ? 'Title fav' : m.strength >= 70 ? 'Alive' : 'Outside' })
 
   // photos (already approved-only from the API) — tagged to a game (fixtureId)

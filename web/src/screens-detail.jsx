@@ -21,7 +21,7 @@ export function PeopleScreen({ openPerson }) {
     : S.money;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="People" sub={S.people.length + " in the sweep · ranked by best team"} tall />
+      <PageHeader title="People" sub={S.people.length + " in the sweep · sorted by team wins"} tall />
       <div className="scroll pad screen-anim" style={{paddingTop:14}}>
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 14px"}}>
@@ -39,8 +39,8 @@ export function PeopleScreen({ openPerson }) {
                     <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
                   </div>
                   <div className="stat">
-                    <div className="pp">#{m.rank}</div>
-                    <small style={{color:m.rank===1?"var(--accent)":"var(--muted2)"}}>{m.tag}</small>
+                    <div className="pp">{m.wins}</div>
+                    <small style={{color:"var(--muted2)"}}>{m.wins===1?"win":"wins"}</small>
                   </div>
                   <Icon.chev className="chev"/>
                 </div>
