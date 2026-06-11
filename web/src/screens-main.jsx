@@ -51,14 +51,14 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     <div className="scroll pad screen-anim">
       <HomeHeader onAdmin={onAdmin} go={go}/>
 
-      {/* hero next match */}
-      <section className="hero">
+      {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
+      <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
           <span className="derby-tag" style={{background:"#5b6f8e"}}>Next match</span>
           <span className="hero-when">Kicks off in</span>
         </div>
         <div className="match-line">
-          <div className="team" onClick={()=>openTeam(next.t1)}>
+          <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t1);}}>
             <Flag code={next.t1} w={46} h={34} />
             <span className="nm">{t1.name.toUpperCase()}</span>
           </div>
@@ -66,7 +66,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <span className="cd">{cd.display}</span>
             <span className="cdl">{cd.unit}</span>
           </div>
-          <div className="team" onClick={()=>openTeam(next.t2)}>
+          <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
             <Flag code={next.t2} w={46} h={34} />
             <span className="nm">{t2.name.toUpperCase()}</span>
           </div>
@@ -79,7 +79,9 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob.b}%</b></span>
         </div>
         </>}
-        <CrowdPick f={next} onToast={toast} light locked={next.status !== "upcoming"} />
+        <div onClick={(e)=>e.stopPropagation()}>
+          <CrowdPick f={next} onToast={toast} light locked={next.status !== "upcoming"} />
+        </div>
         <div className="hero-owners">
           <div className="ostack">
             <div className="lbl">{t1.name} · owners</div>
