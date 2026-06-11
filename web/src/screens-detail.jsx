@@ -562,10 +562,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </div>
           </>}
 
-          <div style={{display:"flex",gap:10}}>
-            <WatchToggleCTA id={f.id} onToast={onToast} />
-            <button className="cta ghost" style={{flex:1}} onClick={()=>{onToast("Shared to WhatsApp");onClose();}}><Icon.share/> Share</button>
-          </div>
+          <WatchToggleCTA id={f.id} onToast={onToast} />
         </div>
       </div>
     </div>
