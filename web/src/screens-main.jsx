@@ -18,6 +18,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   useSocial(); // re-render on identity / watch / support changes
   const me = getMe();
+  const isDesktop = useIsDesktop(); // mobile is people-centric: stats go above Next games
 
   const order = { live:0, upcoming:1, final:2 };
   // soonest games, in natural order — your games are highlighted inline (not floated to the top)
@@ -46,6 +47,50 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   useEffect(()=>{ if(approved.length===0) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
   const photo = approved[pi];
   const photoFx = photo ? S.fixture(photo.fixtureId) : null;
+
+  // people-centric stat panels — shown in the sidebar on desktop, above Next games on mobile
+  const statPanels = (
+    <>
+      {topWinners.length>0 && <>
+        <div className="sec-h"><h2>Most wins</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
+        <div className="ranklist">{topWinners.map((r,i)=>(
+          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
+            <span className="rk">{i+1}</span>
+            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+            <span className="rname">{r.person.name}</span>
+            <b className="rval">{r.wins}<i>W</i></b>
+          </div>
+        ))}</div>
+      </>}
+
+      {results.length>0 && <>
+        <div className="sec-h"><h2>Latest scores</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
+        <div className="sidescores">{results.map(f=>{
+          const ta=S.team(f.t1), tb=S.team(f.t2);
+          return (
+            <div className="res" key={f.id} onClick={()=>openMatch(f)}>
+              <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
+              <span className="rscore">{f.score[0]} – {f.score[1]}</span>
+              <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
+              <span className="ft">FT</span>
+            </div>
+          );
+        })}</div>
+      </>}
+
+      {accurate.length>0 && <>
+        <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
+        <div className="ranklist">{accurate.map((r,i)=>(
+          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
+            <span className="rk">{i+1}</span>
+            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+            <span className="rname">{r.person.name}</span>
+            <b className="rval">{r.correct}</b>
+          </div>
+        ))}</div>
+      </>}
+    </>
+  );
 
   return (
     <div className="scroll pad screen-anim">
@@ -98,49 +143,13 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       <div className="wrap">
        <div className="deskhome">
         <div className="deskhome-main">
+        {!isDesktop && statPanels}
         <div className="sec-h"><h2>Next games</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
         <div className="mgrid">{nextMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
         </div>
 
         <div className="deskhome-side">
-        {topWinners.length>0 && <>
-        <div className="sec-h"><h2>Most wins</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
-        <div className="ranklist">{topWinners.map((r,i)=>(
-          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
-            <span className="rk">{i+1}</span>
-            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
-            <span className="rname">{r.person.name}</span>
-            <b className="rval">{r.wins}<i>W</i></b>
-          </div>
-        ))}</div>
-        </>}
-
-        {results.length>0 && <>
-        <div className="sec-h"><h2>Latest scores</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
-        <div className="sidescores">{results.map(f=>{
-          const ta=S.team(f.t1), tb=S.team(f.t2);
-          return (
-            <div className="res" key={f.id} onClick={()=>openMatch(f)}>
-              <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
-              <span className="rscore">{f.score[0]} – {f.score[1]}</span>
-              <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
-              <span className="ft">FT</span>
-            </div>
-          );
-        })}</div>
-        </>}
-
-        {accurate.length>0 && <>
-        <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
-        <div className="ranklist">{accurate.map((r,i)=>(
-          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
-            <span className="rk">{i+1}</span>
-            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
-            <span className="rname">{r.person.name}</span>
-            <b className="rval">{r.correct}</b>
-          </div>
-        ))}</div>
-        </>}
+        {isDesktop && statPanels}
 
         <div className="sec-h"><h2>Standings · Group {grpKey}</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
         <div className="stand">
