@@ -50,16 +50,16 @@ export async function socialRoutes(app) {
 
     const where = and(eq(support.fixtureId, fixtureId), eq(support.personId, personId))
     const [existing] = await app.db.select().from(support).where(where)
-    let supporting
+    let supporting, action
     if (existing && existing.teamCode === teamCode) {
-      await app.db.delete(support).where(where); supporting = null
+      await app.db.delete(support).where(where); supporting = null; action = 'remove'
     } else if (existing) {
-      await app.db.update(support).set({ teamCode }).where(where); supporting = teamCode
+      await app.db.update(support).set({ teamCode }).where(where); supporting = teamCode; action = 'switch'
     } else {
-      await app.db.insert(support).values({ fixtureId, personId, teamCode }); supporting = teamCode
+      await app.db.insert(support).values({ fixtureId, personId, teamCode }); supporting = teamCode; action = 'pick'
     }
 
-    await app.publish({ type: 'support', fixtureId })
+    await app.publish({ type: 'support', fixtureId, personId, supporting, action })
     return { fixtureId, personId, supporting }
   })
 }

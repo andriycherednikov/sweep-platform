@@ -76,7 +76,12 @@ test('POST /api/support sets, switches, and toggles-off backing; publishes each 
   const off = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.t2Code } })
   expect(off.json().supporting).toBe(null)
 
-  expect(published.filter((e) => e.type === 'support')).toHaveLength(3)
+  const supportEvents = published.filter((e) => e.type === 'support')
+  expect(supportEvents).toHaveLength(3)
+  // events carry who + which team + whether it was a fresh pick or a switch
+  expect(supportEvents[0]).toMatchObject({ fixtureId: f.id, personId: p1.id, supporting: f.t1Code, action: 'pick' })
+  expect(supportEvents[1]).toMatchObject({ personId: p1.id, supporting: f.t2Code, action: 'switch' })
+  expect(supportEvents[2]).toMatchObject({ personId: p1.id, supporting: null, action: 'remove' })
 })
 
 test('POST /api/support 400s when teamCode is not one of the fixture teams', async () => {

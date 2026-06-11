@@ -7,6 +7,7 @@ import {
   Icon, BottomNav, Sidebar, IdentitySheet, useIsDesktop,
 } from "./components.jsx";
 import { setGlobalToast, getMe } from "./social.js";
+import { FloatingReactions } from "./FloatingReactions.jsx";
 import {
   HomeScreen, ScheduleScreen, StandingsScreen, KnockoutsScreen,
 } from "./screens-main.jsx";
@@ -105,6 +106,7 @@ export default function App() {
       {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
       {identity && <IdentitySheet onClose={goBack}/>}
+      <FloatingReactions/>
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>
   );

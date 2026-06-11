@@ -1,6 +1,7 @@
 // web/src/hooks/useEventStream.js
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { pushNotification } from '../notifications.js'
 
 /**
  * Subscribe once to GET /api/stream. Each event invalidates the relevant
@@ -20,8 +21,13 @@ export function useEventStream() {
     es.onmessage = (e) => {
       let ev
       try { ev = JSON.parse(e.data) } catch { return }
-      if (ev.type === 'watch' || ev.type === 'support') qc.invalidateQueries({ queryKey: ['social'] })
-      else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') qc.invalidateQueries({ queryKey: ['sweep'] })
+      if (ev.type === 'watch' || ev.type === 'support') {
+        qc.invalidateQueries({ queryKey: ['social'] })
+        // ambient floating reaction when someone backs/switches a team (not on remove)
+        if (ev.type === 'support' && ev.supporting) {
+          pushNotification({ personId: ev.personId, teamCode: ev.supporting, fixtureId: ev.fixtureId, action: ev.action })
+        }
+      } else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') qc.invalidateQueries({ queryKey: ['sweep'] })
     }
     return () => es.close()
   }, [qc])
