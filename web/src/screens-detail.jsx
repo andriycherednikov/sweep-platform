@@ -38,10 +38,12 @@ export function PeopleScreen({ openPerson }) {
                     <b>{p.name}</b>
                     <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
                   </div>
-                  <div className="stat">
-                    <div className="pp">{m.wins}</div>
-                    <small style={{color:"var(--muted2)"}}>{m.wins===1?"win":"wins"}</small>
-                  </div>
+                  {m.wins > 0 && (
+                    <div className="stat">
+                      <div className="pp">{m.wins}</div>
+                      <small style={{color:"var(--muted2)"}}>{m.wins===1?"win":"wins"}</small>
+                    </div>
+                  )}
                   <Icon.chev className="chev"/>
                 </div>
               );
