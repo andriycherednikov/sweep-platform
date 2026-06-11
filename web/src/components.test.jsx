@@ -139,6 +139,32 @@ function homeWith(photos) {
   }))
 }
 
+test('HomeScreen hero features the live match (score + minute) over the next kickoff', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: 'A', pool: 'P', color: '#6cf', strength: 90 },
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'kr', name: 'South Korea', group: 'B', pool: 'P', color: '#a30', strength: 73 },
+        { code: 'cz', name: 'Czechia', group: 'B', pool: 'P', color: '#338', strength: 67 },
+      ],
+      people: [{ id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'live1', group: 'A', matchday: 1, t1: 'ar', t2: 'mx', ko: '2026-06-13T06:30:00Z', venue: 'V', city: 'C', status: 'live', score: [2, 0], minute: 63, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+      { id: 'up1', group: 'B', matchday: 1, t1: 'kr', t2: 'cz', ko: '2026-06-13T18:00:00Z', venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, queryByText } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(getByText(/Live now/i)).toBeTruthy()       // live badge, not "Next match"
+  expect(queryByText('Kicks off in')).toBeNull()    // countdown header replaced
+  expect(getByText('2–0')).toBeTruthy()             // live score in the hero
+  expect(getByText("63' · LIVE")).toBeTruthy()      // live minute
+})
+
 test('HomeScreen: clicking a community photo opens the lightbox (openPhoto)', () => {
   homeWith([{ id: 'ph1', uploader: 'Jax', fixtureId: 'm1', caption: 'Ghana flag', status: 'approved', src: '/photos/x.jpg', kind: 'fan' }])
   const openPhoto = vi.fn()

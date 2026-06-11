@@ -11,7 +11,9 @@ import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./so
 
 /* ---------------- HOME ---------------- */
 export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin }) {
-  const next = S.nextMatch;
+  // a live match stays front-and-center in the hero until it's over; otherwise the next kickoff
+  const next = S.liveMatch || S.nextMatch;
+  const live = next.status === "live";
   const t1 = S.team(next.t1), t2 = S.team(next.t2);
   const o = S.ownersForFixture(next);
   const cd = useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
@@ -99,8 +101,8 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
-          <span className="derby-tag" style={{background:"#5b6f8e"}}>Next match</span>
-          <span className="hero-when">Kicks off in</span>
+          <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : "Next match"}</span>
+          <span className="hero-when">{live ? "In play" : "Kicks off in"}</span>
         </div>
         <div className="match-line">
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t1);}}>
@@ -108,15 +110,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <span className="nm">{t1.name.toUpperCase()}</span>
           </div>
           <div className="vs-cd">
-            <span className="cd">{cd.display}</span>
-            <span className="cdl">{cd.unit}</span>
+            {live
+              ? <><span className="cd">{next.score[0]}–{next.score[1]}</span><span className="cdl">{next.minute}' · LIVE</span></>
+              : <><span className="cd">{cd.display}</span><span className="cdl">{cd.unit}</span></>}
           </div>
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
             <Flag code={next.t2} w={46} h={34} />
             <span className="nm">{t2.name.toUpperCase()}</span>
           </div>
         </div>
-        {next.hasOdds && <>
+        {!live && next.hasOdds && <>
         <ProbBar prob2={next.prob2} />
         <div className="prob-key">
           <span><b>{next.prob2.pa}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
