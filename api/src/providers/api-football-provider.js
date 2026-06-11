@@ -35,6 +35,17 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       const j = await get('/fixtures', { live: 'all' })
       return (j.response ?? []).filter((r) => r.league?.id === LEAGUE).map(mapFixture)
     },
+    async fetchFixturesByIds(ids) {
+      // Poll specific fixtures regardless of status — unlike live=all, this still
+      // returns a match once it's finished, so we catch the live→final transition.
+      // /fixtures?ids= is capped at 20 ids per call, so batch.
+      const out = []
+      for (let i = 0; i < ids.length; i += 20) {
+        const j = await get('/fixtures', { ids: ids.slice(i, i + 20).join('-') })
+        out.push(...(j.response ?? []).map(mapFixture))
+      }
+      return out
+    },
     async fetchStandings(season) {
       const j = await get('/standings', { league: LEAGUE, season })
       return (j.response?.[0]?.league?.standings ?? []).flat().map(mapStanding)

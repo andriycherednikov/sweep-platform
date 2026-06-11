@@ -5,6 +5,10 @@ export function createRecordedProvider({ fixtures, live, standings, predictions,
   return {
     async fetchFixtures() { return (fixtures?.response ?? []).map(mapFixture) },
     async fetchLive() { return (live?.response ?? []).map(mapFixture) },
+    async fetchFixturesByIds(ids) {
+      const want = new Set(ids.map(String))
+      return (fixtures?.response ?? []).filter((r) => want.has(String(r.fixture.id))).map(mapFixture)
+    },
     async fetchStandings() { return (standings?.response?.[0]?.league?.standings ?? []).flat().map(mapStanding) },
     async fetchPredictions() { return mapPrediction(predictions) },
     async fetchOdds() { return mapOdds(odds) },

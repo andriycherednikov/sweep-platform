@@ -32,7 +32,8 @@ setInterval(async () => {
     const now = new Date()
     const kickoffs = rows.map((r) => new Date(r.ko))
     if (isLiveWindow(now, kickoffs)) {
-      const n = await pollLive(db, provider, (e) => publish(db, e))
+      const liveIds = rows.filter((r) => isLiveWindow(now, [new Date(r.ko)])).map((r) => r.id)
+      const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
       if (n) console.log(`[live] updated ${n}`)
     }
     if (isLineupWindow(now, kickoffs)) {

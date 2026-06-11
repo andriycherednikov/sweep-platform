@@ -34,21 +34,50 @@ test('isLiveWindow is true within ±N minutes of any kickoff', () => {
   expect(isLiveWindow(new Date('2026-06-16T13:00:00Z'), kickoffs, 150)).toBe(false)  // 4h after → idle
 })
 
-test('pollLive updates score/minute/status for in-play fixtures only', async () => {
-  const liveProvider = createRecordedProvider({ live: load('fixtures-live') }) // fixture 9002 now 2H 63' 1-0
-  const n = await pollLive(db, liveProvider)
+test('pollLive updates status/score/minute for the polled fixtures (by id)', async () => {
+  await db.update(fixture).set({ status: 'upcoming', score1: null, score2: null, minute: null }).where(eq(fixture.id, '9002'))
+  const provider = createRecordedProvider({ fixtures: load('fixtures-live') }) // 9002 → 2H 63' 1-0
+  const n = await pollLive(db, provider, ['9001', '9002'])
   expect(n).toBe(1)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
   expect(f).toMatchObject({ status: 'live', minute: 63, score1: 1, score2: 0 })
-  const other = (await db.select().from(fixture).where(eq(fixture.id, '9001')))[0]
-  expect(other.status).toBe('final') // untouched
 })
 
-test('pollLive publishes a score event for each updated fixture', async () => {
-  const liveProvider = createRecordedProvider({ live: load('fixtures-live') }) // fixture 9002 → 2H 63' 1-0
+test('pollLive publishes a score event for each changed fixture', async () => {
+  await db.update(fixture).set({ status: 'upcoming', score1: null, score2: null, minute: null }).where(eq(fixture.id, '9002'))
+  const provider = createRecordedProvider({ fixtures: load('fixtures-live') })
   const events = []
-  await pollLive(db, liveProvider, (e) => events.push(e))
+  await pollLive(db, provider, ['9002'], (e) => events.push(e))
   expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'live', score: [1, 0], minute: 63 })
+})
+
+test('pollLive finalizes a match that has ended — the key fix vs live=all', async () => {
+  await db.update(fixture).set({ status: 'live', score1: 1, score2: 0, minute: 90 }).where(eq(fixture.id, '9002'))
+  // id polling still returns the fixture once it's FT (live=all would have dropped it)
+  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 2, score2: 0, minute: null }] : [] } }
+  const events = []
+  const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))
+  expect(n).toBe(1)
+  const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
+  expect(f).toMatchObject({ status: 'final', score1: 2, score2: 0 })
+  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'final', score: [2, 0], minute: null })
+})
+
+test('pollLive makes no update and publishes nothing when nothing changed', async () => {
+  await db.update(fixture).set({ status: 'upcoming', score1: null, score2: null, minute: null }).where(eq(fixture.id, '9002'))
+  const provider = { async fetchFixturesByIds() { return [{ id: '9002', status: 'upcoming', score1: null, score2: null, minute: null }] } }
+  const events = []
+  const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))
+  expect(n).toBe(0)
+  expect(events).toEqual([])
+})
+
+test('pollLive does nothing (no fetch) when there are no in-window ids', async () => {
+  let called = 0
+  const provider = { async fetchFixturesByIds() { called++; return [] } }
+  const n = await pollLive(db, provider, [])
+  expect(n).toBe(0)
+  expect(called).toBe(0)
 })
 
 test('isLineupWindow is true ~45 min before kickoff (longer lead than scores)', () => {

@@ -45,6 +45,33 @@ test('fetchOdds maps a Match Winner market to implied probs', async () => {
   expect(r).toEqual({ a: 53, d: 26, b: 21 })
 })
 
+test('fetchFixturesByIds queries ?ids=a-b and maps regardless of status', async () => {
+  const fetch = fakeFetch({ '/fixtures': { response: [
+    { fixture: { id: 1, date: '2026-06-13T03:30:00+00:00', status: { short: 'FT', elapsed: 90 }, venue: { name: 'V', city: 'C' } },
+      league: { round: 'Group A - 1' }, teams: { home: { id: 10 }, away: { id: 11 } }, goals: { home: 2, away: 0 } },
+    { fixture: { id: 2, date: '2026-06-13T06:00:00+00:00', status: { short: 'NS', elapsed: null }, venue: { name: 'V', city: 'C' } },
+      league: { round: 'Group A - 1' }, teams: { home: { id: 12 }, away: { id: 13 } }, goals: { home: null, away: null } },
+  ] } })
+  const p = createApiFootballProvider({ apiKey: 'K', fetch })
+  const r = await p.fetchFixturesByIds(['1', '2'])
+  expect(new URL(fetch.mock.calls[0][0]).searchParams.get('ids')).toBe('1-2')
+  expect(r.map((f) => f.status)).toEqual(['final', 'upcoming']) // returns finished AND not-started
+})
+
+test('fetchFixturesByIds returns [] for no ids without calling fetch', async () => {
+  const fetch = vi.fn()
+  const p = createApiFootballProvider({ apiKey: 'K', fetch })
+  expect(await p.fetchFixturesByIds([])).toEqual([])
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+test('fetchFixturesByIds batches ids in chunks of 20', async () => {
+  const fetch = fakeFetch({ '/fixtures': { response: [] } })
+  const p = createApiFootballProvider({ apiKey: 'K', fetch })
+  await p.fetchFixturesByIds(Array.from({ length: 25 }, (_, i) => String(i + 1)))
+  expect(fetch.mock.calls.length).toBe(2) // 20 + 5
+})
+
 test('fetchLineups returns raw json and queries by fixture', async () => {
   const raw = { response: [{ team: { id: 3001 }, formation: '4-3-3', startXI: [] }] }
   const fetch = fakeFetch({ '/fixtures/lineups': raw })

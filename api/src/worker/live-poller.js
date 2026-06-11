@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { fixture, syncLog } from '../db/schema.js'
 import { mapLineups } from '../providers/mapping.js'
 
@@ -48,24 +48,31 @@ export async function pollLineups(db, provider, fixtures, crosswalk, publish = (
 }
 
 /**
- * Poll all in-play fixtures and update score/minute/status for the ones we know.
- * @returns {Promise<number>} count of fixtures updated
+ * Poll the given fixtures BY ID (not the live=all feed) and update score/minute/status.
+ * Polling by id returns a fixture through its live→final transition — live=all drops a match
+ * the moment it ends, so it could never flip a finished game to 'final'. Only writes (and
+ * publishes) on an actual change, so unchanged in-window fixtures cost nothing downstream.
+ * @param {string[]} ids fixtures whose kickoff window is currently active
+ * @returns {Promise<number>} count of fixtures changed
  */
-export async function pollLive(db, provider, publish = () => {}) {
+export async function pollLive(db, provider, ids, publish = () => {}) {
+  if (!ids || ids.length === 0) return 0
   try {
-    const live = await provider.fetchLive()
+    const fetched = await provider.fetchFixturesByIds(ids)
+    const current = await db.select().from(fixture).where(inArray(fixture.id, ids))
+    const byId = new Map(current.map((r) => [r.id, r]))
     let updated = 0
-    for (const f of live) {
-      const res = await db.update(fixture)
+    for (const f of fetched) {
+      const cur = byId.get(f.id)
+      if (!cur) continue
+      if (cur.status === f.status && cur.score1 === f.score1 && cur.score2 === f.score2 && cur.minute === f.minute) continue
+      await db.update(fixture)
         .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, updatedAt: new Date() })
         .where(eq(fixture.id, f.id))
-        .returning({ id: fixture.id })
-      if (res.length) {
-        updated += res.length
-        publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute })
-      }
+      updated++
+      publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute })
     }
-    await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'ok', counts: { live: live.length, updated } })
+    await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'ok', counts: { polled: ids.length, updated } })
     return updated
   } catch (err) {
     await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'error', error: String(err?.message ?? err) })
