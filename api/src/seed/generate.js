@@ -215,7 +215,9 @@ fixtures.forEach(function (f) {
 fixtures.sort(function (a, b) { return a.ko - b.ko; });
 
 // ---- photos (approved + pending for admin queue) ----
-const photos = [
+// Photos tag a game (fixture), not a team. Each seed photo derives its fixture
+// from a match involving the team it was shot for.
+const photoSeeds = [
   { id:"ph1", uploader:"Leonard Cherednikov", team:"hr", caption:"Watch party at the Cherednikovs'", status:"approved", ago:"2h" },
   { id:"ph2", uploader:"Sofia", team:"ar", caption:"Kids in their Argentina kits", status:"approved", ago:"5h" },
   { id:"ph3", uploader:"Tom", team:"es", caption:"Pub corner, full Spain gear", status:"approved", ago:"1d" },
@@ -225,6 +227,10 @@ const photos = [
   { id:"ph7", uploader:"Priya", team:"hr", caption:"Checkerboard cupcakes 🧁", status:"pending", ago:"40m" },
   { id:"ph8", uploader:"Diego", team:"br", caption:"Samba drums in the lounge", status:"pending", ago:"1h" }
 ];
+const photos = photoSeeds.map((p) => ({
+  ...p,
+  fixtureId: (fixtures.find((f) => f.t1 === p.team || f.t2 === p.team) || fixtures[0]).id,
+}));
 
 export function generate() {
   return {

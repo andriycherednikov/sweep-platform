@@ -33,7 +33,7 @@ export async function adminRoutes(app) {
   app.get('/api/admin/photos', { preHandler: admin }, async () => {
     const rows = await app.db.select().from(photo).orderBy(desc(photo.createdAt))
     const shape = (p) => ({
-      id: p.id, kind: p.kind, uploader: p.uploaderName, person: p.personId, team: p.teamCode,
+      id: p.id, kind: p.kind, uploader: p.uploaderName, person: p.personId, fixtureId: p.fixtureId,
       caption: p.caption, status: p.status, createdAt: p.createdAt,
       fileUrl: `/api/admin/photos/${p.id}/file`,
     })
@@ -78,7 +78,7 @@ export async function adminRoutes(app) {
       if (p.kind === 'profile') {
         await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(eq(person.id, p.personId))
       }
-      await app.publish({ type: 'photo-approved', id, kind: p.kind, ...(p.kind === 'fan' ? { team: p.teamCode } : { person: p.personId }) })
+      await app.publish({ type: 'photo-approved', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
       return { id, status: 'approved' }
     }
 
@@ -96,7 +96,7 @@ export async function adminRoutes(app) {
     if (p.kind === 'profile' && p.personId) {
       await app.db.update(person).set({ avatarPath: null }).where(eq(person.id, p.personId))
     }
-    await app.publish({ type: 'photo-removed', id, kind: p.kind, ...(p.kind === 'fan' ? { team: p.teamCode } : { person: p.personId }) })
+    await app.publish({ type: 'photo-removed', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
     return { id, status: 'removed' }
   })
 }

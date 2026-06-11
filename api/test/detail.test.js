@@ -1,6 +1,8 @@
 import { expect, test, afterAll } from 'vitest'
+import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { photo, fixture } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db)
@@ -24,9 +26,18 @@ test('GET /api/teams/hr returns Croatia with owners', async () => {
   expect(missing.statusCode).toBe(404)
 })
 
-test('GET /api/photos returns only approved; ?team filters', async () => {
-  const all = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
-  expect(all.every((p) => p.status === 'approved')).toBe(true)
-  const hr = (await app.inject({ method: 'GET', url: '/api/photos?team=hr' })).json()
-  expect(hr.every((p) => p.team === 'hr')).toBe(true)
+test('GET /api/photos returns only approved, tagged with a fixtureId; ?fixture filters', async () => {
+  // self-contained: tag a known fixture so we don't depend on shared seed state
+  const [f] = await db.select().from(fixture).limit(1)
+  await db.insert(photo).values({ id: 'detail-ph', kind: 'fan', uploaderName: 'T', fixtureId: f.id, filePath: 'x.jpg', status: 'approved' }).onConflictDoNothing()
+  try {
+    const all = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
+    expect(all.every((p) => p.status === 'approved')).toBe(true)
+    expect(all.find((p) => p.id === 'detail-ph')?.fixtureId).toBe(f.id)
+    const one = (await app.inject({ method: 'GET', url: `/api/photos?fixture=${f.id}` })).json()
+    expect(one.length).toBeGreaterThan(0)
+    expect(one.every((p) => p.fixtureId === f.id)).toBe(true)
+  } finally {
+    await db.delete(photo).where(eq(photo.id, 'detail-ph'))
+  }
 })

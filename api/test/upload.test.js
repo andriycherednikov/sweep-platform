@@ -7,7 +7,7 @@ import FormData from 'form-data'
 import sharp from 'sharp'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { photo, person, team, fixture } from '../src/db/schema.js'
+import { photo, person, fixture } from '../src/db/schema.js'
 import { createStorage } from '../src/photos/storage.js'
 
 const { pool, db } = openTestDb()
@@ -29,24 +29,31 @@ async function upload(fields, file) {
   if (file) form.append('file', file, { filename: 'pic.png', contentType: 'image/png' })
   return app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
 }
-async function aTeam() { const [t] = await db.select().from(team).limit(1); return t }
+async function aFixture() { const [f] = await db.select().from(fixture).limit(1); return f }
 async function aPerson() { const [p] = await db.select().from(person).limit(1); return p }
 
 test('uploads a fan photo → pending row + file written to pending dir', async () => {
-  const t = await aTeam()
-  const res = await upload({ kind: 'fan', uploaderName: 'Priya', teamCode: t.code, caption: 'colours!' }, await png())
+  const f = await aFixture()
+  const res = await upload({ kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, caption: 'colours!' }, await png())
   expect(res.statusCode).toBe(201)
   const body = res.json()
-  expect(body).toMatchObject({ kind: 'fan', status: 'pending', teamCode: t.code })
+  expect(body).toMatchObject({ kind: 'fan', status: 'pending', fixtureId: f.id })
   const rows = await db.select().from(photo)
   expect(rows).toHaveLength(1)
+  expect(rows[0].fixtureId).toBe(f.id)
   await access(store.pendingPath(rows[0].filePath)) // exists in pending, no throw
 })
 
+test('rejects a fan photo with an unknown fixture', async () => {
+  const res = await upload({ kind: 'fan', uploaderName: 'X', fixtureId: 'nope-999' }, await png())
+  expect(res.statusCode).toBe(400)
+  expect(res.json().error).toBe('unknown_fixture')
+})
+
 test('rejects a non-image file type', async () => {
-  const t = await aTeam()
+  const f = await aFixture()
   const form = new FormData()
-  form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('teamCode', t.code)
+  form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('fixtureId', f.id)
   form.append('file', Buffer.from('not an image'), { filename: 'x.gif', contentType: 'image/gif' })
   const res = await app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
   expect(res.statusCode).toBe(400)
@@ -61,6 +68,6 @@ test('enforces one pending per person per kind (profile)', async () => {
 })
 
 test('missing file → 400', async () => {
-  const t = await aTeam()
-  expect((await upload({ kind: 'fan', uploaderName: 'X', teamCode: t.code })).statusCode).toBe(400)
+  const f = await aFixture()
+  expect((await upload({ kind: 'fan', uploaderName: 'X', fixtureId: f.id })).statusCode).toBe(400)
 })

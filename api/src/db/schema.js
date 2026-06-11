@@ -95,7 +95,7 @@ export const photo = pgTable('photo', {
   kind: text('kind').notNull(),
   uploaderName: text('uploader_name').notNull(),
   personId: text('person_id').references(() => person.id),
-  teamCode: text('team_code').references(() => team.code),
+  fixtureId: text('fixture_id').references(() => fixture.id, { onDelete: 'set null' }),
   filePath: text('file_path').notNull(),
   thumbPath: text('thumb_path'),
   caption: text('caption'),

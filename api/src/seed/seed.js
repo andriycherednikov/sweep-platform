@@ -70,7 +70,7 @@ export async function seed(db) {
 
   for (const ph of g.photos) {
     await db.insert(s.photo).values({
-      id: ph.id, kind: 'fan', uploaderName: ph.uploader, teamCode: ph.team,
+      id: ph.id, kind: 'fan', uploaderName: ph.uploader, fixtureId: ph.fixtureId,
       filePath: `seed/${ph.id}.jpg`, caption: ph.caption, status: ph.status,
     }).onConflictDoNothing()
   }

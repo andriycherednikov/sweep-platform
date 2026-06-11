@@ -1,15 +1,15 @@
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { photo, person, team } from '../db/schema.js'
+import { photo, person, fixture } from '../db/schema.js'
 import { validateUpload, processImage } from '../photos/process.js'
 
 export async function photoRoutes(app) {
   app.get('/api/photos', async (req) => {
     const conds = [eq(photo.status, 'approved')]
-    if (req.query.team) conds.push(eq(photo.teamCode, req.query.team))
+    if (req.query.fixture) conds.push(eq(photo.fixtureId, req.query.fixture))
     const rows = await app.db.select().from(photo).where(and(...conds))
     return rows.map((p) => ({
-      id: p.id, kind: p.kind, uploader: p.uploaderName, team: p.teamCode,
+      id: p.id, kind: p.kind, uploader: p.uploaderName, fixtureId: p.fixtureId,
       caption: p.caption, src: `/photos/${p.filePath}`, status: p.status,
     }))
   })
@@ -20,7 +20,7 @@ export async function photoRoutes(app) {
     const fields = data.fields
     const val = (k) => (fields[k] && typeof fields[k].value === 'string' ? fields[k].value : undefined)
     const kind = val('kind'), uploaderName = val('uploaderName')
-    const personId = val('personId'), teamCode = val('teamCode'), caption = val('caption') ?? null
+    const personId = val('personId'), fixtureId = val('fixtureId'), caption = val('caption') ?? null
 
     if (kind !== 'fan' && kind !== 'profile') return reply.code(400).send({ error: 'bad_kind' })
     if (!uploaderName) return reply.code(400).send({ error: 'missing_uploader' })
@@ -31,9 +31,9 @@ export async function photoRoutes(app) {
     if (verr) return reply.code(400).send({ error: verr })
 
     if (kind === 'fan') {
-      if (!teamCode) return reply.code(400).send({ error: 'missing_team' })
-      const [t] = await app.db.select().from(team).where(eq(team.code, teamCode))
-      if (!t) return reply.code(400).send({ error: 'unknown_team' })
+      if (!fixtureId) return reply.code(400).send({ error: 'missing_fixture' })
+      const [fx] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
+      if (!fx) return reply.code(400).send({ error: 'unknown_fixture' })
     } else {
       if (!personId) return reply.code(400).send({ error: 'missing_person' })
       const [p] = await app.db.select().from(person).where(eq(person.id, personId))
@@ -56,9 +56,9 @@ export async function photoRoutes(app) {
     await app.db.insert(photo).values({
       id, kind, uploaderName,
       personId: kind === 'profile' ? personId : null,
-      teamCode: kind === 'fan' ? teamCode : null,
+      fixtureId: kind === 'fan' ? fixtureId : null,
       filePath: fileName, thumbPath: thumbName, caption, status: 'pending',
     })
-    return reply.code(201).send({ id, kind, status: 'pending', teamCode: teamCode ?? null, personId: personId ?? null })
+    return reply.code(201).send({ id, kind, status: 'pending', fixtureId: fixtureId ?? null, personId: personId ?? null })
   })
 }
