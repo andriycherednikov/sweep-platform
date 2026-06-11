@@ -45,6 +45,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const [pi, setPi] = useState(0);
   useEffect(()=>{ if(approved.length===0) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
   const photo = approved[pi];
+  const photoFx = photo ? S.fixture(photo.fixtureId) : null;
 
   return (
     <div className="scroll pad screen-anim">
@@ -160,7 +161,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         {photo ? <>
         <div className="fan" onClick={()=>openPhoto(photo)}>
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
-          <div className="badge"><img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span></div>
+          {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
         </div>
         <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""}></i>)}</div>

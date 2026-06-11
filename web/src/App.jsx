@@ -69,12 +69,12 @@ export default function App() {
 
   const { tab, overlay, modal, identity } = view;
 
-  const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload", team: null } }); return; } navigate({ tab: name, overlay: null }); };
+  const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload" } }); return; } navigate({ tab: name, overlay: null }); };
   const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id } });
   const openTeam   = (c) => navigate({ overlay: { type: "team", code: c } });
   const openMatch  = (f) => navigate({ modal: { type: "match", id: f.id } });
   const openPhoto  = (p) => navigate({ modal: { type: "photo", id: p.id } });
-  const openUpload = (c) => navigate({ modal: { type: "upload", team: c || null } });
+  const openUpload = () => navigate({ modal: { type: "upload" } });
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
@@ -101,9 +101,9 @@ export default function App() {
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin")) ? overlay.type : tab;
   const modals = (
     <>
-      {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson}/>}
-      {modal?.type==="upload" && <UploadSheet presetTeam={modal.team} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
-      {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openTeam={openTeam}/>}
+      {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}
+      {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
+      {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
       {identity && <IdentitySheet onClose={goBack}/>}
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>

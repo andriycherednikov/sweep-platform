@@ -4,9 +4,10 @@ import { flag, gd, fmtTime, fmtDay, fmtDayKey, fmtWeekday } from './lib/format.j
 function emptySweep() {
   return {
     teams: {}, teamList: [], groups: [], people: [], peopleById: {},
-    fixtures: [], standings: {}, photos: [], derbies: [], money: [],
+    fixtures: [], fixturesById: {}, standings: {}, photos: [], derbies: [], money: [],
     nextMatch: null, liveMatch: null, scoring: null,
     team: (code) => SWEEP.teams[code],
+    fixture: (id) => SWEEP.fixturesById[id] || null,
     ownersOf: (code) => (SWEEP._ownersByTeam && SWEEP._ownersByTeam[code]) || [],
     ownersForFixture: (f) => ({ t1: SWEEP.ownersOf(f.t1), t2: SWEEP.ownersOf(f.t2) }),
     flag, gd, fmtTime, fmtDay, fmtDayKey, fmtWeekday,
@@ -17,7 +18,7 @@ function emptySweep() {
 export const SWEEP = emptySweep()
 
 const DATA_KEYS = [
-  'teams', 'teamList', 'groups', 'people', 'peopleById', 'fixtures', 'standings',
+  'teams', 'teamList', 'groups', 'people', 'peopleById', 'fixtures', 'fixturesById', 'standings',
   'photos', 'derbies', 'money', 'nextMatch', 'liveMatch', 'scoring', 'todayKey',
 ]
 
@@ -29,6 +30,7 @@ export function setSweepData(assembled) {
   for (const k of DATA_KEYS) SWEEP[k] = assembled[k]
   // keep helpers bound to the assembled closures where they need its private maps
   SWEEP.team = assembled.team
+  SWEEP.fixture = assembled.fixture
   SWEEP.ownersOf = assembled.ownersOf
   SWEEP.ownersForFixture = assembled.ownersForFixture
   socialListeners.forEach((fn) => fn())

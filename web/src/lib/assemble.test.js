@@ -25,7 +25,7 @@ const api = {
     ],
     C: [{ code: 'br', name: 'Brazil', played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0 }],
   },
-  photos: [{ id: 'ph1', kind: 'fan', uploader: 'Priya', team: 'hr', caption: 'hi', src: '/photos/seed/ph1.jpg', status: 'approved' }],
+  photos: [{ id: 'ph1', kind: 'fan', uploader: 'Priya', fixtureId: 'm1', caption: 'hi', src: '/photos/seed/ph1.jpg', status: 'approved' }],
   syncStatus: { stale: false, lastBaselineAt: null, lastLiveAt: null },
 }
 
@@ -93,6 +93,8 @@ test('groups/teamList/photos/helpers exposed; liveMatch null when none live', ()
   expect(S.groups).toContain('L')
   expect(S.teamList.length).toBe(3)
   expect(S.photos[0].src).toBe('/photos/seed/ph1.jpg')
+  expect(S.photos[0].fixtureId).toBe('m1')
+  expect(S.fixture('m1').t1).toBe('hr')
   expect(S.flag('hr')).toContain('flagcdn')
   expect(S.liveMatch).toBeNull()
   expect(S.nextMatch).toBeTruthy()

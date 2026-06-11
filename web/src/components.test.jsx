@@ -115,7 +115,7 @@ function homeWith(photos) {
 }
 
 test('HomeScreen: clicking a community photo opens the lightbox (openPhoto)', () => {
-  homeWith([{ id: 'ph1', uploader: 'Jax', team: 'gh', caption: 'Ghana flag', status: 'approved', src: '/photos/x.jpg', kind: 'fan' }])
+  homeWith([{ id: 'ph1', uploader: 'Jax', fixtureId: 'm1', caption: 'Ghana flag', status: 'approved', src: '/photos/x.jpg', kind: 'fan' }])
   const openPhoto = vi.fn()
   const { getByAltText } = render(<HomeScreen go={() => {}} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={openPhoto} onAdmin={() => {}} />)
   fireEvent.click(getByAltText('Ghana flag'))

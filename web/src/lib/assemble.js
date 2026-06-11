@@ -78,6 +78,8 @@ export function assembleSweep(api) {
     }
   })
   fixtures.sort((a, b) => a.ko - b.ko)
+  const fixturesById = Object.fromEntries(fixtures.map((f) => [f.id, f]))
+  const fixture = (id) => fixturesById[id] || null
   const ownersForFixture = (f) => ({ t1: ownersOf(f.t1), t2: ownersOf(f.t2) })
   const derbies = fixtures.filter((f) => f.derby)
 
@@ -92,16 +94,16 @@ export function assembleSweep(api) {
   }).sort((a, b) => b.strength - a.strength)
   money.forEach((m, i) => { m.rank = i + 1; m.tag = i === 0 ? 'Title fav' : m.strength >= 70 ? 'Alive' : 'Outside' })
 
-  // photos (already approved-only from the API)
+  // photos (already approved-only from the API) — tagged to a game (fixtureId)
   const photos = (rawPhotos || []).map((ph) => ({
-    id: ph.id, uploader: ph.uploader, team: ph.team, caption: ph.caption, status: ph.status, src: ph.src, kind: ph.kind,
+    id: ph.id, uploader: ph.uploader, fixtureId: ph.fixtureId, caption: ph.caption, status: ph.status, src: ph.src, kind: ph.kind,
   }))
 
   const todayKey = fmtDayKey(new Date())
 
   return {
-    teams, teamList, groups, people, peopleById, fixtures, standings, photos, derbies, money,
+    teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
-    team, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDay, fmtDayKey, fmtWeekday, todayKey,
+    team, fixture, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDay, fmtDayKey, fmtWeekday, todayKey,
   }
 }

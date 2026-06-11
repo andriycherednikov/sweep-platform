@@ -1,7 +1,7 @@
 /* ============================================================
    THE SWEEP — detail screens + flows
    ============================================================ */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, resultFor, useCountdown,
@@ -199,7 +199,8 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
   const t = S.team(code);
   const fixtures = S.fixtures.filter(f=>f.t1===code||f.t2===code);
   const pos = S.standings[t.group].findIndex(x=>x.code===code)+1;
-  const photos = S.photos.filter(p=>p.team===code && p.status==="approved");
+  // a team's photos = approved photos tagged to any game this team plays in
+  const photos = S.photos.filter(p=>{ const fx = S.fixture(p.fixtureId); return p.status==="approved" && fx && (fx.t1===code || fx.t2===code); });
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -297,17 +298,28 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
 }
 
 /* ---------------- UPLOAD FLOW ---------------- */
-export function UploadSheet({ presetTeam, kind = "fan", onClose, onToast }) {
+export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
   const me = getMe();
   const [name, setName] = useState(()=> me ? me.name : "");
-  const [team, setTeam] = useState(presetTeam || null);
+  const [fixtureId, setFixtureId] = useState(presetFixture || null);
+  const [q, setQ] = useState("");
   const [file, setFile] = useState(null);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const inputRef = useRef(null);
   const isProfile = kind === "profile";
-  const ok = name.trim() && file && (isProfile ? !!me : !!team) && !busy;
+  const ok = name.trim() && file && (isProfile ? !!me : !!fixtureId) && !busy;
+
+  // taggable games: all fixtures, most-recent-first, searchable by team / matchup / city
+  const games = useMemo(() => {
+    const ql = q.trim().toLowerCase();
+    const matchup = (f) => `${S.team(f.t1).name} ${S.team(f.t2).name} ${f.city || ""}`.toLowerCase();
+    return [...S.fixtures]
+      .sort((a, b) => b.ko - a.ko)
+      .filter((f) => !ql || matchup(f).includes(ql));
+  }, [q]);
+  const pickedFixture = fixtureId ? S.fixture(fixtureId) : null;
 
   async function submit(){
     if (!ok) return;
@@ -316,7 +328,7 @@ export function UploadSheet({ presetTeam, kind = "fan", onClose, onToast }) {
       const fd = new FormData();
       fd.append("kind", kind);
       fd.append("uploaderName", name.trim());
-      if (isProfile) fd.append("personId", me.id); else fd.append("teamCode", team);
+      if (isProfile) fd.append("personId", me.id); else fd.append("fixtureId", fixtureId);
       if (caption.trim()) fd.append("caption", caption.trim());
       fd.append("file", file);
       await uploadPhoto(fd);
@@ -348,13 +360,20 @@ export function UploadSheet({ presetTeam, kind = "fan", onClose, onToast }) {
 
               {!isProfile && (
                 <div className="field">
-                  <label>Tag a team</label>
-                  <div className="teampick">
-                    {S.teamList.filter(t=>t.owners.length>0).slice(0,18).map(t=>(
-                      <button key={t.code} className={"tpk"+(team===t.code?" on":"")} onClick={()=>setTeam(t.code)}>
-                        <img src={S.flag(t.code,80)} alt=""/><span>{t.name.length>9?t.name.slice(0,8)+"…":t.name}</span>
+                  <label>Tag a game</label>
+                  <SearchInput value={q} onChange={setQ} placeholder="Search by team or matchup" />
+                  <div className="gamepick">
+                    {games.map((f)=>(
+                      <button key={f.id} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(f.id)}>
+                        <span className="gpk-teams">
+                          <img src={S.flag(f.t1,40)} alt=""/>{S.team(f.t1).name}
+                          <i>v</i>
+                          <img src={S.flag(f.t2,40)} alt=""/>{S.team(f.t2).name}
+                        </span>
+                        <span className="gpk-meta">{f.dayLabel} · {f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":f.timeLabel}</span>
                       </button>
                     ))}
+                    {games.length===0 && <div className="gpk-empty">No games match “{q}”.</div>}
                   </div>
                 </div>
               )}
@@ -370,7 +389,7 @@ export function UploadSheet({ presetTeam, kind = "fan", onClose, onToast }) {
           <div className="success">
             <div className="ring"><Icon.check/></div>
             <h3>Sent for approval</h3>
-            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (team?S.team(team).name:"")+" photo"} is in the queue. The admin will approve it before it shows{isProfile ? " as your avatar." : " on the team page and home banner."}</p>
+            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is in the queue. The admin will approve it before it shows{isProfile ? " as your avatar." : " on the match and team pages."}</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}
@@ -391,8 +410,9 @@ function WatchToggleCTA({ id, onToast }) {
   );
 }
 /* fan-photo lightbox — opens an approved community photo "closer" */
-export function PhotoLightbox({ photo, onClose, openTeam }) {
+export function PhotoLightbox({ photo, onClose, openMatch }) {
   if (!photo) return null;
+  const fx = photo.fixtureId ? S.fixture(photo.fixtureId) : null;
   return (
     <div className="overlay lightbox" onClick={onClose}>
       <div className="lb-inner" onClick={e=>e.stopPropagation()}>
@@ -401,9 +421,10 @@ export function PhotoLightbox({ photo, onClose, openTeam }) {
           ? <img className="lb-img" src={photo.src} alt={photo.caption||"Fan photo"}/>
           : <div className="lb-img lb-ph"><span>FAN PHOTO</span></div>}
         <div className="lb-meta">
-          {photo.team && (
-            <button className="lb-team" onClick={()=>{ onClose(); openTeam(photo.team); }}>
-              <img src={S.flag(photo.team,40)} alt=""/><span>{S.team(photo.team).name}</span>
+          {fx && (
+            <button className="lb-team" onClick={()=>{ onClose(); openMatch && openMatch(fx); }}>
+              <img src={S.flag(fx.t1,40)} alt=""/><img src={S.flag(fx.t2,40)} alt=""/>
+              <span>{S.team(fx.t1).name} v {S.team(fx.t2).name}</span>
             </button>
           )}
           {photo.caption && <b>{photo.caption}</b>}
@@ -413,13 +434,14 @@ export function PhotoLightbox({ photo, onClose, openTeam }) {
     </div>
   );
 }
-export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
+export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhoto }) {
   useSocial();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);
   const showScore = f.status==="final"||f.status==="live";
   const sup = supportOf(f.id);
   const mySup = mySupport(f.id);
   const watchPeople = watchersOf(f.id);
+  const matchPhotos = S.photos.filter(p=>p.fixtureId===f.id && p.status==="approved");
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"90%"}}>
@@ -510,6 +532,17 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson }) {
               </div>
             ) : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>Nobody's marked this yet — be the first.</span>}
           </div>
+
+          {matchPhotos.length>0 && <>
+            <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>From the stands · {matchPhotos.length}</div>
+            <div className="standshot" style={{marginBottom:16}}>
+              {matchPhotos.map(p=>(
+                <button key={p.id} type="button" className="standshot-item" onClick={()=>{ openPhoto && openPhoto(p); }}>
+                  {p.src ? <img src={p.src} alt={p.caption||"Fan photo"} loading="lazy"/> : <span className="ph-ph">FAN PHOTO</span>}
+                </button>
+              ))}
+            </div>
+          </>}
 
           <div style={{display:"flex",gap:10}}>
             <WatchToggleCTA id={f.id} onToast={onToast} />
