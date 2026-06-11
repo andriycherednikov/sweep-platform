@@ -31,12 +31,14 @@ export function FloatingReactions() {
   return (
     <div className="reactions" ref={wrapRef} aria-live="polite">
       {items.map((it) => (
-        <div key={it.id} className="reaction" style={{ "--rx": it.offset + "px" }}>
-          <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
-          <div className="reaction-txt">
-            <small>{it.person.short} {it.action === "switch" ? "switched to" : "is backing"}</small>
-            <b><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</b>
-            <span className="reaction-mu">{S.team(it.fx.t1).name} v {S.team(it.fx.t2).name}</span>
+        <div key={it.id} className="reaction-row">
+          <div className="reaction" style={{ "--rx": it.offset + "px" }}>
+            <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
+            <div className="reaction-txt">
+              <small>{it.person.short} {it.action === "switch" ? "switched to" : "is backing"}</small>
+              <b><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</b>
+              <span className="reaction-mu">{S.team(it.fx.t1).name} v {S.team(it.fx.t2).name}</span>
+            </div>
           </div>
         </div>
       ))}

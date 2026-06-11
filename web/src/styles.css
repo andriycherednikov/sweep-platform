@@ -552,19 +552,22 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .toast{position:absolute; left:50%; bottom:96px; transform:translateX(-50%); background:var(--navy); color:#fff; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:13px; padding:11px 18px; border-radius:12px; z-index:80; box-shadow:0 12px 24px -10px rgba(0,0,0,.5); display:flex; align-items:center; gap:9px; animation:rise .26s; white-space:nowrap;}
 .toast svg{width:16px; height:16px; stroke:var(--live);}
 
-/* ambient floating reactions — rise from the bottom and fade out mid-screen */
+/* ambient floating reactions — rise from the bottom and fade out mid-screen.
+   Centered via flexbox (pixel-snapped) + integer --rx offset, no scale, so the
+   text stays crisp (translateX(-50%)/scale on a composited layer blurs text). */
 .reactions{position:absolute; inset:0; z-index:78; pointer-events:none; overflow:hidden;}
-.reaction{position:absolute; left:50%; bottom:34px; display:flex; align-items:center; gap:12px; background:rgba(11,24,40,.92); color:#fff; border-radius:16px; padding:11px 18px 11px 11px; box-shadow:0 16px 38px -10px rgba(0,0,0,.55); white-space:nowrap; will-change:transform,opacity; animation:riseFade 4.5s ease-out forwards;}
+.reaction-row{position:absolute; left:0; right:0; bottom:34px; display:flex; justify-content:center;}
+.reaction{display:flex; align-items:center; gap:12px; background:rgba(11,24,40,.92); color:#fff; border-radius:16px; padding:11px 18px 11px 11px; box-shadow:0 16px 38px -10px rgba(0,0,0,.55); white-space:nowrap; animation:riseFade 4.5s ease-out forwards;}
 .reaction-txt{display:flex; flex-direction:column; line-height:1.18;}
 .reaction-txt small{font-size:10px; letter-spacing:.7px; text-transform:uppercase; font-weight:700; color:#7e97bb;}
 .reaction-txt b{font-family:'Barlow Condensed'; font-weight:800; font-size:19px; letter-spacing:.3px; display:flex; align-items:center; gap:7px;}
 .reaction-txt b .flag{width:22px; height:16px; border-radius:3px;}
 .reaction-mu{font-size:12px; color:#9fb6d6; font-weight:600;}
 @keyframes riseFade{
-  0%  {opacity:0; transform:translate(calc(-50% + var(--rx,0px)), 16px) scale(.92);}
-  12% {opacity:1; transform:translate(calc(-50% + var(--rx,0px)), 0) scale(1);}
+  0%  {opacity:0; transform:translate(var(--rx,0px), 18px);}
+  12% {opacity:1; transform:translate(var(--rx,0px), 0);}
   68% {opacity:1;}
-  100%{opacity:0; transform:translate(calc(-50% + var(--rx,0px)), -46vh) scale(1);}
+  100%{opacity:0; transform:translate(var(--rx,0px), -46vh);}
 }
 
 /* knockouts bracket placeholder */
