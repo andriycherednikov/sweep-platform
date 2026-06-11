@@ -73,8 +73,10 @@ export default function App() {
   const { tab, overlay, modal, identity } = view;
 
   const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload" } }); return; } navigate({ tab: name, overlay: null }); };
-  const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id } });
-  const openTeam   = (c) => navigate({ overlay: { type: "team", code: c } });
+  // navigating to a person/team also closes any open modal in one history push
+  // (calling onClose()=history.back() then navigate() races and clobbers the nav)
+  const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id }, modal: null });
+  const openTeam   = (c) => navigate({ overlay: { type: "team", code: c }, modal: null });
   const openMatch  = (f) => navigate({ modal: { type: "match", id: f.id } });
   const openPhoto  = (p) => navigate({ modal: { type: "photo", id: p.id } });
   const openUpload = () => navigate({ modal: { type: "upload" } });

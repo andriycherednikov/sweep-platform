@@ -471,7 +471,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
         </div>
         <div className="sheet-body">
           <div className="match-line" style={{padding:"4px 0 14px"}}>
-            <div className="team" style={{flex:1}} onClick={()=>{onClose();openTeam(f.t1);}}>
+            <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t1)}>
               <Flag code={f.t1} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t1.name}</span>
               <span className="mt-str">Strength {t1.strength}</span>
@@ -482,7 +482,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
               <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":"AEST · "+f.dayLabel}</span>
             </div>
-            <div className="team" style={{flex:1}} onClick={()=>{onClose();openTeam(f.t2);}}>
+            <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t2.name}</span>
               <span className="mt-str">Strength {t2.strength}</span>
@@ -502,9 +502,9 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           <div style={{display:"flex",gap:10,marginBottom:16}}>
             {[["t1",f.t1],["t2",f.t2]].map(([k,code])=>(
               <div key={k} style={{flex:1,background:"var(--card)",border:"1px solid var(--line)",borderRadius:12,padding:"11px"}}>
-                <div onClick={()=>{onClose();openTeam(code);}} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}><img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/><b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15}}>{S.team(code).name}</b></div>
+                <div onClick={()=>openTeam(code)} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}><img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/><b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15}}>{S.team(code).name}</b></div>
                 {o[k].length>0 ? o[k].map(p=>(
-                  <div key={p.id} onClick={()=>{onClose();openPerson(p);}} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:"pointer"}}>
+                  <div key={p.id} onClick={()=>openPerson(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:"pointer"}}>
                     <PersonAvatar p={p} cls="av" style={{width:33,height:33,border:0,margin:0,fontSize:14}}/>
                     <span style={{fontSize:13,fontWeight:600}}>{p.short}</span>
                   </div>
