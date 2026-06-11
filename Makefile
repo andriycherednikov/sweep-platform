@@ -124,9 +124,11 @@ deploy-staging: build-staging ## Build, push, then pull & restart on the server
 		ssh $(STAGING_HOST) "echo '$$TOKEN' | docker login -u oauth2accesstoken --password-stdin australia-southeast1-docker.pkg.dev"
 	@echo "$(YELLOW)[2/3] Pulling and restarting containers...$(NC)"
 	@ssh $(STAGING_HOST) "cd $(STAGING_DIR) && docker compose pull && docker compose up -d"
-	@echo "$(YELLOW)[3/3] Verifying api health...$(NC)"
-	@sleep 5
-	@ssh $(STAGING_HOST) "docker exec sweep-api node -e \"fetch('http://127.0.0.1:3000/api/health').then(r=>r.json()).then(j=>{console.log(j);process.exit(j.ok?0:1)}).catch(e=>{console.error(e.message);process.exit(1)})\"" && \
+	@echo "$(YELLOW)[3/3] Verifying api health (retries while the container boots)...$(NC)"
+	@ssh $(STAGING_HOST) 'for i in $$(seq 1 20); do \
+		if docker exec sweep-api node -e "fetch(\"http://127.0.0.1:3000/api/health\").then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then echo OK; exit 0; fi; \
+		sleep 3; \
+	done; exit 1' && \
 		echo "$(GREEN)Deploy complete → https://$(STAGING_DOMAIN)$(NC)" || \
 		(echo "$(RED)Health check failed — check: ssh $(STAGING_HOST) 'cd $(STAGING_DIR) && docker compose logs'$(NC)" && exit 1)
 
