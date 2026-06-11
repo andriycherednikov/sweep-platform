@@ -352,8 +352,8 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .prow .pi .tms{display:flex; align-items:center; gap:7px; margin-top:5px;}
 .prow .pi .tms .t{display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); font-weight:600;}
 .prow .pi .tms img{width:18px; height:13px;}
-.prow .stat{text-align:right; flex-shrink:0;}
-.prow .stat .pp{font-family:'Barlow Condensed'; font-weight:800; font-size:13px; color:var(--navy);}
+.prow .stat{text-align:center; flex-shrink:0; min-width:38px;}
+.prow .stat .pp{font-family:'Barlow Condensed'; font-weight:800; font-size:19px; color:var(--navy); line-height:1.05;}
 .prow .stat small{display:block; font-size:9px; color:var(--muted2); font-weight:700; letter-spacing:.5px; text-transform:uppercase;}
 .prow .chev{stroke:var(--muted2); width:18px; height:18px; flex-shrink:0;}
 
