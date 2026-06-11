@@ -554,12 +554,12 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* ambient floating reactions — rise from the bottom and fade out mid-screen */
 .reactions{position:absolute; inset:0; z-index:78; pointer-events:none; overflow:hidden;}
-.reaction{position:absolute; left:50%; bottom:30px; display:flex; align-items:center; gap:10px; background:rgba(11,24,40,.92); color:#fff; border-radius:14px; padding:8px 14px 8px 8px; box-shadow:0 14px 34px -10px rgba(0,0,0,.55); white-space:nowrap; will-change:transform,opacity; animation:riseFade 4.5s ease-out forwards;}
-.reaction-txt{display:flex; flex-direction:column; line-height:1.15;}
-.reaction-txt small{font-size:9px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; color:#7e97bb;}
-.reaction-txt b{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; display:flex; align-items:center; gap:6px;}
-.reaction-txt b .flag{width:18px; height:13px; border-radius:2px;}
-.reaction-mu{font-size:10.5px; color:#9fb6d6; font-weight:600;}
+.reaction{position:absolute; left:50%; bottom:34px; display:flex; align-items:center; gap:12px; background:rgba(11,24,40,.92); color:#fff; border-radius:16px; padding:11px 18px 11px 11px; box-shadow:0 16px 38px -10px rgba(0,0,0,.55); white-space:nowrap; will-change:transform,opacity; animation:riseFade 4.5s ease-out forwards;}
+.reaction-txt{display:flex; flex-direction:column; line-height:1.18;}
+.reaction-txt small{font-size:10px; letter-spacing:.7px; text-transform:uppercase; font-weight:700; color:#7e97bb;}
+.reaction-txt b{font-family:'Barlow Condensed'; font-weight:800; font-size:19px; letter-spacing:.3px; display:flex; align-items:center; gap:7px;}
+.reaction-txt b .flag{width:22px; height:16px; border-radius:3px;}
+.reaction-mu{font-size:12px; color:#9fb6d6; font-weight:600;}
 @keyframes riseFade{
   0%  {opacity:0; transform:translate(calc(-50% + var(--rx,0px)), 16px) scale(.92);}
   12% {opacity:1; transform:translate(calc(-50% + var(--rx,0px)), 0) scale(1);}
