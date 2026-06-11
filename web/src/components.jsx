@@ -82,17 +82,50 @@ export function AvStack({ people, size, light, max }) {
   );
 }
 
-/* probability bar (hero) */
-export function ProbBar({ prob }) {
-  // last segment fills the remainder so the bar always reaches the end (no sliver gap)
-  const a = prob.a || 0, d = prob.d || 0, b = Math.max(0, 100 - a - d);
+/* probability bar (hero) — two-way home vs away (draw excluded) */
+export function ProbBar({ prob2 }) {
+  const pa = prob2?.pa ?? 50, pb = Math.max(0, 100 - pa); // last segment fills the remainder
   return (
     <div className="prob">
       <div className="prob-bar">
-        <i className="a" style={{ width: a+"%" }}></i>
-        <i className="d" style={{ width: d+"%" }}></i>
-        <i className="b" style={{ width: b+"%" }}></i>
+        <i className="a" style={{ width: pa+"%" }}></i>
+        <i className="b" style={{ width: pb+"%" }}></i>
       </div>
+    </div>
+  );
+}
+
+/* squad / starting-XI list — players grouped by position bucket, with headshots */
+const POS_BUCKET = (pos) => {
+  const p = (pos || "").toLowerCase();
+  if (p[0] === "g") return 0;        // Goalkeeper / G
+  if (p[0] === "d") return 1;        // Defender / D
+  if (p[0] === "m") return 2;        // Midfielder / M
+  return 3;                          // Attacker / F (and anything else)
+};
+const POS_LABEL = ["Goalkeepers", "Defenders", "Midfielders", "Forwards"];
+export function SquadList({ players, wide }) {
+  if (!players || players.length === 0) return null;
+  const groups = [[], [], [], []];
+  players.forEach((p) => groups[POS_BUCKET(p.pos)].push(p));
+  return (
+    <div className={"squadlist" + (wide ? " wide" : "")}>
+      {groups.map((grp, bi) => grp.length > 0 && (
+        <div className="squad-grp" key={bi}>
+          <div className="squad-grp-h">{POS_LABEL[bi]}</div>
+          <div className="squad-grp-rows">
+            {grp.map((pl, i) => (
+              <div className="squad-row" key={i}>
+                {pl.photo
+                  ? <img className="squad-ph" src={pl.photo} alt="" loading="lazy"/>
+                  : <span className="squad-ph squad-ph-ph">{pl.number ?? "–"}</span>}
+                <span className="squad-num">{pl.number ?? "–"}</span>
+                <span className="squad-nm">{pl.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -189,7 +222,7 @@ export function MatchCard({ f, onOpen, onToast }) {
           <span className="nm">{t1.name}</span>
           <div className="mc-h-sub">
             {o.t1.length>0 && <AvStack people={o.t1} size={28} max={3} />}
-            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob.a}<i>%</i></span>}
+            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob2.pa}<i>%</i></span>}
           </div>
         </div>
         <div className="mc-h-mid">
@@ -201,7 +234,7 @@ export function MatchCard({ f, onOpen, onToast }) {
           <Flag code={f.t2} w={34} h={25} />
           <span className="nm">{t2.name}</span>
           <div className="mc-h-sub">
-            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob.b}<i>%</i></span>}
+            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob2.pb}<i>%</i></span>}
             {o.t2.length>0 && <AvStack people={o.t2} size={28} max={3} />}
           </div>
         </div>

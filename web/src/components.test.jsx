@@ -7,7 +7,7 @@ vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
 }))
 import { postSupport } from './api/client.js'
-import { Av, CrowdPick, IdentityControl } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, ProbBar, SquadList } from './components.jsx'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -70,6 +70,31 @@ test('CrowdPick is read-only when locked — clicking does not POST', () => {
 test('CrowdPick renders nothing when locked with no calls', () => {
   setSocialData({ watch: {}, support: {} })
   const { container } = render(<CrowdPick f={{ ...F, status: 'final' }} locked />)
+  expect(container.firstChild).toBeNull()
+})
+
+test('ProbBar renders two segments (home vs away) summing to 100, no draw segment', () => {
+  const { container } = render(<ProbBar prob2={{ pa: 72, pb: 28 }} />)
+  const segs = container.querySelectorAll('.prob-bar i')
+  expect(segs).toHaveLength(2)
+  expect(segs[0].style.width).toBe('72%')
+  expect(segs[1].style.width).toBe('28%')
+  expect(container.querySelector('.prob-bar .d')).toBeNull()
+})
+
+test('SquadList groups players by position and renders a photo or a number badge', () => {
+  const { container, getByText } = render(<SquadList players={[
+    { name: 'Keeper', number: 1, pos: 'Goalkeeper', photo: 'https://x/1.png' },
+    { name: 'Striker', number: 9, pos: 'Attacker', photo: null },
+  ]} />)
+  expect(getByText('Goalkeepers')).toBeTruthy()
+  expect(getByText('Forwards')).toBeTruthy()
+  expect(container.querySelector('img.squad-ph').getAttribute('src')).toBe('https://x/1.png')
+  expect(container.querySelector('.squad-ph-ph').textContent).toBe('9') // no photo → number badge
+})
+
+test('SquadList renders nothing for an empty squad', () => {
+  const { container } = render(<SquadList players={[]} />)
   expect(container.firstChild).toBeNull()
 })
 

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, resultFor, useCountdown,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
@@ -134,7 +134,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[myCode===f.t1?"a":"b"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob2[myCode===f.t1?"pa":"pb"]}%</span>}
                   </div>
                 </div>
               );
@@ -267,12 +267,19 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob[f.t1===code?"a":"b"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob2[f.t1===code?"pa":"pb"]}%</span>}
                   </div>
                 </div>
               );
             })}
           </div>
+
+          {t.squad?.length > 0 && <>
+            <div className="sec-h"><h2>Squad</h2><span className="lnk">{t.squad.length} players</span></div>
+            <div className="block" style={{padding:"6px 14px 12px"}}>
+              <SquadList players={t.squad} wide/>
+            </div>
+          </>}
 
           <div className="sec-h"><h2>Fan photos</h2><span className="lnk" onClick={()=>openUpload(code)}>Add →</span></div>
           {photos.length>0 ? (
@@ -457,6 +464,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
   useSocial();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);
   const showScore = f.status==="final"||f.status==="live";
+  // open by default for a confirmed XI (the match-time highlight); collapsed for the squad fallback
+  const [showSquad, setShowSquad] = useState(!!f.lineups?.length);
   const sup = supportOf(f.id);
   const mySup = mySupport(f.id);
   const watchPeople = watchersOf(f.id);
@@ -492,11 +501,48 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           {!showScore && f.hasOdds && (
             <div className="block" style={{padding:"13px",marginBottom:14}}>
               <div className="prob-bar" style={{background:"#eef1f5"}}>
-                <i className="a" style={{width:f.prob.a+"%"}}></i><i className="d" style={{width:f.prob.d+"%",background:"#9aa1ad"}}></i><i className="b" style={{width:f.prob.b+"%"}}></i>
+                <i className="a" style={{width:f.prob2.pa+"%"}}></i><i className="b" style={{width:f.prob2.pb+"%"}}></i>
               </div>
-              <div className="prob-key" style={{color:"var(--muted)"}}><span><b style={{color:"var(--navy)"}}>{f.prob.a}%</b> {t1.name}</span><span><b style={{color:"var(--navy)"}}>{f.prob.d}%</b> Draw</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob.b}%</b></span></div>
+              <div className="prob-key" style={{color:"var(--muted)"}}><span><b style={{color:"var(--navy)"}}>{f.prob2.pa}%</b> {t1.name}</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob2.pb}%</b></span></div>
             </div>
           )}
+
+          {(() => {
+            // confirmed XI (near kickoff) wins; otherwise fall back to the full squad
+            const sheetFor = (code) => {
+              const lu = f.lineups?.find((l) => l.teamCode === code);
+              if (lu) return { formation: lu.formation, players: lu.startXI };
+              const sq = S.team(code)?.squad;
+              return sq?.length ? { formation: null, players: sq } : null;
+            };
+            const cols = [[f.t1, sheetFor(f.t1)], [f.t2, sheetFor(f.t2)]].filter(([, s]) => s);
+            if (cols.length === 0) return null;
+            const title = f.lineups?.length > 0 ? "Starting XI" : "Squads";
+            return <>
+              <button type="button" className="blocktitle squad-toggle" aria-expanded={showSquad}
+                onClick={()=>setShowSquad(s=>!s)}
+                style={{padding:"2px 2px 10px",width:"100%",background:"none",border:0,textAlign:"left",display:"flex",alignItems:"center",gap:7,cursor:"pointer"}}>
+                <span>{title}</span>
+                <Icon.chev style={{width:15,height:15,marginLeft:"auto",transition:"transform .22s ease",transform:showSquad?"rotate(90deg)":"none"}}/>
+              </button>
+              <div className={"squad-collapse" + (showSquad ? " open" : "")}>
+                <div className="squad-collapse-inner">
+                  <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"flex-start",paddingTop:2}}>
+                    {cols.map(([code, sh])=>(
+                      <div key={code} style={{flex:1,minWidth:0,background:"var(--card)",border:"1px solid var(--line)",borderRadius:12,padding:"11px"}}>
+                        <div onClick={()=>openTeam(code)} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}>
+                          <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>
+                          <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{S.team(code)?.name || code}</b>
+                          {sh.formation && <span style={{marginLeft:"auto",fontSize:12,color:"var(--muted)",fontWeight:700,letterSpacing:.4}}>{sh.formation}</span>}
+                        </div>
+                        <SquadList players={sh.players}/>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </>;
+          })()}
 
           <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Who's got a stake</div>
           <div style={{display:"flex",gap:10,marginBottom:16}}>

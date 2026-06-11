@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { assembleSweep } from './assemble.js'
+import { assembleSweep, twoWayProb } from './assemble.js'
 
 const api = {
   bootstrap: {
@@ -34,6 +34,13 @@ test('assembles teams keyed by code with owners and stats', () => {
   expect(S.team('hr').name).toBe('Croatia')
   expect(S.team('hr').owners.map((o) => o.id).sort()).toEqual(['p1', 'p2'])
   expect(typeof S.team('hr').titleOdds).toBe('number')
+})
+
+test('teams carry squad passthrough (null by default)', () => {
+  const S = assembleSweep(api)
+  expect(S.team('hr').squad).toBeNull()
+  const S2 = assembleSweep({ ...api, bootstrap: { ...api.bootstrap, teams: api.bootstrap.teams.map((t) => t.code === 'hr' ? { ...t, squad: [{ name: 'L. Modric', number: 10, pos: 'Midfielder', photo: 'p.png' }] } : t) } })
+  expect(S2.team('hr').squad).toEqual([{ name: 'L. Modric', number: 10, pos: 'Midfielder', photo: 'p.png' }])
 })
 
 test('people carry their team codes', () => {
@@ -71,6 +78,21 @@ test('hasOdds: true for real predictions, false for provider placeholders/absent
   expect(odds({ a: 50, d: 50, b: 0 })).toBe(false)   // draw ties home (API-Football future-fixture default)
   expect(odds({ a: 0, d: 50, b: 50 })).toBe(false)   // draw ties away
   expect(odds({ a: null, d: null, b: null })).toBe(false) // no prediction stored
+})
+
+test('twoWayProb renormalizes home vs away to 100, excluding the draw', () => {
+  expect(twoWayProb({ a: 53, d: 26, b: 21 })).toEqual({ pa: 72, pb: 28 })
+  expect(twoWayProb({ a: 60, d: 22, b: 18 })).toEqual({ pa: 77, pb: 23 })
+  expect(twoWayProb({ a: 0, d: 0, b: 0 })).toEqual({ pa: 50, pb: 50 })          // div-by-zero guard
+  expect(twoWayProb({ a: null, d: null, b: null })).toEqual({ pa: 50, pb: 50 }) // absent guard
+})
+
+test('fixtures carry two-way prob2 and pass lineups through (null by default)', () => {
+  const S = assembleSweep(api)
+  expect(S.fixtures[0].prob2).toEqual({ pa: 77, pb: 23 }) // from base api prob {a:60,d:22,b:18}
+  expect(S.fixtures[0].lineups).toBeNull()
+  const S2 = assembleSweep({ ...api, fixtures: [{ ...api.fixtures[0], lineups: [{ teamCode: 'hr', formation: '4-3-3', startXI: [] }] }] })
+  expect(S2.fixtures[0].lineups).toEqual([{ teamCode: 'hr', formation: '4-3-3', startXI: [] }])
 })
 
 test('standings are grouped and money is ranked by best-team strength (no wins yet → strength tiebreak)', () => {

@@ -72,11 +72,10 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
         </div>
         {next.hasOdds && <>
-        <ProbBar prob={next.prob} />
+        <ProbBar prob2={next.prob2} />
         <div className="prob-key">
-          <span><b>{next.prob.a}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
-          <span><b>{next.prob.d}%</b> Draw</span>
-          <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob.b}%</b></span>
+          <span><b>{next.prob2.pa}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
+          <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob2.pb}%</b></span>
         </div>
         </>}
         <div onClick={(e)=>e.stopPropagation()}>

@@ -121,6 +121,26 @@ a{color:inherit; text-decoration:none;}
 .prob-bar .a{background:var(--accent);} .prob-bar .d{background:#5b6f8e;} .prob-bar .b{background:var(--blue);}
 .prob-key{display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; color:#a9c0e0; font-weight:600;}
 .prob-key b{color:#fff;}
+/* squad / starting-XI list */
+.squadlist{display:flex; flex-direction:column;}
+.squad-grp-h{font-size:9.5px; text-transform:uppercase; letter-spacing:.6px; color:var(--muted2); font-weight:700; margin:7px 0 2px;}
+.squad-row{display:flex; align-items:center; gap:8px; padding:3px 0; font-size:13px; min-width:0;}
+.squad-ph{width:26px; height:26px; border-radius:50%; object-fit:cover; background:#e6eaf0; flex:0 0 auto;}
+.squad-ph-ph{display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; color:var(--muted2);}
+.squad-num{min-width:16px; text-align:center; color:var(--muted2); font-weight:700; font-variant-numeric:tabular-nums; flex:0 0 auto;}
+.squad-nm{font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+/* wide variant (team screen): responsive multi-column grid, bigger rows + headshots */
+.squadlist.wide .squad-grp-rows{display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:2px 18px;}
+.squadlist.wide .squad-grp-h{margin:12px 0 4px;}
+.squadlist.wide .squad-row{padding:7px 4px; font-size:14px; gap:11px; border-bottom:1px solid var(--line);}
+.squadlist.wide .squad-ph{width:36px; height:36px;}
+.squadlist.wide .squad-ph-ph{font-size:13px;}
+.squadlist.wide .squad-num{min-width:22px; font-size:13px;}
+/* match-sheet squad open/close animation (grid-rows trick handles variable height) */
+.squad-toggle .squad-form{margin-left:auto;}
+.squad-collapse{display:grid; grid-template-rows:0fr; opacity:.35; transition:grid-template-rows .26s ease, opacity .26s ease;}
+.squad-collapse.open{grid-template-rows:1fr; opacity:1;}
+.squad-collapse-inner{overflow:hidden; min-height:0;}
 .hero-owners{display:flex; gap:14px; margin-top:13px; padding-top:12px; border-top:1px dashed rgba(255,255,255,.16);}
 .ostack{flex:1; min-width:0;}
 .ostack .lbl{font-size:9px; letter-spacing:1.5px; color:#7e97bb; font-weight:700; text-transform:uppercase; margin-bottom:6px;}

@@ -20,6 +20,18 @@ function hasRealOdds(prob) {
 }
 
 /**
+ * Collapse a three-way prediction to a two-way home-vs-away split (draw excluded),
+ * renormalized to sum 100. Used for display; the raw three-way `prob` is kept in case
+ * we reinstate the draw or surface raw odds later.
+ */
+export function twoWayProb(prob) {
+  const a = prob?.a ?? 0, b = prob?.b ?? 0
+  if (a + b === 0) return { pa: 50, pb: 50 }
+  const pa = Math.round((a / (a + b)) * 100)
+  return { pa, pb: 100 - pa }
+}
+
+/**
  * Pure: turn the API bundle ({bootstrap, fixtures, standings, photos, syncStatus})
  * into the SWEEP-shaped object the components consume.
  */
@@ -51,6 +63,7 @@ export function assembleSweep(api) {
       code: t.code, name: t.name, group: t.group, pool: t.pool, color: t.color, strength: t.strength,
       played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga, pts: s.pts,
       owners: ownersOf(t.code), titleOdds: titleOddsFor(t.strength), outlook: outlookFor(t.strength),
+      squad: t.squad ?? null,
     }
   }
   const team = (code) => teams[code]
@@ -73,7 +86,8 @@ export function assembleSweep(api) {
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
-      prob: f.prob, hasOdds: hasRealOdds(f.prob), stage: f.stage, derby, doubleOwners,
+      prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob),
+      lineups: f.lineups ?? null, stage: f.stage, derby, doubleOwners,
       timeLabel: fmtTime(ko), dayLabel: fmtDay(ko), dayKey: fmtDayKey(ko),
     }
   })
