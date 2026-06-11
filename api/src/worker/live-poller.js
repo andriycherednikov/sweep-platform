@@ -12,6 +12,26 @@ export function isLiveWindow(now, kickoffs, windowMin = 150) {
 }
 
 /**
+ * Which fixtures to poll by id this tick: ones in their live window, PLUS any non-final
+ * fixture whose kickoff has already passed (within `recoverHours`). The recovery arm
+ * auto-heals matches we missed — worker was down during kickoff, or the game finished
+ * after its window closed — so they reconcile to 'final' instead of sitting stuck 'live'.
+ * @param {{id:string, ko:string|Date, status:string}[]} rows
+ * @returns {string[]} unique fixture ids
+ */
+export function fixturesToPoll(rows, now, { recoverHours = 24 } = {}) {
+  const t = now.getTime()
+  const ids = new Set()
+  for (const r of rows) {
+    const ko = new Date(r.ko).getTime()
+    const inWindow = isLiveWindow(now, [new Date(r.ko)])
+    const recover = r.status !== 'final' && ko < t && ko > t - recoverHours * 3600_000
+    if (inWindow || recover) ids.add(r.id)
+  }
+  return [...ids]
+}
+
+/**
  * True from `leadMin` minutes before any kickoff through the match — a longer lead than
  * scores, because lineups are published ~20–40 min pre-kickoff.
  */

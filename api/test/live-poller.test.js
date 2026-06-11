@@ -5,7 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow, pollLineups, isLineupWindow } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll } from '../src/worker/live-poller.js'
 import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -78,6 +78,21 @@ test('pollLive does nothing (no fetch) when there are no in-window ids', async (
   const n = await pollLive(db, provider, [])
   expect(n).toBe(0)
   expect(called).toBe(0)
+})
+
+test('fixturesToPoll: in-window fixtures plus stale-recovery (missed kickoffs / stuck live)', () => {
+  const now = new Date('2026-06-12T12:00:00Z')
+  const at = (mins) => new Date(now.getTime() + mins * 60_000).toISOString()
+  const rows = [
+    { id: 'a', ko: at(-30), status: 'live' },      // genuinely live, in window → poll
+    { id: 'b', ko: at(-200), status: 'live' },     // stuck live past the window → recover
+    { id: 'c', ko: at(-200), status: 'upcoming' }, // kickoff missed (worker was down) → recover
+    { id: 'd', ko: at(-200), status: 'final' },    // already final → skip
+    { id: 'e', ko: at(300), status: 'upcoming' },  // far future → skip
+    { id: 'f', ko: at(-5), status: 'upcoming' },   // just kicked off, in window → poll
+    { id: 'g', ko: at(-60 * 30), status: 'upcoming' }, // 30h ago, beyond recovery → baseline handles
+  ]
+  expect(fixturesToPoll(rows, now).sort()).toEqual(['a', 'b', 'c', 'f'])
 })
 
 test('isLineupWindow is true ~45 min before kickoff (longer lead than scores)', () => {

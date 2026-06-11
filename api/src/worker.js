@@ -2,7 +2,7 @@ import cron from 'node-cron'
 import { createPool, createDb } from './db/client.js'
 import { createApiFootballProvider } from './providers/api-football-provider.js'
 import { syncBaseline } from './worker/baseline-sync.js'
-import { pollLive, pollLineups, isLiveWindow, isLineupWindow } from './worker/live-poller.js'
+import { pollLive, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { fixture } from './db/schema.js'
@@ -28,11 +28,12 @@ await baseline('boot')
 // Scores poll in the ±150m live window; lineups in a wider ~45m pre-kickoff window.
 setInterval(async () => {
   try {
-    const rows = await db.select({ id: fixture.id, ko: fixture.kickoffUtc, lineups: fixture.lineups }).from(fixture)
+    const rows = await db.select({ id: fixture.id, ko: fixture.kickoffUtc, status: fixture.status, lineups: fixture.lineups }).from(fixture)
     const now = new Date()
     const kickoffs = rows.map((r) => new Date(r.ko))
-    if (isLiveWindow(now, kickoffs)) {
-      const liveIds = rows.filter((r) => isLiveWindow(now, [new Date(r.ko)])).map((r) => r.id)
+    // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
+    const liveIds = fixturesToPoll(rows, now)
+    if (liveIds.length) {
       const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
       if (n) console.log(`[live] updated ${n}`)
     }
