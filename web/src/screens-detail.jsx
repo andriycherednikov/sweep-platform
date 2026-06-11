@@ -573,15 +573,19 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               const backers = sup[code] || [];
               const on = mySup===code;
               return (
-                <button key={code} disabled={locked} className={"backteam"+(on?" on":"")+(locked?" locked":"")}
-                  onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+S.team(code).name+" 📣"); }}>
-                  <span className="bt-team">
-                    <img className="flag" src={S.flag(code,80)} alt="" style={{width:30,height:22}}/>
-                    <b>{S.team(code).name}</b>
-                  </span>
-                  <div className="bk">{backers.length>0
-                    ? <><AvStack people={backers} size={24} max={4}/><span>{backers.length} backing</span></>
-                    : <span className="none">{locked ? "No backers" : "No backers yet"}</span>}</div>
+                <button key={code} type="button" disabled={locked}
+                  onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+S.team(code).name+" 📣"); }}
+                  style={{flex:1,minWidth:0,textAlign:"left",display:"block",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}>
+                    <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>
+                    <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{S.team(code).name}</b>
+                  </div>
+                  {backers.length>0
+                    ? <div style={{display:"flex",alignItems:"center",gap:9}}>
+                        <AvStack people={backers} size={33} max={4}/>
+                        <span style={{fontSize:13,fontWeight:700,color:on?"var(--accent)":"var(--muted)"}}>{backers.length} backing</span>
+                      </div>
+                    : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>{locked ? "No backers" : "Tap to back"}</span>}
                 </button>
               );
             })}

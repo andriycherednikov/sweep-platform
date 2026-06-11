@@ -234,17 +234,6 @@ a{color:inherit; text-decoration:none;}
 .prow.mine{border-color:#9db8f0; box-shadow:0 0 0 1px #4071e6, 0 6px 16px -6px rgba(64,113,230,.45);}
 
 /* back a team */
-.backteam{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:9px; background:var(--card); border:1.5px solid var(--line); border-radius:14px; padding:13px 12px; transition:border-color .15s, background .15s; cursor:pointer;}
-.backteam.on{border-color:var(--accent); background:#fff6f3;}
-.backteam .bt-team{display:flex; align-items:center; gap:8px; min-width:0;}
-.backteam img{border-radius:4px; box-shadow:0 0 0 1px rgba(11,31,58,.12); flex-shrink:0;}
-.backteam b{font-family:'Barlow Condensed'; font-weight:700; font-size:15px; letter-spacing:.2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.backteam .bk{display:flex; align-items:center; justify-content:center; gap:8px; min-height:26px;}
-.backteam .bk span{font-size:11px; color:var(--muted); font-weight:700;}
-.backteam .bk .none{color:var(--muted2);}
-.backteam.on .bk span{color:var(--accent);}
-.backteam.locked{cursor:default;}
-.backteam.locked:not(.on){background:var(--card); border-color:var(--line);}
 /* horizontal team layout (mirrors the hero) */
 .mc-h{display:flex; align-items:flex-start; gap:10px;}
 .mc-h-team{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;}
