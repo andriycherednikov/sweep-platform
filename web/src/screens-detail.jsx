@@ -474,6 +474,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <div className="team" style={{flex:1}} onClick={()=>{onClose();openTeam(f.t1);}}>
               <Flag code={f.t1} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t1.name}</span>
+              <span className="mt-str">Strength {t1.strength}</span>
             </div>
             <div className="vs-cd">
               {showScore
@@ -484,6 +485,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <div className="team" style={{flex:1}} onClick={()=>{onClose();openTeam(f.t2);}}>
               <Flag code={f.t2} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t2.name}</span>
+              <span className="mt-str">Strength {t2.strength}</span>
             </div>
           </div>
 

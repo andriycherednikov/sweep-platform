@@ -110,6 +110,7 @@ a{color:inherit; text-decoration:none;}
 .match-line .team{display:flex; flex-direction:column; align-items:center; gap:6px; flex:1; min-width:0;}
 .match-line .team img{width:46px; height:34px;}
 .match-line .team .nm{font-family:'Barlow Condensed'; font-weight:700; font-size:15px; letter-spacing:.4px; white-space:nowrap;}
+.match-line .team .mt-str{font-size:11px; color:var(--muted2); font-weight:700; letter-spacing:.3px; margin-top:-2px;}
 .vs-cd{display:flex; flex-direction:column; align-items:center; gap:3px; padding:0 2px;}
 .vs-cd .cd{font-family:'Barlow Condensed'; font-weight:800; font-size:24px; letter-spacing:1px; line-height:1; color:#fff; font-variant-numeric:tabular-nums;}
 .vs-cd .cdl{font-size:8.5px; letter-spacing:2px; color:#8fa8cb; font-weight:700;}
