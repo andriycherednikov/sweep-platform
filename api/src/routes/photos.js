@@ -59,6 +59,8 @@ export async function photoRoutes(app) {
       fixtureId: kind === 'fan' ? fixtureId : null,
       filePath: fileName, thumbPath: thumbName, caption, status: 'pending',
     })
+    // signal admins' moderation badge to refresh (no payload — count is fetched with creds)
+    await app.publish({ type: 'photo-pending' })
     return reply.code(201).send({ id, kind, status: 'pending', fixtureId: fixtureId ?? null, personId: personId ?? null })
   })
 }

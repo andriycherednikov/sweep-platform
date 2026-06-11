@@ -7,6 +7,7 @@ import {
   useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf, toast,
   supportOf, mySupport, setSupport,
 } from "./social.js";
+import { useAdminBadge } from "./admin.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -216,6 +217,7 @@ export function MatchCard({ f, onOpen, onToast }) {
 
 /* home header */
 export function HomeHeader({ onAdmin, go }) {
+  const { isAdmin, pending } = useAdminBadge();
   return (
     <header className="top home-top">
       <div className="brandrow">
@@ -225,7 +227,10 @@ export function HomeHeader({ onAdmin, go }) {
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div className="tz"><b>Sat 13 Jun</b>Sydney · AEST</div>
-          <button onClick={onAdmin} aria-label="Admin" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}><Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/></button>
+          <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+            <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+            {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
+          </button>
         </div>
       </div>
       <IdentityControl dark style={{marginTop:20}}/>
@@ -300,7 +305,7 @@ const SB_NAV = [
   ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt]
 ];
 export function Sidebar({ current, go, onKnock, onAdmin }) {
-  const pending = S.photos.filter(p => p.status === "pending").length;
+  const { isAdmin, pending } = useAdminBadge();
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
@@ -318,7 +323,7 @@ export function Sidebar({ current, go, onKnock, onAdmin }) {
       <div className="sb-sec">Admin</div>
       <nav className="sb-nav">
         <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
-          <Icon.lock/><span>Moderation</span>{pending>0 && <span className="badge">{pending}</span>}
+          <Icon.lock/><span>Moderation</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
         </button>
       </nav>
       <div className="sb-foot">

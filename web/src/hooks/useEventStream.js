@@ -2,6 +2,7 @@
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { pushNotification } from '../notifications.js'
+import { getAdminBadge, refreshAdminBadge } from '../admin.js'
 
 /**
  * Subscribe once to GET /api/stream. Each event invalidates the relevant
@@ -27,7 +28,13 @@ export function useEventStream() {
         if (ev.type === 'support' && ev.supporting) {
           pushNotification({ personId: ev.personId, teamCode: ev.supporting, fixtureId: ev.fixtureId, action: ev.action })
         }
-      } else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') qc.invalidateQueries({ queryKey: ['sweep'] })
+      } else if (ev.type === 'photo-pending') {
+        // a new upload landed in the queue — bump the admin badge (admins only)
+        if (getAdminBadge().isAdmin) refreshAdminBadge()
+      } else if (ev.type === 'score' || ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
+        qc.invalidateQueries({ queryKey: ['sweep'] })
+        if ((ev.type === 'photo-approved' || ev.type === 'photo-removed') && getAdminBadge().isAdmin) refreshAdminBadge()
+      }
     }
     return () => es.close()
   }, [qc])

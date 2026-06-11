@@ -7,6 +7,7 @@ import {
   Icon, BottomNav, Sidebar, IdentitySheet, useIsDesktop,
 } from "./components.jsx";
 import { setGlobalToast, getMe } from "./social.js";
+import { refreshAdminBadge } from "./admin.js";
 import { FloatingReactions } from "./FloatingReactions.jsx";
 import {
   HomeScreen, ScheduleScreen, StandingsScreen, KnockoutsScreen,
@@ -56,6 +57,7 @@ export default function App() {
   useEffect(() => {
     setGlobalToast(showToast);
     window.__sweepPickMe = () => navigate({ identity: true });
+    refreshAdminBadge(); // surfaces the moderation count if this device is an admin
     window.__sweepViewMe = () => { const me = getMe(); if (me) navigate({ overlay: { type: "person", id: me.id } }); };
     // seed the current entry with state so the first Back has something to restore
     window.history.replaceState(viewRef.current, "", urlFor(viewRef.current));

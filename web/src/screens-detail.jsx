@@ -11,6 +11,7 @@ import {
   supportOf, mySupport, setSupport, watchersOf,
 } from "./social.js";
 import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
+import { refreshAdminBadge } from "./admin.js";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
@@ -581,7 +582,7 @@ export function AdminScreen({ onBack, onToast }) {
   function press(d){
     if(code.length>=4) return;
     const nc = code + d; setCode(nc);
-    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setUnlocked(true); } catch { fail(); } }, 120); }
+    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setUnlocked(true); refreshAdminBadge(); } catch { fail(); } }, 120); }
   }
   function del(){ setCode(c=>c.slice(0,-1)); }
 
@@ -626,6 +627,7 @@ export function AdminQueue({ onBack, onToast }) {
       await moderatePhoto(id, action);
       onToast(action==="approve"?"Photo approved":action==="reject"?"Photo rejected":"Photo removed");
       await load();
+      refreshAdminBadge();
     } catch { onToast("Action failed — try again"); }
     finally { setBusy(null); }
   }
@@ -644,7 +646,7 @@ export function AdminQueue({ onBack, onToast }) {
             <div className="queueitem" key={p.id}>
               <div className="qimg" style={{backgroundImage:`url(${p.fileUrl})`,backgroundSize:"cover",backgroundPosition:"center"}}>
                 <div className="lbl">{p.kind==="profile"?"PROFILE":"FAN PHOTO"}</div>
-                {p.kind==="fan" && p.team && <div className="tag"><img src={S.flag(p.team,40)} alt=""/><span>{S.team(p.team)?.name||p.team}</span></div>}
+                {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><img src={S.flag(fx.t1,40)} alt=""/><img src={S.flag(fx.t2,40)} alt=""/><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
                 {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
               </div>
               <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>

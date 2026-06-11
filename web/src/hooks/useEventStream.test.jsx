@@ -4,6 +4,8 @@ import { renderHook } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 vi.mock('../notifications.js', () => ({ pushNotification: vi.fn() }))
 import { pushNotification } from '../notifications.js'
+const admin = vi.hoisted(() => ({ state: { isAdmin: false }, refresh: vi.fn() }))
+vi.mock('../admin.js', () => ({ getAdminBadge: () => admin.state, refreshAdminBadge: admin.refresh }))
 import { useEventStream } from './useEventStream.js'
 
 let instances
@@ -14,7 +16,7 @@ class FakeES {
   close(){ this.closed = true }
 }
 
-beforeEach(() => { instances = []; vi.stubGlobal('EventSource', FakeES); pushNotification.mockClear() })
+beforeEach(() => { instances = []; vi.stubGlobal('EventSource', FakeES); pushNotification.mockClear(); admin.refresh.mockClear(); admin.state = { isAdmin: false } })
 
 function setup() {
   const qc = new QueryClient()
@@ -43,6 +45,15 @@ test('a support pick/switch pushes a floating reaction; a remove does not', () =
   expect(pushNotification).toHaveBeenCalledWith({ personId: 'p1', teamCode: 'br', fixtureId: 'm1', action: 'pick' })
   es.emit({ type: 'support', fixtureId: 'm1', personId: 'p1', supporting: null, action: 'remove' })
   expect(pushNotification).toHaveBeenCalledTimes(1) // remove did not push
+})
+
+test('photo-pending refreshes the admin badge only when admin', () => {
+  const { es } = setup()
+  es.emit({ type: 'photo-pending' })
+  expect(admin.refresh).not.toHaveBeenCalled() // not admin → ignored
+  admin.state = { isAdmin: true }
+  es.emit({ type: 'photo-pending' })
+  expect(admin.refresh).toHaveBeenCalledTimes(1)
 })
 
 test('score/sync events invalidate the sweep query', () => {
