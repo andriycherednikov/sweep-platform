@@ -44,6 +44,12 @@ test('silently skips a notification it cannot resolve', () => {
   expect(queryByText('Brazil')).toBeNull()
 })
 
+test('silently drops a DRAW support notification (no team to resolve, no card)', () => {
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ personId: 'p1', teamCode: 'DRAW', fixtureId: 'm1', action: 'pick' }) })
+  expect(container.textContent).not.toContain('is backing')
+})
+
 test('renders a GOAL match notification with scorer, minute, score and a penalty tag', () => {
   const { container } = render(<FloatingReactions />)
   act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', player: 'Neymar', assist: 'Vinicius', minute: 23, detail: 'Penalty', score: [1, 0] }) })
