@@ -99,6 +99,7 @@ test('MatchSheet renders a timeline of goals and cards with player and minute', 
   expect(getByText("23'")).toBeTruthy()
   expect(getByText('Lukaku')).toBeTruthy()
   expect(getByText("41'")).toBeTruthy()
+  expect(getByText('assist · Perisic')).toBeTruthy() // goal assist on its own line
 })
 
 test('MatchSheet shows no timeline block when there are no events', () => {
