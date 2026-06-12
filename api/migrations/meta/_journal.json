@@ -50,6 +50,13 @@
       "when": 1781249887685,
       "tag": "0006_curved_rhodey",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781265459228,
+      "tag": "0007_bitter_war_machine",
+      "breakpoints": true
     }
   ]
 }

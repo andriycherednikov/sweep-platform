@@ -87,6 +87,14 @@ test('CrowdPick hides the Draw control on a knockout fixture', () => {
   expect(queryByLabelText(/^Call a draw/i)).toBeNull();
 });
 
+test('CrowdPick knockout empty-state note omits the draw prompt', () => {
+  setMe(null);
+  setSocialData({ watch: {}, support: {} });
+  const { getByText, queryByText } = render(<CrowdPick f={{ ...FG, stage: 'r16' }} />);
+  expect(getByText('Tap a team to call the winner')).toBeInTheDocument();
+  expect(queryByText(/or draw/i)).toBeNull();
+});
+
 test('CrowdPick records a DRAW pick and POSTs it', () => {
   setMe('p1');
   setSocialData({ watch: {}, support: {} });

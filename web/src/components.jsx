@@ -200,7 +200,7 @@ export function CrowdPick({ f, onToast, light, locked }) {
         </div>}
       {mine
         ? <div className="crowd-note picked"><Icon.check/> {locked ? "You called " : "Your call: "}{pickName(mine)}</div>
-        : !locked && <div className="crowd-note">Tap a team or draw to call it</div>}
+        : !locked && <div className="crowd-note">{showDraw ? "Tap a team or draw to call it" : "Tap a team to call the winner"}</div>}
     </div>
   );
 }
