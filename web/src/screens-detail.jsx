@@ -10,6 +10,7 @@ import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf,
 } from "./social.js";
+import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 
@@ -140,6 +141,8 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
               );
             })}
           </div>
+
+          {isMe && <div style={{marginTop:22}}><InstallButton/></div>}
         </div>
       </div>
     </div>

@@ -57,7 +57,10 @@ export function useInstallPrompt() {
 
   const isIOS = detectIOS()
   const hasNativePrompt = !!deferred
-  const canPrompt = !installed && !dismissed && (hasNativePrompt || isIOS)
+  // Installable at all on this device (backs an explicit "Install" button).
+  const canInstall = !installed && (hasNativePrompt || isIOS)
+  // Whether the auto-banner should appear (same, but respects a prior dismissal).
+  const canPrompt = canInstall && !dismissed
 
-  return { canPrompt, installed, dismissed, isIOS, hasNativePrompt, promptInstall, dismiss }
+  return { canPrompt, canInstall, installed, dismissed, isIOS, hasNativePrompt, promptInstall, dismiss }
 }

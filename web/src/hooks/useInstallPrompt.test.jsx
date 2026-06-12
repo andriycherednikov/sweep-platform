@@ -71,6 +71,21 @@ test('already-installed (standalone) never prompts', () => {
   expect(result.current.canPrompt).toBe(false)
 })
 
+test('canInstall ignores dismissal (it backs an explicit button)', () => {
+  const { result } = renderHook(() => useInstallPrompt())
+  act(() => { fireBIP() })
+  act(() => { result.current.dismiss() })
+  expect(result.current.canPrompt).toBe(false) // banner suppressed
+  expect(result.current.canInstall).toBe(true) // explicit button still offered
+})
+
+test('canInstall is false once installed', () => {
+  setStandalone(true)
+  const { result } = renderHook(() => useInstallPrompt())
+  act(() => { fireBIP() })
+  expect(result.current.canInstall).toBe(false)
+})
+
 test('dismiss() persists and suppresses the prompt', () => {
   const { result } = renderHook(() => useInstallPrompt())
   act(() => { fireBIP() })
