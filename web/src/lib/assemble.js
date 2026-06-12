@@ -87,7 +87,7 @@ export function assembleSweep(api) {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
       prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob),
-      lineups: f.lineups ?? null, stage: f.stage, derby, doubleOwners,
+      lineups: f.lineups ?? null, events: f.events ?? [], stage: f.stage, derby, doubleOwners,
       timeLabel: fmtTime(ko), dayLabel: fmtDay(ko), dayKey: fmtDayKey(ko),
     }
   })
