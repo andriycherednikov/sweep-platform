@@ -66,13 +66,28 @@ function MatchReaction({ it }) {
   const score = it.score ? `${it.score[0]}–${it.score[1]}` : null;
   if (it.event === "goal") {
     const scorer = S.team(it.teamCode);
+    const tag = /penalty/i.test(it.detail || "") ? " (P)" : /own goal/i.test(it.detail || "") ? " (OG)" : "";
     return (
       <>
         <span className="reaction-badge">⚽</span>
         <div className="reaction-txt">
-          <small>Goal!</small>
-          <b><img className="flag" src={S.flag(scorer.code, 40)} alt="" />{scorer.name}</b>
+          <small>Goal!{it.minute != null ? ` · ${it.minute}'` : ""}</small>
+          <b><img className="flag" src={S.flag(scorer.code, 40)} alt="" />{it.player || scorer.name}{tag}</b>
           <span className="reaction-mu">{a.name} {score} {b.name}</span>
+        </div>
+      </>
+    );
+  }
+  if (it.event === "card") {
+    const team = S.team(it.teamCode);
+    const red = it.card === "red";
+    return (
+      <>
+        <span className="reaction-badge">{red ? "🟥" : "🟨"}</span>
+        <div className="reaction-txt">
+          <small>{red ? "Red" : "Yellow"} card{it.minute != null ? ` · ${it.minute}'` : ""}</small>
+          <b><img className="flag" src={S.flag(team.code, 40)} alt="" />{it.player || team.name}</b>
+          <span className="reaction-mu">{a.name} v {b.name}</span>
         </div>
       </>
     );
