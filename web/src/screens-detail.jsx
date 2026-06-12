@@ -510,10 +510,15 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           {(() => {
             // confirmed XI (near kickoff) wins; otherwise fall back to the full squad
             const sheetFor = (code) => {
+              const sq = S.team(code)?.squad || [];
               const lu = f.lineups?.find((l) => l.teamCode === code);
-              if (lu) return { formation: lu.formation, players: lu.startXI };
-              const sq = S.team(code)?.squad;
-              return sq?.length ? { formation: null, players: sq } : null;
+              if (lu) {
+                // lineup players carry no photo — borrow the squad headshot, matched by shirt number
+                const photoByNum = new Map(sq.map((p) => [p.number, p.photo]));
+                const players = lu.startXI.map((p) => ({ ...p, photo: p.photo || photoByNum.get(p.number) || null }));
+                return { formation: lu.formation, players };
+              }
+              return sq.length ? { formation: null, players: sq } : null;
             };
             const cols = [[f.t1, sheetFor(f.t1)], [f.t2, sheetFor(f.t2)]].filter(([, s]) => s);
             if (cols.length === 0) return null;

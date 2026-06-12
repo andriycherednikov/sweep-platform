@@ -64,6 +64,18 @@ test('MatchSheet shows a Starting XI block with formations and players', () => {
   expect(getByText('Y. Carrasco')).toBeTruthy() // a missing number does not drop the player
 })
 
+test('Starting XI players borrow squad headshots matched by shirt number', () => {
+  const squadHr = [
+    { name: 'GK', number: 1, pos: 'Goalkeeper', photo: 'https://x/1.png' },
+    { name: 'Modric (squad)', number: 10, pos: 'Midfielder', photo: 'https://x/10.png' },
+    { name: 'Perisic (squad)', number: 4, pos: 'Forward', photo: 'https://x/4.png' },
+  ]
+  const { container } = renderSheet(sheetFixture(LINEUPS, { hr: squadHr }))
+  const srcs = [...container.querySelectorAll('img.squad-ph')].map((i) => i.getAttribute('src'))
+  expect(srcs).toContain('https://x/10.png') // Modric wears 10 → got the squad photo
+  expect(srcs).toContain('https://x/4.png')  // Perisic wears 4
+})
+
 test('MatchSheet falls back to Squads (collapsed by default) and expands on click', () => {
   const { getByText, getAllByText, queryByText, container } = renderSheet(sheetFixture(null, { hr: SQUAD, be: SQUAD }))
   expect(queryByText('Starting XI')).toBeNull()
