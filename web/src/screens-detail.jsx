@@ -499,12 +499,15 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           </div>
 
           {!showScore && f.hasOdds && (
-            <div className="block" style={{padding:"13px",marginBottom:14}}>
-              <div className="prob-bar" style={{background:"#eef1f5"}}>
-                <i className="a" style={{width:f.prob2.pa+"%"}}></i><i className="b" style={{width:f.prob2.pb+"%"}}></i>
+            <>
+              <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Official prediction</div>
+              <div className="block" style={{padding:"15px 16px",marginBottom:16}}>
+                <div className="prob-bar" style={{background:"#eef1f5",height:12,borderRadius:7}}>
+                  <i className="a" style={{width:f.prob2.pa+"%"}}></i><i className="b" style={{width:f.prob2.pb+"%"}}></i>
+                </div>
+                <div className="prob-key" style={{color:"var(--muted)",marginTop:9}}><span><b style={{color:"var(--navy)"}}>{f.prob2.pa}%</b> {t1.name}</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob2.pb}%</b></span></div>
               </div>
-              <div className="prob-key" style={{color:"var(--muted)"}}><span><b style={{color:"var(--navy)"}}>{f.prob2.pa}%</b> {t1.name}</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob2.pb}%</b></span></div>
-            </div>
+            </>
           )}
 
           {(() => {
