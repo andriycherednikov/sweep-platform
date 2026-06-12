@@ -43,6 +43,13 @@
       "when": 1781187547501,
       "tag": "0005_chemical_longshot",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781249887685,
+      "tag": "0006_curved_rhodey",
+      "breakpoints": true
     }
   ]
 }

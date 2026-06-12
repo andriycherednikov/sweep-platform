@@ -14,6 +14,16 @@ test('fixture.lineups round-trips a JSON array', async () => {
   await db.update(fixture).set({ lineups: null }).where(eq(fixture.id, 'm0')) // restore seed
 })
 
+test('fixture.events round-trips a JSON array and defaults to null', async () => {
+  const data = [{ id: '23|0|hr|Modric|goal|Penalty', type: 'goal', teamCode: 'hr', player: 'Modric', minute: 23, detail: 'Penalty', assist: null }]
+  await db.update(fixture).set({ events: data }).where(eq(fixture.id, 'm0'))
+  const [row] = await db.select().from(fixture).where(eq(fixture.id, 'm0'))
+  expect(row.events).toEqual(data)
+  await db.update(fixture).set({ events: null }).where(eq(fixture.id, 'm0')) // restore seed
+  const [restored] = await db.select().from(fixture).where(eq(fixture.id, 'm0'))
+  expect(restored.events).toBeNull()
+})
+
 test('team.squad round-trips a JSON array', async () => {
   const squad = [{ name: 'L. Modric', number: 10, pos: 'Midfielder', photo: 'https://x/10.png' }]
   await db.update(team).set({ squad }).where(eq(team.code, 'hr'))
