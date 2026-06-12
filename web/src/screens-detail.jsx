@@ -463,6 +463,55 @@ export function PhotoLightbox({ photo, onClose, openMatch }) {
     </div>
   );
 }
+// A yellow/red card glyph (slim rounded rectangle) — cleaner than an emoji.
+function CardChip({ red }) {
+  return <span style={{ display: "inline-block", width: 10, height: 14, borderRadius: 2, flexShrink: 0, background: red ? "#e5483d" : "#f5c518", boxShadow: "0 1px 1.5px rgba(0,0,0,.25)" }} />;
+}
+function EventIcon({ e }) {
+  if (e.type === "goal") return <span style={{ fontSize: 14, lineHeight: 1 }} aria-label="goal">⚽</span>;
+  return <CardChip red={e.card === "red"} />;
+}
+// Two-sided broadcast timeline: home (t1) events on the left, away (t2) on the right,
+// against a centre minute spine. Side = which team flag conveys who did what at a glance.
+function MatchTimeline({ f }) {
+  const events = (f.events || []).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
+  if (events.length === 0) return null;
+  const t1 = f.t1, t2 = f.t2;
+  const tag = (e) => /penalty/i.test(e.detail || "") ? " (P)" : /own goal/i.test(e.detail || "") ? " (OG)" : "";
+  const detail = (e, end) => (
+    <span style={{ fontSize: 13, fontWeight: 600, minWidth: 0, textAlign: end }}>
+      <span><b style={{ fontWeight: 700 }}>{e.player}</b>{tag(e)}</span>
+      {e.assist ? <span style={{ display: "block", fontSize: 11, color: "var(--muted)", fontWeight: 600 }}>assist · {e.assist}</span> : null}
+    </span>
+  );
+  return (
+    <>
+      <div className="blocktitle" style={{ border: 0, padding: "2px 2px 10px" }}>Match events</div>
+      <div className="block" style={{ padding: "12px 10px", marginBottom: 16 }}>
+        {/* spine + rows — sides mirror the scoreline above (home left, away right) */}
+        <div style={{ position: "relative" }}>
+          <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, marginLeft: -1, background: "var(--line)" }} />
+          {events.map((e) => {
+            const left = e.teamCode === t1;
+            return (
+              <div key={e.id} style={{ position: "relative", display: "flex", alignItems: "flex-start", padding: "6px 0" }}>
+                <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 7, paddingRight: 10, minWidth: 0 }}>
+                  {left && <>{detail(e, "right")}<EventIcon e={e} /></>}
+                </div>
+                <div style={{ width: 34, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                  <span style={{ background: "var(--card)", color: "var(--navy)", fontWeight: 800, fontSize: 12, fontVariantNumeric: "tabular-nums", padding: "1px 0", lineHeight: 1.3 }}>{e.minute}'</span>
+                </div>
+                <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", gap: 7, paddingLeft: 10, minWidth: 0 }}>
+                  {!left && <><EventIcon e={e} />{detail(e, "left")}</>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </>
+  );
+}
 export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhoto }) {
   useSocial();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);
@@ -500,6 +549,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               <span className="mt-str">Strength {t2.strength}</span>
             </div>
           </div>
+
+          <MatchTimeline f={f} />
 
           {!showScore && f.hasOdds && (
             <>

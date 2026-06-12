@@ -85,6 +85,17 @@ test('fetchLineups returns raw json and queries by fixture', async () => {
   expect(r).toEqual(raw)
 })
 
+test('fetchEvents queries /fixtures/events?fixture= and returns raw json', async () => {
+  const raw = { response: [{ time: { elapsed: 23 }, team: { id: 3001 }, player: { name: 'Modric' }, type: 'Goal', detail: 'Normal Goal' }] }
+  const fetch = fakeFetch({ '/fixtures/events': raw })
+  const p = createApiFootballProvider({ apiKey: 'K', fetch })
+  const out = await p.fetchEvents('9002')
+  const calledUrl = new URL(fetch.mock.calls[0][0])
+  expect(calledUrl.pathname).toBe('/fixtures/events')
+  expect(calledUrl.searchParams.get('fixture')).toBe('9002')
+  expect(out).toEqual(raw) // raw passthrough — crosswalk mapping is the poller's job
+})
+
 test('fetchSquad maps a team squad and queries by team', async () => {
   const fetch = fakeFetch({ '/players/squads': { response: [{ team: { id: 3001 }, players: [
     { name: 'L. Modric', number: 10, position: 'Midfielder', photo: 'p.png' },

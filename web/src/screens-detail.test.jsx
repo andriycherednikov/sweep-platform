@@ -28,7 +28,7 @@ const SQUAD = [
   { name: 'M. Pjaca', number: 14, pos: 'Attacker', photo: null }, // no photo → number badge
 ]
 
-function sheetFixture(lineups, squads = {}) {
+function sheetFixture(lineups, squads = {}, events = []) {
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -40,7 +40,7 @@ function sheetFixture(lineups, squads = {}) {
     fixtures: [{
       id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
       venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
-      prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups,
+      prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups, events,
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
@@ -86,6 +86,25 @@ test('MatchSheet falls back to Squads (collapsed by default) and expands on clic
   expect(collapse.classList.contains('open')).toBe(true)           // expanded
   expect(getAllByText('Goalkeepers')).toHaveLength(2)              // grouped by position, one per team
   expect(getAllByText('J. Gvardiol', { selector: '.squad-nm' })).toHaveLength(2)
+})
+
+test('MatchSheet renders a timeline of goals and cards with player and minute', () => {
+  const events = [
+    { id: 'a', type: 'goal', teamCode: 'hr', player: 'Modric', assist: 'Perisic', minute: 23, detail: 'Normal Goal' },
+    { id: 'b', type: 'card', teamCode: 'be', player: 'Lukaku', minute: 41, card: 'yellow', detail: 'Yellow Card' },
+  ]
+  const { getByText } = renderSheet(sheetFixture(null, {}, events))
+  expect(getByText('Match events')).toBeTruthy()
+  expect(getByText('Modric')).toBeTruthy()
+  expect(getByText("23'")).toBeTruthy()
+  expect(getByText('Lukaku')).toBeTruthy()
+  expect(getByText("41'")).toBeTruthy()
+  expect(getByText('assist · Perisic')).toBeTruthy() // goal assist on its own line
+})
+
+test('MatchSheet shows no timeline block when there are no events', () => {
+  const { queryByText } = renderSheet(sheetFixture(null, {}, []))
+  expect(queryByText('Match events')).toBeNull()
 })
 
 test('MatchSheet shows neither block when there are no lineups and no squads', () => {

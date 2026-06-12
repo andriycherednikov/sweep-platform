@@ -53,6 +53,7 @@ export const fixture = pgTable('fixture', {
   probD: integer('prob_d'),
   probB: integer('prob_b'),
   lineups: jsonb('lineups'),
+  events: jsonb('events'),
   stage: text('stage').notNull().default('group'),
   derby: boolean('derby').notNull().default(false),
   doubleOwner: boolean('double_owner').notNull().default(false),

@@ -41,8 +41,13 @@ New column on the existing `fixture` table (mirrors the existing `lineups` jsonb
 precedent — `api/src/db/schema.js`):
 
 ```
-events jsonb not null default '[]'
+events jsonb   -- nullable, NO default
 ```
+
+`null` is a deliberate sentinel meaning *never polled* — the worker baselines such a
+fixture silently (no notification backfill on a mid-match restart). An array (incl. `[]`)
+means *polled at least once* → diff & emit. The serialize/assemble layers coerce
+`null → []` so the frontend always receives an array.
 
 Each element:
 

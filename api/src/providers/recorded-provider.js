@@ -1,7 +1,7 @@
 import { mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapSquad } from './mapping.js'
 
 /** Build a FootballProvider from already-parsed raw API-Football JSON objects. */
-export function createRecordedProvider({ fixtures, live, standings, predictions, teams, odds, lineups, squads } = {}) {
+export function createRecordedProvider({ fixtures, live, standings, predictions, teams, odds, lineups, events, squads } = {}) {
   return {
     async fetchFixtures() { return (fixtures?.response ?? []).map(mapFixture) },
     async fetchLive() { return (live?.response ?? []).map(mapFixture) },
@@ -14,6 +14,7 @@ export function createRecordedProvider({ fixtures, live, standings, predictions,
     async fetchOdds() { return mapOdds(odds) },
     async fetchTeams() { return (teams?.response ?? []).map(mapTeam) },
     async fetchLineups() { return lineups ?? null },
+    async fetchEvents() { return events ?? { response: [] } },
     async fetchSquad() { return mapSquad(squads) },
   }
 }

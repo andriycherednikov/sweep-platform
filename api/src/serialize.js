@@ -11,6 +11,7 @@ export function serializeFixture(f) {
     score: f.score1 == null ? null : [f.score1, f.score2], minute: f.minute,
     prob: { a: f.probA, d: f.probD, b: f.probB },
     lineups: f.lineups ?? null,
+    events: f.events ?? [],
     stage: f.stage, derby: f.derby, doubleOwner: f.doubleOwner,
   }
 }

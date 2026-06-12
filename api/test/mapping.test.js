@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapLineups, mapSquad } from '../src/providers/mapping.js'
+import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapLineups, mapSquad, mapEvents } from '../src/providers/mapping.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 
@@ -105,4 +105,51 @@ test('mapSquad: null when empty or missing', () => {
 
 test('mapTeam extracts provider id, name, code, country', () => {
   expect(load('teams').response.map(mapTeam)[0]).toEqual({ providerTeamId: 3001, name: 'Croatia', code: 'CRO', country: 'Croatia' })
+})
+
+const XW = new Map([[3001, 'hr'], [3002, 'be']])
+const rawEvents = (list) => ({ response: list })
+
+test('mapEvents keeps only Goal and Card, dropping subst/Var', () => {
+  const out = mapEvents(rawEvents([
+    { time: { elapsed: 23, extra: null }, team: { id: 3001 }, player: { name: 'Modric' }, assist: { name: 'Perisic' }, type: 'Goal', detail: 'Normal Goal' },
+    { time: { elapsed: 60, extra: null }, team: { id: 3002 }, player: { name: 'Lukaku' }, assist: { name: null }, type: 'subst', detail: 'Substitution 1' },
+    { time: { elapsed: 70, extra: null }, team: { id: 3001 }, player: { name: 'VAR' }, type: 'Var', detail: 'Goal cancelled' },
+  ]), XW)
+  expect(out).toHaveLength(1)
+  expect(out[0]).toMatchObject({ type: 'goal', teamCode: 'hr', player: 'Modric', minute: 23, detail: 'Normal Goal', assist: 'Perisic' })
+})
+
+test('mapEvents derives card colour from detail (yellow / red / second yellow)', () => {
+  const out = mapEvents(rawEvents([
+    { time: { elapsed: 30, extra: null }, team: { id: 3001 }, player: { name: 'A' }, type: 'Card', detail: 'Yellow Card' },
+    { time: { elapsed: 55, extra: null }, team: { id: 3002 }, player: { name: 'B' }, type: 'Card', detail: 'Red Card' },
+    { time: { elapsed: 80, extra: null }, team: { id: 3002 }, player: { name: 'C' }, type: 'Card', detail: 'Second Yellow card' },
+  ]), XW)
+  expect(out.map((e) => e.card)).toEqual(['yellow', 'red', 'red'])
+  expect(out[0]).not.toHaveProperty('assist') // cards carry no assist
+})
+
+test('mapEvents labels penalty and own-goal via detail, null-safe assist', () => {
+  const out = mapEvents(rawEvents([
+    { time: { elapsed: 12, extra: null }, team: { id: 3001 }, player: { name: 'P' }, assist: { name: null }, type: 'Goal', detail: 'Penalty' },
+    { time: { elapsed: 41, extra: null }, team: { id: 3002 }, player: { name: 'O' }, type: 'Goal', detail: 'Own Goal' },
+  ]), XW)
+  expect(out[0]).toMatchObject({ type: 'goal', detail: 'Penalty', assist: null })
+  expect(out[1]).toMatchObject({ type: 'goal', detail: 'Own Goal', assist: null })
+})
+
+test('mapEvents drops events whose team is not in the crosswalk', () => {
+  const out = mapEvents(rawEvents([
+    { time: { elapsed: 5, extra: null }, team: { id: 9999 }, player: { name: 'X' }, type: 'Goal', detail: 'Normal Goal' },
+  ]), XW)
+  expect(out).toEqual([])
+})
+
+test('mapEvents produces a stable id from elapsed/extra/team/player/type/detail', () => {
+  const raw = rawEvents([{ time: { elapsed: 45, extra: 2 }, team: { id: 3001 }, player: { name: 'Modric' }, type: 'Goal', detail: 'Normal Goal' }])
+  const a = mapEvents(raw, XW)[0].id
+  const b = mapEvents(raw, XW)[0].id
+  expect(a).toBe(b)
+  expect(a).toBe('45|2|hr|Modric|goal|Normal Goal')
 })

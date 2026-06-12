@@ -143,3 +143,30 @@ export function mapLineups(rawResponse, crosswalkMap) {
   }
   return out.length ? out : null
 }
+
+/**
+ * /fixtures/events response + a crosswalk (Map<providerTeamId, teamCode>) →
+ * [{ id, type:'goal'|'card', teamCode, player, minute, detail, assist?, card? }].
+ * Keeps only Goal & Card; drops subst/Var and any team not in the crosswalk.
+ * `minute` is the numeric elapsed clock; stoppage `extra` is folded into `id` only,
+ * which is a deterministic composite the worker uses to diff fetched-vs-stored events.
+ */
+export function mapEvents(rawResponse, crosswalkMap) {
+  const events = rawResponse?.response ?? []
+  const out = []
+  for (const e of events) {
+    const type = e.type === 'Goal' ? 'goal' : e.type === 'Card' ? 'card' : null
+    if (!type) continue
+    const teamCode = crosswalkMap.get(e.team?.id)
+    if (!teamCode) continue
+    const elapsed = e.time?.elapsed ?? 0
+    const extra = e.time?.extra ?? null
+    const player = e.player?.name ?? null
+    const detail = e.detail ?? null
+    const ev = { id: [elapsed, extra ?? 0, teamCode, player, type, detail].join('|'), type, teamCode, player, minute: elapsed, detail }
+    if (type === 'goal') ev.assist = e.assist?.name ?? null
+    if (type === 'card') ev.card = /red|second yellow/i.test(detail ?? '') ? 'red' : 'yellow'
+    out.push(ev)
+  }
+  return out
+}

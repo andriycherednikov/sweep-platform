@@ -147,3 +147,20 @@ test('groups/teamList/photos/helpers exposed; liveMatch null when none live', ()
   expect(S.liveMatch).toBeNull()
   expect(S.nextMatch).toBeTruthy()
 })
+
+test('assembleSweep carries fixture events through (defaulting to [])', () => {
+  const s = assembleSweep({
+    bootstrap: { teams: [
+      { code: 'ar', name: 'Argentina', group: 'A', pool: 'P', color: '#6cf', strength: 90 },
+      { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+    ], people: [], ownership: {}, scoring: null },
+    fixtures: [
+      { id: 'm1', group: 'A', matchday: 1, t1: 'ar', t2: 'mx', ko: '2026-06-13T06:30:00Z', venue: 'V', city: 'C', status: 'live', score: [1, 0], minute: 63, prob: { a: 50, d: 25, b: 25 }, stage: 'group', events: [{ id: 'g1', type: 'goal', teamCode: 'ar', player: 'Messi', minute: 23, detail: 'Normal Goal', assist: null }] },
+      { id: 'm2', group: 'A', matchday: 1, t1: 'ar', t2: 'mx', ko: '2026-06-14T06:30:00Z', venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+    ],
+    standings: {}, photos: [],
+  })
+  expect(s.fixture('m1').events).toHaveLength(1)
+  expect(s.fixture('m1').events[0].player).toBe('Messi')
+  expect(s.fixture('m2').events).toEqual([]) // missing → []
+})

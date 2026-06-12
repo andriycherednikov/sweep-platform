@@ -44,12 +44,22 @@ test('silently skips a notification it cannot resolve', () => {
   expect(queryByText('Brazil')).toBeNull()
 })
 
-test('renders a GOAL match notification with the scoring team and score', () => {
+test('renders a GOAL match notification with scorer, minute, score and a penalty tag', () => {
   const { container } = render(<FloatingReactions />)
-  act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', score: [1, 0] }) })
+  act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', player: 'Neymar', assist: 'Vinicius', minute: 23, detail: 'Penalty', score: [1, 0] }) })
   expect(container.textContent).toContain('Goal!')
-  expect(container.textContent).toContain('Brazil')
-  expect(container.textContent).toContain('1–0')
+  expect(container.textContent).toContain('23')      // minute
+  expect(container.textContent).toContain('Neymar')  // scorer name
+  expect(container.textContent).toContain('1–0')     // score line
+  expect(container.textContent).toContain('(P)')     // penalty tag from detail
+})
+
+test('renders a RED card match notification with player and minute', () => {
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'match', event: 'card', fixtureId: 'm1', teamCode: 'br', player: 'Casemiro', minute: 55, card: 'red', detail: 'Red Card' }) })
+  expect(container.textContent).toContain('Red card')
+  expect(container.textContent).toContain('55')
+  expect(container.textContent).toContain('Casemiro')
 })
 
 test('renders kick-off and full-time match notifications', () => {
