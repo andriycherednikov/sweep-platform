@@ -123,6 +123,7 @@ a{color:inherit; text-decoration:none;}
 
 .prob{margin-top:13px;}
 .prob-bar{height:8px; border-radius:5px; overflow:hidden; display:flex; background:rgba(255,255,255,.12);}
+.prob .prob-bar{height:11px; border-radius:6px;} /* hero bar a touch thicker */
 .prob-bar i{display:block; height:100%;}
 .prob-bar .a{background:var(--accent);} .prob-bar .d{background:#5b6f8e;} .prob-bar .b{background:var(--blue);}
 .prob-key{display:flex; justify-content:space-between; margin-top:6px; font-size:10.5px; color:#a9c0e0; font-weight:600;}
