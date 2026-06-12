@@ -242,14 +242,6 @@ a{color:inherit; text-decoration:none;}
 .mc-h-sub{display:flex; align-items:center; gap:8px; min-height:28px;}
 .mc-h-team.right{align-items:flex-end; text-align:right;}
 .mc-h-team.dim .nm{color:var(--muted2);}
-/* win-probability bar on a match card — light, understated (same bar height as the
-   crowd-vote .cbar, small %, so it doesn't pull focus from the voting bar) */
-.mc-prob{margin:10px 2px 2px;}
-.mc-prob .prob-bar{height:7px; background:#eef1f5;}
-.mc-prob .prob-key{font-size:11px; color:var(--muted); margin-top:5px;}
-.mc-prob .prob-key b{font-size:12.5px; color:var(--navy);}
-.deskscreen .mc-prob .prob-key{font-size:11px; margin-top:5px;}
-.deskscreen .mc-prob .prob-key b{font-size:12.5px;}
 .mc-h-mid{flex-shrink:0; align-self:center; display:flex; align-items:center; justify-content:center; padding:0 2px;}
 .mc-sc{font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:var(--navy); display:inline-flex; align-items:center; gap:5px; line-height:1;}
 .mc-sc i{font-style:normal; font-weight:600; color:var(--muted2);}

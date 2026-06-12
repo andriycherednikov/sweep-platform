@@ -237,18 +237,6 @@ export function MatchCard({ f, onOpen, onToast }) {
           </div>
         </div>
       </div>
-      {!showScore && f.hasOdds && (
-        <div className="mc-prob">
-          <div className="prob-bar">
-            <i className="a" style={{ width: f.prob2.pa+"%" }}></i>
-            <i className="b" style={{ width: f.prob2.pb+"%" }}></i>
-          </div>
-          <div className="prob-key">
-            <span><b>{f.prob2.pa}%</b> {f.t1.slice(0,3).toUpperCase()}</span>
-            <span>{f.t2.slice(0,3).toUpperCase()} <b>{f.prob2.pb}%</b></span>
-          </div>
-        </div>
-      )}
       <CrowdPick f={f} onToast={onToast} locked={f.status !== "upcoming"} />
       <div className="mc-foot">
         <span className="venue"><Icon.pin style={{width:12,height:12,stroke:"var(--muted)"}}/> <span>{f.venue}{f.city ? " · "+f.city : ""}</span></span>
