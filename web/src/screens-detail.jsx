@@ -8,7 +8,7 @@ import {
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
-  supportOf, mySupport, setSupport, watchersOf,
+  supportOf, mySupport, setSupport, watchersOf, DRAW,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
@@ -639,18 +639,22 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           {(() => {
             const locked = f.status !== "upcoming";
             return <>
-          <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{locked ? "Who'll win? · locked" : mySup ? "You're backing " + S.team(mySup).name : "Who'll win? · back a team"}</div>
+          <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{locked ? "Who'll win? · locked" : mySup ? "You're backing " + (mySup===DRAW ? "a draw" : S.team(mySup).name) : "Who'll win? · back a team"}</div>
           <div style={{display:"flex",gap:10,marginBottom:16}}>
-            {[f.t1,f.t2].map(code=>{
+            {[f.t1, f.t2, ...(f.stage==="group" ? [DRAW] : [])].map(code=>{
+              const isDraw = code === DRAW;
+              const label = isDraw ? "Draw" : S.team(code).name;
               const backers = sup[code] || [];
               const on = mySup===code;
               return (
                 <button key={code} type="button" disabled={locked}
-                  onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+S.team(code).name+" 📣"); }}
+                  onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+label+" 📣"); }}
                   style={{flex:1,minWidth:0,textAlign:"left",display:"block",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}>
-                    <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>
-                    <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{S.team(code).name}</b>
+                    {isDraw
+                      ? <span style={{width:20,height:15,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤝</span>
+                      : <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>}
+                    <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</b>
                   </div>
                   {backers.length>0
                     ? <div style={{display:"flex",alignItems:"center",gap:9}}>

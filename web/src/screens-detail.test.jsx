@@ -148,8 +148,41 @@ test('TeamDetail omits the Squad section when the team has no squad', () => {
 })
 
 test('MatchSheet probability bar is two-way (home vs away) with no Draw key', () => {
-  const { container, queryByText } = renderSheet(sheetFixture(null))
+  const { container } = renderSheet(sheetFixture(null))
   const segs = container.querySelectorAll('.prob-bar i')
   expect(segs).toHaveLength(2)
-  expect(queryByText('Draw')).toBeNull()
+  // The prob-bar itself has no "Draw" label (two-way bar); any Draw text comes from the backer buttons
+  const probBar = container.querySelector('.prob-bar')
+  expect(probBar.textContent).not.toContain('Draw')
+})
+
+test('detail sheet shows a Draw backer button on a group-stage fixture', () => {
+  const { getByText } = renderSheet(sheetFixture(null))
+  // sheetFixture uses stage:'group' — Draw button must be present
+  expect(getByText('Draw')).toBeTruthy()
+})
+
+test('detail sheet omits the Draw backer button on a knockout fixture', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'P', color: '#d8334a', strength: 80, squad: null },
+        { code: 'be', name: 'Belgium', group: 'L', pool: 'P', color: '#1f8a4c', strength: 82, squad: null },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm2', group: null, matchday: null, t1: 'hr', t2: 'be', ko: '2026-07-01T15:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
+      prob: { a: 53, d: 26, b: 21 }, stage: 'r16', lineups: null, events: [],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+  const f = S.fixture('m2')
+  const { container } = renderSheet(f)
+  // On knockout fixtures the Draw backer button must NOT appear
+  const backerButtons = container.querySelectorAll('button[type="button"]')
+  const drawBtn = [...backerButtons].find(b => b.textContent.includes('Draw'))
+  expect(drawBtn).toBeUndefined()
 })
