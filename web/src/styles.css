@@ -184,6 +184,15 @@ a{color:inherit; text-decoration:none;}
 .crowd.light .cpick:hover{border-color:rgba(255,255,255,.35);}
 .crowd.light .cpick.on{background:#fff; border-color:#fff; color:var(--navy);}
 .crowd.light .cbar{background:rgba(255,255,255,.14);}
+.crowd-draw{display:flex; justify-content:center; margin-top:7px;}
+.cdraw{display:inline-flex; align-items:center; gap:4px; padding:4px 12px; border:1.5px solid var(--line); background:var(--card); border-radius:999px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:12px; letter-spacing:.3px; color:var(--muted); cursor:pointer; line-height:1; transition:background .12s, color .12s, border-color .12s;}
+.cdraw:hover{border-color:var(--muted2);}
+.cdraw.on{background:var(--navy); border-color:var(--navy); color:#fff;}
+.crowd.locked .cdraw{cursor:default; opacity:.92;}
+.crowd.locked .cdraw:hover{border-color:var(--line);}
+.crowd.light .cdraw{background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.18); color:#dbe6f4;}
+.crowd.light .cdraw:hover{border-color:rgba(255,255,255,.35);}
+.crowd.light .cdraw.on{background:#fff; border-color:#fff; color:var(--navy);}
 
 /* ===== match card ===== */
 .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 13px; margin-bottom:10px; position:relative; overflow:hidden; transition:transform .12s, box-shadow .12s;}

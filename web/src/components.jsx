@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf, toast,
-  supportOf, mySupport, setSupport,
+  supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
 
@@ -153,8 +153,9 @@ export function CrowdPick({ f, onToast, light, locked }) {
   const t1 = S.team(f.t1), t2 = S.team(f.t2);
   const sup = supportOf(f.id);
   const mine = mySupport(f.id);
-  const c1 = (sup[f.t1]||[]).length, c2 = (sup[f.t2]||[]).length;
-  const total = c1 + c2;
+  const showDraw = f.stage === "group";
+  const c1 = (sup[f.t1]||[]).length, c2 = (sup[f.t2]||[]).length, cd = (sup[DRAW]||[]).length;
+  const total = c1 + c2 + (showDraw ? cd : 0);
   // once a match starts, calls lock — nothing to show if nobody called it
   if (locked && total === 0) return null;
   const call = (code, name) => (e) => {
@@ -164,9 +165,12 @@ export function CrowdPick({ f, onToast, light, locked }) {
     setSupport(f.id, code);
     if (onToast) onToast(on ? "Call removed" : "You're calling "+name+" 👍");
   };
+  const pickName = (code) => code === DRAW ? "Draw" : S.team(code).name;
 
   // teams sit side by side (hero + horizontal cards); thumbs flank a split bar
-  const w1 = total ? (c1/total*100) : 50;
+  const w1 = total ? (c1/total*100) : (showDraw ? 33.34 : 50);
+  const wd = total ? (cd/total*100) : 33.33;
+  const w2 = total ? (c2/total*100) : (showDraw ? 33.34 : 50);
   return (
     <div className={"crowd"+(light?" light":"")+(locked?" locked":"")} onClick={e=>e.stopPropagation()}>
       <span className="crowd-lbl">Who'll win?{locked ? " · locked" : (!mine ? " · tap to vote" : "")}</span>
@@ -178,7 +182,8 @@ export function CrowdPick({ f, onToast, light, locked }) {
         <div className={"cbar"+(total===0?" novote":"")} aria-hidden="true">
           {total > 0 && <>
             <i style={{width:w1+"%", background:t1.color}}></i>
-            <i style={{width:(100-w1)+"%", background:t2.color}}></i>
+            {showDraw && <i style={{width:wd+"%", background:"#94a3b8"}}></i>}
+            <i style={{width:w2+"%", background:t2.color}}></i>
           </>}
         </div>
         <button type="button" disabled={locked} className={"cpick"+(mine===f.t2?" on":"")} aria-pressed={mine===f.t2}
@@ -186,9 +191,16 @@ export function CrowdPick({ f, onToast, light, locked }) {
           <Icon.thumb/><b>{c2}</b>
         </button>
       </div>
+      {showDraw &&
+        <div className="crowd-draw">
+          <button type="button" disabled={locked} className={"cdraw"+(mine===DRAW?" on":"")} aria-pressed={mine===DRAW}
+            aria-label={locked ? "Draw" : "Call a draw"} title={locked ? "Draw" : "Call a draw"} onClick={call(DRAW,"a draw")}>
+            Draw · <b>{cd}</b>
+          </button>
+        </div>}
       {mine
-        ? <div className="crowd-note picked"><Icon.check/> {locked ? "You called " : "Your call: "}{S.team(mine).name}</div>
-        : !locked && <div className="crowd-note">Tap a team to call the winner</div>}
+        ? <div className="crowd-note picked"><Icon.check/> {locked ? "You called " : "Your call: "}{pickName(mine)}</div>
+        : !locked && <div className="crowd-note">Tap a team or draw to call it</div>}
     </div>
   );
 }

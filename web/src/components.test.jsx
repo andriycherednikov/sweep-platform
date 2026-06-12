@@ -27,6 +27,7 @@ test('Av renders an <img> when avatarPath is present', () => {
 })
 
 const F = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming' }
+const FG = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming', stage: 'group' }
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks()
@@ -72,6 +73,27 @@ test('CrowdPick renders nothing when locked with no calls', () => {
   const { container } = render(<CrowdPick f={{ ...F, status: 'final' }} locked />)
   expect(container.firstChild).toBeNull()
 })
+
+test('CrowdPick shows a Draw control and three bar segments on a group-stage fixture', () => {
+  setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'DRAW' } } });
+  const { getByLabelText, container } = render(<CrowdPick f={FG} />);
+  expect(getByLabelText(/Draw/i).textContent).toContain('1');
+  expect(container.querySelectorAll('.cbar i').length).toBe(3);
+});
+
+test('CrowdPick hides the Draw control on a knockout fixture', () => {
+  setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } });
+  const { queryByLabelText } = render(<CrowdPick f={{ ...FG, stage: 'r16' }} />);
+  expect(queryByLabelText(/^Call a draw/i)).toBeNull();
+});
+
+test('CrowdPick records a DRAW pick and POSTs it', () => {
+  setMe('p1');
+  setSocialData({ watch: {}, support: {} });
+  const { getByLabelText } = render(<CrowdPick f={FG} />);
+  fireEvent.click(getByLabelText(/Call a draw/i));
+  expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');
+});
 
 test('ProbBar renders two segments (home vs away) summing to 100, no draw segment', () => {
   const { container } = render(<ProbBar prob2={{ pa: 72, pb: 28 }} />)
