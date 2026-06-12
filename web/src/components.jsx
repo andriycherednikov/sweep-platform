@@ -82,13 +82,14 @@ export function AvStack({ people, size, light, max }) {
   );
 }
 
-/* probability bar (hero) — two-way home vs away (draw excluded) */
-export function ProbBar({ prob2 }) {
-  const pa = prob2?.pa ?? 50, pb = Math.max(0, 100 - pa); // last segment fills the remainder
+/* probability bar (hero) — three-way home / draw / away (official odds) */
+export function ProbBar({ prob3 }) {
+  const pa = prob3?.pa ?? 34, pd = prob3?.pd ?? 33, pb = Math.max(0, 100 - pa - pd); // last fills remainder
   return (
     <div className="prob">
       <div className="prob-bar">
         <i className="a" style={{ width: pa+"%" }}></i>
+        <i className="d" style={{ width: pd+"%" }}></i>
         <i className="b" style={{ width: pb+"%" }}></i>
       </div>
     </div>

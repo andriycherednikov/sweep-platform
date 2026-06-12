@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { assembleSweep, twoWayProb } from './assemble.js'
+import { assembleSweep, twoWayProb, threeWayProb } from './assemble.js'
 
 const api = {
   bootstrap: {
@@ -87,9 +87,19 @@ test('twoWayProb renormalizes home vs away to 100, excluding the draw', () => {
   expect(twoWayProb({ a: null, d: null, b: null })).toEqual({ pa: 50, pb: 50 }) // absent guard
 })
 
-test('fixtures carry two-way prob2 and pass lineups through (null by default)', () => {
+test('threeWayProb renders home / draw / away summing to 100, draw absorbs rounding', () => {
+  expect(threeWayProb({ a: 60, d: 22, b: 18 })).toEqual({ pa: 60, pd: 22, pb: 18 })
+  expect(threeWayProb({ a: 53, d: 26, b: 21 })).toEqual({ pa: 53, pd: 26, pb: 21 })
+  // win sides rounded, draw fills the remainder so the three always total 100
+  const p = threeWayProb({ a: 1, d: 1, b: 1 })
+  expect(p.pa + p.pd + p.pb).toBe(100)
+  expect(threeWayProb({ a: 0, d: 0, b: 0 })).toEqual({ pa: 34, pd: 33, pb: 33 }) // div-by-zero guard
+})
+
+test('fixtures carry two-way prob2, three-way prob3, and pass lineups through (null by default)', () => {
   const S = assembleSweep(api)
   expect(S.fixtures[0].prob2).toEqual({ pa: 77, pb: 23 }) // from base api prob {a:60,d:22,b:18}
+  expect(S.fixtures[0].prob3).toEqual({ pa: 60, pd: 22, pb: 18 })
   expect(S.fixtures[0].lineups).toBeNull()
   const S2 = assembleSweep({ ...api, fixtures: [{ ...api.fixtures[0], lineups: [{ teamCode: 'hr', formation: '4-3-3', startXI: [] }] }] })
   expect(S2.fixtures[0].lineups).toEqual([{ teamCode: 'hr', formation: '4-3-3', startXI: [] }])

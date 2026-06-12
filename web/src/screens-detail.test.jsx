@@ -147,19 +147,20 @@ test('TeamDetail omits the Squad section when the team has no squad', () => {
   expect(queryByText('Squad')).toBeNull()
 })
 
-test('MatchSheet probability bar is two-way (home vs away) with no Draw key', () => {
+test('MatchSheet official-prediction bar is three-way (home / draw / away)', () => {
   const { container } = renderSheet(sheetFixture(null))
   const segs = container.querySelectorAll('.prob-bar i')
-  expect(segs).toHaveLength(2)
-  // The prob-bar itself has no "Draw" label (two-way bar); any Draw text comes from the backer buttons
-  const probBar = container.querySelector('.prob-bar')
-  expect(probBar.textContent).not.toContain('Draw')
+  expect(segs).toHaveLength(3)
+  // the middle segment is the draw odds
+  expect(container.querySelector('.prob-bar .d')).not.toBeNull()
 })
 
 test('detail sheet shows a Draw backer button on a group-stage fixture', () => {
-  const { getByText } = renderSheet(sheetFixture(null))
-  // sheetFixture uses stage:'group' — Draw button must be present
-  expect(getByText('Draw')).toBeTruthy()
+  const { container } = renderSheet(sheetFixture(null))
+  // scope to the backer buttons (the official-prediction key also says "Draw")
+  const backerButtons = container.querySelectorAll('button[type="button"]')
+  const drawBtn = [...backerButtons].find(b => b.textContent.includes('Draw'))
+  expect(drawBtn).toBeTruthy()
 })
 
 test('detail sheet omits the Draw backer button on a knockout fixture', () => {

@@ -32,6 +32,20 @@ export function twoWayProb(prob) {
 }
 
 /**
+ * Three-way prediction for the official-odds bars: home / draw / away,
+ * each as a percentage. Win sides are rounded; the draw absorbs the rounding
+ * remainder so the three always sum to 100.
+ */
+export function threeWayProb(prob) {
+  const a = prob?.a ?? 0, d = prob?.d ?? 0, b = prob?.b ?? 0
+  const t = a + d + b
+  if (t === 0) return { pa: 34, pd: 33, pb: 33 }
+  const pa = Math.round((a / t) * 100)
+  const pb = Math.round((b / t) * 100)
+  return { pa, pd: Math.max(0, 100 - pa - pb), pb }
+}
+
+/**
  * Pure: turn the API bundle ({bootstrap, fixtures, standings, photos, syncStatus})
  * into the SWEEP-shaped object the components consume.
  */
@@ -86,7 +100,7 @@ export function assembleSweep(api) {
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
-      prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob),
+      prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
       lineups: f.lineups ?? null, events: f.events ?? [], stage: f.stage, derby, doubleOwners,
       timeLabel: fmtTime(ko), dayLabel: fmtDay(ko), dayKey: fmtDayKey(ko),
     }

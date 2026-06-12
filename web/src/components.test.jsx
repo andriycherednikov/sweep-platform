@@ -129,13 +129,13 @@ test('CrowdPick records a DRAW pick and POSTs it', () => {
   expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');
 });
 
-test('ProbBar renders two segments (home vs away) summing to 100, no draw segment', () => {
-  const { container } = render(<ProbBar prob2={{ pa: 72, pb: 28 }} />)
+test('ProbBar renders three segments (home / draw / away)', () => {
+  const { container } = render(<ProbBar prob3={{ pa: 60, pd: 25, pb: 15 }} />)
   const segs = container.querySelectorAll('.prob-bar i')
-  expect(segs).toHaveLength(2)
-  expect(segs[0].style.width).toBe('72%')
-  expect(segs[1].style.width).toBe('28%')
-  expect(container.querySelector('.prob-bar .d')).toBeNull()
+  expect(segs).toHaveLength(3)
+  expect(segs[0].style.width).toBe('60%')
+  expect(container.querySelector('.prob-bar .d').style.width).toBe('25%')
+  expect(segs[2].style.width).toBe('15%')
 })
 
 test('SquadList groups players by position and renders a photo or a number badge', () => {
