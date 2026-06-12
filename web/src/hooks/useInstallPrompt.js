@@ -1,5 +1,5 @@
 // web/src/hooks/useInstallPrompt.js
-import { useState, useEffect, useCallback } from 'react'
+import { useSyncExternalStore } from 'react'
 
 const DISMISS_KEY = 'sweep:install-dismissed'
 
@@ -20,43 +20,58 @@ function readDismissed() {
   try { return localStorage.getItem(DISMISS_KEY) === '1' } catch { return false }
 }
 
+/* ── Shared module-level store ────────────────────────────────────────────
+   beforeinstallprompt fires once, early, possibly before the component that
+   wants it has mounted. Capture it globally so any hook instance mounting
+   later (e.g. the profile button on SPA navigation) still sees it. */
+let deferredEvt = null
+let installedViaEvent = false
+let version = 0
+let started = false
+const listeners = new Set()
+
+function emit() { version++; listeners.forEach((l) => l()) }
+
+function start() {
+  if (started || typeof window === 'undefined') return
+  started = true
+  window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredEvt = e; emit() })
+  window.addEventListener('appinstalled', () => { installedViaEvent = true; deferredEvt = null; emit() })
+}
+start() // listen from import time, before any component subscribes
+
+function subscribe(cb) { start(); listeners.add(cb); return () => listeners.delete(cb) }
+function getSnapshot() { return version } // primitive; changes only when state actually moves
+
+async function promptInstall() {
+  if (!deferredEvt) return null
+  deferredEvt.prompt()
+  const { outcome } = await deferredEvt.userChoice
+  deferredEvt = null // a prompt event can only be used once
+  emit()
+  return outcome // 'accepted' | 'dismissed'
+}
+
+function dismiss() {
+  try { localStorage.setItem(DISMISS_KEY, '1') } catch { /* private mode */ }
+  emit()
+}
+
+// test-only: reset the shared store between cases
+export function __resetInstallStore() { deferredEvt = null; installedViaEvent = false; emit() }
+
 /**
- * Surfaces a custom install affordance. On Chromium we capture the deferred
- * `beforeinstallprompt` event and replay it from our own button; on iOS Safari
- * (which has no such API) we fall back to manual Add-to-Home-Screen instructions.
- * Hidden once installed or once the user dismisses it (persisted per device).
+ * Surfaces a custom install affordance. Derived flags are computed live each
+ * render (cheap, navigator-based) while the captured event lives in the shared
+ * store above, so the button works whether it mounts before or after the event.
  */
 export function useInstallPrompt() {
-  const [deferred, setDeferred] = useState(null)
-  const [installed, setInstalled] = useState(() => isStandalone())
-  const [dismissed, setDismissed] = useState(readDismissed)
-
-  useEffect(() => {
-    const onBIP = (e) => { e.preventDefault(); setDeferred(e) }
-    const onInstalled = () => { setInstalled(true); setDeferred(null) }
-    window.addEventListener('beforeinstallprompt', onBIP)
-    window.addEventListener('appinstalled', onInstalled)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onBIP)
-      window.removeEventListener('appinstalled', onInstalled)
-    }
-  }, [])
-
-  const promptInstall = useCallback(async () => {
-    if (!deferred) return null
-    deferred.prompt()
-    const { outcome } = await deferred.userChoice
-    setDeferred(null) // a prompt event can only be used once
-    return outcome // 'accepted' | 'dismissed'
-  }, [deferred])
-
-  const dismiss = useCallback(() => {
-    try { localStorage.setItem(DISMISS_KEY, '1') } catch { /* private mode */ }
-    setDismissed(true)
-  }, [])
+  useSyncExternalStore(subscribe, getSnapshot) // re-render when the shared store changes
 
   const isIOS = detectIOS()
-  const hasNativePrompt = !!deferred
+  const installed = isStandalone() || installedViaEvent
+  const dismissed = readDismissed()
+  const hasNativePrompt = !!deferredEvt
   // Installable at all on this device (backs an explicit "Install" button).
   const canInstall = !installed && (hasNativePrompt || isIOS)
   // Whether the auto-banner should appear (same, but respects a prior dismissal).

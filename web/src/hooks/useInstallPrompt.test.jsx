@@ -1,7 +1,7 @@
 // web/src/hooks/useInstallPrompt.test.jsx
 import { expect, test, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
-import { useInstallPrompt } from './useInstallPrompt.js'
+import { useInstallPrompt, __resetInstallStore } from './useInstallPrompt.js'
 
 const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile'
 const UA_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1'
@@ -25,6 +25,7 @@ beforeEach(() => {
   setUA(UA_ANDROID)
   setStandalone(false)
   delete window.navigator.standalone
+  __resetInstallStore()
 })
 
 test('captures beforeinstallprompt and exposes a native prompt', () => {
