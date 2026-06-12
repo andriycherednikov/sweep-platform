@@ -5,7 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, backfillFinalEvents } from '../src/worker/live-poller.js'
 import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -181,4 +181,28 @@ test('pollEvents isolates a per-fixture fetch error', async () => {
   const provider = { async fetchEvents() { throw new Error('boom') } }
   const n = await pollEvents(db, provider, ['9002'], xw, () => {})
   expect(n).toBe(0) // swallowed, no throw
+})
+
+test('backfillFinalEvents pulls events for finished fixtures missing them, skipping ones already polled', async () => {
+  // make every fixture look already-polled, then carve out one finished fixture with no events
+  await db.update(fixture).set({ events: [] })
+  await db.update(fixture).set({ status: 'final', events: null }).where(eq(fixture.id, '9002'))
+  await db.update(fixture).set({ status: 'final', events: [] }).where(eq(fixture.id, '9001'))
+  const xw = await resolveCrosswalk(db)
+  const n = await backfillFinalEvents(db, eventsProvider([goalRaw()]), xw)
+  expect(n).toBe(1) // only 9002 qualified (final AND events null)
+  const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(f2.events).toHaveLength(1) // backfilled silently
+  const [f1] = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  expect(f1.events).toEqual([]) // already polled → untouched
+})
+
+test('backfillFinalEvents ignores non-final fixtures and is a no-op when nothing qualifies', async () => {
+  await db.update(fixture).set({ events: [] })
+  await db.update(fixture).set({ status: 'live', events: null }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const n = await backfillFinalEvents(db, eventsProvider([goalRaw()]), xw)
+  expect(n).toBe(0) // a live fixture with null events is left for the live poller, not backfilled
+  const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(f2.events).toBeNull() // untouched
 })

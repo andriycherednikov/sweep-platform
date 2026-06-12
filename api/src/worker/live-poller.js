@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm'
+import { eq, inArray, and, isNull } from 'drizzle-orm'
 import { fixture, syncLog } from '../db/schema.js'
 import { mapLineups, mapEvents } from '../providers/mapping.js'
 
@@ -143,4 +143,21 @@ export async function pollEvents(db, provider, ids, crosswalk, publish = () => {
   }
   await db.insert(syncLog).values({ source: 'api-football', kind: 'events', status: 'ok', counts: { polled: ids.length, emitted } })
   return emitted
+}
+
+/**
+ * Backfill events for already-finished matches that were never event-polled (e.g. games
+ * that ended before this feature shipped, or while the worker was down). Selects every
+ * `final` fixture whose `events` is still null and runs them through pollEvents, which —
+ * because their stored list is null — baselines each silently (stores the goals/cards,
+ * publishes nothing). Idempotent: once stored (even as []), a fixture is no longer null,
+ * so subsequent runs select it no more and the call converges to a single cheap SELECT.
+ * @returns {Promise<number>} number of finished fixtures backfilled
+ */
+export async function backfillFinalEvents(db, provider, crosswalk) {
+  const rows = await db.select({ id: fixture.id }).from(fixture)
+    .where(and(eq(fixture.status, 'final'), isNull(fixture.events)))
+  if (rows.length === 0) return 0
+  await pollEvents(db, provider, rows.map((r) => r.id), crosswalk) // no publish → silent baseline
+  return rows.length
 }

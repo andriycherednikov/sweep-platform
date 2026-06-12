@@ -2,6 +2,7 @@ import { notInArray } from 'drizzle-orm'
 import { fixture, standing, ownership, syncLog, watch, support } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
+import { backfillFinalEvents } from './live-poller.js'
 
 /**
  * Fetch fixtures + standings + predictions, map provider ids via crosswalk (loud assert),
@@ -86,11 +87,17 @@ export async function syncBaseline(db, provider, { season }) {
       })
     }
 
+    // backfill events for finished matches that were never event-polled (e.g. games that
+    // ended before this shipped, or during worker downtime). Best-effort: a failure here
+    // must never fail the baseline. Idempotent — converges to a no-op once all are stored.
+    let eventsBackfilled = 0
+    try { eventsBackfilled = await backfillFinalEvents(db, provider, crosswalk) } catch { /* best-effort */ }
+
     await db.insert(syncLog).values({
       source: 'api-football', kind: 'baseline', status: 'ok',
-      counts: { fixtures: fixtures.length, standings: realStandings.length, probs: probById.size },
+      counts: { fixtures: fixtures.length, standings: realStandings.length, probs: probById.size, eventsBackfilled },
     })
-    return { fixtures: fixtures.length, standings: realStandings.length }
+    return { fixtures: fixtures.length, standings: realStandings.length, eventsBackfilled }
   } catch (err) {
     await db.insert(syncLog).values({ source: 'api-football', kind: 'baseline', status: 'error', error: String(err?.message ?? err) })
     throw err
