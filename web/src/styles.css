@@ -240,10 +240,13 @@ a{color:inherit; text-decoration:none;}
 .mc-h-team .flag{border-radius:3px;}
 .mc-h-team .nm{font-family:'Barlow Condensed'; font-weight:700; font-size:17px; letter-spacing:.3px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
 .mc-h-sub{display:flex; align-items:center; gap:8px; min-height:28px;}
-.mc-h-wp{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; color:var(--navy); line-height:1;}
-.mc-h-wp i{font-style:normal; font-size:10px; color:var(--muted2); margin-left:1px;}
 .mc-h-team.right{align-items:flex-end; text-align:right;}
-.mc-h-team.dim .nm, .mc-h-team.dim .mc-h-wp{color:var(--muted2);}
+.mc-h-team.dim .nm{color:var(--muted2);}
+/* win-probability bar on a match card — light-themed variant of the hero bar */
+.mc-prob{margin:11px 2px 2px;}
+.mc-prob .prob-bar{background:#eef1f5;}
+.mc-prob .prob-key{color:var(--muted);}
+.mc-prob .prob-key b{color:var(--navy);}
 .mc-h-mid{flex-shrink:0; align-self:center; display:flex; align-items:center; justify-content:center; padding:0 2px;}
 .mc-sc{font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:var(--navy); display:inline-flex; align-items:center; gap:5px; line-height:1;}
 .mc-sc i{font-style:normal; font-weight:600; color:var(--muted2);}

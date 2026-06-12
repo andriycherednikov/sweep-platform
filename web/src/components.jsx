@@ -222,7 +222,6 @@ export function MatchCard({ f, onOpen, onToast }) {
           <span className="nm">{t1.name}</span>
           <div className="mc-h-sub">
             {o.t1.length>0 && <AvStack people={o.t1} size={28} max={3} />}
-            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob2.pa}<i>%</i></span>}
           </div>
         </div>
         <div className="mc-h-mid">
@@ -234,11 +233,22 @@ export function MatchCard({ f, onOpen, onToast }) {
           <Flag code={f.t2} w={34} h={25} />
           <span className="nm">{t2.name}</span>
           <div className="mc-h-sub">
-            {!showScore && f.hasOdds && <span className="mc-h-wp">{f.prob2.pb}<i>%</i></span>}
             {o.t2.length>0 && <AvStack people={o.t2} size={28} max={3} />}
           </div>
         </div>
       </div>
+      {!showScore && f.hasOdds && (
+        <div className="mc-prob">
+          <div className="prob-bar">
+            <i className="a" style={{ width: f.prob2.pa+"%" }}></i>
+            <i className="b" style={{ width: f.prob2.pb+"%" }}></i>
+          </div>
+          <div className="prob-key">
+            <span><b>{f.prob2.pa}%</b> {f.t1.slice(0,3).toUpperCase()}</span>
+            <span>{f.t2.slice(0,3).toUpperCase()} <b>{f.prob2.pb}%</b></span>
+          </div>
+        </div>
+      )}
       <CrowdPick f={f} onToast={onToast} locked={f.status !== "upcoming"} />
       <div className="mc-foot">
         <span className="venue"><Icon.pin style={{width:12,height:12,stroke:"var(--muted)"}}/> <span>{f.venue}{f.city ? " · "+f.city : ""}</span></span>
