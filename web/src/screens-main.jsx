@@ -105,23 +105,27 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           return (
             <div className="res" key={f.id} onClick={()=>openMatch(f)}>
               <div className="res-main">
-                <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
+                <div className="rt">
+                  <Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span>
+                  {(sum.home.yellow || sum.home.red) ? <span className="res-cards"><CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/></span> : null}
+                </div>
                 <span className="rscore">{f.score[0]} – {f.score[1]}</span>
-                <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
+                <div className="rt" style={{justifyContent:"flex-end"}}>
+                  {(sum.away.yellow || sum.away.red) ? <span className="res-cards"><CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/></span> : null}
+                  <span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/>
+                </div>
                 <span className="ft">FT</span>
               </div>
-              {sum.any && (
+              {(sum.home.scorers.length || sum.away.scorers.length) ? (
                 <div className="res-extra">
                   <div className="res-side">
                     {sum.home.scorers.length>0 && <span className="res-scorers">{sum.home.scorers.join(", ")}</span>}
-                    <CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/>
                   </div>
                   <div className="res-side r">
-                    <CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/>
                     {sum.away.scorers.length>0 && <span className="res-scorers">{sum.away.scorers.join(", ")}</span>}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           );
         })}</div>
