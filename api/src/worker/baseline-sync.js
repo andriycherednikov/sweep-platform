@@ -1,5 +1,5 @@
 import { notInArray } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog } from '../db/schema.js'
+import { fixture, standing, ownership, syncLog, watch, support } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 
@@ -66,10 +66,15 @@ export async function syncBaseline(db, provider, { season }) {
       })
     }
 
-    // prune fixtures not in the latest provider set (safe pre-Phase-4; no watch/support rows yet).
+    // prune fixtures not in the latest provider set. Clear dependent social rows first —
+    // watch/support FK the fixture (photos already set-null on delete) — or the delete fails.
     // Guard the whole call: an empty fetch is suspicious — prune nothing rather than wipe the table.
     const keep = fixtures.map((f) => f.id)
-    if (keep.length) await db.delete(fixture).where(notInArray(fixture.id, keep))
+    if (keep.length) {
+      await db.delete(watch).where(notInArray(watch.fixtureId, keep))
+      await db.delete(support).where(notInArray(support.fixtureId, keep))
+      await db.delete(fixture).where(notInArray(fixture.id, keep))
+    }
 
     for (const s of realStandings) {
       const teamCode = crosswalk.get(s.providerTeamId)
