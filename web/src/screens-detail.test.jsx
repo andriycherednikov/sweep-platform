@@ -102,6 +102,15 @@ test('MatchSheet renders a timeline of goals and cards with player and minute', 
   expect(getByText('assist · Perisic')).toBeTruthy() // goal assist on its own line
 })
 
+test('Match events block is collapsible via its header toggle', () => {
+  const events = [{ id: 'a', type: 'goal', teamCode: 'hr', player: 'Modric', minute: 23, detail: 'Normal Goal', assist: null }]
+  const { getByRole } = renderSheet(sheetFixture(null, {}, events))
+  const toggle = getByRole('button', { name: /match events/i })
+  expect(toggle.getAttribute('aria-expanded')).toBe('true') // open by default
+  fireEvent.click(toggle)
+  expect(toggle.getAttribute('aria-expanded')).toBe('false') // collapses like Starting XI
+})
+
 test('MatchSheet shows no timeline block when there are no events', () => {
   const { queryByText } = renderSheet(sheetFixture(null, {}, []))
   expect(queryByText('Match events')).toBeNull()

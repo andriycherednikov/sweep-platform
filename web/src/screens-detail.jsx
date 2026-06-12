@@ -474,6 +474,7 @@ function EventIcon({ e }) {
 // Two-sided broadcast timeline: home (t1) events on the left, away (t2) on the right,
 // against a centre minute spine. Side = which team flag conveys who did what at a glance.
 function MatchTimeline({ f }) {
+  const [open, setOpen] = useState(true);
   const events = (f.events || []).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
   if (events.length === 0) return null;
   const t1 = f.t1, t2 = f.t2;
@@ -486,27 +487,36 @@ function MatchTimeline({ f }) {
   );
   return (
     <>
-      <div className="blocktitle" style={{ border: 0, padding: "2px 2px 10px" }}>Match events</div>
-      <div className="block" style={{ padding: "12px 10px", marginBottom: 16 }}>
-        {/* spine + rows — sides mirror the scoreline above (home left, away right) */}
-        <div style={{ position: "relative" }}>
-          <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, marginLeft: -1, background: "var(--line)" }} />
-          {events.map((e) => {
-            const left = e.teamCode === t1;
-            return (
-              <div key={e.id} style={{ position: "relative", display: "flex", alignItems: "flex-start", padding: "6px 0" }}>
-                <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 7, paddingRight: 10, minWidth: 0 }}>
-                  {left && <>{detail(e, "right")}<EventIcon e={e} /></>}
-                </div>
-                <div style={{ width: 34, flexShrink: 0, display: "flex", justifyContent: "center" }}>
-                  <span style={{ background: "var(--card)", color: "var(--navy)", fontWeight: 800, fontSize: 12, fontVariantNumeric: "tabular-nums", padding: "1px 0", lineHeight: 1.3 }}>{e.minute}'</span>
-                </div>
-                <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", gap: 7, paddingLeft: 10, minWidth: 0 }}>
-                  {!left && <><EventIcon e={e} />{detail(e, "left")}</>}
-                </div>
-              </div>
-            );
-          })}
+      <button type="button" className="blocktitle squad-toggle" aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ padding: "2px 2px 10px", width: "100%", background: "none", border: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 7, cursor: "pointer" }}>
+        <span>Match events</span>
+        <Icon.chev style={{ width: 15, height: 15, marginLeft: "auto", transition: "transform .22s ease", transform: open ? "rotate(90deg)" : "none" }} />
+      </button>
+      <div className={"squad-collapse" + (open ? " open" : "")}>
+        <div className="squad-collapse-inner">
+          <div className="block" style={{ padding: "12px 10px", marginBottom: 16 }}>
+            {/* spine + rows — sides mirror the scoreline above (home left, away right) */}
+            <div style={{ position: "relative" }}>
+              <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, marginLeft: -1, background: "var(--line)" }} />
+              {events.map((e) => {
+                const left = e.teamCode === t1;
+                return (
+                  <div key={e.id} style={{ position: "relative", display: "flex", alignItems: "flex-start", padding: "6px 0" }}>
+                    <div style={{ flex: 1, display: "flex", justifyContent: "flex-end", alignItems: "flex-start", gap: 7, paddingRight: 10, minWidth: 0 }}>
+                      {left && <>{detail(e, "right")}<EventIcon e={e} /></>}
+                    </div>
+                    <div style={{ width: 34, flexShrink: 0, display: "flex", justifyContent: "center" }}>
+                      <span style={{ background: "var(--card)", color: "var(--navy)", fontWeight: 800, fontSize: 12, fontVariantNumeric: "tabular-nums", padding: "1px 0", lineHeight: 1.3 }}>{e.minute}'</span>
+                    </div>
+                    <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", gap: 7, paddingLeft: 10, minWidth: 0 }}>
+                      {!left && <><EventIcon e={e} />{detail(e, "left")}</>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
     </>
