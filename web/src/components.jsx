@@ -170,7 +170,7 @@ export function CrowdPick({ f, onToast, light, locked }) {
   // teams sit side by side (hero + horizontal cards); thumbs flank a split bar
   const w1 = total ? (c1/total*100) : (showDraw ? 33.34 : 50);
   const wd = total ? (cd/total*100) : 33.33;
-  const w2 = total ? (c2/total*100) : (showDraw ? 33.34 : 50);
+  const w2 = total ? (c2/total*100) : (showDraw ? 33.33 : 50);
   return (
     <div className={"crowd"+(light?" light":"")+(locked?" locked":"")} onClick={e=>e.stopPropagation()}>
       <span className="crowd-lbl">Who'll win?{locked ? " · locked" : (!mine ? " · tap to vote" : "")}</span>
