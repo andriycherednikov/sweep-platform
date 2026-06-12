@@ -5,7 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents } from '../src/worker/live-poller.js'
 import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -137,4 +137,48 @@ test('pollLineups is best-effort: a failed fetch updates nothing and never throw
   expect(n).toBe(0)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
   expect(f.lineups).toBeNull()
+})
+
+const goalRaw = (over = {}) => ({ time: { elapsed: 23, extra: null }, team: { id: 3001 }, player: { name: 'Modric' }, assist: { name: null }, type: 'Goal', detail: 'Normal Goal', ...over })
+const cardRaw = (over = {}) => ({ time: { elapsed: 30, extra: null }, team: { id: 3002 }, player: { name: 'Lukaku' }, type: 'Card', detail: 'Yellow Card', ...over })
+const eventsProvider = (list) => ({ async fetchEvents() { return { response: list } } })
+
+test('pollEvents baselines silently when events is null (no backfill spam)', async () => {
+  await db.update(fixture).set({ events: null, score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const emitted = []
+  const n = await pollEvents(db, eventsProvider([goalRaw()]), ['9002'], xw, (e) => emitted.push(e))
+  expect(n).toBe(0)
+  expect(emitted).toEqual([])
+  const [row] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(row.events).toHaveLength(1) // baseline persisted, just not announced
+})
+
+test('pollEvents emits only newly-appearing goal/card events and carries the score on goals', async () => {
+  await db.update(fixture).set({ events: [], score1: 1, score2: 0 }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const emitted = []
+  const n = await pollEvents(db, eventsProvider([goalRaw(), cardRaw(), { type: 'subst', team: { id: 3001 }, time: { elapsed: 70 }, player: { name: 'x' }, detail: 's' }]), ['9002'], xw, (e) => emitted.push(e))
+  expect(n).toBe(2) // subst ignored
+  expect(emitted).toContainEqual({ type: 'goal', fixtureId: '9002', teamCode: 'hr', player: 'Modric', assist: null, minute: 23, detail: 'Normal Goal', score: [1, 0] })
+  expect(emitted).toContainEqual({ type: 'card', fixtureId: '9002', teamCode: 'be', player: 'Lukaku', minute: 30, card: 'yellow', detail: 'Yellow Card' })
+})
+
+test('pollEvents emits nothing when the event list is unchanged', async () => {
+  await db.update(fixture).set({ events: [], score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const provider = eventsProvider([goalRaw()])
+  await pollEvents(db, provider, ['9002'], xw, () => {})   // first non-null poll: emits the goal
+  const emitted = []
+  const n = await pollEvents(db, provider, ['9002'], xw, (e) => emitted.push(e)) // same list again
+  expect(n).toBe(0)
+  expect(emitted).toEqual([])
+})
+
+test('pollEvents isolates a per-fixture fetch error', async () => {
+  await db.update(fixture).set({ events: [], score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const provider = { async fetchEvents() { throw new Error('boom') } }
+  const n = await pollEvents(db, provider, ['9002'], xw, () => {})
+  expect(n).toBe(0) // swallowed, no throw
 })
