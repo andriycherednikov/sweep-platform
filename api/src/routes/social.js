@@ -1,6 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { fixture, person, watch, support } from '../db/schema.js'
 
+const DRAW = 'DRAW'
+
 const watchBody = {
   type: 'object', required: ['fixtureId', 'personId'], additionalProperties: false,
   properties: { fixtureId: { type: 'string' }, personId: { type: 'string' } },
@@ -46,7 +48,8 @@ export async function socialRoutes(app) {
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
     const [p] = await app.db.select().from(person).where(eq(person.id, personId))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
-    if (teamCode !== f.t1Code && teamCode !== f.t2Code) return reply.code(400).send({ error: 'invalid_team' })
+    const validPick = teamCode === f.t1Code || teamCode === f.t2Code || (teamCode === DRAW && f.stage === 'group')
+    if (!validPick) return reply.code(400).send({ error: 'invalid_team' })
 
     const where = and(eq(support.fixtureId, fixtureId), eq(support.personId, personId))
     const [existing] = await app.db.select().from(support).where(where)

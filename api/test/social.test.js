@@ -90,3 +90,24 @@ test('POST /api/support 400s when teamCode is not one of the fixture teams', asy
   const bad = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'zz' } })
   expect(bad.statusCode).toBe(400)
 })
+
+test('POST /api/support accepts a DRAW pick on a group-stage fixture', async () => {
+  const f = await aFixture()
+  await db.update(fixture).set({ stage: 'group' }).where(eq(fixture.id, f.id))
+  const [p1] = await twoPeople()
+  const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toMatchObject({ fixtureId: f.id, personId: p1.id, supporting: 'DRAW' })
+
+  const body = (await app.inject({ method: 'GET', url: '/api/social' })).json()
+  expect(body.support[f.id][p1.id]).toBe('DRAW')
+})
+
+test('POST /api/support rejects a DRAW pick on a knockout fixture', async () => {
+  const f = await aFixture()
+  await db.update(fixture).set({ stage: 'r16' }).where(eq(fixture.id, f.id))
+  const [p1] = await twoPeople()
+  const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
+  expect(res.statusCode).toBe(400)
+  expect(res.json()).toEqual({ error: 'invalid_team' })
+})

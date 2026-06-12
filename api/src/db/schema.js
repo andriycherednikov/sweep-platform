@@ -90,7 +90,8 @@ export const watch = pgTable('watch', {
 export const support = pgTable('support', {
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
   personId: text('person_id').notNull().references(() => person.id),
-  teamCode: text('team_code').notNull().references(() => team.code),
+  // a pick: t1Code, t2Code, or the literal 'DRAW' (group-stage draw) — not a team FK
+  teamCode: text('team_code').notNull(),
 }, (t) => ({ pk: primaryKey({ columns: [t.fixtureId, t.personId] }) }))
 
 export const photo = pgTable('photo', {
