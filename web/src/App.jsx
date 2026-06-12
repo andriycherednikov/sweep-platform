@@ -9,6 +9,7 @@ import {
 import { setGlobalToast, getMe } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
 import { FloatingReactions } from "./FloatingReactions.jsx";
+import { InstallPrompt } from "./InstallPrompt.jsx";
 import {
   HomeScreen, ScheduleScreen, StandingsScreen, KnockoutsScreen,
 } from "./screens-main.jsx";
@@ -136,6 +137,7 @@ export default function App() {
         {base}
         {ov && <div style={{position:"absolute", inset:0, background:"var(--bg)", zIndex:ovZ, display:"flex", flexDirection:"column", overflow:"hidden"}}>{ov}</div>}
       </div>
+      <InstallPrompt/>
       <BottomNav tab={tab} go={go}/>
       {modals}
     </div>
