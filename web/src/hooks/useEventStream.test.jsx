@@ -100,11 +100,25 @@ test('a kickoff (upcoming→live) pushes a match-start reaction', () => {
   expect(pushNotification).toHaveBeenCalledWith(expect.objectContaining({ kind: 'match', event: 'start', fixtureId: 'm1' }))
 })
 
-test('a goal (score rises while live) pushes a match-goal reaction for the scorer', () => {
+test('a score rise no longer pushes a goal reaction (the events feed owns goals now)', () => {
   seedFixture('live', [0, 0])
   const { es } = setup()
   es.emit({ type: 'score', fixtureId: 'm1', status: 'live', score: [1, 0], minute: 20 })
-  expect(pushNotification).toHaveBeenCalledWith(expect.objectContaining({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'ar', score: [1, 0] }))
+  expect(pushNotification).not.toHaveBeenCalledWith(expect.objectContaining({ event: 'goal' }))
+})
+
+test('a goal event pushes an enriched goal reaction with scorer, minute and score', () => {
+  seedFixture('live', [0, 0])
+  const { es } = setup()
+  es.emit({ type: 'goal', fixtureId: 'm1', teamCode: 'ar', player: 'Messi', assist: 'Di Maria', minute: 23, detail: 'Penalty', score: [1, 0] })
+  expect(pushNotification).toHaveBeenCalledWith({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'ar', player: 'Messi', assist: 'Di Maria', minute: 23, detail: 'Penalty', score: [1, 0] })
+})
+
+test('a card event pushes a card reaction', () => {
+  seedFixture('live', [0, 0])
+  const { es } = setup()
+  es.emit({ type: 'card', fixtureId: 'm1', teamCode: 'mx', player: 'Herrera', minute: 55, card: 'red', detail: 'Red Card' })
+  expect(pushNotification).toHaveBeenCalledWith({ kind: 'match', event: 'card', fixtureId: 'm1', teamCode: 'mx', player: 'Herrera', minute: 55, card: 'red', detail: 'Red Card' })
 })
 
 test('full time (live→final) pushes a match-final reaction', () => {
