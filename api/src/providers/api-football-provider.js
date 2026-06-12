@@ -55,7 +55,9 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       return mapPrediction(j)
     },
     async fetchOdds(fixtureId) {
-      const j = await get('/odds', { league: LEAGUE, fixture: fixtureId })
+      // by fixture only — /odds rejects `league` unless `season` is also given,
+      // which would silently yield 0 results and fall back to /predictions placeholders
+      const j = await get('/odds', { fixture: fixtureId })
       return mapOdds(j)
     },
     async fetchTeams(season) {

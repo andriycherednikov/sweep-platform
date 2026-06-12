@@ -42,6 +42,8 @@ test('fetchOdds maps a Match Winner market to implied probs', async () => {
   const calledUrl = new URL(fetch.mock.calls[0][0])
   expect(calledUrl.pathname).toBe('/odds')
   expect(calledUrl.searchParams.get('fixture')).toBe('9002')
+  // must NOT send league — /odds rejects league without season, silently yielding 0 results
+  expect(calledUrl.searchParams.get('league')).toBeNull()
   expect(r).toEqual({ a: 53, d: 26, b: 21 })
 })
 
