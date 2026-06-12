@@ -1,6 +1,8 @@
 {
   "name": "The Sweep — World Cup 2026",
   "short_name": "The Sweep",
+  "start_url": "/",
+  "scope": "/",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
