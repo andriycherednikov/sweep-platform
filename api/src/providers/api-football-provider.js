@@ -68,6 +68,10 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       // raw json — crosswalk resolution is a DB concern, done by the poller
       return get('/fixtures/lineups', { fixture: fixtureId })
     },
+    async fetchEvents(fixtureId) {
+      // raw json — crosswalk resolution is a DB concern, done by the poller
+      return get('/fixtures/events', { fixture: fixtureId })
+    },
     async fetchSquad(teamId) {
       const j = await get('/players/squads', { team: teamId })
       return mapSquad(j)

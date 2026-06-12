@@ -32,6 +32,7 @@
  * @property {(ids:string[]) => Promise<DomainFixture[]>} fetchFixturesByIds  any status, batched ≤20
  * @property {(season:number) => Promise<DomainTeam[]>} fetchTeams
  * @property {(fixtureId:string) => Promise<object|null>} fetchLineups  raw /fixtures/lineups json
+ * @property {(fixtureId:string) => Promise<object>} fetchEvents  raw /fixtures/events json
  * @property {(teamId:number) => Promise<Array<{name:string,number:number|null,pos:string,photo:string}>|null>} fetchSquad
  */
 export {} // types-only module
