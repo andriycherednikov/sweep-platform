@@ -463,6 +463,30 @@ export function PhotoLightbox({ photo, onClose, openMatch }) {
     </div>
   );
 }
+function MatchTimeline({ f }) {
+  const events = (f.events || []).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
+  if (events.length === 0) return null;
+  const icon = (e) => e.type === "goal" ? "⚽" : e.card === "red" ? "🟥" : "🟨";
+  const tag = (e) => /penalty/i.test(e.detail || "") ? " (P)" : /own goal/i.test(e.detail || "") ? " (OG)" : "";
+  return (
+    <>
+      <div className="blocktitle" style={{ border: 0, padding: "2px 2px 10px" }}>Match events</div>
+      <div className="block" style={{ padding: "8px 12px", marginBottom: 16 }}>
+        {events.map((e) => (
+          <div key={e.id} style={{ display: "flex", alignItems: "center", gap: 9, padding: "6px 0" }}>
+            <span style={{ width: 34, color: "var(--muted2)", fontWeight: 700, fontVariantNumeric: "tabular-nums" }}>{e.minute}'</span>
+            <span style={{ fontSize: 15 }}>{icon(e)}</span>
+            <img className="flag" src={S.flag(e.teamCode, 40)} style={{ width: 18, height: 13 }} alt="" />
+            <span style={{ fontSize: 13, fontWeight: 600, minWidth: 0 }}>
+              <b style={{ fontWeight: 700 }}>{e.player}</b>{tag(e)}
+              {e.assist ? <span style={{ color: "var(--muted)", fontWeight: 600 }}> ({e.assist})</span> : null}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
 export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhoto }) {
   useSocial();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);
@@ -500,6 +524,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               <span className="mt-str">Strength {t2.strength}</span>
             </div>
           </div>
+
+          <MatchTimeline f={f} />
 
           {!showScore && f.hasOdds && (
             <>
