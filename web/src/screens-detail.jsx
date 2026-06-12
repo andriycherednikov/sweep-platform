@@ -640,8 +640,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             const locked = f.status !== "upcoming";
             return <>
           <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{locked ? "Who'll win? · locked" : mySup ? "You're backing " + (mySup===DRAW ? "a draw" : S.team(mySup).name) : "Who'll win? · back a team"}</div>
-          <div style={{display:"flex",gap:10,marginBottom:16}}>
-            {[f.t1, f.t2, ...(f.stage==="group" ? [DRAW] : [])].map(code=>{
+          <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"stretch"}}>
+            {[f.t1, ...(f.stage==="group" ? [DRAW] : []), f.t2].map(code=>{
               const isDraw = code === DRAW;
               const label = isDraw ? "Draw" : S.team(code).name;
               const backers = sup[code] || [];
@@ -649,19 +649,21 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               return (
                 <button key={code} type="button" disabled={locked}
                   onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+label+" 📣"); }}
-                  style={{flex:1,minWidth:0,textAlign:"left",display:"block",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}>
-                    {isDraw
-                      ? <span aria-hidden="true" style={{width:20,height:15,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤝</span>
-                      : <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>}
-                    <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</b>
+                  style={{flex:1,minWidth:0,textAlign:"left",display:"flex",flexDirection:"column",alignItems:"flex-start",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:backers.length>0?9:3,width:"100%",minWidth:0}}>
+                    {!isDraw && <img className="flag" src={S.flag(code,40)} style={{width:20,height:15,flexShrink:0}} alt=""/>}
+                    <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</b>
                   </div>
                   {backers.length>0
-                    ? <div style={{display:"flex",alignItems:"center",gap:9}}>
-                        <AvStack people={backers} size={33} max={4}/>
-                        <span style={{fontSize:13,fontWeight:700,color:on?"var(--accent)":"var(--muted)"}}>{backers.length} backing</span>
+                    ? <div style={{width:"100%"}}>
+                        {backers.map(p=>(
+                          <div key={p.id} style={{display:"flex",alignItems:"center",gap:7,padding:"3px 0",minWidth:0}}>
+                            <PersonAvatar p={p} cls="av" style={{width:24,height:24,border:0,margin:0,fontSize:11}}/>
+                            <span style={{fontSize:12,fontWeight:600,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{p.short}</span>
+                          </div>
+                        ))}
                       </div>
-                    : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>{locked ? "No backers" : "Tap to back"}</span>}
+                    : <span style={{fontSize:11.5,fontWeight:700,color:"var(--muted2)"}}>{locked ? "No backers" : "Tap to back"}</span>}
                 </button>
               );
             })}

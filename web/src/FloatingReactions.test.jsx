@@ -44,10 +44,13 @@ test('silently skips a notification it cannot resolve', () => {
   expect(queryByText('Brazil')).toBeNull()
 })
 
-test('silently drops a DRAW support notification (no team to resolve, no card)', () => {
+test('renders a DRAW support notification ("is backing" a Draw)', () => {
   const { container } = render(<FloatingReactions />)
   act(() => { pushNotification({ personId: 'p1', teamCode: 'DRAW', fixtureId: 'm1', action: 'pick' }) })
-  expect(container.textContent).not.toContain('is backing')
+  expect(container.textContent).toContain('is backing')
+  expect(container.textContent).toContain('Draw')
+  // still anchored to the matchup
+  expect(container.textContent).toContain('Brazil v Morocco')
 })
 
 test('renders a GOAL match notification with scorer, minute, score and a penalty tag', () => {

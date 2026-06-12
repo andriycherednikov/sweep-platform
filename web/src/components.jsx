@@ -160,44 +160,41 @@ export function CrowdPick({ f, onToast, light, locked }) {
   if (locked && total === 0) return null;
   const call = (code, name) => (e) => {
     e.stopPropagation();
-    if (locked) return;
+    if (locked) { if (onToast) onToast("Voting is closed 🔒"); return; }
     const on = mine===code;
     setSupport(f.id, code);
     if (onToast) onToast(on ? "Call removed" : "You're calling "+name+" 👍");
   };
   const pickName = (code) => code === DRAW ? "Draw" : S.team(code).name;
 
-  // teams sit side by side (hero + horizontal cards); thumbs flank a split bar
-  const w1 = total ? (c1/total*100) : (showDraw ? 33.34 : 50);
-  const wd = total ? (cd/total*100) : 33.33;
-  const w2 = total ? (c2/total*100) : (showDraw ? 33.33 : 50);
+  // one tappable tally bar: each zone grows with its vote count but keeps a
+  // minimum tappable width (flex-basis:0 + min-width in css), so a zone with
+  // few/no votes never collapses out of reach. selection = the zone fills with
+  // its bold colour (others stay light) — no border/checkmark needed.
+  const zone = (code, name, variant, count) => (
+    <button type="button" key={code} aria-disabled={locked || undefined}
+      className={"cz cz-"+variant+(mine===code?" on":"")} aria-pressed={mine===code}
+      aria-label={(locked ? name : "Call "+name) + (total ? ", "+count+(count===1?" pick":" picks") : "")}
+      title={locked ? name : "Call "+name}
+      style={{ flexGrow: total ? count : 1 }}
+      onClick={call(code, name)}>
+      {code === DRAW
+        ? <span className="cz-nm">{name}</span>
+        : <Flag code={code} w={27} h={18} cls="cz-flag" />}
+      {total > 0 && <span className="cz-ct">{count}</span>}
+    </button>
+  );
+
   return (
     <div className={"crowd"+(light?" light":"")+(locked?" locked":"")} onClick={e=>e.stopPropagation()}>
-      <span className="crowd-lbl">Who'll win?{locked ? " · locked" : (!mine ? " · tap to vote" : "")}</span>
-      <div className="crowd-row">
-        <button type="button" disabled={locked} className={"cpick"+(mine===f.t1?" on":"")} aria-pressed={mine===f.t1}
-          aria-label={"Call "+t1.name} title={locked ? t1.name : "Call "+t1.name} onClick={call(f.t1,t1.name)}>
-          <Icon.thumb/><b>{c1}</b>
-        </button>
-        <div className={"cbar"+(total===0?" novote":"")} aria-hidden="true">
-          {total > 0 && <>
-            <i style={{width:w1+"%", background:t1.color}}></i>
-            {showDraw && <i style={{width:wd+"%", background:"#94a3b8"}}></i>}
-            <i style={{width:w2+"%", background:t2.color}}></i>
-          </>}
-        </div>
-        <button type="button" disabled={locked} className={"cpick"+(mine===f.t2?" on":"")} aria-pressed={mine===f.t2}
-          aria-label={"Call "+t2.name} title={locked ? t2.name : "Call "+t2.name} onClick={call(f.t2,t2.name)}>
-          <Icon.thumb/><b>{c2}</b>
-        </button>
+      <span className="crowd-lbl">Who'll win?{locked
+        ? <span className="crowd-lock"><Icon.lock/> Closed</span>
+        : (!mine ? <span className="crowd-hint"> · tap to vote</span> : "")}</span>
+      <div className="cvote">
+        {zone(f.t1, t1.name, "a", c1)}
+        {showDraw && zone(DRAW, "Draw", "d", cd)}
+        {zone(f.t2, t2.name, "b", c2)}
       </div>
-      {showDraw &&
-        <div className="crowd-draw">
-          <button type="button" disabled={locked} className={"cdraw"+(mine===DRAW?" on":"")} aria-pressed={mine===DRAW}
-            aria-label={locked ? "Draw" : "Call a draw"} title={locked ? "Draw" : "Call a draw"} onClick={call(DRAW,"a draw")}>
-            Draw · <b>{cd}</b>
-          </button>
-        </div>}
       {mine
         ? <div className="crowd-note picked"><Icon.check/> {locked ? "You called " : "Your call: "}{pickName(mine)}</div>
         : !locked && <div className="crowd-note">{showDraw ? "Tap a team or draw to call it" : "Tap a team to call the winner"}</div>}

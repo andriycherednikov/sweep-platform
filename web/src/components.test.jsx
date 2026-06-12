@@ -48,10 +48,27 @@ beforeEach(() => {
   setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } })
 })
 
-test('CrowdPick shows the crowd call count per team (distinct from official %)', () => {
-  const { getByLabelText } = render(<CrowdPick f={F} />)
+test('CrowdPick renders tappable team zones showing each crowd count', () => {
+  const { getByLabelText, container } = render(<CrowdPick f={F} />)
+  // 1 vs 1 → two zones, each showing a flag and its vote count
+  const zones = container.querySelectorAll('.cz')
+  expect(zones.length).toBe(2)
+  expect(getByLabelText(/Mexico/i).querySelector('img.flag')).not.toBeNull()
   expect(getByLabelText(/Mexico/i).textContent).toContain('1')
   expect(getByLabelText(/South Africa/i).textContent).toContain('1')
+  // zones grow by vote count via inline flex-grow (1 each here)
+  expect(getByLabelText(/Mexico/i).style.flexGrow).toBe('1')
+})
+
+test('CrowdPick zones keep their min-width floor and hide counts before any votes', () => {
+  setSocialData({ watch: {}, support: {} })
+  const { getByLabelText, container } = render(<CrowdPick f={FG} />)
+  // all three zones still render (none collapse) when nobody has voted
+  expect(container.querySelectorAll('.cz').length).toBe(3)
+  // no count shown yet, and every zone grows equally so they spread full-width
+  expect(getByLabelText(/Mexico/i).textContent).not.toMatch(/\d/)
+  expect(getByLabelText(/Mexico/i).style.flexGrow).toBe('1')
+  expect(getByLabelText(/Call Draw/i).style.flexGrow).toBe('1')
 })
 
 test('CrowdPick records my pick and POSTs it', () => {
@@ -68,23 +85,32 @@ test('CrowdPick is read-only when locked — clicking does not POST', () => {
   expect(postSupport).not.toHaveBeenCalled()
 })
 
+test('CrowdPick toasts "voting is closed" when a locked zone is tapped', () => {
+  setMe('p1')
+  const onToast = vi.fn()
+  const { getByLabelText } = render(<CrowdPick f={{ ...F, status: 'final' }} onToast={onToast} locked />)
+  fireEvent.click(getByLabelText(/South Africa/i))
+  expect(postSupport).not.toHaveBeenCalled()
+  expect(onToast).toHaveBeenCalledWith(expect.stringMatching(/closed/i))
+})
+
 test('CrowdPick renders nothing when locked with no calls', () => {
   setSocialData({ watch: {}, support: {} })
   const { container } = render(<CrowdPick f={{ ...F, status: 'final' }} locked />)
   expect(container.firstChild).toBeNull()
 })
 
-test('CrowdPick shows a Draw control and three bar segments on a group-stage fixture', () => {
+test('CrowdPick shows a Draw zone (three zones) on a group-stage fixture', () => {
   setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'DRAW' } } });
   const { getByLabelText, container } = render(<CrowdPick f={FG} />);
-  expect(getByLabelText(/Draw/i).textContent).toContain('1');
-  expect(container.querySelectorAll('.cbar i').length).toBe(3);
+  expect(getByLabelText(/Call Draw/i)).toBeTruthy();
+  expect(container.querySelectorAll('.cz').length).toBe(3);
 });
 
 test('CrowdPick hides the Draw control on a knockout fixture', () => {
   setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } });
   const { queryByLabelText } = render(<CrowdPick f={{ ...FG, stage: 'r16' }} />);
-  expect(queryByLabelText(/^Call a draw/i)).toBeNull();
+  expect(queryByLabelText(/Call Draw/i)).toBeNull();
 });
 
 test('CrowdPick knockout empty-state note omits the draw prompt', () => {
@@ -99,7 +125,7 @@ test('CrowdPick records a DRAW pick and POSTs it', () => {
   setMe('p1');
   setSocialData({ watch: {}, support: {} });
   const { getByLabelText } = render(<CrowdPick f={FG} />);
-  fireEvent.click(getByLabelText(/Call a draw/i));
+  fireEvent.click(getByLabelText(/Call Draw/i));
   expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');
 });
 
