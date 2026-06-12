@@ -45,8 +45,9 @@ a{color:inherit; text-decoration:none;}
 @media (pointer:coarse) and (max-width:899px){
   /* Pin the shell to the *visible* height. --app-height (= window.innerHeight,
      set in index.html) excludes the Android system bar that 100dvh wrongly
-     includes in a standalone PWA; 100dvh is the fallback before the script runs. */
-  html, body{ overflow:hidden; }
+     includes in a standalone PWA; 100dvh is the fallback before the script runs.
+     No `overflow:hidden` on body — that kills Chrome's native pull-to-refresh.
+     The shell already fits exactly, so the body has nothing to overflow. */
   body, #root{ min-height:100dvh; min-height:var(--app-height, 100dvh); }
   .device{ width:100%; height:100dvh; height:var(--app-height, 100dvh); max-height:100dvh; max-height:var(--app-height, 100dvh); border-radius:0; padding:0; box-shadow:none; }
   .viewport{ border-radius:0; }
