@@ -80,6 +80,30 @@ test('predictionLeaderboard ranks people by correct crowd calls on finished matc
   expect(lb.find((x) => x.person.id === 'p2').correct).toBe(0)
 })
 
+test('predictionLeaderboard credits a DRAW pick on a level final and misses team picks', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'A', pool: 'P', color: '#a00', strength: 70 },
+        { code: 'br', name: 'Brazil', group: 'A', pool: 'P', color: '#0a0', strength: 80 },
+      ],
+      people: [
+        { id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null },
+        { id: 'p2', name: 'B', short: 'B', initials: 'B', av: '#111', avatarPath: null },
+      ],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'A', matchday: 1, t1: 'hr', t2: 'br', ko: '2026-06-10T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 1], minute: 90, prob: { a: 33, d: 34, b: 33 }, stage: 'group' }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'DRAW', p2: 'hr' } } })
+  const lb = predictionLeaderboard(4)
+  const p1 = lb.find(x => x.person.id === 'p1')
+  const p2 = lb.find(x => x.person.id === 'p2')
+  expect(p1).toMatchObject({ correct: 1, total: 1 })
+  expect(p2).toMatchObject({ correct: 0, total: 1 })
+})
+
 test('writes require identity — no me means no POST', () => {
   // window.__sweepPickMe would normally open the identity sheet; stub it
   window.__sweepPickMe = vi.fn()

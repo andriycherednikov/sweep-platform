@@ -7,6 +7,8 @@ import { useState, useEffect } from "react";
 import { SWEEP as S } from "./data.js";
 import { postWatch, postSupport } from "./api/client.js";
 
+export const DRAW = 'DRAW';
+
 const ME_KEY = "sweep.me.v1";
 const socialListeners = new Set();
 let globalToast = null;
@@ -62,19 +64,19 @@ export function setSupport(mid, code){
 }
 
 /* prediction accuracy leaderboard — how many finished matches each person
-   called correctly (winner picked via the crowd call). Draws count as a miss. */
+   called correctly (winner picked via the crowd call). A DRAW pick wins on a level final. */
 export function predictionLeaderboard(limit = 4){
   const stats = {};
   for (const f of S.fixtures){
     if (f.status !== "final" || !f.score) continue;
     const [a, b] = f.score;
-    const winner = a > b ? f.t1 : b > a ? f.t2 : null;
+    const result = a > b ? f.t1 : b > a ? f.t2 : DRAW; // DRAW on a level final
     const picks = support[f.id];
     if (!picks) continue;
     for (const pid of Object.keys(picks)){
       const s = stats[pid] || (stats[pid] = { correct: 0, total: 0 });
       s.total++;
-      if (winner && picks[pid] === winner) s.correct++;
+      if (picks[pid] === result) s.correct++;
     }
   }
   return Object.keys(stats)
