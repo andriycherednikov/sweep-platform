@@ -652,7 +652,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                   style={{flex:1,minWidth:0,textAlign:"left",display:"block",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
                   <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:9}}>
                     {isDraw
-                      ? <span style={{width:20,height:15,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤝</span>
+                      ? <span aria-hidden="true" style={{width:20,height:15,display:"inline-flex",alignItems:"center",justifyContent:"center",fontSize:13}}>🤝</span>
                       : <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>}
                     <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</b>
                   </div>
