@@ -9,6 +9,38 @@ import {
 } from "./components.jsx";
 import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
 
+// Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
+// own goal is credited to the team it benefited, tagged "(OG)") and card counts per side.
+function resultSummary(f) {
+  const ev = f.events || [];
+  const isOG = (e) => /own goal/i.test(e.detail || "");
+  const credited = (e) => (isOG(e) ? (e.teamCode === f.t1 ? f.t2 : f.t1) : e.teamCode);
+  const surname = (n) => { const p = (n || "").trim().split(/\s+/); return p[p.length - 1] || (n || ""); };
+  const scorers = (team) => {
+    const seen = new Map();
+    for (const e of ev) if (e.type === "goal" && credited(e) === team) {
+      const key = surname(e.player) + (isOG(e) ? " (OG)" : "");
+      seen.set(key, (seen.get(key) || 0) + 1);
+    }
+    return [...seen].map(([name, n]) => (n > 1 ? `${name} ×${n}` : name));
+  };
+  const cards = (team, color) => ev.filter((e) => e.type === "card" && e.teamCode === team && e.card === color).length;
+  return {
+    home: { scorers: scorers(f.t1), yellow: cards(f.t1, "yellow"), red: cards(f.t1, "red") },
+    away: { scorers: scorers(f.t2), yellow: cards(f.t2, "yellow"), red: cards(f.t2, "red") },
+    any: ev.length > 0,
+  };
+}
+// Draw one chip per card (4 yellows → 4 yellow chips), titled for a11y/at-a-glance count.
+function CardChips({ red, n }) {
+  if (!n) return null;
+  return (
+    <span className="res-cardset" title={`${n} ${red ? "red" : "yellow"} ${n === 1 ? "card" : "cards"}`}>
+      {Array.from({ length: n }, (_, i) => <i key={i} className={"res-card" + (red ? " red" : "")} />)}
+    </span>
+  );
+}
+
 /* ---------------- HOME ---------------- */
 export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin }) {
   // a live match stays front-and-center in the hero until it's over; otherwise the next kickoff
@@ -69,12 +101,27 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         <div className="sec-h"><h2>Latest scores</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
         <div className="sidescores">{results.map(f=>{
           const ta=S.team(f.t1), tb=S.team(f.t2);
+          const sum=resultSummary(f);
           return (
             <div className="res" key={f.id} onClick={()=>openMatch(f)}>
-              <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
-              <span className="rscore">{f.score[0]} – {f.score[1]}</span>
-              <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
-              <span className="ft">FT</span>
+              <div className="res-main">
+                <div className="rt"><Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span></div>
+                <span className="rscore">{f.score[0]} – {f.score[1]}</span>
+                <div className="rt" style={{justifyContent:"flex-end"}}><span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/></div>
+                <span className="ft">FT</span>
+              </div>
+              {sum.any && (
+                <div className="res-extra">
+                  <div className="res-side">
+                    {sum.home.scorers.length>0 && <span className="res-scorers">{sum.home.scorers.join(", ")}</span>}
+                    <CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/>
+                  </div>
+                  <div className="res-side r">
+                    <CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/>
+                    {sum.away.scorers.length>0 && <span className="res-scorers">{sum.away.scorers.join(", ")}</span>}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}</div>

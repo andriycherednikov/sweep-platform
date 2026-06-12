@@ -139,6 +139,37 @@ function homeWith(photos) {
   }))
 }
 
+test('HomeScreen latest-scores rows show goal scorers and a yellow/red card tally per team', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [{ id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [2, 0], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+      events: [
+        { id: 'g1', type: 'goal', teamCode: 'mx', player: 'Julián Quiñones', assist: 'Erik Lira', minute: 9, detail: 'Normal Goal' },
+        { id: 'g2', type: 'goal', teamCode: 'mx', player: 'Raúl Jiménez', assist: null, minute: 67, detail: 'Normal Goal' },
+        { id: 'c1', type: 'card', teamCode: 'za', player: 'Teboho Mokoena', minute: 17, card: 'yellow', detail: 'Yellow Card' },
+        { id: 'c2', type: 'card', teamCode: 'za', player: 'Siphephelo Sithole', minute: 49, card: 'red', detail: 'Red Card' },
+      ],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, getByTitle } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(getByText('Latest scores')).toBeTruthy()
+  expect(getByText(/Quiñones/)).toBeTruthy()                 // Mexico scorer (home side)
+  expect(getByText(/Jiménez/)).toBeTruthy()                  // second Mexico scorer
+  expect(getByTitle('1 yellow card')).toBeTruthy()           // South Africa card tally
+  expect(getByTitle('1 red card')).toBeTruthy()
+})
+
 test('HomeScreen hero features the live match (score + minute) over the next kickoff', () => {
   setSweepData(assembleSweep({
     bootstrap: {
