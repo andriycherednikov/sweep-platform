@@ -22,7 +22,7 @@ vi.mock('./admin.js', () => ({
 }))
 
 import App from './App.jsx'
-import { initAnalytics, trackPageview } from './lib/analytics.js'
+import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -59,4 +59,17 @@ test('emits a pageview when the view changes (popstate navigation)', () => {
     }))
   })
   expect(trackPageview).toHaveBeenCalledWith('/schedule')
+})
+
+test('emits match_open when a match card is opened', () => {
+  const { container } = render(<App />)
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', {
+      state: { tab: 'schedule', overlay: null, modal: null, identity: false },
+    }))
+  })
+  const card = container.querySelector('.card')
+  expect(card).not.toBeNull()
+  act(() => { card.click() })
+  expect(trackEvent).toHaveBeenCalledWith('match_open', { match_id: 'm1' })
 })
