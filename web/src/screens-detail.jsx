@@ -671,7 +671,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </>;
           })()}
 
-          {/* who's watching */}
+          {/* who's watching — only while a game is still open to watch (upcoming) */}
+          {!showScore && <>
           <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Who's watching{watchPeople.length>0 ? " · "+watchPeople.length : ""}</div>
           <div className="block" style={{padding:"11px 13px",marginBottom:16}}>
             {watchPeople.length>0 ? (
@@ -681,6 +682,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               </div>
             ) : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>Nobody's marked this yet — be the first.</span>}
           </div>
+          </>}
 
           {matchPhotos.length>0 && <>
             <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>From the stands · {matchPhotos.length}</div>
@@ -693,7 +695,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </div>
           </>}
 
-          <WatchToggleCTA id={f.id} onToast={onToast} />
+          {!showScore && <WatchToggleCTA id={f.id} onToast={onToast} />}
         </div>
       </div>
     </div>

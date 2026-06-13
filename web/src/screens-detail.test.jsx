@@ -28,7 +28,8 @@ const SQUAD = [
   { name: 'M. Pjaca', number: 14, pos: 'Attacker', photo: null }, // no photo → number badge
 ]
 
-function sheetFixture(lineups, squads = {}, events = []) {
+function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
+  const { status = 'upcoming', score = null } = opts
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -39,7 +40,7 @@ function sheetFixture(lineups, squads = {}, events = []) {
     },
     fixtures: [{
       id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
-      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
+      venue: 'V', city: 'C', status, score, minute: null,
       prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups, events,
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
@@ -54,6 +55,18 @@ const renderSheet = (f) => render(
 )
 
 beforeEach(() => { localStorage.clear(); setMe(null); vi.clearAllMocks() })
+
+test('MatchSheet shows the watch CTA + who\'s-watching for an upcoming game', () => {
+  const { getByText } = renderSheet(sheetFixture(null, {}, [], { status: 'upcoming' }))
+  expect(getByText(/I'll be watching/i)).toBeTruthy()
+  expect(getByText(/Who's watching/i)).toBeTruthy()
+})
+
+test('MatchSheet hides the watch CTA + who\'s-watching once a game is final', () => {
+  const { queryByText } = renderSheet(sheetFixture(null, {}, [], { status: 'final', score: [1, 1] }))
+  expect(queryByText(/I'll be watching/i)).toBeNull()
+  expect(queryByText(/Who's watching/i)).toBeNull()
+})
 
 test('MatchSheet shows a Starting XI block with formations and players', () => {
   const { getByText } = renderSheet(sheetFixture(LINEUPS))
