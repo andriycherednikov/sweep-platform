@@ -11,6 +11,9 @@ export const pwaOptions = {
   registerType: 'prompt',
   injectManifest: {
     globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+    // favicon.svg is 3.4 MB (embedded raster data) — exclude it from the precache
+    // manifest; browsers cache it independently via <link rel="icon">.
+    globIgnores: ['**/favicon.svg'],
   },
   devOptions: {
     enabled: true,
