@@ -17,6 +17,7 @@ import { resolve } from 'node:path'
 import { createStorageSync } from './photos/storage.js'
 import { MAX_BYTES } from './photos/process.js'
 import { adminRoutes } from './routes/admin.js'
+import { sweepsRoutes } from './routes/sweeps.js'
 import { sweepResolver } from './sweeps/resolve.js'
 
 export function buildApp(db, opts = {}) {
@@ -51,5 +52,6 @@ export function buildApp(db, opts = {}) {
   app.register(streamRoutes)
   app.register(socialRoutes)
   app.register(adminRoutes)
+  app.register(sweepsRoutes)
   return app
 }
