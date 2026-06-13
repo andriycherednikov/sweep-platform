@@ -197,29 +197,7 @@
           "notNull": true
         }
       },
-      "indexes": {
-        "ownership_sweep_team_uq": {
-          "name": "ownership_sweep_team_uq",
-          "columns": [
-            {
-              "expression": "sweep_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "team_code",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
+      "indexes": {},
       "foreignKeys": {
         "ownership_sweep_id_sweep_id_fk": {
           "name": "ownership_sweep_id_sweep_id_fk",
