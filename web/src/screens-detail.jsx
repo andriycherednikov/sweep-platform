@@ -172,7 +172,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                           : <span className="pick-flag" title={`Picked ${S.team(pick).name}`}><Flag code={pick} w={24} h={18}/></span>}
                         {verdict==="correct" && <span className="v-pill ok" title="Correct call">✓</span>}
                         {verdict==="wrong" && <span className="v-pill no" title="Wrong call">✗</span>}
-                        {verdict===null && <span className="v-pill pending">pending</span>}
+                        {verdict===null && <span className="pick-pending" title="Not played yet" role="img" aria-label="Not played yet"><Icon.spinner/></span>}
                       </div>
                     </div>
                   );

@@ -309,6 +309,31 @@ test('PersonDetail shows a handshake (not a flag) for a draw pick', () => {
   expect(container.querySelector('.v-pill.ok')).toBeTruthy() // DRAW correct on a level final
 })
 
+test('PersonDetail shows a loading spinner (not text) for an unresolved prediction', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { container, queryByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(container.querySelector('.pick-pending svg')).toBeTruthy()
+  expect(queryByText('pending')).toBeNull()
+})
+
 test('PersonDetail shows an empty state when the person made no predictions', () => {
   setSweepData(assembleSweep({
     bootstrap: {
