@@ -14,6 +14,8 @@ vi.mock('./lib/analytics.js', () => ({
 }))
 vi.mock('./api/client.js', () => ({ postWatch: vi.fn(async () => ({})), postSupport: vi.fn(async () => ({})) }))
 vi.mock('./hooks/useEventStream.js', () => ({ useEventStream: vi.fn() }))
+// useAdminBadge is a render-enabler, not part of the analytics assertions:
+// HomeHeader calls it during render (like the scrollTo polyfill above for ScheduleScreen).
 vi.mock('./admin.js', () => ({
   refreshAdminBadge: vi.fn(),
   useAdminBadge: vi.fn(() => ({ isAdmin: false, pending: 0 })),
