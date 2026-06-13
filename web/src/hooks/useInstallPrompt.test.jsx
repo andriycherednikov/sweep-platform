@@ -3,6 +3,9 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useInstallPrompt, __resetInstallStore } from './useInstallPrompt.js'
 
+vi.mock('../lib/analytics.js', () => ({ trackEvent: vi.fn() }))
+import { trackEvent } from '../lib/analytics.js'
+
 const UA_ANDROID = 'Mozilla/5.0 (Linux; Android 13) Chrome/120 Mobile'
 const UA_IOS = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Safari/604.1'
 
@@ -85,6 +88,12 @@ test('canInstall is false once installed', () => {
   const { result } = renderHook(() => useInstallPrompt())
   act(() => { fireBIP() })
   expect(result.current.canInstall).toBe(false)
+})
+
+test('an appinstalled event emits the pwa_install analytics event', () => {
+  trackEvent.mockClear()
+  window.dispatchEvent(new Event('appinstalled'))
+  expect(trackEvent).toHaveBeenCalledWith('pwa_install')
 })
 
 test('dismiss() persists and suppresses the prompt', () => {

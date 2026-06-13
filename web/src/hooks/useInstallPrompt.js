@@ -1,5 +1,6 @@
 // web/src/hooks/useInstallPrompt.js
 import { useSyncExternalStore } from 'react'
+import { trackEvent } from '../lib/analytics.js'
 
 const DISMISS_KEY = 'sweep:install-dismissed'
 
@@ -36,7 +37,7 @@ function start() {
   if (started || typeof window === 'undefined') return
   started = true
   window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredEvt = e; emit() })
-  window.addEventListener('appinstalled', () => { installedViaEvent = true; deferredEvt = null; emit() })
+  window.addEventListener('appinstalled', () => { installedViaEvent = true; deferredEvt = null; trackEvent('pwa_install'); emit() })
 }
 start() // listen from import time, before any component subscribes
 
