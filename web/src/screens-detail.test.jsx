@@ -225,3 +225,72 @@ test('PersonDetail match rows show the one-line local date/time', () => {
   expect(fxWhen).toBeTruthy()
   expect(fxWhen.textContent).toBe('Sun, 14 June · 8:00 AM')
 })
+
+test('PersonDetail shows a Calls-right accuracy tile', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { getByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(getByText('Calls right')).toBeTruthy()
+  expect(getByText('1/1')).toBeTruthy()
+})
+
+test('PersonDetail prediction history shows the pick and a correct verdict', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { getByText, container } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(getByText('Prediction history')).toBeTruthy()
+  const pick = [...container.querySelectorAll('.nm.pick')].find(n => n.textContent === 'Croatia')
+  expect(pick).toBeTruthy()
+  expect(container.querySelector('.v-pill.ok')).toBeTruthy()
+})
+
+test('PersonDetail shows an empty state when the person made no predictions', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 }],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+  const noop = () => {}
+  const { getByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(getByText('No predictions yet.')).toBeTruthy()
+})

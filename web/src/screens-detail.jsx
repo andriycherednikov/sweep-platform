@@ -10,6 +10,7 @@ import {
 import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf, DRAW,
+  predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
@@ -60,6 +61,7 @@ export function PeopleScreen({ openPerson }) {
 
 /* ---------------- PERSON DETAIL ---------------- */
 export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
+  useSocial();
   const isMe = getMe()?.id === person.id;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
@@ -68,6 +70,8 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
   const myTeams = person.teams.map(c=>S.team(c));
   const played = myFixtures.filter(f=>f.status==="final");
   const wins = played.filter(f=>{ const r=resultFor(f, f.t1)===null?null:(person.teams.indexOf(f.t1)>=0?resultFor(f,f.t1):resultFor(f,f.t2)); return r==="w"; }).length;
+  const acc = predictionAccuracy(person.id);
+  const preds = predictionsOf(person.id);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -88,6 +92,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             <div className="dh-stat"><b>{myTeams.length}</b><small>Teams drawn</small></div>
             <div className="dh-stat"><b>{played.length}</b><small>Games played</small></div>
             <div className="dh-stat"><b>{wins}</b><small>Wins</small></div>
+            <div className="dh-stat"><b>{acc.correct}/{acc.total}</b><small>Calls right</small></div>
           </div>
         </div>
       </header>
@@ -112,6 +117,37 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
               <div className="wbox"><b>{t.strength}</b><small>Strength</small></div>
             </div>
           ))}
+
+          <div className="sec-h"><h2>Prediction history</h2></div>
+          <div className="block">
+            {preds.length===0
+              ? <div className="pred-empty">No predictions yet.</div>
+              : preds.map(({f, pick, verdict})=>{
+                  const live = f.status==="live";
+                  const isDraw = pick===DRAW;
+                  return (
+                    <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
+                      <div className="fx-main">
+                        <div className="opp">
+                          <Flag code={f.t1} w={24} h={18}/>
+                          <span className={"nm"+(!isDraw&&pick===f.t1?" pick":"")}>{S.team(f.t1).name}</span>
+                          <span className="vs">v</span>
+                          <Flag code={f.t2} w={24} h={18}/>
+                          <span className={"nm"+(!isDraw&&pick===f.t2?" pick":"")}>{S.team(f.t2).name}</span>
+                          {isDraw && <span className="draw-chip">DRAW</span>}
+                        </div>
+                        <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                      </div>
+                      <div className="rr">
+                        {(f.status==="final"||live) && f.score && <span className="sc">{f.score[0]}–{f.score[1]}</span>}
+                        {verdict==="correct" && <span className="v-pill ok" title="Correct call">✓</span>}
+                        {verdict==="wrong" && <span className="v-pill no" title="Wrong call">✗</span>}
+                        {verdict===null && <span className="v-pill pending">pending</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+          </div>
 
           <div className="sec-h"><h2>All their matches</h2></div>
           <div className="block">
