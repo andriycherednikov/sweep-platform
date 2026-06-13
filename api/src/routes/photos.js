@@ -54,7 +54,7 @@ export async function photoRoutes(app) {
     await app.photos.writePending(thumbName, thumb)
 
     await app.db.insert(photo).values({
-      id, kind, uploaderName,
+      id, sweepId: 'default', kind, uploaderName,
       personId: kind === 'profile' ? personId : null,
       fixtureId: kind === 'fan' ? fixtureId : null,
       filePath: fileName, thumbPath: thumbName, caption, status: 'pending',

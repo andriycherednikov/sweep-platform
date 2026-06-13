@@ -57,6 +57,13 @@
       "when": 1781265459228,
       "tag": "0007_bitter_war_machine",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781338204443,
+      "tag": "0008_stiff_captain_midlands",
+      "breakpoints": true
     }
   ]
 }

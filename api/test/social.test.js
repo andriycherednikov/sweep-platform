@@ -32,8 +32,8 @@ test('GET /api/social returns empty maps when nobody has acted', async () => {
 test('GET /api/social groups watchers by fixture and support by fixture→person→team', async () => {
   const f = await aFixture()
   const [p1, p2] = await twoPeople()
-  await db.insert(watch).values([{ fixtureId: f.id, personId: p1.id }, { fixtureId: f.id, personId: p2.id }])
-  await db.insert(support).values({ fixtureId: f.id, personId: p1.id, teamCode: f.t1Code })
+  await db.insert(watch).values([{ sweepId: 'default', fixtureId: f.id, personId: p1.id }, { sweepId: 'default', fixtureId: f.id, personId: p2.id }])
+  await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: p1.id, teamCode: f.t1Code })
   const body = (await app.inject({ method: 'GET', url: '/api/social' })).json()
   expect(new Set(body.watch[f.id])).toEqual(new Set([p1.id, p2.id]))
   expect(body.support[f.id][p1.id]).toBe(f.t1Code)

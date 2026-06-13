@@ -36,7 +36,7 @@ export async function socialRoutes(app) {
     const existing = await app.db.select().from(watch).where(where)
     let watching
     if (existing.length) { await app.db.delete(watch).where(where); watching = false }
-    else { await app.db.insert(watch).values({ fixtureId, personId }); watching = true }
+    else { await app.db.insert(watch).values({ sweepId: 'default', fixtureId, personId }); watching = true }
 
     await app.publish({ type: 'watch', fixtureId })
     return { fixtureId, personId, watching }
@@ -59,7 +59,7 @@ export async function socialRoutes(app) {
     } else if (existing) {
       await app.db.update(support).set({ teamCode }).where(where); supporting = teamCode; action = 'switch'
     } else {
-      await app.db.insert(support).values({ fixtureId, personId, teamCode }); supporting = teamCode; action = 'pick'
+      await app.db.insert(support).values({ sweepId: 'default', fixtureId, personId, teamCode }); supporting = teamCode; action = 'pick'
     }
 
     await app.publish({ type: 'support', fixtureId, personId, supporting, action })

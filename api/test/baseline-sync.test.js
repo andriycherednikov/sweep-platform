@@ -44,8 +44,8 @@ test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', a
 
 test('prunes a stale fixture even when it has watch/support rows (no FK error)', async () => {
   await db.insert(fixture).values({ id: 'stale1', group: 'L', matchday: 1, t1Code: 'hr', t2Code: 'be', kickoffUtc: new Date(), venue: 'V', city: 'C', status: 'upcoming' }).onConflictDoNothing()
-  await db.insert(watch).values({ fixtureId: 'stale1', personId: 'p4' }).onConflictDoNothing()
-  await db.insert(support).values({ fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
+  await db.insert(watch).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4' }).onConflictDoNothing()
+  await db.insert(support).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
   // the provider only knows 9001/9002, so stale1 must be pruned along with its social rows
   await syncBaseline(db, provider, { season: 2026 })
   expect((await db.select().from(fixture).where(eq(fixture.id, 'stale1'))).length).toBe(0)

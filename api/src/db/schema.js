@@ -1,7 +1,20 @@
-import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial, uniqueIndex } from 'drizzle-orm/pg-core'
+
+export const sweep = pgTable('sweep', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  kind: text('kind').notNull().default('token'), // 'default' | 'token'
+  memberToken: text('member_token').unique(),
+  adminToken: text('admin_token').unique(),
+  scoringRule: text('scoring_rule').notNull().default('top3'),
+  coOwners: text('co_owners').notNull().default('all_win'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  archivedAt: timestamp('archived_at', { withTimezone: true }),
+})
 
 export const person = pgTable('person', {
   id: text('id').primaryKey(),
+  sweepId: text('sweep_id').notNull().references(() => sweep.id),
   name: text('name').notNull(),
   short: text('short').notNull(),
   initials: text('initials').notNull(),
@@ -21,15 +34,13 @@ export const team = pgTable('team', {
 })
 
 export const ownership = pgTable('ownership', {
+  sweepId: text('sweep_id').notNull().references(() => sweep.id),
   personId: text('person_id').notNull().references(() => person.id),
   teamCode: text('team_code').notNull().references(() => team.code),
-}, (t) => ({ pk: primaryKey({ columns: [t.personId, t.teamCode] }) }))
-
-export const scoringConfig = pgTable('scoring_config', {
-  id: integer('id').primaryKey(),
-  rule: text('rule').notNull(),
-  coOwners: text('co_owners').notNull(),
-})
+}, (t) => ({
+  pk: primaryKey({ columns: [t.personId, t.teamCode] }),
+  oneOwnerPerTeam: uniqueIndex('ownership_sweep_team_uq').on(t.sweepId, t.teamCode),
+}))
 
 export const teamCrosswalk = pgTable('team_crosswalk', {
   teamCode: text('team_code').primaryKey().references(() => team.code),
@@ -83,11 +94,13 @@ export const syncLog = pgTable('sync_log', {
 })
 
 export const watch = pgTable('watch', {
+  sweepId: text('sweep_id').notNull().references(() => sweep.id),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
   personId: text('person_id').notNull().references(() => person.id),
 }, (t) => ({ pk: primaryKey({ columns: [t.fixtureId, t.personId] }) }))
 
 export const support = pgTable('support', {
+  sweepId: text('sweep_id').notNull().references(() => sweep.id),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
   personId: text('person_id').notNull().references(() => person.id),
   // a pick: t1Code, t2Code, or the literal 'DRAW' (group-stage draw) — not a team FK
@@ -96,6 +109,7 @@ export const support = pgTable('support', {
 
 export const photo = pgTable('photo', {
   id: text('id').primaryKey(),
+  sweepId: text('sweep_id').notNull().references(() => sweep.id),
   kind: text('kind').notNull(),
   uploaderName: text('uploader_name').notNull(),
   personId: text('person_id').references(() => person.id),

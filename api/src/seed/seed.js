@@ -23,8 +23,6 @@ async function seedPhotoFiles(g) {
 export async function seed(db) {
   const g = generate()
 
-  await db.insert(s.scoringConfig).values(g.scoring).onConflictDoNothing()
-
   for (const code of Object.keys(g.teams)) {
     const t = g.teams[code]
     await db.insert(s.team).values({
@@ -36,10 +34,10 @@ export async function seed(db) {
 
   for (const p of g.people) {
     await db.insert(s.person).values({
-      id: p.id, name: p.name, short: p.short, initials: p.initials, avColor: p.av,
+      id: p.id, sweepId: 'default', name: p.name, short: p.short, initials: p.initials, avColor: p.av,
     }).onConflictDoNothing()
     for (const tc of p.teams) {
-      await db.insert(s.ownership).values({ personId: p.id, teamCode: tc }).onConflictDoNothing()
+      await db.insert(s.ownership).values({ sweepId: 'default', personId: p.id, teamCode: tc }).onConflictDoNothing()
     }
   }
 
@@ -70,7 +68,7 @@ export async function seed(db) {
 
   for (const ph of g.photos) {
     await db.insert(s.photo).values({
-      id: ph.id, kind: 'fan', uploaderName: ph.uploader, fixtureId: ph.fixtureId,
+      id: ph.id, sweepId: 'default', kind: 'fan', uploaderName: ph.uploader, fixtureId: ph.fixtureId,
       filePath: `seed/${ph.id}.jpg`, caption: ph.caption, status: ph.status,
     }).onConflictDoNothing()
   }
