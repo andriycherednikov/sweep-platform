@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { registerSW } from 'virtual:pwa-register' // aliased to the stub
 import { registerServiceWorker } from './registerSW.js'
 
 describe('registerServiceWorker', () => {
   beforeEach(() => registerSW.mockClear())
-  afterEach(() => { delete globalThis.__nav })
 
   test('registers the service worker when supported', async () => {
     const nav = { serviceWorker: {} }
