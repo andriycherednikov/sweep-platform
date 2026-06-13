@@ -72,6 +72,13 @@ per-tenant query filters on one explicit column** rather than relying on a join 
 easy to forget. Rows never move between sweeps, so this denormalization stays consistent;
 it is always set server-side from the resolved sweep, never from the request body.
 
+`sweep_id` is indexed on every per-tenant table (queries always filter on it). For the
+not-null-person tables (`ownership`, `watch`, `support`) the denormalization is also
+**enforced in the database** by a composite FK `(person_id, sweep_id) → person(id,
+sweep_id)` (with a `UNIQUE(person.id, person.sweep_id)` target) — so a child row can never
+reference a person in another sweep, even if app code had a bug. `photo.person_id` is
+nullable (fan photos), so `photo` keeps single-column FKs and relies on app-level scoping.
+
 ### Co-ownership is intentional — NO one-owner-per-team constraint
 
 **Correction (2026-06-13):** an earlier draft proposed `UNIQUE(sweep_id, team_code)`
