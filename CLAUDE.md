@@ -86,6 +86,10 @@ PGPASSWORD=<password> psql -h localhost -p 5432 -U localuser -d sweep \
 4. Social layer + SSE — watch/support endpoints, `/api/stream`, optimistic updates
 5. Photos + admin — moderated fan **and** profile photos, admin auth/cookie, approve→live
 6. Prod deploy — Caddy container, prod Compose, TLS on a real domain
+7. **PWA home-screen app (7a)** — *shipped* (`docs/superpowers/plans/2026-06-13-phase-7a-pwa-offline-install.md`):
+   installable, offline-capable PWA via `vite-plugin-pwa` (injectManifest). One service
+   worker (`web/src/sw.js`); the planned match-reminders push handlers extend that same
+   file (only one SW per scope), superseding that plan's `public/sw.js` step.
 
 **Process:** finish a phase from its plan, get it green, then use the
 `superpowers:writing-plans` skill to write the next phase's plan against the real code, then
