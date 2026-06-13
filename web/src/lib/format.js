@@ -22,10 +22,6 @@ export function fmtTime(d) {
 export function fmtDate(d) {
   return new Intl.DateTimeFormat('en-IE', { weekday: 'short', day: 'numeric', month: 'long' }).format(d)
 }
-// Backward-compat alias used by assemble.js (short month, local tz).
-export function fmtDay(d) {
-  return new Intl.DateTimeFormat('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }).format(d)
-}
 // "Sat, 13 June · 4:30 PM" — the one canonical date+time string.
 export function fmtDateTime(d) {
   return fmtDate(d) + ' · ' + fmtTime(d)

@@ -158,6 +158,26 @@ test('groups/teamList/photos/helpers exposed; liveMatch null when none live', ()
   expect(S.nextMatch).toBeTruthy()
 })
 
+test('each fixture gets a one-line dateTimeLabel', () => {
+  const s = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
+      prob: null, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  })
+  // 2026-06-13T22:00Z = 2026-06-14 08:00 Sydney (TZ pinned in setup)
+  expect(s.fixture('m1').dateTimeLabel).toBe('Sun, 14 June · 8:00 AM')
+})
+
 test('assembleSweep carries fixture events through (defaulting to [])', () => {
   const s = assembleSweep({
     bootstrap: { teams: [

@@ -1,4 +1,4 @@
-import { flag, gd, fmtTime, fmtDay, fmtDayKey, fmtWeekday } from './format.js'
+import { flag, gd, fmtTime, fmtDate, fmtDateTime, fmtDayKey, fmtWeekday } from './format.js'
 
 function outlookFor(s) {
   return s >= 86 ? 'Title contender' : s >= 80 ? 'Last-8 shout' : s >= 73 ? 'Knockout dark horse' : s >= 66 ? 'Group toss-up' : 'Long shot'
@@ -102,7 +102,8 @@ export function assembleSweep(api) {
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
       prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
       lineups: f.lineups ?? null, events: f.events ?? [], stage: f.stage, derby, doubleOwners,
-      timeLabel: fmtTime(ko), dayLabel: fmtDay(ko), dayKey: fmtDayKey(ko),
+      timeLabel: fmtTime(ko), dayLabel: fmtDate(ko), dayKey: fmtDayKey(ko),
+      dateTimeLabel: fmtDateTime(ko),
     }
   })
   fixtures.sort((a, b) => a.ko - b.ko)
@@ -134,6 +135,6 @@ export function assembleSweep(api) {
   return {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
-    team, fixture, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDay, fmtDayKey, fmtWeekday, todayKey,
+    team, fixture, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }
