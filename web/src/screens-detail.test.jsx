@@ -334,7 +334,7 @@ test('PersonDetail shows a loading spinner (not text) for an unresolved predicti
   expect(queryByText('pending')).toBeNull()
 })
 
-test('PersonDetail shows an empty state when the person made no predictions', () => {
+test('PersonDetail hides the Prediction history section when the person made no predictions', () => {
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 }],
@@ -345,8 +345,8 @@ test('PersonDetail shows an empty state when the person made no predictions', ()
   }))
   setSocialData({ watch: {}, support: {} })
   const noop = () => {}
-  const { getByText } = render(
+  const { queryByText } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
   )
-  expect(getByText('No predictions yet.')).toBeTruthy()
+  expect(queryByText('Prediction history')).toBeNull()
 })

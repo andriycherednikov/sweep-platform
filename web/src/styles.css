@@ -446,7 +446,6 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 @keyframes spin{to{transform:rotate(360deg);}}
 .mini-fx .rr .pick-pending{display:inline-flex; flex-shrink:0; color:var(--muted2);}
 .mini-fx .rr .pick-pending svg{width:15px; height:15px; animation:spin .8s linear infinite;}
-.pred-empty{font-size:12.5px; color:var(--muted2); font-weight:600; padding:6px 4px;}
 .mini-fx .derbydot{width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0;}
 
 /* card block container */
