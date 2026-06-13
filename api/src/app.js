@@ -17,6 +17,7 @@ import { resolve } from 'node:path'
 import { createStorageSync } from './photos/storage.js'
 import { MAX_BYTES } from './photos/process.js'
 import { adminRoutes } from './routes/admin.js'
+import { sweepResolver } from './sweeps/resolve.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -33,10 +34,13 @@ export function buildApp(db, opts = {}) {
 
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
+  app.decorate('platformHost', opts.platformHost ?? process.env.PLATFORM_HOST ?? 'worldcupsweep.yowiebay.au')
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
 
   app.get('/api/health', async () => ({ ok: true }))
+  app.addHook('preHandler', sweepResolver(app))
+  app.get('/api/whoami', async (req) => ({ sweepId: req.sweep?.id ?? null, role: req.role ?? null }))
   app.register(bootstrapRoutes)
   app.register(fixtureRoutes)
   app.register(standingsRoutes)
