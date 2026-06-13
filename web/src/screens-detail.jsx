@@ -3,6 +3,7 @@
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
+import { whenLabel } from "./lib/format.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown,
 } from "./components.jsx";
@@ -121,16 +122,15 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
               const live = f.status==="live";
               return (
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
-                  <div className={"when" + (live?" live":"")}>
-                    <div className="t">{live? f.minute+"'" : f.status==="final" ? "FT" : f.timeLabel.replace(" ","")}</div>
-                    <div className="d">{f.dayLabel.split(",")[0]}</div>
-                  </div>
-                  <div className="opp">
-                    <Flag code={myCode} w={24} h={18}/>
-                    <span className="nm">{S.team(myCode).name}</span>
-                    <span className="vs">v</span>
-                    <Flag code={oppCode} w={24} h={18}/>
-                    <span className="nm">{S.team(oppCode).name}</span>
+                  <div className="fx-main">
+                    <div className="opp">
+                      <Flag code={myCode} w={24} h={18}/>
+                      <span className="nm">{S.team(myCode).name}</span>
+                      <span className="vs">v</span>
+                      <Flag code={oppCode} w={24} h={18}/>
+                      <span className="nm">{S.team(oppCode).name}</span>
+                    </div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
@@ -262,11 +262,10 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
               const live = f.status==="live";
               return (
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
-                  <div className={"when"+(live?" live":"")}>
-                    <div className="t">{live?f.minute+"'":f.status==="final"?"FT":f.timeLabel.replace(" ","")}</div>
-                    <div className="d">{f.dayLabel.split(",")[0]}</div>
+                  <div className="fx-main">
+                    <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
-                  <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
@@ -399,7 +398,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                           <i>v</i>
                           <img src={S.flag(f.t2,40)} alt=""/>{S.team(f.t2).name}
                         </span>
-                        <span className="gpk-meta">{f.dayLabel} · {f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":f.timeLabel}</span>
+                        <span className="gpk-meta">{f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
                       </button>
                     ))}
                     {games.length===0 && <div className="gpk-empty">No games match “{q}”.</div>}
@@ -551,7 +550,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               {showScore
                 ? <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
-              <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":"AEST · "+f.dayLabel}</span>
+              <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
             </div>
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>

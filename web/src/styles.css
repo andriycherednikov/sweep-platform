@@ -427,11 +427,10 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 /* mini fixture list (person/team detail) */
 .mini-fx{display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line);}
 .mini-fx:last-child{border-bottom:0;}
-.mini-fx .when{width:52px; flex-shrink:0; text-align:center;}
-.mini-fx .when .t{font-family:'Barlow Condensed'; font-weight:800; font-size:13px; line-height:1;}
-.mini-fx .when .d{font-size:9px; color:var(--muted2); font-weight:700; margin-top:2px;}
-.mini-fx .when.live .t{color:var(--live);}
-.mini-fx .opp{flex:1; display:flex; align-items:center; gap:8px; min-width:0;}
+.mini-fx .fx-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.mini-fx .fx-when{font-size:11px; color:var(--muted2); font-weight:600;}
+.mini-fx .fx-when.live{color:var(--live);}
+.mini-fx .opp{display:flex; align-items:center; gap:8px; min-width:0;}
 .mini-fx .opp img{width:24px; height:18px;}
 .mini-fx .opp .vs{font-size:10px; color:var(--muted2); font-weight:700;}
 .mini-fx .opp .nm{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}

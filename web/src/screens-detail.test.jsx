@@ -6,7 +6,7 @@ vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
 }))
-import { MatchSheet, TeamDetail } from './screens-detail.jsx'
+import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -199,4 +199,29 @@ test('detail sheet omits the Draw backer button on a knockout fixture', () => {
   const backerButtons = container.querySelectorAll('button[type="button"]')
   const drawBtn = [...backerButtons].find(b => b.textContent.includes('Draw'))
   expect(drawBtn).toBeUndefined()
+})
+
+test('PersonDetail match rows show the one-line local date/time', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: null, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  const fxWhen = container.querySelector('.mini-fx .fx-when')
+  expect(fxWhen).toBeTruthy()
+  expect(fxWhen.textContent).toBe('Sun, 14 June · 8:00 AM')
 })
