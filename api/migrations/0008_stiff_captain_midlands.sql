@@ -37,5 +37,4 @@ ALTER TABLE "ownership" ADD CONSTRAINT "ownership_sweep_id_sweep_id_fk" FOREIGN 
 ALTER TABLE "watch"     ADD CONSTRAINT "watch_sweep_id_sweep_id_fk"     FOREIGN KEY ("sweep_id") REFERENCES "sweep"("id");--> statement-breakpoint
 ALTER TABLE "support"   ADD CONSTRAINT "support_sweep_id_sweep_id_fk"   FOREIGN KEY ("sweep_id") REFERENCES "sweep"("id");--> statement-breakpoint
 ALTER TABLE "photo"     ADD CONSTRAINT "photo_sweep_id_sweep_id_fk"     FOREIGN KEY ("sweep_id") REFERENCES "sweep"("id");--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "ownership_sweep_team_uq" ON "ownership" ("sweep_id","team_code");--> statement-breakpoint
 DROP TABLE IF EXISTS "scoring_config";

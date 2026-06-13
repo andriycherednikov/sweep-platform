@@ -1,4 +1,4 @@
-import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial } from 'drizzle-orm/pg-core'
 
 export const sweep = pgTable('sweep', {
   id: text('id').primaryKey(),
@@ -39,7 +39,6 @@ export const ownership = pgTable('ownership', {
   teamCode: text('team_code').notNull().references(() => team.code),
 }, (t) => ({
   pk: primaryKey({ columns: [t.personId, t.teamCode] }),
-  oneOwnerPerTeam: uniqueIndex('ownership_sweep_team_uq').on(t.sweepId, t.teamCode),
 }))
 
 export const teamCrosswalk = pgTable('team_crosswalk', {
