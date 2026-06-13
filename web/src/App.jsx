@@ -17,6 +17,7 @@ import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
+import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
 const TABS = ["schedule", "people", "teams", "standings"];
 
@@ -56,6 +57,7 @@ export default function App() {
   const goBack = () => window.history.back(); // in-app back / close = browser back
 
   useEffect(() => {
+    initAnalytics();
     setGlobalToast(showToast);
     window.__sweepPickMe = () => navigate({ identity: true });
     refreshAdminBadge(); // surfaces the moderation count if this device is an admin
@@ -71,6 +73,9 @@ export default function App() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
 
+  // SPA pageview: every view change (forward nav + popstate) is one virtual page.
+  useEffect(() => { trackPageview(urlFor(view)); }, [view]);
+
   const { tab, overlay, modal, identity } = view;
 
   const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload" } }); return; } navigate({ tab: name, overlay: null }); };
@@ -78,7 +83,7 @@ export default function App() {
   // (calling onClose()=history.back() then navigate() races and clobbers the nav)
   const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id }, modal: null });
   const openTeam   = (c) => navigate({ overlay: { type: "team", code: c }, modal: null });
-  const openMatch  = (f) => navigate({ modal: { type: "match", id: f.id } });
+  const openMatch  = (f) => { trackEvent("match_open", { match_id: f.id }); navigate({ modal: { type: "match", id: f.id } }); };
   const openPhoto  = (p) => navigate({ modal: { type: "photo", id: p.id } });
   const openUpload = () => navigate({ modal: { type: "upload" } });
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });

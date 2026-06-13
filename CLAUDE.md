@@ -101,6 +101,7 @@ execute. Don't pre-write all phase plans — they read better against existing c
 | `ADMIN_PASSCODE` | 5 | bcrypt-hashed admin passcode |
 | `SESSION_SECRET` | 5 | signs the admin cookie |
 | `PHOTOS_DIR`, `SITE_ORIGIN` | 5–6 | photo volume path, allowed origin |
+| `VITE_GA_ID` | — | Optional. Overrides the baked-in GA4 Measurement ID for the web build; empty string disables analytics. Prod-only by default. |
 
 ## Notes
 

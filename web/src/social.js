@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { SWEEP as S } from "./data.js";
 import { postWatch, postSupport } from "./api/client.js";
+import { trackEvent } from "./lib/analytics.js";
 
 export const DRAW = 'DRAW';
 
@@ -57,7 +58,16 @@ export function setSupport(mid, code){
   if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return; }
   const prev = support;
   const m = Object.assign({}, support[mid] || {});
-  if (m[meId] === code) delete m[meId]; else m[meId] = code;
+  if (m[meId] === code) { delete m[meId]; }
+  else {
+    m[meId] = code;
+    const f = S.fixture(mid);
+    const pick = code === DRAW ? "draw"
+               : !f            ? null
+               : code === f.t1 ? "home"
+               :                 "away";
+    if (pick) trackEvent("vote_cast", { pick, match_id: mid });
+  }
   support = Object.assign({}, support, { [mid]: m });
   notifySocial();
   postSupport(mid, meId, code).catch(()=>{ support = prev; notifySocial(); toast("Couldn't update — try again"); });
