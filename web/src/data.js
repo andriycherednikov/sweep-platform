@@ -1,4 +1,4 @@
-import { flag, gd, fmtTime, fmtDay, fmtDayKey, fmtWeekday } from './lib/format.js'
+import { flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday } from './lib/format.js'
 
 // Safe empty shape so module-scope reads never crash before data loads.
 function emptySweep() {
@@ -10,7 +10,7 @@ function emptySweep() {
     fixture: (id) => SWEEP.fixturesById[id] || null,
     ownersOf: (code) => (SWEEP._ownersByTeam && SWEEP._ownersByTeam[code]) || [],
     ownersForFixture: (f) => ({ t1: SWEEP.ownersOf(f.t1), t2: SWEEP.ownersOf(f.t2) }),
-    flag, gd, fmtTime, fmtDay, fmtDayKey, fmtWeekday,
+    flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday,
     todayKey: fmtDayKey(new Date()),
   }
 }

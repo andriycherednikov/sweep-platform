@@ -8,6 +8,7 @@ import {
   supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
+import { fmtDate } from "./lib/format.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -36,7 +37,8 @@ export const Icon = {
   search:  (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>,
   eyefill: (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="#fff"/></svg>,
   thumb:   (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 9.5h3.5V21H2zM21.6 9.2A2 2 0 0020 8.4h-5.1l.77-3.7.02-.32a1.5 1.5 0 00-.44-1.06L14.4 2.5 8.2 8.7a2 2 0 00-.6 1.4V19a2 2 0 002 2h7.3a2 2 0 001.86-1.27l2.27-6.3a2 2 0 00.07-.5V11a2 2 0 00-.5-1.8z"/></svg>,
-  star:    (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21.2l1.4-6.8L2.2 9.8l6.9-.7z"/></svg>
+  star:    (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21.2l1.4-6.8L2.2 9.8l6.9-.7z"/></svg>,
+  spinner: (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" {...p}><path d="M12 3a9 9 0 1 0 9 9"/></svg>
 };
 
 export function WatchBtn({ id, compact }){
@@ -222,7 +224,8 @@ export function MatchCard({ f, onOpen, onToast }) {
           {myTeam && <span className="mine-tag"><Icon.star/> Your team</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <span className="mc-time">{f.status==="final" ? f.dayLabel : (f.dayKey!==S.todayKey ? f.dayLabel+" · " : "") + f.timeLabel + " AEST"}</span>
+          {/* StatusPill already conveys live/FT, so show the plain kickoff date (no suffix) */}
+          <span className="mc-time">{f.dateTimeLabel}</span>
           <WatchBtn id={f.id} compact onToast={onToast} />
         </div>
       </div>
@@ -267,7 +270,7 @@ export function HomeHeader({ onAdmin, go }) {
           <div><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div className="tz"><b>Sat 13 Jun</b>Sydney · AEST</div>
+          <div className="tz"><b>{fmtDate(new Date())}</b></div>
           <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
             <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
@@ -371,7 +374,7 @@ export function Sidebar({ current, go, onKnock, onAdmin }) {
       </nav>
       <div className="sb-foot">
         <IdentityControl dark/>
-        <div className="dt" style={{marginTop:12}}><b>Sat 13 Jun</b>Sydney · AEST</div>
+        <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>
   );

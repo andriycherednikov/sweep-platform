@@ -1,5 +1,3 @@
-const SYD = 'Australia/Sydney'
-
 // Our team codes aren't all ISO 3166-1 alpha-2; map the odd ones to flagcdn codes.
 const FLAG_FIX = {
   bih: 'ba', cgo: 'cd', cpv: 'cv', cur: 'cw', cze: 'cz',
@@ -15,15 +13,31 @@ export function flag(code, size) {
 
 export function gd(t) { return t.gf - t.ga }
 
+// All formatters use the runtime's LOCAL timezone (no timeZone option).
 export function fmtTime(d) {
-  return new Intl.DateTimeFormat('en-AU', { timeZone: SYD, hour: 'numeric', minute: '2-digit', hour12: true }).format(d).toUpperCase().replace(/\s/, ' ')
+  return new Intl.DateTimeFormat('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).format(d).toUpperCase().replace(/\s/, ' ')
 }
-export function fmtDay(d) {
-  return new Intl.DateTimeFormat('en-AU', { timeZone: SYD, weekday: 'short', day: 'numeric', month: 'short' }).format(d)
+// "Sat, 13 June" — weekday short · day · full month.
+// en-IE produces the required "Weekday, D Month" order with comma on this Node.
+export function fmtDate(d) {
+  return new Intl.DateTimeFormat('en-IE', { weekday: 'short', day: 'numeric', month: 'long' }).format(d)
+}
+// "Sat, 13 June · 4:30 PM" — the one canonical date+time string.
+export function fmtDateTime(d) {
+  return fmtDate(d) + ' · ' + fmtTime(d)
 }
 export function fmtDayKey(d) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: SYD, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
+  return new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(d)
 }
 export function fmtWeekday(d) {
-  return new Intl.DateTimeFormat('en-AU', { timeZone: SYD, weekday: 'long' }).format(d)
+  return new Intl.DateTimeFormat('en-AU', { weekday: 'long' }).format(d)
+}
+
+// One-line fixture label: canonical date+time plus a status suffix.
+// Prefers the precomputed f.dateTimeLabel, falling back to f.ko.
+export function whenLabel(f) {
+  const base = f.dateTimeLabel || fmtDateTime(f.ko)
+  if (f.status === 'live') return `${base} · ${f.minute}'`
+  if (f.status === 'final') return `${base} · FT`
+  return base
 }

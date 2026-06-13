@@ -6,7 +6,7 @@ vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
 }))
-import { MatchSheet, TeamDetail } from './screens-detail.jsx'
+import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -199,4 +199,154 @@ test('detail sheet omits the Draw backer button on a knockout fixture', () => {
   const backerButtons = container.querySelectorAll('button[type="button"]')
   const drawBtn = [...backerButtons].find(b => b.textContent.includes('Draw'))
   expect(drawBtn).toBeUndefined()
+})
+
+test('PersonDetail match rows show the one-line local date/time', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: null, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  const fxWhen = container.querySelector('.mini-fx .fx-when')
+  expect(fxWhen).toBeTruthy()
+  expect(fxWhen.textContent).toBe('Sun, 14 June · 8:00 AM')
+})
+
+test('PersonDetail shows a Calls-right accuracy tile', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { getByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(getByText('Calls right')).toBeTruthy()
+  expect(getByText('1/1')).toBeTruthy()
+})
+
+test('PersonDetail prediction history shows the pick and a correct verdict', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { getByText, container } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(getByText('Prediction history')).toBeTruthy()
+  // pick is shown as the picked team's flag (title "Picked Croatia"), not the score
+  const pick = container.querySelector('.pick-flag')
+  expect(pick).toBeTruthy()
+  expect(pick.getAttribute('title')).toBe('Picked Croatia')
+  expect(container.querySelector('.v-pill.ok')).toBeTruthy()
+  // the score is no longer rendered in the prediction row
+  expect(container.querySelector('.rr .sc')).toBeNull()
+})
+
+test('PersonDetail shows a handshake (not a flag) for a draw pick', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [1, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'DRAW' } } })
+  const noop = () => {}
+  const { container, getByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(container.querySelector('.pick-draw')).toBeTruthy()
+  expect(container.querySelector('.pick-flag')).toBeNull()
+  expect(getByText('🤝')).toBeTruthy()
+  expect(container.querySelector('.v-pill.ok')).toBeTruthy() // DRAW correct on a level final
+})
+
+test('PersonDetail shows a loading spinner (not text) for an unresolved prediction', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  const noop = () => {}
+  const { container, queryByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(container.querySelector('.pick-pending svg')).toBeTruthy()
+  expect(queryByText('pending')).toBeNull()
+})
+
+test('PersonDetail hides the Prediction history section when the person made no predictions', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 }],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+  const noop = () => {}
+  const { queryByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(queryByText('Prediction history')).toBeNull()
 })

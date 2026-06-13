@@ -427,11 +427,10 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 /* mini fixture list (person/team detail) */
 .mini-fx{display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line);}
 .mini-fx:last-child{border-bottom:0;}
-.mini-fx .when{width:52px; flex-shrink:0; text-align:center;}
-.mini-fx .when .t{font-family:'Barlow Condensed'; font-weight:800; font-size:13px; line-height:1;}
-.mini-fx .when .d{font-size:9px; color:var(--muted2); font-weight:700; margin-top:2px;}
-.mini-fx .when.live .t{color:var(--live);}
-.mini-fx .opp{flex:1; display:flex; align-items:center; gap:8px; min-width:0;}
+.mini-fx .fx-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:3px;}
+.mini-fx .fx-when{font-size:11px; color:var(--muted2); font-weight:600;}
+.mini-fx .fx-when.live{color:var(--live);}
+.mini-fx .opp{display:flex; align-items:center; gap:8px; min-width:0;}
 .mini-fx .opp img{width:24px; height:18px;}
 .mini-fx .opp .vs{font-size:10px; color:var(--muted2); font-weight:700;}
 .mini-fx .opp .nm{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -439,6 +438,21 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .mini-fx .rr .sc{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; color:var(--navy);}
 .mini-fx .rr .res-pill{font-size:9px; font-weight:800; width:18px; height:18px; border-radius:5px; display:grid; place-items:center; color:#fff;}
 .res-pill.w{background:var(--live);} .res-pill.d{background:var(--muted2);} .res-pill.l{background:var(--accent);}
+.mini-fx .rr .pick-flag{display:inline-flex; flex-shrink:0;}
+.mini-fx .rr .pick-flag img{width:24px; height:18px; border-radius:3px;}
+.mini-fx .rr .pick-draw{font-size:17px; line-height:1; flex-shrink:0;}
+.mini-fx .rr .v-pill{font-size:9px; font-weight:800; min-width:18px; height:18px; padding:0 5px; border-radius:5px; display:grid; place-items:center; color:#fff;}
+.v-pill.ok{background:var(--live);} .v-pill.no{background:var(--accent);}
+@keyframes spin{to{transform:rotate(360deg);}}
+.mini-fx .rr .pick-pending{display:inline-flex; flex-shrink:0; color:var(--muted2);}
+.mini-fx .rr .pick-pending svg{width:15px; height:15px; animation:spin .8s linear infinite;}
+/* desktop: plenty of width — lead with the date, then the teams (one row).
+   Mobile keeps the stacked column above. */
+@media(min-width:900px){
+  .mini-fx .fx-main{flex-direction:row; align-items:center; gap:18px;}
+  .mini-fx .fx-main .fx-when{order:-1; flex-shrink:0; width:170px;}
+  .mini-fx .fx-main .opp{flex:1;}
+}
 .mini-fx .derbydot{width:6px; height:6px; border-radius:50%; background:var(--accent); flex-shrink:0;}
 
 /* card block container */

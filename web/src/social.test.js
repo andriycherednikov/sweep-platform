@@ -12,6 +12,7 @@ import { trackEvent } from './lib/analytics.js'
 import {
   getMe, setMe, watchersOf, toggleWatch, isWatching,
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
+  predictionsOf, predictionAccuracy,
 } from './social.js'
 
 function seedFixture() {
@@ -157,4 +158,59 @@ test('setSupport does NOT emit vote_cast when the fixture is unknown', () => {
   trackEvent.mockClear()
   setSupport('NOPE', 'hr') // 'NOPE' is not a seeded fixture id → S.fixture() is null
   expect(trackEvent).not.toHaveBeenCalled()
+})
+
+function seedPreds(fixtures, support) {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures, standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support })
+}
+
+const predFx = (id, status, score) => ({
+  id, group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+  venue: 'V', city: 'C', status, score, minute: null, prob: null, stage: 'group',
+})
+
+test('predictionsOf returns one entry per fixture the person picked, with verdicts', () => {
+  seedPreds(
+    [predFx('m1', 'final', [2, 1]), predFx('m2', 'final', [0, 2]), predFx('m3', 'upcoming', null)],
+    { m1: { p1: 'hr' }, m2: { p1: 'hr' }, m3: { p1: 'en' } }
+  )
+  const out = predictionsOf('p1')
+  expect(out.map(p => p.f.id)).toEqual(['m1', 'm2', 'm3'])
+  expect(out.find(p => p.f.id === 'm1').verdict).toBe('correct') // hr won 2-1
+  expect(out.find(p => p.f.id === 'm2').verdict).toBe('wrong')   // en won, picked hr
+  expect(out.find(p => p.f.id === 'm3').verdict).toBe(null)      // not played
+})
+
+test('predictionsOf scores a DRAW pick correct on a level final', () => {
+  seedPreds([predFx('m1', 'final', [1, 1])], { m1: { p1: 'DRAW' } })
+  expect(predictionsOf('p1')[0].verdict).toBe('correct')
+})
+
+test('predictionsOf is empty for a person who picked nothing', () => {
+  seedPreds([predFx('m1', 'final', [2, 1])], { m1: { p1: 'hr' } })
+  expect(predictionsOf('pX')).toEqual([])
+})
+
+test('predictionAccuracy counts only resolved (final) predictions', () => {
+  seedPreds(
+    [predFx('m1', 'final', [2, 1]), predFx('m2', 'final', [0, 2]), predFx('m3', 'upcoming', null)],
+    { m1: { p1: 'hr' }, m2: { p1: 'hr' }, m3: { p1: 'en' } }
+  )
+  expect(predictionAccuracy('p1')).toEqual({ correct: 1, total: 2 })
+})
+
+test('predictionAccuracy returns 0/0 when there are no resolved picks', () => {
+  seedPreds([predFx('m1', 'upcoming', null)], { m1: { p1: 'hr' } })
+  expect(predictionAccuracy('p1')).toEqual({ correct: 0, total: 0 })
 })

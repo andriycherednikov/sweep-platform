@@ -277,7 +277,7 @@ export function ScheduleScreen({ openMatch, openPerson }) {
 
   return (
     <div className="viewport-inner" style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Schedule" sub="All group fixtures · Sydney time" tall
+      <PageHeader title="Schedule" sub="All group fixtures" tall
         right={<div className="iconbtn"><Icon.cal/></div>} />
       <div className="filterbar">
         <button className={"fchip" + (!person && !team ? " on":"")} onClick={()=>{setPerson(null);setTeam(null);}}>All matches</button>

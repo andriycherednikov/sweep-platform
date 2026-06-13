@@ -3,12 +3,14 @@
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
+import { whenLabel } from "./lib/format.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf, DRAW,
+  predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
@@ -59,6 +61,7 @@ export function PeopleScreen({ openPerson }) {
 
 /* ---------------- PERSON DETAIL ---------------- */
 export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
+  useSocial();
   const isMe = getMe()?.id === person.id;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
@@ -67,6 +70,8 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
   const myTeams = person.teams.map(c=>S.team(c));
   const played = myFixtures.filter(f=>f.status==="final");
   const wins = played.filter(f=>{ const r=resultFor(f, f.t1)===null?null:(person.teams.indexOf(f.t1)>=0?resultFor(f,f.t1):resultFor(f,f.t2)); return r==="w"; }).length;
+  const acc = predictionAccuracy(person.id);
+  const preds = predictionsOf(person.id);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -87,6 +92,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             <div className="dh-stat"><b>{myTeams.length}</b><small>Teams drawn</small></div>
             <div className="dh-stat"><b>{played.length}</b><small>Games played</small></div>
             <div className="dh-stat"><b>{wins}</b><small>Wins</small></div>
+            <div className="dh-stat"><b>{acc.correct}/{acc.total}</b><small>Calls right</small></div>
           </div>
         </div>
       </header>
@@ -121,16 +127,15 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
               const live = f.status==="live";
               return (
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
-                  <div className={"when" + (live?" live":"")}>
-                    <div className="t">{live? f.minute+"'" : f.status==="final" ? "FT" : f.timeLabel.replace(" ","")}</div>
-                    <div className="d">{f.dayLabel.split(",")[0]}</div>
-                  </div>
-                  <div className="opp">
-                    <Flag code={myCode} w={24} h={18}/>
-                    <span className="nm">{S.team(myCode).name}</span>
-                    <span className="vs">v</span>
-                    <Flag code={oppCode} w={24} h={18}/>
-                    <span className="nm">{S.team(oppCode).name}</span>
+                  <div className="fx-main">
+                    <div className="opp">
+                      <Flag code={myCode} w={24} h={18}/>
+                      <span className="nm">{S.team(myCode).name}</span>
+                      <span className="vs">v</span>
+                      <Flag code={oppCode} w={24} h={18}/>
+                      <span className="nm">{S.team(oppCode).name}</span>
+                    </div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
@@ -141,6 +146,38 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
               );
             })}
           </div>
+
+          {preds.length>0 && <>
+          <div className="sec-h"><h2>Prediction history</h2></div>
+          <div className="block">
+            {preds.map(({f, pick, verdict})=>{
+              const live = f.status==="live";
+              const isDraw = pick===DRAW;
+              return (
+                <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
+                  <div className="fx-main">
+                    <div className="opp">
+                      <Flag code={f.t1} w={24} h={18}/>
+                      <span className="nm">{S.team(f.t1).name}</span>
+                      <span className="vs">v</span>
+                      <Flag code={f.t2} w={24} h={18}/>
+                      <span className="nm">{S.team(f.t2).name}</span>
+                    </div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                  </div>
+                  <div className="rr">
+                    {isDraw
+                      ? <span className="pick-draw" title="Picked a draw" role="img" aria-label="Picked a draw">🤝</span>
+                      : <span className="pick-flag" title={`Picked ${S.team(pick).name}`}><Flag code={pick} w={24} h={18}/></span>}
+                    {verdict==="correct" && <span className="v-pill ok" title="Correct call">✓</span>}
+                    {verdict==="wrong" && <span className="v-pill no" title="Wrong call">✗</span>}
+                    {verdict===null && <span className="pick-pending" title="Not played yet" role="img" aria-label="Not played yet"><Icon.spinner/></span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          </>}
 
           {isMe && <div style={{marginTop:22}}><InstallButton/></div>}
         </div>
@@ -262,11 +299,10 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
               const live = f.status==="live";
               return (
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
-                  <div className={"when"+(live?" live":"")}>
-                    <div className="t">{live?f.minute+"'":f.status==="final"?"FT":f.timeLabel.replace(" ","")}</div>
-                    <div className="d">{f.dayLabel.split(",")[0]}</div>
+                  <div className="fx-main">
+                    <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
-                  <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
                   <div className="rr">
                     {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
@@ -399,7 +435,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                           <i>v</i>
                           <img src={S.flag(f.t2,40)} alt=""/>{S.team(f.t2).name}
                         </span>
-                        <span className="gpk-meta">{f.dayLabel} · {f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":f.timeLabel}</span>
+                        <span className="gpk-meta">{f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
                       </button>
                     ))}
                     {games.length===0 && <div className="gpk-empty">No games match “{q}”.</div>}
@@ -551,7 +587,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               {showScore
                 ? <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
-              <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":"AEST · "+f.dayLabel}</span>
+              <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
             </div>
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>

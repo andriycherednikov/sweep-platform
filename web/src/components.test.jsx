@@ -7,9 +7,9 @@ vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
 }))
 import { postSupport } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, ProbBar, SquadList, useCountdown } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown } from './components.jsx'
 import { HomeScreen } from './screens-main.jsx'
-import { setSweepData } from './data.js'
+import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
 
@@ -320,4 +320,28 @@ test('IdentityControl: with nobody picked, the chip opens the picker and hides â
   fireEvent.click(getByLabelText('Pick who you are'))
   expect(pickMe).toHaveBeenCalled()
   delete window.__sweepPickMe
+})
+
+test('MatchCard shows the one-line local date/time and no timezone label', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: null, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, queryByText, container } = render(
+    <MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />
+  )
+  expect(getByText('Sun, 14 June Â· 8:00 AM')).toBeTruthy()
+  expect(queryByText(/AEST/)).toBeNull()
+  expect(container.querySelector('.mc-time').textContent).not.toMatch(/AEST/)
 })
