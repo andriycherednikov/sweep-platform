@@ -96,6 +96,31 @@ export function predictionLeaderboard(limit = 4){
     .slice(0, limit);
 }
 
+/* a single person's prediction history: every fixture they picked, with a verdict.
+   verdict: 'correct' | 'wrong' for finals (winner team, or DRAW on a level final),
+   null for upcoming/live (unresolved). Sorted by kickoff ascending. */
+export function predictionsOf(personId){
+  const out = [];
+  for (const f of S.fixtures){
+    const pick = (support[f.id] || {})[personId];
+    if (!pick) continue;
+    let verdict = null;
+    if (f.status === "final" && f.score){
+      const [a, b] = f.score;
+      const result = a > b ? f.t1 : b > a ? f.t2 : DRAW;
+      verdict = pick === result ? "correct" : "wrong";
+    }
+    out.push({ f, pick, verdict });
+  }
+  return out.sort((x, y) => x.f.ko - y.f.ko);
+}
+
+/* resolved-only accuracy for the header tile: { correct, total } over finals. */
+export function predictionAccuracy(personId){
+  const preds = predictionsOf(personId).filter(p => p.f.status === "final" && p.f.score);
+  return { correct: preds.filter(p => p.verdict === "correct").length, total: preds.length };
+}
+
 export function useSocial(){
   const [,force] = useState(0);
   useEffect(()=>{ const fn=()=>force(x=>x+1); socialListeners.add(fn); return ()=>socialListeners.delete(fn); },[]);
