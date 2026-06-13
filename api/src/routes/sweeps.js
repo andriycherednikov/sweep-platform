@@ -1,7 +1,7 @@
-import { eq, or } from 'drizzle-orm'
-import { sweep } from '../db/schema.js'
+import { eq, or, and } from 'drizzle-orm'
+import { sweep, person, ownership } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
-import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSuper } from '../sweeps/auth.js'
+import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSuper, requireSweep } from '../sweeps/auth.js'
 
 const sessionBody = {
   type: 'object', required: ['token'], additionalProperties: false,
@@ -87,5 +87,60 @@ export async function sweepsRoutes(app) {
     if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
     await app.db.update(sweep).set({ archivedAt: new Date() }).where(eq(sweep.id, id))
     return { id, archived: true }
+  })
+
+  const groupAdmin = requireSweep(['admin'])
+
+  const personBody = {
+    type: 'object', required: ['name', 'short', 'initials', 'av'], additionalProperties: false,
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 80 },
+      short: { type: 'string', minLength: 1, maxLength: 40 },
+      initials: { type: 'string', minLength: 1, maxLength: 4 },
+      av: { type: 'string', minLength: 1, maxLength: 20 },
+    },
+  }
+  const ownBody = {
+    type: 'object', required: ['personId', 'teamCode'], additionalProperties: false,
+    properties: { personId: { type: 'string' }, teamCode: { type: 'string' } },
+  }
+
+  app.post('/api/admin/people', { preHandler: groupAdmin, schema: { body: personBody } }, async (req, reply) => {
+    const id = `pn_${newToken(12)}`
+    const { name, short, initials, av } = req.body
+    await app.db.insert(person).values({ id, sweepId: req.sweep.id, name, short, initials, avColor: av })
+    return reply.code(201).send({ id, name, short, initials, av })
+  })
+
+  app.delete('/api/admin/people/:id', { preHandler: groupAdmin }, async (req, reply) => {
+    const where = and(eq(person.id, req.params.id), eq(person.sweepId, req.sweep.id))
+    const [p] = await app.db.select().from(person).where(where)
+    if (!p) return reply.code(404).send({ error: 'not_found' })
+    await app.db.delete(ownership).where(and(eq(ownership.personId, p.id), eq(ownership.sweepId, req.sweep.id)))
+    await app.db.delete(person).where(where)
+    return { id: p.id, deleted: true }
+  })
+
+  app.post('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req, reply) => {
+    const sweepId = req.sweep.id
+    const { personId, teamCode } = req.body
+    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
+    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    try {
+      await app.db.insert(ownership).values({ sweepId, personId, teamCode })
+    } catch (e) {
+      // pk(person_id, team_code) violation → this person already owns this team.
+      // Co-ownership is allowed: a different person owning the same team is NOT a conflict.
+      if (e?.code === '23505') return reply.code(409).send({ error: 'already_owned' })
+      throw e
+    }
+    return reply.code(201).send({ personId, teamCode })
+  })
+
+  app.delete('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req) => {
+    const sweepId = req.sweep.id
+    const { personId, teamCode } = req.body
+    await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), eq(ownership.personId, personId), eq(ownership.teamCode, teamCode)))
+    return { personId, teamCode, removed: true }
   })
 }
