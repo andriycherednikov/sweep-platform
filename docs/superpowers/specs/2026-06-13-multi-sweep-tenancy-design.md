@@ -220,6 +220,22 @@ or mutate any sweep**. This is the concrete protection against stumbling-and-cor
 - **Host-binding:** default-sweep people are served only on `sweep.yowiebay.au`.
 - **Co-ownership:** two people in one sweep CAN both own `BRA` (and the seed produces
   3–5 owners per team) — assert this is preserved, not rejected.
+- **Global-data routes that read per-tenant tables** (`GET /api/teams/:code` owners,
+  `GET /api/fixtures?person=`) MUST also be sweep-guarded + scoped — the `team`/`fixture`
+  tables are global but their owner/ownership reads are per-tenant. (A final review caught
+  `teams.js` leaking the cross-sweep roster unauthenticated; now fixed + regression-tested.)
+
+## 13. Known limitation — token rotation revocation
+
+Rotating a sweep's token blocks **new** `POST /api/session` exchanges immediately, but a
+**already-minted** `sweep_session` cookie stays valid until it expires (`COOKIE_MAX_AGE`,
+8h) — the resolver re-checks the sweep exists and is not archived every request, but does
+not re-validate the token. So rotation is "revoke the link going forward, with an ≤8h tail
+on existing sessions," not instant session kill. Acceptable for a friendly-community app;
+if instant revoke is needed later, embed a token version in the cookie and re-verify it in
+the resolver (note: the default sweep has no token, so a version counter, not the token
+itself, is the portable mechanism). Archiving a sweep IS effectively instant (resolver
+rejects archived sweeps every request).
 - **Migration:** existing rows all land in the default sweep with counts intact.
 - **SSE scoping:** a social event in A is not delivered to a B subscriber; a goal is
   delivered to both.

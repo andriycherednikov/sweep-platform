@@ -1577,3 +1577,15 @@ git status
 - **§7 frontend + §8 Caddy + §6 admin UIs** → **out of scope for Plan A; these are Plan B.**
 
 > **Deferred to Plan B:** frontend context routing + `/api/session` bootstrap + "My sweeps" switcher; super-admin console UI; group-admin people/draw/moderation UI; the `worldcupsweep.yowiebay.au` Caddy site block.
+
+## Post-execution corrections (discovered during build + final review)
+
+These were not in the original task list; they were found and fixed during execution and are recorded here for accuracy:
+
+- **Co-ownership** (commits `52cba74`, `5fa8bc7`): the original plan's `UNIQUE(sweep_id, team_code)` was wrong — co-ownership is the model. Index removed from schema, migration, and drizzle snapshot; dev DB verified (127 ownership rows, max 5 owners/team).
+- **Green-at-every-commit sequencing**: Task 2's "full suite green" gate was impossible as written (deleting `scoring_config` + adding `NOT NULL sweep_id` breaks consumers fixed in Tasks 6–8). Resolved by pulling minimal transitional `'default'` edits into Task 2 and the admin-auth assertion migration into Task 8.
+- **Cross-sweep leak in legacy routes** (commit `0922f08`, final review): `GET /api/teams/:code` (unauthenticated) and `GET /api/fixtures?person=` read `ownership`/`person` cross-sweep — they were never in the original scoping tasks. Now guarded with `requireSweep` + `sweep_id`-scoped, with regression tests. Super-token comparison made constant-time.
+- **Photo-event SSE scoping** (Task 12, expanded): `photo-pending`/`photo-approved`/`photo-removed` now carry `sweepId` so the moderation badge + photo refresh don't broadcast across sweeps.
+- **Token-rotation revocation** is best-effort (≤8h cookie tail), not instant — see spec §13. A deliberate follow-up if instant revoke is required.
+
+**Final state:** 152 api tests green (33 files), web build clean, dev DB migrated. Every per-tenant query across all 8 route files is `sweep_id`-scoped (verified by grep + final review).
