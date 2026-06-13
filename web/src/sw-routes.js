@@ -8,6 +8,7 @@
 //   cacheName    - the named runtime cache
 //   pathPrefix   - match requests whose URL pathname starts with this (optional)
 //   origins      - match requests to one of these origins (optional)
+//   excludePaths - paths under pathPrefix the SW must NOT handle (optional)
 //   maxEntries   - ExpirationPlugin cap (optional)
 //   maxAgeSeconds- ExpirationPlugin TTL (optional)
 export const SW_ROUTES = [
@@ -16,6 +17,7 @@ export const SW_ROUTES = [
     strategy: 'NetworkFirst',
     cacheName: 'sweep-api',
     pathPrefix: '/api',
+    excludePaths: ['/api/stream'], // never intercept the SSE EventSource stream
     maxEntries: 64,
     maxAgeSeconds: 60 * 60, // 1h cap on the offline fallback snapshot
   },

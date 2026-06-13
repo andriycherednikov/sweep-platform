@@ -26,6 +26,11 @@ describe('service-worker runtime caching contract', () => {
     expect(r.maxAgeSeconds).toBeGreaterThan(0)
   })
 
+  test('/api excludes the SSE stream endpoint so it is never cached', () => {
+    const r = byId('api')
+    expect(r.excludePaths).toContain('/api/stream')
+  })
+
   test('every route names a distinct cache', () => {
     const names = SW_ROUTES.map((r) => r.cacheName)
     expect(new Set(names).size).toBe(names.length)

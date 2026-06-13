@@ -32,6 +32,7 @@ for (const route of SW_ROUTES) {
     )
   }
   const match = ({ url }) => {
+    if (route.excludePaths && route.excludePaths.some((p) => url.pathname.startsWith(p))) return false
     if (route.pathPrefix && url.pathname.startsWith(route.pathPrefix)) return true
     if (route.origins && route.origins.includes(url.origin)) return true
     return false
