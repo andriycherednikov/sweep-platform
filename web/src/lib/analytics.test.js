@@ -34,6 +34,10 @@ test('trackPageview forwards a page_view event with the path', () => {
   )
 })
 
+test('trackPageview is a silent no-op when gtag is absent', () => {
+  expect(() => trackPageview('/x')).not.toThrow()
+})
+
 test('trackPageview swallows a throwing gtag (never breaks the app)', () => {
   window.gtag = () => { throw new Error('boom') }
   expect(() => trackPageview('/x')).not.toThrow()

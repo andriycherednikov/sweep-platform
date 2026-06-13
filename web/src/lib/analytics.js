@@ -24,8 +24,9 @@ export function initAnalytics() {
   window.dataLayer = window.dataLayer || []
   window.gtag = function gtag() { window.dataLayer.push(arguments) }
   window.gtag('js', new Date())
-  // send_page_view:false — this is an SPA; we emit pageviews ourselves on route change.
-  window.gtag('config', GA_ID, { anonymize_ip: true, send_page_view: false })
+  // send_page_view:false — SPA; we emit pageviews on route change.
+  // (GA4 anonymizes IP by design — no explicit flag needed.)
+  window.gtag('config', GA_ID, { send_page_view: false })
 }
 
 export function trackPageview(path) {
