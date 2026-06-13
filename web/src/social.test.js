@@ -6,11 +6,29 @@ vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({ watching: true })),
   postSupport: vi.fn(async () => ({ supporting: 'hr' })),
 }))
+vi.mock('./lib/analytics.js', () => ({ trackEvent: vi.fn() }))
 import { postWatch, postSupport } from './api/client.js'
+import { trackEvent } from './lib/analytics.js'
 import {
   getMe, setMe, watchersOf, toggleWatch, isWatching,
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
 } from './social.js'
+
+function seedFixture() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'A', pool: 'P', color: '#c00', strength: 80 },
+        { code: 'br', name: 'Brazil', group: 'A', pool: 'P', color: '#0c0', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Andriy', short: 'Andriy', initials: 'A', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', ko: '2026-06-20T18:00:00Z', t1: 'hr', t2: 'br', status: 'upcoming', group: 'A', stage: 'group', prob: null, score: null }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+}
 
 beforeEach(() => {
   localStorage.clear()
@@ -109,4 +127,23 @@ test('writes require identity — no me means no POST', () => {
   window.__sweepPickMe = vi.fn()
   expect(toggleWatch('m1')).toBe(false)
   expect(postWatch).not.toHaveBeenCalled()
+})
+
+test('setSupport emits vote_cast with home/away/draw pick + match_id when a pick is set', () => {
+  seedFixture()
+  setMe('p1')
+  setSupport('m1', 'hr') // hr === t1 → home
+  expect(trackEvent).toHaveBeenCalledWith('vote_cast', { pick: 'home', match_id: 'm1' })
+
+  setSupport('m1', 'br') // switch to t2 → away (replaces the pick)
+  expect(trackEvent).toHaveBeenCalledWith('vote_cast', { pick: 'away', match_id: 'm1' })
+})
+
+test('setSupport does NOT emit vote_cast when a pick is removed (re-tap)', () => {
+  seedFixture()
+  setMe('p1')
+  setSupport('m1', 'hr')      // set
+  trackEvent.mockClear()
+  setSupport('m1', 'hr')      // same code again → un-vote
+  expect(trackEvent).not.toHaveBeenCalled()
 })
