@@ -36,7 +36,7 @@
 - `api/test/sweeps-resolve.test.js`, `api/test/sweeps-session.test.js`, `api/test/sweeps-isolation.test.js`, `api/test/sweeps-admin.test.js`, `api/test/tokens.test.js`, `api/test/sweeps-sse.test.js` — new tests.
 
 **Modified:**
-- `api/src/db/schema.js` — `sweep` table; `sweepId` on `person`/`ownership`/`watch`/`support`/`photo`; `UNIQUE(sweepId, teamCode)` on `ownership`; drop `scoringConfig`.
+- `api/src/db/schema.js` — `sweep` table; `sweepId` on `person`/`ownership`/`watch`/`support`/`photo`; drop `scoringConfig`. (No unique index on `ownership` — co-ownership is intentional.)
 - `api/migrations/0008_*.sql` (generated then hand-edited) + `meta` snapshot/journal.
 - `api/src/seed/seed.js` — stamp `sweepId='default'`, stop inserting `scoringConfig`.
 - `api/src/app.js` — register cookie secret already present; decorate `platformHost`; register `sweepResolver`; register `sweepsRoutes`.
@@ -121,8 +121,13 @@ This task lands the schema change, the data-safe migration, and the seed update 
 
 Add the `sweep` table at the top (after imports), add `sweepId` to the five per-tenant tables, add the unique index on `ownership`, and delete the `scoringConfig` export. Final state of the changed parts:
 
+> **Co-ownership note (corrected 2026-06-13):** do NOT add a `UNIQUE(sweep_id, team_code)`
+> index — co-ownership is the model (3–5 owners per team; `coOwners='all_win'`). The
+> `ownership` PK stays `(person_id, team_code)`. Earlier drafts of the blocks below
+> included a `uniqueIndex`; the corrected versions omit it.
+
 ```js
-import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial } from 'drizzle-orm/pg-core'
 
 export const sweep = pgTable('sweep', {
   id: text('id').primaryKey(),
@@ -152,7 +157,6 @@ export const ownership = pgTable('ownership', {
   teamCode: text('team_code').notNull().references(() => team.code),
 }, (t) => ({
   pk: primaryKey({ columns: [t.personId, t.teamCode] }),
-  oneOwnerPerTeam: uniqueIndex('ownership_sweep_team_uq').on(t.sweepId, t.teamCode),
 }))
 ```
 
@@ -241,7 +245,7 @@ ALTER TABLE "watch"     ADD CONSTRAINT "watch_sweep_id_sweep_id_fk"     FOREIGN 
 ALTER TABLE "support"   ADD CONSTRAINT "support_sweep_id_sweep_id_fk"   FOREIGN KEY ("sweep_id") REFERENCES "sweep"("id");--> statement-breakpoint
 ALTER TABLE "photo"     ADD CONSTRAINT "photo_sweep_id_sweep_id_fk"     FOREIGN KEY ("sweep_id") REFERENCES "sweep"("id");--> statement-breakpoint
 -- One owner per team per sweep.
-CREATE UNIQUE INDEX IF NOT EXISTS "ownership_sweep_team_uq" ON "ownership" ("sweep_id","team_code");--> statement-breakpoint
+-- (No unique index on ownership — co-ownership is intentional.)
 -- Scoring folded into sweep; drop the old single-row table.
 DROP TABLE IF EXISTS "scoring_config";
 ```
@@ -287,14 +291,44 @@ In `api/test/schema.test.js`, change the reference-table assertion so it no long
   }
 ```
 
-- [ ] **Step 6: Keep `bootstrap.test.js` green (scoring still surfaces)**
+- [ ] **Step 6: Transitional consumer edits (keep the suite green at this commit)**
 
-`bootstrap.test.js` asserts `body.scoring.rule === 'top3'`. Bootstrap will return scoring from the resolved sweep (Task 6). No edit needed now if the assertion stays `rule === 'top3'`; leave it.
+The schema change is a breaking change: deleting the `scoringConfig` export crashes `bootstrap.js`'s dead import, and the new `NOT NULL sweep_id` rejects every insert that doesn't supply it. Tasks 6–8 fully rewrite these routes with real scoping; for **this** commit we make the *minimal* edits to keep single-tenant behavior working with a hardcoded `'default'`. These hardcoded values are replaced by `req.sweep.id` in Tasks 6–8.
 
-- [ ] **Step 7: Run the full suite to verify migration + seed are green**
+- `api/src/routes/bootstrap.js` — read scoring from the default sweep instead of `scoring_config`:
+```js
+import { eq } from 'drizzle-orm'
+import { team, person, ownership, sweep } from '../db/schema.js'
+import { serializeTeam, serializePerson } from '../serialize.js'
+
+export async function bootstrapRoutes(app) {
+  app.get('/api/bootstrap', async () => {
+    const [teams, people, owns, sweeps] = await Promise.all([
+      app.db.select().from(team),
+      app.db.select().from(person),
+      app.db.select().from(ownership),
+      app.db.select().from(sweep).where(eq(sweep.id, 'default')),
+    ])
+    const ownership_ = {}
+    for (const o of owns) (ownership_[o.personId] ??= []).push(o.teamCode)
+    const s = sweeps[0]
+    return {
+      teams: teams.map(serializeTeam),
+      people: people.map(serializePerson),
+      ownership: ownership_,
+      scoring: s ? { rule: s.scoringRule, coOwners: s.coOwners } : null,
+    }
+  })
+}
+```
+- `api/src/routes/social.js` — add `sweepId: 'default'` to the `watch` and `support` inserts.
+- `api/src/routes/photos.js` — add `sweepId: 'default'` to the `photo` insert.
+- Test files that insert `watch`/`support`/`photo` directly — add `sweepId: 'default'`: `api/test/detail.test.js`, `api/test/admin-photos.test.js`, `api/test/baseline-sync.test.js`.
+
+- [ ] **Step 7: Run the full suite to verify migration + seed + transitional edits are green**
 
 Run: `npm run test -w api`
-Expected: all tests pass. Bootstrap/social/photo tests still pass because every existing row is now in the `'default'` sweep and routes are not yet scoped. (If a NOT NULL or FK error appears, the migration SQL ordering is wrong — re-check Step 3.)
+Expected: ALL tests pass (every existing row is in the `'default'` sweep; consumers supply `sweepId: 'default'`). If a NOT NULL or FK error appears, the migration SQL ordering is wrong — re-check Step 3; if a remaining `scoring_config`/undefined error appears, a consumer edit in Step 6 was missed.
 
 - [ ] **Step 8: Apply the migration to the shared dev DB** *(per project memory: green tests ≠ migrated dev DB)*
 
@@ -304,8 +338,10 @@ Expected: `migrations applied`.
 - [ ] **Step 9: Commit**
 
 ```bash
-git add api/src/db/schema.js api/migrations api/src/seed/seed.js api/test/schema.test.js
-git commit -m "feat(api): multi-sweep schema + data-safe migration + seed default sweep"
+git add api/src/db/schema.js api/migrations api/src/seed/seed.js api/test/schema.test.js \
+  api/src/routes/bootstrap.js api/src/routes/social.js api/src/routes/photos.js \
+  api/test/detail.test.js api/test/admin-photos.test.js api/test/baseline-sync.test.js
+git commit -m "feat(api): multi-sweep schema + data-safe migration + seed (single-tenant default preserved)"
 ```
 
 ---
@@ -1000,9 +1036,12 @@ Example list query:
   })
 ```
 
-- [ ] **Step 5: Update `upload.test.js` and `admin-photos.test.js`**
+- [ ] **Step 5: Update `upload.test.js`, `admin-photos.test.js`, and `admin-auth.test.js`**
 
-Both run on `localhost` (default sweep). For admin tests, the login now sets `sweep_session` (not `sweep_admin`) — update any literal `/sweep_admin=/` matcher to `/sweep_session=/`, and keep using the returned `set-cookie` value as-is. Upload tests pass through `member` (default sweep) so they need no auth changes; if a test asserts a stored row's columns, add `sweepId: 'default'`.
+All run on `localhost` (default sweep). The login now sets `sweep_session` (not `sweep_admin`) and `/api/admin/*` is guarded by `requireSweep(['admin'])`:
+- `admin-photos.test.js` / `admin-auth.test.js`: change any `/sweep_admin=/` matcher to `/sweep_session=/`; keep using the returned `set-cookie` value as-is.
+- `admin-auth.test.js`: the "401 without a cookie" assertion on `/api/admin/me` becomes **403** (an anon request resolves to default-sweep `member`, which `requireSweep(['admin'])` forbids). This pulls Task 9's *test* migration forward so the branch stays green; Task 9 then only removes the legacy code.
+- Upload tests pass through `member` (default sweep) so need no auth changes; if a test asserts a stored row's columns, add `sweepId: 'default'`.
 
 - [ ] **Step 6: Run tests to verify they pass**
 
@@ -1017,26 +1056,28 @@ Expected: all pass.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add api/src/routes/photos.js api/src/routes/admin.js api/test/upload.test.js api/test/admin-photos.test.js api/test/sweeps-isolation.test.js
+git add api/src/routes/photos.js api/src/routes/admin.js api/test/upload.test.js api/test/admin-photos.test.js api/test/sweeps-isolation.test.js api/test/admin-auth.test.js
 git commit -m "feat(api): scope photos + admin moderation to the sweep; unify admin cookie"
 ```
 
 ---
 
-## Task 9: Migrate `admin-auth.test.js` + remove legacy `requireAdmin`
+## Task 9: Remove legacy `requireAdmin` (test already migrated in Task 8)
+
+> **Note:** the `admin-auth.test.js` assertion migration (`/sweep_admin/`→`/sweep_session/`, and the no-cookie `/api/admin/me` 401→403) was pulled forward into Task 8 to keep the branch green. So Task 9 is now **only** the legacy-code removal. Confirm `admin-auth.test.js` is already green first.
 
 **Files:**
-- Modify: `api/test/admin-auth.test.js`
 - Modify: `api/src/auth.js` (drop `ADMIN_COOKIE`, `COOKIE_MAX_AGE`, `requireAdmin`; keep `verifyPasscode`)
 
-- [ ] **Step 1: Update `admin-auth.test.js`**
-
-Change the cookie matcher from `/sweep_admin=/` to `/sweep_session=/`. The login/me/logout flow is otherwise identical (passcode → cookie → `/api/admin/me` 200; wrong passcode → 401, no cookie). Confirm `app = buildApp(db, { adminHash, sessionSecret })` still constructs (it does; `platformHost` defaults).
-
-- [ ] **Step 2: Run test to verify it fails first if you forget the cookie rename**
+- [ ] **Step 1: Confirm `admin-auth.test.js` is already green**
 
 Run: `npm run test -w api -- admin-auth`
-Expected: PASS after the rename (it would FAIL on the old `/sweep_admin=/` matcher).
+Expected: PASS (migrated in Task 8). If it fails, finish that migration here before removing code.
+
+- [ ] **Step 2: Confirm nothing imports the legacy exports**
+
+Run: `grep -rn "requireAdmin\|ADMIN_COOKIE" api/src`
+Expected: only `api/src/auth.js` itself appears (the definitions). If any route still imports them, stop — a prior task missed the switch.
 
 - [ ] **Step 3: Remove legacy auth code**
 
@@ -1050,7 +1091,7 @@ Expected: all pass; `grep -rn "requireAdmin\|ADMIN_COOKIE" api/src` returns noth
 - [ ] **Step 5: Commit**
 
 ```bash
-git add api/src/auth.js api/test/admin-auth.test.js
+git add api/src/auth.js
 git commit -m "refactor(api): retire legacy single-admin cookie in favor of sweep session"
 ```
 
@@ -1257,14 +1298,19 @@ test('a member cookie cannot reach group-admin routes (403)', async () => {
   expect(res.statusCode).toBe(403)
 })
 
-test('assigning an already-owned team in the same sweep is rejected (409)', async () => {
+test('co-ownership allowed: two people CAN own the same team; same person twice is 409', async () => {
+  // Co-ownership is the model (coOwners=all_win). A team may have many owners in a sweep.
+  // The only conflict is the (person_id, team_code) PK: the SAME person owning the SAME team twice.
   const su = await superCookie()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
   const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
+  // two different people co-own 'ar' — both succeed
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(201)
-  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: b.id, teamCode: 'ar' } })).statusCode).toBe(409)
+  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: b.id, teamCode: 'ar' } })).statusCode).toBe(201)
+  // same person assigned the same team twice → 409 (PK violation)
+  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(409)
 })
 ```
 
@@ -1318,7 +1364,8 @@ In `api/src/routes/sweeps.js`, add imports `import { person, ownership } from '.
     try {
       await app.db.insert(ownership).values({ sweepId, personId, teamCode })
     } catch (e) {
-      // unique(sweep_id, team_code) or pk(person, team) violation → already owned
+      // pk(person_id, team_code) violation → this person already owns this team.
+      // (Co-ownership is allowed: a different person owning the same team is NOT a conflict.)
       if (e?.code === '23505') return reply.code(409).send({ error: 'already_owned' })
       throw e
     }
@@ -1347,17 +1394,17 @@ Expected: all pass.
 
 ```bash
 git add api/src/routes/sweeps.js api/test/sweeps-admin.test.js
-git commit -m "feat(api): group-admin people CRUD + draw assignment (one owner per team)"
+git commit -m "feat(api): group-admin people CRUD + draw assignment (co-ownership allowed)"
 ```
 
 ---
 
-## Task 12: SSE scoping — social events per sweep, match events global
+## Task 12: SSE scoping — social + photo events per sweep, match events global
 
-The bus is a single fan-out. Social publishers already include `sweepId` (Task 7). Now the stream filters: a subscriber on sweep X receives social events for X only; match events (no `sweepId`) reach everyone.
+The bus is a single fan-out. The filter rule: an event WITH a `sweepId` is delivered only to subscribers on that sweep; an event WITHOUT a `sweepId` (match events: `lineups`/`score`/`goal`/`card` from the worker) reaches everyone. Social events (`watch`/`support`) already carry `sweepId` (Task 7). **Photo events (`photo-pending`/`photo-approved`/`photo-removed`) currently do NOT carry `sweepId`, so they'd leak across sweeps (admin moderation badge + photo refresh).** This task implements the stream filter AND adds `sweepId` to the three photo events.
 
 **Files:**
-- Modify: `api/src/routes/stream.js`
+- Modify: `api/src/routes/stream.js` (filter), `api/src/routes/photos.js` (`photo-pending`), `api/src/routes/admin.js` (`photo-approved`, `photo-removed`)
 - Test: `api/test/sweeps-sse.test.js`
 
 - [ ] **Step 1: Write the failing test**
@@ -1367,9 +1414,11 @@ The bus is a single fan-out. Social publishers already include `sweepId` (Task 7
 import { expect, test } from 'vitest'
 import { filterEventForSweep } from '../src/routes/stream.js'
 
-test('social events only pass to the matching sweep', () => {
+test('events with a sweepId only pass to the matching sweep (social + photo)', () => {
   expect(filterEventForSweep({ type: 'watch', sweepId: 'a', fixtureId: 'm0' }, 'a')).toBe(true)
   expect(filterEventForSweep({ type: 'watch', sweepId: 'a', fixtureId: 'm0' }, 'b')).toBe(false)
+  expect(filterEventForSweep({ type: 'photo-pending', sweepId: 'a' }, 'a')).toBe(true)
+  expect(filterEventForSweep({ type: 'photo-pending', sweepId: 'a' }, 'b')).toBe(false)
 })
 
 test('events without a sweepId (match events) pass to everyone', () => {
@@ -1420,24 +1469,40 @@ export async function streamRoutes(app) {
 }
 ```
 
-> The global `sweepResolver` preHandler runs before this handler, so `req.sweep` is set (default sweep on the community host, the cookie's sweep on the platform host). A platform-host stream with no cookie has `req.sweep === null` → receives only global match events, never social ones.
+> The global `sweepResolver` preHandler runs before this handler, so `req.sweep` is set (default sweep on the community host, the cookie's sweep on the platform host). A platform-host stream with no cookie has `req.sweep === null` → receives only global match events, never scoped ones.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [ ] **Step 4: Add `sweepId` to the three photo events (so they're scoped, not global)**
 
-Run: `npm run test -w api -- sweeps-sse stream`
-Expected: PASS (new unit tests + existing `stream.test.js`; if `stream.test.js` asserts a payload that previously had no `sweepId`, it is unaffected since match events still omit it).
+- `api/src/routes/photos.js` — the `POST /api/photos` handler has `req.sweep`. Change the publish to:
+```js
+    await app.publish({ type: 'photo-pending', sweepId: req.sweep.id })
+```
+- `api/src/routes/admin.js` — both moderation publishes have `req.sweep`. Add `sweepId: req.sweep.id`:
+```js
+      await app.publish({ type: 'photo-approved', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
+```
+```js
+    await app.publish({ type: 'photo-removed', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
+```
+(The stream strips `sweepId` from the payload before sending, so the client-facing event shape is unchanged — the frontend still gets `{type:'photo-pending'}` etc.)
 
-- [ ] **Step 5: Run the full suite**
+- [ ] **Step 5: Run tests to verify they pass**
+
+Run: `npm run test -w api -- sweeps-sse stream upload admin-photos`
+Expected: PASS. If `stream.test.js` or `admin-photos.test.js` asserts an exact published photo-event payload, add `sweepId: 'default'` to that expectation (those tests run on the default sweep).
+
+- [ ] **Step 6: Run the full suite**
 
 Run: `npm run test -w api`
 Expected: all pass.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add api/src/routes/stream.js api/test/sweeps-sse.test.js
-git commit -m "feat(api): sweep-scope SSE social events; match events stay global"
+git add api/src/routes/stream.js api/src/routes/photos.js api/src/routes/admin.js api/test/sweeps-sse.test.js api/test/stream.test.js api/test/admin-photos.test.js
+git commit -m "feat(api): sweep-scope SSE social + photo events; match events stay global"
 ```
+(Only `git add` the test files you actually had to edit.)
 
 ---
 
@@ -1502,13 +1567,13 @@ git status
 
 ## Self-review notes (coverage vs spec)
 
-- **§3 data model** → Task 2 (sweep table, `sweepId` columns, `UNIQUE(sweep_id, team_code)`, dropped `scoring_config`, server-generated ids in Tasks 10–11).
+- **§3 data model** → Task 2 (sweep table, `sweepId` columns, dropped `scoring_config`, server-generated ids in Tasks 10–11). Co-ownership preserved — no unique index on `ownership`.
 - **§4 resolution + token→cookie + auth roles** → Tasks 3, 4, 5, 8 (default-sweep admin via passcode→scoped cookie), 10 (super).
 - **§4 write-protection** → Task 6 (platform host + no cookie → 401) and the `requireSweep`/`requireSuper` guards.
 - **§5 SSE scoping** → Task 12.
 - **§6 admin surfaces (backend)** → Tasks 10 (super CRUD) + 11 (group-admin people/draw); the **UIs** are Plan B.
 - **§9 migration order** → Task 2 Step 3 (nullable → backfill → NOT NULL → FK → unique → drop).
-- **§10 testing guardrails** → isolation (Tasks 6–8), auth (5, 9, 10, 11), host-binding (6), constraint (11), migration (2), SSE (12). **Host-binding via a distinct community host vs platform host is exercised through the platform-host/default-host split**; an explicit "default people only on the community host" assertion is covered by Task 6 Step 1 test #1 (`pb1` never appears on the default host) and test #3 (platform host without cookie is 401).
+- **§10 testing guardrails** → isolation (Tasks 6–8), auth (5, 9, 10, 11), host-binding (6), co-ownership preserved (11), migration (2), SSE (12). **Host-binding via a distinct community host vs platform host is exercised through the platform-host/default-host split**; an explicit "default people only on the community host" assertion is covered by Task 6 Step 1 test #1 (`pb1` never appears on the default host) and test #3 (platform host without cookie is 401).
 - **§7 frontend + §8 Caddy + §6 admin UIs** → **out of scope for Plan A; these are Plan B.**
 
 > **Deferred to Plan B:** frontend context routing + `/api/session` bootstrap + "My sweeps" switcher; super-admin console UI; group-admin people/draw/moderation UI; the `worldcupsweep.yowiebay.au` Caddy site block.
