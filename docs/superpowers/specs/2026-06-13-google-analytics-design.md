@@ -16,7 +16,7 @@ insight only; no per-person identification.
 |---|---|
 | Depth | Pageviews (SPA route changes) **+** key custom events |
 | Identity | **Anonymous only** — never send the viewer's id/name |
-| Consent | **No cookie banner**; rely on GA4 IP anonymization |
+| Consent | **No cookie banner**; rely on GA4's built-in (by-design) IP anonymization |
 | Environment | **Production builds only** — never loads in dev or tests |
 | Measurement ID | `G-6PZ0DXRS2D` — baked in as a default constant (a GA4 ID is public, not a secret); `VITE_GA_ID` is an optional override |
 | Library | **No dependency** — a thin in-repo wrapper around Google's `gtag.js` |
@@ -52,7 +52,9 @@ The single seam between the app and Google.
   - Idempotent (a module-level `initialized` flag prevents double-injection).
   - When enabled: inject the `https://www.googletagmanager.com/gtag/js?id=<ID>`
     script, define `window.dataLayer` + `gtag()`, then
-    `gtag('config', ID, { anonymize_ip: true, send_page_view: false })`.
+    `gtag('config', ID, { send_page_view: false })`. (We do **not** set
+    `anonymize_ip` — that is a Universal Analytics parameter GA4 ignores; GA4
+    anonymizes IP by design.)
   - `send_page_view: false` because this is an SPA — we emit pageviews ourselves on
     route change rather than letting gtag fire one only on hard load.
 - **`trackPageview(path)`** — `gtag('event', 'page_view', { page_path, page_location, page_title })`.
@@ -115,7 +117,8 @@ In dev and tests, step 1's guard fails, so steps 2–3 are no-ops.
 ## Privacy posture
 
 - No banner (private, invite-only ~45-person group).
-- `anonymize_ip: true`.
+- IP anonymization: GA4 anonymizes IP by design (no explicit flag — the UA-era
+  `anonymize_ip` is ignored by GA4).
 - No viewer identity, name, or device id is ever sent — only the event name, the
   virtual path, and the small param set above (`pick`, `match_id`).
 
