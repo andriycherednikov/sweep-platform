@@ -23,6 +23,10 @@ describe('vite-plugin-pwa options', () => {
     }
   })
 
+  test('excludes the oversized favicon.svg from the precache manifest', () => {
+    expect(pwaOptions.injectManifest.globIgnores).toContain('**/favicon.svg')
+  })
+
   test('enables the SW in dev so it can be exercised locally', () => {
     expect(pwaOptions.devOptions.enabled).toBe(true)
   })
