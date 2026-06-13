@@ -36,6 +36,7 @@ export function buildApp(db, opts = {}) {
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
   app.decorate('platformHost', opts.platformHost ?? process.env.PLATFORM_HOST ?? 'worldcupsweep.yowiebay.au')
+  app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
 
