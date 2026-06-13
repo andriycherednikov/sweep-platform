@@ -70,3 +70,27 @@ test('approved photos are scoped per sweep', async () => {
   const defPhotos = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
   expect(defPhotos.length).toBeGreaterThan(0)
 })
+
+test('GET /api/teams/:code only returns owners from the requesting sweep', async () => {
+  // default host: owners of 'hr' must NOT include sweep B's pb1
+  const def = (await app.inject({ method: 'GET', url: '/api/teams/hr' })).json()
+  expect(def.owners.some((o) => o.id === 'pb1')).toBe(false)
+  expect(def.owners.length).toBeGreaterThan(0) // default sweep does have hr owners
+  // sweep B: owners of 'hr' == exactly [pb1]
+  const cookie = await sessionCookie(memberB)
+  const b = (await app.inject({ method: 'GET', url: '/api/teams/hr', headers: { host: 'platform.test', cookie } })).json()
+  expect(b.owners.map((o) => o.id)).toEqual(['pb1'])
+})
+
+test('GET /api/teams/:code requires a sweep (401 on platform host w/o cookie)', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/teams/hr', headers: { host: 'platform.test' } })
+  expect(res.statusCode).toBe(401)
+})
+
+test('GET /api/fixtures?person= does not read ownership cross-sweep', async () => {
+  // pb1 (sweep B) owns 'hr'. On the DEFAULT host, pb1 is unknown, so the person filter
+  // must yield no hr-derived fixtures (cannot infer sweep B ownership from the default sweep).
+  const def = (await app.inject({ method: 'GET', url: '/api/fixtures?person=pb1' })).json()
+  // pb1 has no ownership in the default sweep → filter yields empty
+  expect(def).toEqual([])
+})
