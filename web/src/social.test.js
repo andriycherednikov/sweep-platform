@@ -150,3 +150,11 @@ test('setSupport does NOT emit vote_cast when a pick is removed (re-tap)', () =>
   setSupport('m1', 'hr')      // same code again → un-vote
   expect(trackEvent).not.toHaveBeenCalled()
 })
+
+test('setSupport does NOT emit vote_cast when the fixture is unknown', () => {
+  seedFixture()
+  setMe('p1')
+  trackEvent.mockClear()
+  setSupport('NOPE', 'hr') // 'NOPE' is not a seeded fixture id → S.fixture() is null
+  expect(trackEvent).not.toHaveBeenCalled()
+})
