@@ -137,6 +137,9 @@ test('setSupport emits vote_cast with home/away/draw pick + match_id when a pick
 
   setSupport('m1', 'br') // switch to t2 → away (replaces the pick)
   expect(trackEvent).toHaveBeenCalledWith('vote_cast', { pick: 'away', match_id: 'm1' })
+
+  setSupport('m1', 'DRAW') // DRAW sentinel → draw
+  expect(trackEvent).toHaveBeenCalledWith('vote_cast', { pick: 'draw', match_id: 'm1' })
 })
 
 test('setSupport does NOT emit vote_cast when a pick is removed (re-tap)', () => {
