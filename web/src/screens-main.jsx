@@ -65,7 +65,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     .filter(f => f.status !== "final" && f.id !== next.id)
     .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
     .slice(0,8);
-  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,4);
+  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,6);
   // pick a random group for the side standings — chosen once per mount so it stays stable across re-renders
   const groupKeys = Object.keys(S.standings);
   const grpKey = useMemo(() => groupKeys.length ? groupKeys[Math.floor(Math.random()*groupKeys.length)] : "A", [groupKeys.join(",")]);

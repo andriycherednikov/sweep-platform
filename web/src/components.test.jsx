@@ -236,6 +236,28 @@ test('HomeScreen latest-scores rows show goal scorers and a yellow/red card tall
   expect(getByTitle('1 red card')).toBeTruthy()
 })
 
+test('HomeScreen latest-scores shows at most 6 finished games (newest first)', () => {
+  const finals = Array.from({ length: 7 }, (_, i) => ({
+    id: `m${i + 1}`, group: 'A', matchday: 1, t1: 'mx', t2: 'za',
+    ko: `2026-06-${String(10 + i).padStart(2, '0')}T18:00:00Z`,
+    venue: 'V', city: 'C', status: 'final', score: [1, 0], minute: null,
+    prob: { a: 50, d: 25, b: 25 }, stage: 'group', events: [],
+  }))
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: finals, standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(container.querySelectorAll('.sidescores .res').length).toBe(6)
+})
+
 test('HomeScreen hero features the live match (score + minute) over the next kickoff', () => {
   setSweepData(assembleSweep({
     bootstrap: {
