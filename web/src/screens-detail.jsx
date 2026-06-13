@@ -118,37 +118,6 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             </div>
           ))}
 
-          <div className="sec-h"><h2>Prediction history</h2></div>
-          <div className="block">
-            {preds.length===0
-              ? <div className="pred-empty">No predictions yet.</div>
-              : preds.map(({f, pick, verdict})=>{
-                  const live = f.status==="live";
-                  const isDraw = pick===DRAW;
-                  return (
-                    <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
-                      <div className="fx-main">
-                        <div className="opp">
-                          <Flag code={f.t1} w={24} h={18}/>
-                          <span className={"nm"+(!isDraw&&pick===f.t1?" pick":"")}>{S.team(f.t1).name}</span>
-                          <span className="vs">v</span>
-                          <Flag code={f.t2} w={24} h={18}/>
-                          <span className={"nm"+(!isDraw&&pick===f.t2?" pick":"")}>{S.team(f.t2).name}</span>
-                          {isDraw && <span className="draw-chip">DRAW</span>}
-                        </div>
-                        <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
-                      </div>
-                      <div className="rr">
-                        {(f.status==="final"||live) && f.score && <span className="sc">{f.score[0]}–{f.score[1]}</span>}
-                        {verdict==="correct" && <span className="v-pill ok" title="Correct call">✓</span>}
-                        {verdict==="wrong" && <span className="v-pill no" title="Wrong call">✗</span>}
-                        {verdict===null && <span className="v-pill pending">pending</span>}
-                      </div>
-                    </div>
-                  );
-                })}
-          </div>
-
           <div className="sec-h"><h2>All their matches</h2></div>
           <div className="block">
             {myFixtures.map(f=>{
@@ -176,6 +145,38 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                 </div>
               );
             })}
+          </div>
+
+          <div className="sec-h"><h2>Prediction history</h2></div>
+          <div className="block">
+            {preds.length===0
+              ? <div className="pred-empty">No predictions yet.</div>
+              : preds.map(({f, pick, verdict})=>{
+                  const live = f.status==="live";
+                  const isDraw = pick===DRAW;
+                  return (
+                    <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
+                      <div className="fx-main">
+                        <div className="opp">
+                          <Flag code={f.t1} w={24} h={18}/>
+                          <span className="nm">{S.team(f.t1).name}</span>
+                          <span className="vs">v</span>
+                          <Flag code={f.t2} w={24} h={18}/>
+                          <span className="nm">{S.team(f.t2).name}</span>
+                        </div>
+                        <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                      </div>
+                      <div className="rr">
+                        {isDraw
+                          ? <span className="pick-draw" title="Picked a draw" role="img" aria-label="Picked a draw">🤝</span>
+                          : <span className="pick-flag" title={`Picked ${S.team(pick).name}`}><Flag code={pick} w={24} h={18}/></span>}
+                        {verdict==="correct" && <span className="v-pill ok" title="Correct call">✓</span>}
+                        {verdict==="wrong" && <span className="v-pill no" title="Wrong call">✗</span>}
+                        {verdict===null && <span className="v-pill pending">pending</span>}
+                      </div>
+                    </div>
+                  );
+                })}
           </div>
 
           {isMe && <div style={{marginTop:22}}><InstallButton/></div>}

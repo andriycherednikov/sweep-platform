@@ -438,8 +438,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .mini-fx .rr .sc{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; color:var(--navy);}
 .mini-fx .rr .res-pill{font-size:9px; font-weight:800; width:18px; height:18px; border-radius:5px; display:grid; place-items:center; color:#fff;}
 .res-pill.w{background:var(--live);} .res-pill.d{background:var(--muted2);} .res-pill.l{background:var(--accent);}
-.mini-fx .opp .nm.pick{color:var(--navy); font-weight:800;}
-.draw-chip{font-size:9px; font-weight:800; letter-spacing:.5px; color:var(--muted2); border:1px solid var(--line); border-radius:5px; padding:1px 5px; flex-shrink:0;}
+.mini-fx .rr .pick-flag{display:inline-flex; flex-shrink:0;}
+.mini-fx .rr .pick-flag img{width:24px; height:18px; border-radius:3px;}
+.mini-fx .rr .pick-draw{font-size:17px; line-height:1; flex-shrink:0;}
 .mini-fx .rr .v-pill{font-size:9px; font-weight:800; min-width:18px; height:18px; padding:0 5px; border-radius:5px; display:grid; place-items:center; color:#fff;}
 .v-pill.ok{background:var(--live);} .v-pill.no{background:var(--accent);}
 .v-pill.pending{background:transparent; color:var(--muted2); border:1px solid var(--line); font-size:8.5px; font-weight:700;}

@@ -273,9 +273,40 @@ test('PersonDetail prediction history shows the pick and a correct verdict', () 
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
   )
   expect(getByText('Prediction history')).toBeTruthy()
-  const pick = [...container.querySelectorAll('.nm.pick')].find(n => n.textContent === 'Croatia')
+  // pick is shown as the picked team's flag (title "Picked Croatia"), not the score
+  const pick = container.querySelector('.pick-flag')
   expect(pick).toBeTruthy()
+  expect(pick.getAttribute('title')).toBe('Picked Croatia')
   expect(container.querySelector('.v-pill.ok')).toBeTruthy()
+  // the score is no longer rendered in the prediction row
+  expect(container.querySelector('.rr .sc')).toBeNull()
+})
+
+test('PersonDetail shows a handshake (not a flag) for a draw pick', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+        venue: 'V', city: 'C', status: 'final', score: [1, 1], minute: null, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: { m1: { p1: 'DRAW' } } })
+  const noop = () => {}
+  const { container, getByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  expect(container.querySelector('.pick-draw')).toBeTruthy()
+  expect(container.querySelector('.pick-flag')).toBeNull()
+  expect(getByText('🤝')).toBeTruthy()
+  expect(container.querySelector('.v-pill.ok')).toBeTruthy() // DRAW correct on a level final
 })
 
 test('PersonDetail shows an empty state when the person made no predictions', () => {
