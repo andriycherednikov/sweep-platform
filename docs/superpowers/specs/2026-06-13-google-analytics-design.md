@@ -18,7 +18,7 @@ insight only; no per-person identification.
 | Identity | **Anonymous only** — never send the viewer's id/name |
 | Consent | **No cookie banner**; rely on GA4 IP anonymization |
 | Environment | **Production builds only** — never loads in dev or tests |
-| Measurement ID | Not created yet; human creates the GA4 property and supplies `G-XXXXXXXXXX` |
+| Measurement ID | `G-6PZ0DXRS2D` — baked in as a default constant (a GA4 ID is public, not a secret); `VITE_GA_ID` is an optional override |
 | Library | **No dependency** — a thin in-repo wrapper around Google's `gtag.js` |
 
 ## Why no dependency
@@ -45,7 +45,10 @@ All arrows funnel through one module. If GA is not enabled (dev, tests, or no
 The single seam between the app and Google.
 
 - **`initAnalytics()`**
-  - Guard: do nothing unless `import.meta.env.PROD && import.meta.env.VITE_GA_ID`.
+  - Resolve ID: `import.meta.env.VITE_GA_ID || 'G-6PZ0DXRS2D'` (default constant;
+    a GA4 Measurement ID is public, so it lives in source).
+  - Guard: do nothing unless `import.meta.env.PROD` and a resolved ID exists.
+    (Setting `VITE_GA_ID=""` is the escape hatch to disable.)
   - Idempotent (a module-level `initialized` flag prevents double-injection).
   - When enabled: inject the `https://www.googletagmanager.com/gtag/js?id=<ID>`
     script, define `window.dataLayer` + `gtag()`, then
@@ -92,12 +95,13 @@ Notes:
 
 ### Component 4 — Config / env
 
-- New var **`VITE_GA_ID`** (Vite auto-exposes `VITE_`-prefixed vars to the client).
-  Empty/unset ⇒ analytics fully disabled.
-- Add to `.env.example` (commented, no value) and to the env table in `CLAUDE.md`.
-- **Prod build must pass `VITE_GA_ID` at build time.** Vite inlines `import.meta.env`
-  at build, so the value must be present when `npm run build` runs in the
-  Docker/Caddy deploy. The plan will document the exact build-arg wiring.
+- The Measurement ID `G-6PZ0DXRS2D` is a **default constant in source** (a GA4 ID is
+  exposed in every GA page's HTML — not a secret). So the prod build needs **no
+  build-arg wiring** — `npm run build` Just Works in the Docker/Caddy deploy.
+- Optional override **`VITE_GA_ID`** (Vite auto-exposes `VITE_`-prefixed vars):
+  - Set to a different `G-…` to point a build at another property.
+  - Set to empty string to disable analytics in a prod build.
+- Document the override in `.env.example` (commented) and the `CLAUDE.md` env table.
 
 ## Data flow
 
@@ -136,10 +140,12 @@ analytics is enabled.
 
 ## Human steps (outside the code)
 
-1. Create a GA4 property in the Google Analytics console → add a Web data stream for
-   the prod domain(s) → copy the **Measurement ID** (`G-XXXXXXXXXX`).
-2. Provide it as `VITE_GA_ID` to the production build environment.
-   (Exact build-arg location documented in the implementation plan.)
+1. ✅ Done — GA4 property created, Measurement ID `G-6PZ0DXRS2D`.
+2. (Two domains) In the data stream → *Configure tag settings → Configure your
+   domains*, add both `sweep.andriycherednikov.com` and `sweep.yowiebay.au` so a
+   visitor crossing between them isn't double-counted.
+
+No build-env change required — the ID is baked into source and only loads in prod.
 
 ## Out of scope (YAGNI)
 
