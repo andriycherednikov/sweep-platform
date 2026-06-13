@@ -1,4 +1,4 @@
-import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial, index, unique, foreignKey } from 'drizzle-orm/pg-core'
 
 export const sweep = pgTable('sweep', {
   id: text('id').primaryKey(),
@@ -20,7 +20,11 @@ export const person = pgTable('person', {
   initials: text('initials').notNull(),
   avColor: text('av_color').notNull(),
   avatarPath: text('avatar_path'),
-})
+}, (t) => ({
+  sweepIdx: index('person_sweep_id_idx').on(t.sweepId),
+  // target for child composite FKs that pin a row to its person's sweep
+  idSweepUq: unique('person_id_sweep_id_uq').on(t.id, t.sweepId),
+}))
 
 export const team = pgTable('team', {
   code: text('code').primaryKey(),
@@ -34,11 +38,14 @@ export const team = pgTable('team', {
 })
 
 export const ownership = pgTable('ownership', {
-  sweepId: text('sweep_id').notNull().references(() => sweep.id),
-  personId: text('person_id').notNull().references(() => person.id),
+  sweepId: text('sweep_id').notNull(),
+  personId: text('person_id').notNull(),
   teamCode: text('team_code').notNull().references(() => team.code),
 }, (t) => ({
   pk: primaryKey({ columns: [t.personId, t.teamCode] }),
+  sweepIdx: index('ownership_sweep_id_idx').on(t.sweepId),
+  // composite FK pins (person, sweep) together — a row can never reference a person in another sweep
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'ownership_person_sweep_fk' }),
 }))
 
 export const teamCrosswalk = pgTable('team_crosswalk', {
@@ -93,24 +100,33 @@ export const syncLog = pgTable('sync_log', {
 })
 
 export const watch = pgTable('watch', {
-  sweepId: text('sweep_id').notNull().references(() => sweep.id),
+  sweepId: text('sweep_id').notNull(),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
-  personId: text('person_id').notNull().references(() => person.id),
-}, (t) => ({ pk: primaryKey({ columns: [t.fixtureId, t.personId] }) }))
+  personId: text('person_id').notNull(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.fixtureId, t.personId] }),
+  sweepIdx: index('watch_sweep_id_idx').on(t.sweepId),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'watch_person_sweep_fk' }),
+}))
 
 export const support = pgTable('support', {
-  sweepId: text('sweep_id').notNull().references(() => sweep.id),
+  sweepId: text('sweep_id').notNull(),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
-  personId: text('person_id').notNull().references(() => person.id),
+  personId: text('person_id').notNull(),
   // a pick: t1Code, t2Code, or the literal 'DRAW' (group-stage draw) — not a team FK
   teamCode: text('team_code').notNull(),
-}, (t) => ({ pk: primaryKey({ columns: [t.fixtureId, t.personId] }) }))
+}, (t) => ({
+  pk: primaryKey({ columns: [t.fixtureId, t.personId] }),
+  sweepIdx: index('support_sweep_id_idx').on(t.sweepId),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'support_person_sweep_fk' }),
+}))
 
 export const photo = pgTable('photo', {
   id: text('id').primaryKey(),
   sweepId: text('sweep_id').notNull().references(() => sweep.id),
   kind: text('kind').notNull(),
   uploaderName: text('uploader_name').notNull(),
+  // nullable (fan photos have no person), so it keeps single-column FKs rather than a composite tenant FK
   personId: text('person_id').references(() => person.id),
   fixtureId: text('fixture_id').references(() => fixture.id, { onDelete: 'set null' }),
   filePath: text('file_path').notNull(),
@@ -119,4 +135,6 @@ export const photo = pgTable('photo', {
   status: text('status').notNull().default('pending'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   moderatedAt: timestamp('moderated_at', { withTimezone: true }),
-})
+}, (t) => ({
+  sweepIdx: index('photo_sweep_id_idx').on(t.sweepId),
+}))

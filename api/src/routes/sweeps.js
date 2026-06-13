@@ -1,4 +1,4 @@
-import { timingSafeEqual } from 'node:crypto'
+import { createHash, timingSafeEqual } from 'node:crypto'
 import { eq, or, and } from 'drizzle-orm'
 import { sweep, person, ownership } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
@@ -51,8 +51,9 @@ export async function sweepsRoutes(app) {
     config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
     schema: { body: { type: 'object', required: ['token'], additionalProperties: false, properties: { token: { type: 'string', minLength: 1, maxLength: 200 } } } },
   }, async (req, reply) => {
-    const a = Buffer.from(String(req.body.token)), b = Buffer.from(String(app.superToken))
-    if (!app.superToken || a.length !== b.length || !timingSafeEqual(a, b)) {
+    // Constant-time compare on fixed-size SHA-256 digests (no length leak).
+    const digest = (s) => createHash('sha256').update(String(s)).digest()
+    if (!app.superToken || !timingSafeEqual(digest(req.body.token), digest(app.superToken))) {
       return reply.code(401).send({ error: 'unauthorized' })
     }
     reply.setCookie(SUPER_COOKIE, reply.signCookie('ok'), {

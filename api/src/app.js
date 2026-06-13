@@ -35,7 +35,12 @@ export function buildApp(db, opts = {}) {
 
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
-  app.decorate('platformHost', opts.platformHost ?? process.env.PLATFORM_HOST ?? 'worldcupsweep.yowiebay.au')
+  // Host that serves token-scoped sweeps. Required in production; a non-routable
+  // sentinel in dev/test so it never collides with localhost (which → default sweep).
+  const platformHost = opts.platformHost ?? process.env.PLATFORM_HOST
+    ?? (process.env.NODE_ENV === 'production' ? null : 'platform.invalid')
+  if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
+  app.decorate('platformHost', platformHost)
   app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
