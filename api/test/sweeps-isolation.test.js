@@ -61,3 +61,12 @@ test('a watch in sweep B is invisible to the default sweep', async () => {
   const b = (await app.inject({ method: 'GET', url: '/api/social', headers: { host: 'platform.test', cookie } })).json()
   expect(b.watch.m0).toContain('pb1')
 })
+
+test('approved photos are scoped per sweep', async () => {
+  // default sweep has seeded approved fan photos; sweep B has none
+  const cookie = await sessionCookie(memberB)
+  const bPhotos = (await app.inject({ method: 'GET', url: '/api/photos', headers: { host: 'platform.test', cookie } })).json()
+  expect(bPhotos).toEqual([])
+  const defPhotos = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
+  expect(defPhotos.length).toBeGreaterThan(0)
+})

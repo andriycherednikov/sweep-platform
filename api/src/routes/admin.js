@@ -1,7 +1,9 @@
 import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
 import { photo, person } from '../db/schema.js'
-import { ADMIN_COOKIE, COOKIE_MAX_AGE, verifyPasscode, requireAdmin } from '../auth.js'
+import { verifyPasscode } from '../auth.js'
+import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep } from '../sweeps/auth.js'
+import { DEFAULT_SWEEP_ID } from '../sweeps/constants.js'
 
 const loginBody = {
   type: 'object', required: ['passcode'], additionalProperties: false,
@@ -9,14 +11,14 @@ const loginBody = {
 }
 
 export async function adminRoutes(app) {
-  const admin = requireAdmin(app)
+  const admin = requireSweep(['admin'])
 
   app.post('/api/admin/login', {
     schema: { body: loginBody },
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     if (!verifyPasscode(req.body.passcode, app.adminHash)) return reply.code(401).send({ error: 'bad_passcode' })
-    reply.setCookie(ADMIN_COOKIE, reply.signCookie('ok'), {
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(DEFAULT_SWEEP_ID, 'admin')), {
       httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
       secure: process.env.NODE_ENV === 'production',
     })
@@ -24,14 +26,14 @@ export async function adminRoutes(app) {
   })
 
   app.post('/api/admin/logout', async (_req, reply) => {
-    reply.clearCookie(ADMIN_COOKIE, { path: '/' })
+    reply.clearCookie(SWEEP_COOKIE, { path: '/' })
     return { admin: false }
   })
 
   app.get('/api/admin/me', { preHandler: admin }, async () => ({ admin: true }))
 
-  app.get('/api/admin/photos', { preHandler: admin }, async () => {
-    const rows = await app.db.select().from(photo).orderBy(desc(photo.createdAt))
+  app.get('/api/admin/photos', { preHandler: admin }, async (req) => {
+    const rows = await app.db.select().from(photo).where(eq(photo.sweepId, req.sweep.id)).orderBy(desc(photo.createdAt))
     const shape = (p) => ({
       id: p.id, kind: p.kind, uploader: p.uploaderName, person: p.personId, fixtureId: p.fixtureId,
       caption: p.caption, status: p.status, createdAt: p.createdAt,
@@ -44,7 +46,7 @@ export async function adminRoutes(app) {
   })
 
   app.get('/api/admin/photos/:id/file', { preHandler: admin }, async (req, reply) => {
-    const [p] = await app.db.select().from(photo).where(eq(photo.id, req.params.id))
+    const [p] = await app.db.select().from(photo).where(and(eq(photo.id, req.params.id), eq(photo.sweepId, req.sweep.id)))
     if (!p) return reply.code(404).send({ error: 'not_found' })
     const path = p.status === 'approved' ? app.photos.approvedPath(p.filePath) : app.photos.pendingPath(p.filePath)
     reply.type('image/jpeg')
@@ -59,14 +61,14 @@ export async function adminRoutes(app) {
   app.post('/api/admin/photos/:id', { preHandler: admin, schema: { body: moderateBody } }, async (req, reply) => {
     const { id } = req.params
     const { action } = req.body
-    const [p] = await app.db.select().from(photo).where(eq(photo.id, id))
+    const [p] = await app.db.select().from(photo).where(and(eq(photo.id, id), eq(photo.sweepId, req.sweep.id)))
     if (!p) return reply.code(404).send({ error: 'not_found' })
 
     if (action === 'approve') {
       // supersede a prior approved profile photo for this person
       if (p.kind === 'profile') {
         const prior = await app.db.select().from(photo)
-          .where(and(eq(photo.kind, 'profile'), eq(photo.personId, p.personId), eq(photo.status, 'approved')))
+          .where(and(eq(photo.kind, 'profile'), eq(photo.personId, p.personId), eq(photo.status, 'approved'), eq(photo.sweepId, req.sweep.id)))
         for (const old of prior) {
           await app.photos.removeApproved(old.filePath)
           await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, old.id))
@@ -76,7 +78,7 @@ export async function adminRoutes(app) {
       if (p.thumbPath) await app.photos.moveToApproved(p.thumbPath).catch(() => {})
       await app.db.update(photo).set({ status: 'approved', moderatedAt: new Date() }).where(eq(photo.id, id))
       if (p.kind === 'profile') {
-        await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(eq(person.id, p.personId))
+        await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
       }
       await app.publish({ type: 'photo-approved', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
       return { id, status: 'approved' }
@@ -94,7 +96,7 @@ export async function adminRoutes(app) {
     if (p.thumbPath) await app.photos.removeApproved(p.thumbPath).catch(() => {})
     await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, id))
     if (p.kind === 'profile' && p.personId) {
-      await app.db.update(person).set({ avatarPath: null }).where(eq(person.id, p.personId))
+      await app.db.update(person).set({ avatarPath: null }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
     }
     await app.publish({ type: 'photo-removed', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
     return { id, status: 'removed' }

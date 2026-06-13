@@ -29,8 +29,10 @@ async function seedPending() {
   return f
 }
 
-test('GET /api/admin/photos requires auth', async () => {
-  expect((await app.inject({ method: 'GET', url: '/api/admin/photos' })).statusCode).toBe(401)
+test('GET /api/admin/photos requires admin (member is forbidden)', async () => {
+  // On localhost an anonymous request resolves to the default sweep as a member,
+  // so the admin guard returns 403 (forbidden), not 401.
+  expect((await app.inject({ method: 'GET', url: '/api/admin/photos' })).statusCode).toBe(403)
 })
 
 test('GET /api/admin/photos lists pending + approved with kind/subject tags', async () => {
