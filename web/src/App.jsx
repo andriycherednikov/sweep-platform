@@ -17,6 +17,7 @@ import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
+import { initAnalytics, trackPageview } from "./lib/analytics.js";
 
 const TABS = ["schedule", "people", "teams", "standings"];
 
@@ -56,6 +57,7 @@ export default function App() {
   const goBack = () => window.history.back(); // in-app back / close = browser back
 
   useEffect(() => {
+    initAnalytics();
     setGlobalToast(showToast);
     window.__sweepPickMe = () => navigate({ identity: true });
     refreshAdminBadge(); // surfaces the moderation count if this device is an admin
@@ -70,6 +72,9 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
+
+  // SPA pageview: every view change (forward nav + popstate) is one virtual page.
+  useEffect(() => { trackPageview(urlFor(view)); }, [view]);
 
   const { tab, overlay, modal, identity } = view;
 
