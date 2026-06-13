@@ -30,7 +30,7 @@ test('trackPageview forwards a page_view event with the path', () => {
   expect(window.gtag).toHaveBeenCalledWith(
     'event',
     'page_view',
-    expect.objectContaining({ page_path: '/schedule' }),
+    expect.objectContaining({ page_location: expect.stringContaining('/schedule') }),
   )
 })
 

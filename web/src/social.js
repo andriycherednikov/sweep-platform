@@ -62,8 +62,8 @@ export function setSupport(mid, code){
   else {
     m[meId] = code;
     const f = S.fixture(mid);
-    const pick = code === DRAW ? "draw"
-               : !f            ? null
+    const pick = !f            ? null
+               : code === DRAW ? "draw"
                : code === f.t1 ? "home"
                :                 "away";
     if (pick) trackEvent("vote_cast", { pick, match_id: mid });

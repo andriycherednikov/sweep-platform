@@ -32,8 +32,9 @@ export function initAnalytics() {
 export function trackPageview(path) {
   try {
     if (!window.gtag) return
+    // GA4 derives the page path from page_location; page_path is a
+    // Universal Analytics param GA4 ignores, so we don't send it.
     window.gtag('event', 'page_view', {
-      page_path: path,
       page_location: window.location.origin + path,
       page_title: document.title,
     })

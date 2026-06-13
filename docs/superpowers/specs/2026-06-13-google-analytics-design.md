@@ -57,7 +57,8 @@ The single seam between the app and Google.
     anonymizes IP by design.)
   - `send_page_view: false` because this is an SPA — we emit pageviews ourselves on
     route change rather than letting gtag fire one only on hard load.
-- **`trackPageview(path)`** — `gtag('event', 'page_view', { page_path, page_location, page_title })`.
+- **`trackPageview(path)`** — `gtag('event', 'page_view', { page_location, page_title })`
+  (GA4 derives the page path from `page_location`; the UA-era `page_path` is ignored).
 - **`trackEvent(name, params = {})`** — `gtag('event', name, params)`.
 - **Safety:** `trackPageview`/`trackEvent` no-op if not initialized or `window.gtag`
   is absent, and are wrapped so a throwing gtag never propagates into the app.

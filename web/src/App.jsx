@@ -74,7 +74,15 @@ export default function App() {
   }, []);
 
   // SPA pageview: every view change (forward nav + popstate) is one virtual page.
-  useEffect(() => { trackPageview(urlFor(view)); }, [view]);
+  // Modals/overlays change `view` but not the URL (urlFor ignores them), so dedupe
+  // on the resolved URL to avoid double-counting a modal open/close as pageviews.
+  const prevUrlRef = useRef(null);
+  useEffect(() => {
+    const url = urlFor(view);
+    if (url === prevUrlRef.current) return;
+    prevUrlRef.current = url;
+    trackPageview(url);
+  }, [view]);
 
   const { tab, overlay, modal, identity } = view;
 
