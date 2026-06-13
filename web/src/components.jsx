@@ -8,7 +8,7 @@ import {
   supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
-import { whenLabel, fmtDate } from "./lib/format.js";
+import { fmtDate } from "./lib/format.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -223,7 +223,8 @@ export function MatchCard({ f, onOpen, onToast }) {
           {myTeam && <span className="mine-tag"><Icon.star/> Your team</span>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:9}}>
-          <span className="mc-time">{whenLabel(f)}</span>
+          {/* StatusPill already conveys live/FT, so show the plain kickoff date (no suffix) */}
+          <span className="mc-time">{f.dateTimeLabel}</span>
           <WatchBtn id={f.id} compact onToast={onToast} />
         </div>
       </div>

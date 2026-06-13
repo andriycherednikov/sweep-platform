@@ -117,8 +117,10 @@ export function predictionsOf(personId){
 
 /* resolved-only accuracy for the header tile: { correct, total } over finals. */
 export function predictionAccuracy(personId){
-  const preds = predictionsOf(personId).filter(p => p.f.status === "final" && p.f.score);
-  return { correct: preds.filter(p => p.verdict === "correct").length, total: preds.length };
+  // verdict is non-null exactly for resolved finals (final + score), so it is the
+  // resolved-set filter and the correctness check in one.
+  const resolved = predictionsOf(personId).filter(p => p.verdict !== null);
+  return { correct: resolved.filter(p => p.verdict === "correct").length, total: resolved.length };
 }
 
 export function useSocial(){
