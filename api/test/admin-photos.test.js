@@ -66,7 +66,7 @@ test('approve a fan photo → moves file, status approved, emits photo-approved'
   expect(res.statusCode).toBe(200)
   const [row] = await db.select().from(photo).where(eq(photo.id, 'ph2'))
   expect(row.status).toBe('approved')
-  expect(published).toContainEqual({ type: 'photo-approved', id: 'ph2', kind: 'fan', fixtureId: f.id })
+  expect(published).toContainEqual({ type: 'photo-approved', sweepId: 'default', id: 'ph2', kind: 'fan', fixtureId: f.id })
   await app2.close()
 })
 
@@ -102,6 +102,6 @@ test('remove an approved profile reverts the person to initials and emits photo-
   expect(res.statusCode).toBe(200)
   const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
   expect(pp.avatarPath).toBe(null)
-  expect(published).toContainEqual({ type: 'photo-removed', id: 'ph4', kind: 'profile', person: p.id })
+  expect(published).toContainEqual({ type: 'photo-removed', sweepId: 'default', id: 'ph4', kind: 'profile', person: p.id })
   await app3.close()
 })

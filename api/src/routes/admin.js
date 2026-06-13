@@ -80,7 +80,7 @@ export async function adminRoutes(app) {
       if (p.kind === 'profile') {
         await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
       }
-      await app.publish({ type: 'photo-approved', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
+      await app.publish({ type: 'photo-approved', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
       return { id, status: 'approved' }
     }
 
@@ -98,7 +98,7 @@ export async function adminRoutes(app) {
     if (p.kind === 'profile' && p.personId) {
       await app.db.update(person).set({ avatarPath: null }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
     }
-    await app.publish({ type: 'photo-removed', id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
+    await app.publish({ type: 'photo-removed', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
     return { id, status: 'removed' }
   })
 }
