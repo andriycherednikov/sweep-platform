@@ -49,7 +49,7 @@ test('POST /api/watch toggles the row and publishes a watch event', async () => 
   const off = await app.inject({ method: 'POST', url: '/api/watch', payload: { fixtureId: f.id, personId: p1.id } })
   expect(off.json().watching).toBe(false)
 
-  expect(published).toEqual([{ type: 'watch', fixtureId: f.id }, { type: 'watch', fixtureId: f.id }])
+  expect(published).toEqual([{ type: 'watch', sweepId: 'default', fixtureId: f.id }, { type: 'watch', sweepId: 'default', fixtureId: f.id }])
 })
 
 test('POST /api/watch 400s on unknown fixture or person', async () => {
