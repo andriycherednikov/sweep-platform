@@ -177,6 +177,13 @@ or mutate any sweep**. This is the concrete protection against stumbling-and-cor
   request path).
 - **Identity:** the "pick me" list is drawn from the scoped people list, so members only
   ever see their own sweep's people.
+- **"My sweeps" switcher (one browser, many sweeps):** opening any sweep link records that
+  sweep locally (`name` + `token` in `localStorage`). A switcher UI lists every sweep this
+  browser has joined; selecting one re-runs `POST /api/session` with that sweep's stored
+  token, swapping the active scoped cookie. The active cookie always scopes to exactly one
+  sweep, so isolation holds. Stored tokens live in `localStorage` (same trust level as
+  holding the bookmark) — acceptable for members; the default community sweep has no token
+  and is reached by its Host.
 - **Referrer hygiene:** keep `Referrer-Policy: strict-origin-when-cross-origin` (already
   set) so the token path is never sent to third-party origins.
 
