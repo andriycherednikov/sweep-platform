@@ -1,23 +1,23 @@
 import { eq } from 'drizzle-orm'
-import { team, person, ownership, sweep } from '../db/schema.js'
+import { team, person, ownership } from '../db/schema.js'
 import { serializeTeam, serializePerson } from '../serialize.js'
+import { requireSweep } from '../sweeps/auth.js'
 
 export async function bootstrapRoutes(app) {
-  app.get('/api/bootstrap', async () => {
-    const [teams, people, owns, sweeps] = await Promise.all([
+  app.get('/api/bootstrap', { preHandler: requireSweep(['member', 'admin']) }, async (req) => {
+    const sweepId = req.sweep.id
+    const [teams, people, owns] = await Promise.all([
       app.db.select().from(team),
-      app.db.select().from(person),
-      app.db.select().from(ownership),
-      app.db.select().from(sweep).where(eq(sweep.id, 'default')),
+      app.db.select().from(person).where(eq(person.sweepId, sweepId)),
+      app.db.select().from(ownership).where(eq(ownership.sweepId, sweepId)),
     ])
     const ownership_ = {}
     for (const o of owns) (ownership_[o.personId] ??= []).push(o.teamCode)
-    const s = sweeps[0]
     return {
       teams: teams.map(serializeTeam),
       people: people.map(serializePerson),
       ownership: ownership_,
-      scoring: s ? { rule: s.scoringRule, coOwners: s.coOwners } : null,
+      scoring: { rule: req.sweep.scoringRule, coOwners: req.sweep.coOwners },
     }
   })
 }
