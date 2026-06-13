@@ -314,10 +314,12 @@ export function BottomNav({ tab, go }) {
 
 /* countdown hook */
 export function useCountdown(offsetSec) {
-  const target = useRef(Date.now() + offsetSec*1000);
-  const [now, setNow] = useState(Date.now());
+  // tick once a second purely to re-render; the caller recomputes offsetSec from the live
+  // clock each render, so the display always tracks the CURRENT next match — when a kickoff
+  // passes and the hero rolls to the next one, the clock follows instead of freezing at 0.
+  const [, setNow] = useState(Date.now());
   useEffect(()=>{ const t=setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(t); },[]);
-  let s = Math.max(0, Math.floor((target.current - now)/1000));
+  const s = Math.max(0, Math.floor(offsetSec));
   const pad=n=>String(n).padStart(2,"0");
   const totalH=Math.floor(s/3600), m=Math.floor((s%3600)/60), x=s%60;
   const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600);

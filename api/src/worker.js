@@ -5,6 +5,8 @@ import { syncBaseline } from './worker/baseline-sync.js'
 import { pollLive, pollEvents, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
+import { recomputeStandings } from './worker/recompute-standings.js'
+import { inArray } from 'drizzle-orm'
 import { fixture } from './db/schema.js'
 
 const season = Number(process.env.WC_SEASON ?? 2026)
@@ -24,6 +26,15 @@ async function baseline(reason) {
 cron.schedule('10 0,6,12,18 * * *', () => baseline('cron'))
 await baseline('boot')
 
+// When a match finishes we recompute the table instantly from our own results, then queue
+// ONE official provider reconcile ~5 min later — debounced so a cluster of finals triggers
+// a single baseline, not one per game.
+let finalReconcileTimer = null
+function scheduleFinalReconcile() {
+  if (finalReconcileTimer) return
+  finalReconcileTimer = setTimeout(() => { finalReconcileTimer = null; baseline('final-reconcile') }, 5 * 60_000)
+}
+
 // Live tick every 60s, but only hit the API inside a kickoff window.
 // Scores poll in the ±150m live window; lineups in a wider ~45m pre-kickoff window.
 setInterval(async () => {
@@ -34,11 +45,21 @@ setInterval(async () => {
     // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
     const liveIds = fixturesToPoll(rows, now)
     if (liveIds.length) {
+      const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
       const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
       if (n) console.log(`[live] updated ${n}`)
       // events poll AFTER scores, so a goal notification carries the just-updated score
       const e = await pollEvents(db, provider, liveIds, await resolveCrosswalk(db), (ev) => publish(db, ev))
       if (e) console.log(`[events] ${e} new`)
+      // any polled fixture just go final? recompute the table now + queue an official reconcile
+      const after = await db.select({ id: fixture.id, status: fixture.status }).from(fixture).where(inArray(fixture.id, liveIds))
+      const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
+      if (newlyFinal.length) {
+        await recomputeStandings(db)
+        await publish(db, { type: 'sync' })
+        console.log(`[standings] recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
+        scheduleFinalReconcile()
+      }
     }
     if (isLineupWindow(now, kickoffs)) {
       const candidates = rows.filter((r) => !r.lineups && isLineupWindow(now, [new Date(r.ko)]))

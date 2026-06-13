@@ -43,8 +43,13 @@ function CardChips({ red, n }) {
 
 /* ---------------- HOME ---------------- */
 export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin }) {
-  // a live match stays front-and-center in the hero until it's over; otherwise the next kickoff
-  const next = S.liveMatch || S.nextMatch;
+  // a live match stays front-and-center in the hero until it's over; otherwise the soonest
+  // kickoff that's still in the future. derived from Date.now() each render (the countdown
+  // re-renders every second) so when a match kicks off, the hero rolls to the next one's
+  // countdown instead of sitting at 00:00:00 until a refresh. falls back to nextMatch.
+  const next = S.liveMatch
+    || S.fixtures.find(f => f.status === "upcoming" && f.ko.getTime() > Date.now())
+    || S.nextMatch;
   const live = next.status === "live";
   const t1 = S.team(next.t1), t2 = S.team(next.t2);
   const o = S.ownersForFixture(next);
@@ -60,7 +65,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     .filter(f => f.status !== "final" && f.id !== next.id)
     .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
     .slice(0,8);
-  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,3);
+  const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,4);
   // pick a random group for the side standings — chosen once per mount so it stays stable across re-renders
   const groupKeys = Object.keys(S.standings);
   const grpKey = useMemo(() => groupKeys.length ? groupKeys[Math.floor(Math.random()*groupKeys.length)] : "A", [groupKeys.join(",")]);
@@ -371,7 +376,6 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
 /* ---------------- STANDINGS ---------------- */
 export function StandingsScreen({ openTeam, openKnockouts }) {
   const desktop = useIsDesktop();
-  const [g, setG] = useState("A");
   useSocial();
   const me = getMe();
   const myTeams = me ? me.teams : [];
@@ -407,7 +411,7 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
           <div className="wrap">
             <div className="stand-desk-head">
               <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
-                Tables update automatically twice a day from the results feed — tap any team to open it.
+                Tables update automatically as results come in — tap any team to open it.
               </div>
               <div className="legend">
                 <span><i style={{background:"var(--live)"}}></i> Advance</span>
@@ -427,16 +431,11 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <PageHeader title="Standings" sub="Auto-calculated from results" tall
         right={<button className="iconbtn" onClick={openKnockouts} aria-label="Knockouts"><span style={{fontSize:17}}>🏆</span></button>} />
-      <div className="filterbar">
-        {S.groups.map(x=>(
-          <button key={x} className={"fchip"+(x===g?" on":"")} onClick={()=>setG(x)} style={{minWidth:44,justifyContent:"center"}}>Grp {x}</button>
-        ))}
-      </div>
-      <div className="scroll pad screen-anim" style={{paddingTop:6}}>
+      <div className="scroll pad screen-anim" style={{paddingTop:12}}>
         <div className="wrap">
-          <GroupTable grp={g}/>
+          {S.groups.map(x=> <GroupTable key={x} grp={x}/>)}
           <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
-            Tables update automatically twice a day from the results feed.
+            Tables update automatically as results come in.
           </p>
         </div>
       </div>

@@ -1,13 +1,13 @@
 // web/src/components.test.jsx
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, renderHook } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
 }))
 import { postSupport } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, ProbBar, SquadList } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, ProbBar, SquadList, useCountdown } from './components.jsx'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -136,6 +136,16 @@ test('ProbBar renders three segments (home / draw / away)', () => {
   expect(segs[0].style.width).toBe('60%')
   expect(container.querySelector('.prob-bar .d').style.width).toBe('25%')
   expect(segs[2].style.width).toBe('15%')
+})
+
+test('useCountdown re-syncs its target when the next match changes (offset jumps)', () => {
+  vi.useFakeTimers()
+  const { result, rerender } = renderHook(({ off }) => useCountdown(off), { initialProps: { off: 5 } })
+  expect(result.current.hms).toBe('00:00:05')
+  // hero rolls to a match 2h out → offset jumps; the clock must reset, not stay at 0
+  rerender({ off: 7200 })
+  expect(result.current.hms).toBe('02:00:00')
+  vi.useRealTimers()
 })
 
 test('SquadList groups players by position and renders a photo or a number badge', () => {
