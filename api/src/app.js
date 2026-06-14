@@ -17,6 +17,8 @@ import { resolve } from 'node:path'
 import { createStorageSync } from './photos/storage.js'
 import { MAX_BYTES } from './photos/process.js'
 import { adminRoutes } from './routes/admin.js'
+import { sweepsRoutes } from './routes/sweeps.js'
+import { sweepResolver } from './sweeps/resolve.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -33,10 +35,19 @@ export function buildApp(db, opts = {}) {
 
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
+  // Host that serves token-scoped sweeps. Required in production; a non-routable
+  // sentinel in dev/test so it never collides with localhost (which → default sweep).
+  const platformHost = opts.platformHost ?? process.env.PLATFORM_HOST
+    ?? (process.env.NODE_ENV === 'production' ? null : 'platform.invalid')
+  if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
+  app.decorate('platformHost', platformHost)
+  app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
 
   app.get('/api/health', async () => ({ ok: true }))
+  app.addHook('preHandler', sweepResolver(app))
+  app.get('/api/whoami', async (req) => ({ sweepId: req.sweep?.id ?? null, role: req.role ?? null }))
   app.register(bootstrapRoutes)
   app.register(fixtureRoutes)
   app.register(standingsRoutes)
@@ -47,5 +58,6 @@ export function buildApp(db, opts = {}) {
   app.register(streamRoutes)
   app.register(socialRoutes)
   app.register(adminRoutes)
+  app.register(sweepsRoutes)
   return app
 }

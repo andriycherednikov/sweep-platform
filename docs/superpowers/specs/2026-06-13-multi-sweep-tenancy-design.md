@@ -72,11 +72,22 @@ per-tenant query filters on one explicit column** rather than relying on a join 
 easy to forget. Rows never move between sweeps, so this denormalization stays consistent;
 it is always set server-side from the resolved sweep, never from the request body.
 
-### New constraint (integrity invariant made explicit)
+`sweep_id` is indexed on every per-tenant table (queries always filter on it). For the
+not-null-person tables (`ownership`, `watch`, `support`) the denormalization is also
+**enforced in the database** by a composite FK `(person_id, sweep_id) → person(id,
+sweep_id)` (with a `UNIQUE(person.id, person.sweep_id)` target) — so a child row can never
+reference a person in another sweep, even if app code had a bug. `photo.person_id` is
+nullable (fan photos), so `photo` keeps single-column FKs and relies on app-level scoping.
 
-`UNIQUE(sweep_id, team_code)` on `ownership` — **one owner per team per sweep**. This was
-implicit with a single sweep; with self-managed group admins it must be enforced. (Only
-expressible because `ownership` carries `sweep_id`.)
+### Co-ownership is intentional — NO one-owner-per-team constraint
+
+**Correction (2026-06-13):** an earlier draft proposed `UNIQUE(sweep_id, team_code)`
+("one owner per team per sweep"). That is **wrong and must not be added** — co-ownership
+is the core model. With ~45 people sharing 48 teams, every team is owned by 3–5 people,
+and `coOwners='all_win'` means co-owners of the winning team all win. The `ownership`
+primary key stays `(person_id, team_code)` (prevents the *same* person owning the *same*
+team twice); a team may be owned by many people in a sweep. `sweep_id` is added to
+`ownership` purely for query scoping, not to enforce uniqueness.
 
 ### Person ids
 
@@ -202,8 +213,8 @@ or mutate any sweep**. This is the concrete protection against stumbling-and-cor
    `scoring_config`).
 2. Add **nullable** `sweep_id` to `person`, `ownership`, `watch`, `support`, `photo`.
 3. Backfill every existing row → the default sweep id.
-4. Set `sweep_id` `NOT NULL` + FK; add `UNIQUE(sweep_id, team_code)` on `ownership`;
-   drop `scoring_config`.
+4. Set `sweep_id` `NOT NULL` + FK; drop `scoring_config`. (No unique index on
+   `ownership` — co-ownership is intentional; see §3.)
 
 (Per project note: after `db:generate`, run `db:migrate -w api` against the shared dev DB.)
 
@@ -214,7 +225,24 @@ or mutate any sweep**. This is the concrete protection against stumbling-and-cor
 - **Auth:** no/invalid/rotated token → rejected; a member cookie cannot reach admin
   routes; a cookie for A cannot act on B.
 - **Host-binding:** default-sweep people are served only on `sweep.yowiebay.au`.
-- **Constraint:** two people in one sweep cannot both own `BRA`.
+- **Co-ownership:** two people in one sweep CAN both own `BRA` (and the seed produces
+  3–5 owners per team) — assert this is preserved, not rejected.
+- **Global-data routes that read per-tenant tables** (`GET /api/teams/:code` owners,
+  `GET /api/fixtures?person=`) MUST also be sweep-guarded + scoped — the `team`/`fixture`
+  tables are global but their owner/ownership reads are per-tenant. (A final review caught
+  `teams.js` leaking the cross-sweep roster unauthenticated; now fixed + regression-tested.)
+
+## 13. Known limitation — token rotation revocation
+
+Rotating a sweep's token blocks **new** `POST /api/session` exchanges immediately, but a
+**already-minted** `sweep_session` cookie stays valid until it expires (`COOKIE_MAX_AGE`,
+8h) — the resolver re-checks the sweep exists and is not archived every request, but does
+not re-validate the token. So rotation is "revoke the link going forward, with an ≤8h tail
+on existing sessions," not instant session kill. Acceptable for a friendly-community app;
+if instant revoke is needed later, embed a token version in the cookie and re-verify it in
+the resolver (note: the default sweep has no token, so a version counter, not the token
+itself, is the portable mechanism). Archiving a sweep IS effectively instant (resolver
+rejects archived sweeps every request).
 - **Migration:** existing rows all land in the default sweep with counts intact.
 - **SSE scoping:** a social event in A is not delivered to a B subscriber; a goal is
   delivered to both.

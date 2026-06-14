@@ -1,7 +1,9 @@
 import { and, eq } from 'drizzle-orm'
 import { fixture, person, watch, support } from '../db/schema.js'
+import { requireSweep } from '../sweeps/auth.js'
 
 const DRAW = 'DRAW'
+const member = requireSweep(['member', 'admin'])
 
 const watchBody = {
   type: 'object', required: ['fixtureId', 'personId'], additionalProperties: false,
@@ -13,10 +15,11 @@ const supportBody = {
 }
 
 export async function socialRoutes(app) {
-  app.get('/api/social', async () => {
+  app.get('/api/social', { preHandler: member }, async (req) => {
+    const sweepId = req.sweep.id
     const [ws, ss] = await Promise.all([
-      app.db.select().from(watch),
-      app.db.select().from(support),
+      app.db.select().from(watch).where(eq(watch.sweepId, sweepId)),
+      app.db.select().from(support).where(eq(support.sweepId, sweepId)),
     ])
     const watch_ = {}
     for (const w of ws) (watch_[w.fixtureId] ??= []).push(w.personId)
@@ -25,28 +28,30 @@ export async function socialRoutes(app) {
     return { watch: watch_, support: support_ }
   })
 
-  app.post('/api/watch', { schema: { body: watchBody } }, async (req, reply) => {
+  app.post('/api/watch', { preHandler: member, schema: { body: watchBody } }, async (req, reply) => {
+    const sweepId = req.sweep.id
     const { fixtureId, personId } = req.body
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
-    const [p] = await app.db.select().from(person).where(eq(person.id, personId))
+    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
 
     const where = and(eq(watch.fixtureId, fixtureId), eq(watch.personId, personId))
     const existing = await app.db.select().from(watch).where(where)
     let watching
     if (existing.length) { await app.db.delete(watch).where(where); watching = false }
-    else { await app.db.insert(watch).values({ fixtureId, personId }); watching = true }
+    else { await app.db.insert(watch).values({ sweepId, fixtureId, personId }); watching = true }
 
-    await app.publish({ type: 'watch', fixtureId })
+    await app.publish({ type: 'watch', sweepId, fixtureId })
     return { fixtureId, personId, watching }
   })
 
-  app.post('/api/support', { schema: { body: supportBody } }, async (req, reply) => {
+  app.post('/api/support', { preHandler: member, schema: { body: supportBody } }, async (req, reply) => {
+    const sweepId = req.sweep.id
     const { fixtureId, personId, teamCode } = req.body
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
-    const [p] = await app.db.select().from(person).where(eq(person.id, personId))
+    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     const validPick = teamCode === f.t1Code || teamCode === f.t2Code || (teamCode === DRAW && f.stage === 'group')
     if (!validPick) return reply.code(400).send({ error: 'invalid_team' })
@@ -59,10 +64,10 @@ export async function socialRoutes(app) {
     } else if (existing) {
       await app.db.update(support).set({ teamCode }).where(where); supporting = teamCode; action = 'switch'
     } else {
-      await app.db.insert(support).values({ fixtureId, personId, teamCode }); supporting = teamCode; action = 'pick'
+      await app.db.insert(support).values({ sweepId, fixtureId, personId, teamCode }); supporting = teamCode; action = 'pick'
     }
 
-    await app.publish({ type: 'support', fixtureId, personId, supporting, action })
+    await app.publish({ type: 'support', sweepId, fixtureId, personId, supporting, action })
     return { fixtureId, personId, supporting }
   })
 }

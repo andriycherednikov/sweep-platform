@@ -29,7 +29,7 @@ test('GET /api/teams/hr returns Croatia with owners', async () => {
 test('GET /api/photos returns only approved, tagged with a fixtureId; ?fixture filters', async () => {
   // self-contained: tag a known fixture so we don't depend on shared seed state
   const [f] = await db.select().from(fixture).limit(1)
-  await db.insert(photo).values({ id: 'detail-ph', kind: 'fan', uploaderName: 'T', fixtureId: f.id, filePath: 'x.jpg', status: 'approved' }).onConflictDoNothing()
+  await db.insert(photo).values({ id: 'detail-ph', sweepId: 'default', kind: 'fan', uploaderName: 'T', fixtureId: f.id, filePath: 'x.jpg', status: 'approved' }).onConflictDoNothing()
   try {
     const all = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
     expect(all.every((p) => p.status === 'approved')).toBe(true)

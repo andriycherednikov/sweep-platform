@@ -2,10 +2,13 @@ import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { photo, person, fixture } from '../db/schema.js'
 import { validateUpload, processImage } from '../photos/process.js'
+import { requireSweep } from '../sweeps/auth.js'
 
 export async function photoRoutes(app) {
-  app.get('/api/photos', async (req) => {
-    const conds = [eq(photo.status, 'approved')]
+  const member = requireSweep(['member', 'admin'])
+
+  app.get('/api/photos', { preHandler: member }, async (req) => {
+    const conds = [eq(photo.status, 'approved'), eq(photo.sweepId, req.sweep.id)]
     if (req.query.fixture) conds.push(eq(photo.fixtureId, req.query.fixture))
     const rows = await app.db.select().from(photo).where(and(...conds))
     return rows.map((p) => ({
@@ -14,7 +17,8 @@ export async function photoRoutes(app) {
     }))
   })
 
-  app.post('/api/photos', async (req, reply) => {
+  app.post('/api/photos', { preHandler: member }, async (req, reply) => {
+    const sweepId = req.sweep.id
     const data = await req.file()
     if (!data) return reply.code(400).send({ error: 'missing_file' })
     const fields = data.fields
@@ -36,12 +40,12 @@ export async function photoRoutes(app) {
       if (!fx) return reply.code(400).send({ error: 'unknown_fixture' })
     } else {
       if (!personId) return reply.code(400).send({ error: 'missing_person' })
-      const [p] = await app.db.select().from(person).where(eq(person.id, personId))
+      const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
       if (!p) return reply.code(400).send({ error: 'unknown_person' })
     }
 
     // one pending per person per kind
-    const dupConds = [eq(photo.status, 'pending'), eq(photo.kind, kind)]
+    const dupConds = [eq(photo.status, 'pending'), eq(photo.kind, kind), eq(photo.sweepId, sweepId)]
     dupConds.push(kind === 'profile' ? eq(photo.personId, personId) : eq(photo.uploaderName, uploaderName))
     const dup = await app.db.select().from(photo).where(and(...dupConds))
     if (dup.length) return reply.code(409).send({ error: 'pending_exists' })
@@ -54,13 +58,13 @@ export async function photoRoutes(app) {
     await app.photos.writePending(thumbName, thumb)
 
     await app.db.insert(photo).values({
-      id, kind, uploaderName,
+      id, sweepId, kind, uploaderName,
       personId: kind === 'profile' ? personId : null,
       fixtureId: kind === 'fan' ? fixtureId : null,
       filePath: fileName, thumbPath: thumbName, caption, status: 'pending',
     })
     // signal admins' moderation badge to refresh (no payload — count is fetched with creds)
-    await app.publish({ type: 'photo-pending' })
+    await app.publish({ type: 'photo-pending', sweepId: req.sweep.id })
     return reply.code(201).send({ id, kind, status: 'pending', fixtureId: fixtureId ?? null, personId: personId ?? null })
   })
 }
