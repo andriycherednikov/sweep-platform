@@ -1,5 +1,5 @@
 import { expect, test, beforeEach, beforeAll, vi } from 'vitest'
-import { render, act } from '@testing-library/react'
+import { render, act, screen } from '@testing-library/react'
 
 // jsdom does not implement scrollTo — stub it globally so ScheduleScreen's
 // scroll-into-view effect does not throw when navigating to /schedule in tests.
@@ -26,6 +26,7 @@ import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
+import { addSweep } from './sweeps.js'
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks()
@@ -72,4 +73,16 @@ test('emits match_open when a match card is opened', () => {
   expect(card).not.toBeNull()
   act(() => { card.click() })
   expect(trackEvent).toHaveBeenCalledWith('match_open', { match_id: 'm1' })
+})
+
+test('navigating to /sweeps opens the My-sweeps switcher overlay', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  render(<App />)
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', {
+      state: { tab: 'home', overlay: { type: 'sweeps' }, modal: null, identity: false },
+    }))
+  })
+  expect(screen.getByText('My sweeps')).toBeInTheDocument()
+  expect(screen.getByText('Office')).toBeInTheDocument()
 })

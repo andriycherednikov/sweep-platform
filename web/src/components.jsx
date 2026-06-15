@@ -352,7 +352,7 @@ const SB_NAV = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],["people","People",Icon.people],
   ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt]
 ];
-export function Sidebar({ current, go, onKnock, onAdmin }) {
+export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   return (
     <aside className="sidebar">
@@ -376,6 +376,7 @@ export function Sidebar({ current, go, onKnock, onAdmin }) {
       </nav>
       <div className="sb-foot">
         <IdentityControl dark/>
+        {onSweeps && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>

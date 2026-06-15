@@ -2,9 +2,10 @@
    THE SWEEP — app shell, history-synced routing, modals
    ============================================================ */
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, BottomNav, Sidebar, IdentitySheet, useIsDesktop,
+  Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop,
 } from "./components.jsx";
 import { setGlobalToast, getMe } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -27,6 +28,7 @@ function urlFor(v) {
   if (v.overlay?.type === "person") return `/people/${v.overlay.id}`;
   if (v.overlay?.type === "knockouts") return "/knockouts";
   if (v.overlay?.type === "admin") return "/admin";
+  if (v.overlay?.type === "sweeps") return "/sweeps";
   return v.tab === "home" ? "/" : `/${v.tab}`;
 }
 function readView(path) {
@@ -36,6 +38,7 @@ function readView(path) {
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
   if (seg[0] === "knockouts") return { ...base, tab: "standings", overlay: { type: "knockouts" } };
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
+  if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
   return { ...base, tab: TABS.includes(seg[0]) ? seg[0] : "home" };
 }
 
@@ -97,6 +100,11 @@ export default function App() {
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+  // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
+  // hook would throw — fall back to null and let the sheet skip invalidation.
+  let qc = null;
+  try { qc = useQueryClient(); } catch (e) { qc = null; }
+  const openSweeps = () => navigate({ overlay: { type: "sweeps" } });
 
   // resolve serializable ids back into the live objects the screens expect
   const person = overlay?.type === "person" ? S.peopleById[overlay.id] : null;
@@ -124,6 +132,7 @@ export default function App() {
       {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
       {identity && <IdentitySheet onClose={goBack}/>}
+      {overlay?.type==="sweeps" && <SweepsSheet activeSweepId={S.sweep?.id ?? null} onClose={goBack} queryClient={qc}/>}
       <FloatingReactions/>
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>
@@ -132,7 +141,7 @@ export default function App() {
   if (isDesktop) {
     return (
       <div className="deskwrap">
-        <Sidebar current={current} go={go} onKnock={openKnock} onAdmin={openAdmin}/>
+        <Sidebar current={current} go={go} onKnock={openKnock} onAdmin={openAdmin} onSweeps={openSweeps}/>
         <main className="deskmain">
           <div className="deskmain-rel">
             <div className={"deskscreen" + (tab==="standings" && !overlay ? " wide" : "")}>{base}</div>
