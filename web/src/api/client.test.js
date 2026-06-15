@@ -144,3 +144,45 @@ test('uploadPhoto sends credentials:include with raw FormData', async () => {
   expect(calls[0].opts.credentials).toBe('include')
   expect(calls[0].opts.body).toBe(fd)
 })
+
+test('postSession POSTs the token with credentials and returns {sweepId, role}', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ sweepId: 'sw_a', role: 'member' }) }
+  }))
+  const { postSession } = await import('./client.js')
+  const res = await postSession('tok123')
+  expect(res).toEqual({ sweepId: 'sw_a', role: 'member' })
+  expect(calls[0].url).toMatch(/\/api\/session$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ token: 'tok123' })
+})
+
+test('fetchWhoami GETs /api/whoami with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ sweepId: null, role: null }) }
+  }))
+  const { fetchWhoami } = await import('./client.js')
+  const res = await fetchWhoami()
+  expect(res).toEqual({ sweepId: null, role: null })
+  expect(calls[0].url).toMatch(/\/api\/whoami$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('postLogout POSTs /api/session/logout with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ ok: true }) }
+  }))
+  const { postLogout } = await import('./client.js')
+  await postLogout()
+  expect(calls[0].url).toMatch(/\/api\/session\/logout$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({})
+})
