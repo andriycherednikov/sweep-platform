@@ -91,6 +91,9 @@ export const deletePerson = (id) => deleteCreds(`/api/admin/people/${id}`, {})
 export const patchPerson = (id, fields) => patchCreds(`/api/admin/people/${id}`, fields)
 export const postOwnership = (personId, teamCode) => postCreds('/api/admin/ownership', { personId, teamCode })
 export const deleteOwnership = (personId, teamCode) => deleteCreds('/api/admin/ownership', { personId, teamCode })
+// bulk allocate/unallocate — items: [{ personId, teamCode }]
+export const bulkPostOwnership = (items) => postCreds('/api/admin/ownership/bulk', { items })
+export const bulkDeleteOwnership = (items) => deleteCreds('/api/admin/ownership/bulk', { items })
 
 // --- super-admin (platform owner) ---
 // patchCreds(path, body) is defined above (Slice 3); imported/used here, never redefined.

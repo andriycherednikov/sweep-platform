@@ -161,3 +161,66 @@ test('un-archive refuses the default sweep (kind default → 404)', async () => 
   const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/default/unarchive', headers: { cookie } })
   expect(res.statusCode).toBe(404)
 })
+
+test('bulk ownership assigns many teams in one call; /api/people reflects all', async () => {
+  const su = await superCookie()
+  const { cookie } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Bulk', short: 'Bulk', initials: 'BK', av: '#abc' } })).json()
+  const items = [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }]
+  const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items } })
+  expect(res.statusCode).toBe(201)
+  expect(res.json().inserted).toBe(3)
+  const people = (await app.inject({ method: 'GET', url: '/api/people', headers: h })).json()
+  expect(people.find((x) => x.id === p.id).teams.sort()).toEqual(['ar', 'br', 'fr'])
+})
+
+test('bulk ownership is idempotent and allows co-ownership across people', async () => {
+  const su = await superCookie()
+  const { cookie } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
+  const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
+  // first bulk for A: 2 inserted
+  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: a.id, teamCode: 'ar' }, { personId: a.id, teamCode: 'br' }] } })).json().inserted).toBe(2)
+  // re-post an owned pair + a new one + B co-owning ar: only the new ones insert (idempotent)
+  const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: a.id, teamCode: 'ar' }, { personId: a.id, teamCode: 'fr' }, { personId: b.id, teamCode: 'ar' }] } })
+  expect(res.statusCode).toBe(201)
+  expect(res.json().inserted).toBe(2) // a/fr and b/ar; a/ar skipped
+})
+
+test('bulk ownership rejects a personId from another sweep (400)', async () => {
+  const su = await superCookie()
+  const { cookie: cookieA } = await adminCookieFor(su)
+  const { cookie: cookieB } = await adminCookieFor(su)
+  const hA = { host: 'platform.test', cookie: cookieA }
+  const hB = { host: 'platform.test', cookie: cookieB }
+  const pB = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: hB, payload: { name: 'Other', short: 'Other', initials: 'OT', av: '#333' } })).json()
+  // admin A tries to allocate to a person belonging to sweep B
+  const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: hA, payload: { items: [{ personId: pB.id, teamCode: 'ar' }] } })
+  expect(res.statusCode).toBe(400)
+  expect(res.json().error).toBe('unknown_person')
+})
+
+test('bulk ownership validates payload + guards', async () => {
+  const su = await superCookie()
+  const { cookie } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  // empty items → 400 (schema minItems)
+  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [] } })).statusCode).toBe(400)
+  // no cookie on platform host → 401
+  expect((await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: { host: 'platform.test' }, payload: { items: [{ personId: 'x', teamCode: 'ar' }] } })).statusCode).toBe(401)
+})
+
+test('bulk delete removes only the listed pairs, scoped to the sweep', async () => {
+  const su = await superCookie()
+  const { cookie } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Del', short: 'Del', initials: 'DL', av: '#abc' } })).json()
+  await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }] } })
+  const res = await app.inject({ method: 'DELETE', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'fr' }] } })
+  expect(res.statusCode).toBe(200)
+  expect(res.json().removed).toBe(2)
+  const people = (await app.inject({ method: 'GET', url: '/api/people', headers: h })).json()
+  expect(people.find((x) => x.id === p.id).teams).toEqual(['ar'])
+})

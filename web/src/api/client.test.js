@@ -239,6 +239,22 @@ test('postOwnership and deleteOwnership send personId+teamCode with credentials'
   expect(JSON.parse(calls[1].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
 })
 
+test('bulkPostOwnership and bulkDeleteOwnership send items to the bulk route', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
+  const { bulkPostOwnership, bulkDeleteOwnership } = await import('./client.js')
+  const items = [{ personId: 'p1', teamCode: 'hr' }, { personId: 'p1', teamCode: 'br' }]
+  await bulkPostOwnership(items)
+  expect(calls[0].url).toMatch(/\/api\/admin\/ownership\/bulk$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ items })
+  await bulkDeleteOwnership(items)
+  expect(calls[1].url).toMatch(/\/api\/admin\/ownership\/bulk$/)
+  expect(calls[1].opts.method).toBe('DELETE')
+  expect(JSON.parse(calls[1].opts.body)).toEqual({ items })
+})
+
 test('postSuperSession POSTs the token to /api/super/session with credentials', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ super: true }) } }))

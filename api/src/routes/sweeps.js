@@ -146,6 +146,18 @@ export async function sweepsRoutes(app) {
     type: 'object', required: ['personId', 'teamCode'], additionalProperties: false,
     properties: { personId: { type: 'string' }, teamCode: { type: 'string' } },
   }
+  const ownItemsBody = {
+    type: 'object', required: ['items'], additionalProperties: false,
+    properties: {
+      items: {
+        type: 'array', minItems: 1, maxItems: 500,
+        items: {
+          type: 'object', required: ['personId', 'teamCode'], additionalProperties: false,
+          properties: { personId: { type: 'string' }, teamCode: { type: 'string' } },
+        },
+      },
+    },
+  }
 
   app.post('/api/admin/people', { preHandler: groupAdmin, schema: { body: personBody } }, async (req, reply) => {
     const id = `pn_${newToken(12)}`
@@ -197,5 +209,37 @@ export async function sweepsRoutes(app) {
     const { personId, teamCode } = req.body
     await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), eq(ownership.personId, personId), eq(ownership.teamCode, teamCode)))
     return { personId, teamCode, removed: true }
+  })
+
+  // Bulk allocate: assign many (person, team) pairs in one call. Idempotent
+  // (onConflictDoNothing) so re-assigning an owned team is a no-op; co-ownership
+  // across different people is fine (different PK). Every personId must belong to
+  // this sweep, else the whole call is rejected.
+  app.post('/api/admin/ownership/bulk', { preHandler: groupAdmin, schema: { body: ownItemsBody } }, async (req, reply) => {
+    const sweepId = req.sweep.id
+    const { items } = req.body
+    const own = await app.db.select({ id: person.id }).from(person).where(eq(person.sweepId, sweepId))
+    const valid = new Set(own.map((p) => p.id))
+    if (items.some((it) => !valid.has(it.personId))) return reply.code(400).send({ error: 'unknown_person' })
+    // de-dupe identical pairs within the request
+    const seen = new Set()
+    const rows = []
+    for (const it of items) {
+      const key = `${it.personId} ${it.teamCode}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      rows.push({ sweepId, personId: it.personId, teamCode: it.teamCode })
+    }
+    const inserted = await app.db.insert(ownership).values(rows).onConflictDoNothing().returning({ personId: ownership.personId, teamCode: ownership.teamCode })
+    return reply.code(201).send({ inserted: inserted.length, items: rows.map(({ personId, teamCode }) => ({ personId, teamCode })) })
+  })
+
+  // Bulk unallocate: remove many (person, team) pairs, scoped to this sweep.
+  app.delete('/api/admin/ownership/bulk', { preHandler: groupAdmin, schema: { body: ownItemsBody } }, async (req) => {
+    const sweepId = req.sweep.id
+    const { items } = req.body
+    const pairs = items.map((it) => and(eq(ownership.personId, it.personId), eq(ownership.teamCode, it.teamCode)))
+    await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), or(...pairs)))
+    return { removed: items.length, items: items.map(({ personId, teamCode }) => ({ personId, teamCode })) }
   })
 }
