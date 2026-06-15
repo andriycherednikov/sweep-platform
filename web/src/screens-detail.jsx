@@ -422,7 +422,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
 
               <div className="field" style={{marginTop:16}}>
                 <label>Your name</label>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Priya" />
+                <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Macca" />
               </div>
 
               {!isProfile && (
@@ -914,7 +914,7 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
         <div className="sheet-head"><h3>Add person</h3><button className="x" onClick={onClose}><Icon.x /></button></div>
         <div className="sheet-body">
           <div className="field"><label>Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Priya" autoFocus />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Macca" autoFocus />
           </div>
           <div className="alloc-rand">
             <span className="alloc-lbl">Allocate random</span>

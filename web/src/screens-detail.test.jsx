@@ -449,7 +449,7 @@ test('PeopleAdmin add-member sheet creates a person (+ optional teams) then inva
   createPerson.mockResolvedValueOnce({ id: 'p9', name: 'Bo' })
   const { getByText, getByLabelText, getByPlaceholderText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
   fireEvent.click(getByLabelText('Add person'))                       // open the sheet
-  fireEvent.change(getByPlaceholderText('e.g. Priya'), { target: { value: 'Bo' } })
+  fireEvent.change(getByPlaceholderText('e.g. Macca'), { target: { value: 'Bo' } })
   fireEvent.click(getByText('Add'))                              // submit (cta)
   await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
   const av = createPerson.mock.calls[0][0].av
