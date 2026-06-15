@@ -37,6 +37,31 @@ test('subscribes to the SSE stream on mount', async () => {
   expect(esInstances[0]?.url).toBe('/api/stream')
 })
 
+test('sets the active sweep id from bootstrap so identity keys per-sweep', async () => {
+  // Fresh module graph (like the 401 tests below) so the gate's ['sweep'] query
+  // actually re-runs instead of returning the cached result of the earlier tests.
+  vi.resetModules()
+  localStorage.clear()
+  // a pick stored under sw_x must resolve once the gate sets the active sweep id
+  localStorage.setItem('sweep.me.v1.sw_x', 'p1')
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    if (path === '/api/bootstrap') {
+      return { ok: true, status: 200, json: async () => ({
+        teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#000', strength: 80 }],
+        people: [{ id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null }],
+        ownership: {}, scoring: { rule: 'top3' }, sweep: { id: 'sw_x', name: 'X Sweep' },
+      }) }
+    }
+    return { ok: true, status: 200, json: async () => bundle[path] }
+  }))
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  const { getMe } = await import('./social.js')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
+  expect(getMe()?.id).toBe('p1')
+})
+
 function mock401() {
   vi.stubGlobal('fetch', vi.fn(async (url) => {
     const path = url.replace(/^https?:\/\/[^/]+/, '')

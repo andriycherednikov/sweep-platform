@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchAll, fetchSocial } from './api/client.js'
 import { setSweepData } from './data.js'
-import { setSocialData } from './social.js'
+import { setSocialData, setCurrentSweepId } from './social.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep, switchTo } from './sweeps.js'
@@ -27,6 +27,7 @@ function Gate({ children }) {
     queryKey: ['sweep'],
     queryFn: async () => {
       const api = await fetchAll()
+      setCurrentSweepId(api.bootstrap?.sweep?.id || 'default')
       setSweepData(assembleSweep(api))
       // D7a→D4: backfill the active sweep's display name into the switcher store.
       const sweep = api.bootstrap?.sweep
