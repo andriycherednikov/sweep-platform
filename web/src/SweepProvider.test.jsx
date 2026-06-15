@@ -1,5 +1,5 @@
 import { expect, test, vi, beforeEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { SweepProvider } from './SweepProvider.jsx'
 import { SWEEP } from './data.js'
 
@@ -35,4 +35,61 @@ test('subscribes to the SSE stream on mount', async () => {
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
   await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
   expect(esInstances[0]?.url).toBe('/api/stream')
+})
+
+function mock401() {
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    if (path === '/api/bootstrap') return { ok: false, status: 401, json: async () => ({}) }
+    return { ok: true, status: 200, json: async () => bundle[path] }
+  }))
+}
+
+test('a 401 on bootstrap with no stored sweeps → "invite link needed" empty state', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByTestId('sweep-pick')).toBeInTheDocument())
+  expect(screen.queryByText('app-ready')).toBeNull()
+  expect(screen.queryByTestId('sweep-error')).toBeNull()
+  expect(screen.getByText(/invite link/i)).toBeInTheDocument()
+})
+
+test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, queryClient)', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  const switchTo = vi.fn(async () => {})
+  vi.doMock('./sweeps.js', () => ({
+    listSweeps: () => [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' }],
+    addSweep: vi.fn(),
+    switchTo,
+  }))
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  const btn = await screen.findByRole('button', { name: /Pub Sweep/i })
+  fireEvent.click(btn)
+  expect(switchTo).toHaveBeenCalledTimes(1)
+  expect(switchTo.mock.calls[0][0]).toEqual({ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' })
+  expect(switchTo.mock.calls[0][1]).toHaveProperty('invalidateQueries')
+})
+
+test('a successful load backfills the sweep name into the store via addSweep', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  const addSweep = vi.fn()
+  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep, switchTo: vi.fn() }))
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    if (path === '/api/bootstrap') {
+      return { ok: true, status: 200, json: async () => ({ ...bundle['/api/bootstrap'], sweep: { id: 'sw_9', name: 'Office Sweep' } }) }
+    }
+    return { ok: true, status: 200, json: async () => bundle[path] }
+  }))
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
+  expect(addSweep).toHaveBeenCalledWith({ sweepId: 'sw_9', name: 'Office Sweep', role: 'member', token: null })
 })
