@@ -4,6 +4,7 @@ import { FloatingReactions } from './FloatingReactions.jsx'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { pushNotification } from './notifications.js'
+import { setSpoiler, reveal } from './spoiler.js'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -19,6 +20,7 @@ beforeEach(() => {
     fixtures: [{ id: 'm1', group: 'G', matchday: 1, t1: 'br', t2: 'ma', ko: '2026-06-12T18:00:00Z', venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' }],
     standings: {}, photos: [],
   }))
+  setSpoiler(false)
 })
 afterEach(() => { vi.useRealTimers() })
 
@@ -78,4 +80,29 @@ test('renders kick-off and full-time match notifications', () => {
   act(() => { pushNotification({ kind: 'match', event: 'final', fixtureId: 'm1', score: [2, 1] }) })
   expect(container.textContent).toContain('Full time')
   expect(container.textContent).toContain('2–1')
+})
+
+test('suppresses a match-event popup while its match is hidden', () => {
+  setSpoiler(true)
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', player: 'Neymar', minute: 23, detail: 'Normal Goal', score: [1, 0] }) })
+  expect(container.textContent).not.toContain('Goal!')
+  setSpoiler(false)
+})
+
+test('lets a match-event popup through once its match is revealed', () => {
+  setSpoiler(true)
+  reveal('m1')
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'match', event: 'goal', fixtureId: 'm1', teamCode: 'br', player: 'Neymar', minute: 23, detail: 'Normal Goal', score: [1, 0] }) })
+  expect(container.textContent).toContain('Goal!')
+  setSpoiler(false)
+})
+
+test('social "backing" reactions are never suppressed by spoiler mode', () => {
+  setSpoiler(true)
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ personId: 'p1', teamCode: 'br', fixtureId: 'm1', action: 'pick' }) })
+  expect(container.textContent).toContain('is backing')
+  setSpoiler(false)
 })
