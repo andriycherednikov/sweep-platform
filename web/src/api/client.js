@@ -91,3 +91,13 @@ export const deletePerson = (id) => deleteCreds(`/api/admin/people/${id}`, {})
 export const patchPerson = (id, fields) => patchCreds(`/api/admin/people/${id}`, fields)
 export const postOwnership = (personId, teamCode) => postCreds('/api/admin/ownership', { personId, teamCode })
 export const deleteOwnership = (personId, teamCode) => deleteCreds('/api/admin/ownership', { personId, teamCode })
+
+// --- super-admin (platform owner) ---
+// patchCreds(path, body) is defined above (Slice 3); imported/used here, never redefined.
+export const postSuperSession = (token) => postCreds('/api/super/session', { token })
+export const fetchSuperSweeps = () => getCreds('/api/super/sweeps')
+export const createSweep = (name) => postCreds('/api/super/sweeps', { name })
+export const rotateSweepToken = (id, which) => postCreds(`/api/super/sweeps/${id}/rotate`, { which })
+export const archiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/archive`, {})
+export const unarchiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/unarchive`, {})
+export const patchSweep = (id, fields) => patchCreds(`/api/super/sweeps/${id}`, fields)

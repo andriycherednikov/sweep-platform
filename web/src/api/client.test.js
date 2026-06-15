@@ -238,3 +238,72 @@ test('postOwnership and deleteOwnership send personId+teamCode with credentials'
   expect(calls[1].opts.credentials).toBe('include')
   expect(JSON.parse(calls[1].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
 })
+
+test('postSuperSession POSTs the token to /api/super/session with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ super: true }) } }))
+  const { postSuperSession } = await import('./client.js')
+  const res = await postSuperSession('sup3rt0ken')
+  expect(res).toEqual({ super: true })
+  expect(calls[0].url).toMatch(/\/api\/super\/session$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ token: 'sup3rt0ken' })
+})
+
+test('fetchSuperSweeps GETs /api/super/sweeps with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ([{ id: 'sw_a', name: 'A' }]) } }))
+  const { fetchSuperSweeps } = await import('./client.js')
+  const list = await fetchSuperSweeps()
+  expect(list).toHaveLength(1)
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('createSweep POSTs the name and returns the link bundle', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'sw_b', name: 'Office', memberLink: '/g/m', adminLink: '/g/m/admin/a' }) } }))
+  const { createSweep } = await import('./client.js')
+  const res = await createSweep('Office')
+  expect(res.memberLink).toBe('/g/m')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Office' })
+})
+
+test('rotateSweepToken POSTs which to the rotate route', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ memberLink: '/g/new' }) } }))
+  const { rotateSweepToken } = await import('./client.js')
+  await rotateSweepToken('sw_a', 'member')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a\/rotate$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ which: 'member' })
+})
+
+test('archiveSweep and unarchiveSweep hit their routes with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({}) } }))
+  const { archiveSweep, unarchiveSweep } = await import('./client.js')
+  await archiveSweep('sw_a')
+  await unarchiveSweep('sw_a')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a\/archive$/)
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[1].url).toMatch(/\/api\/super\/sweeps\/sw_a\/unarchive$/)
+  expect(calls[1].opts.credentials).toBe('include')
+})
+
+test('patchSweep PATCHes the fields with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ id: 'sw_a', name: 'Renamed' }) } }))
+  const { patchSweep } = await import('./client.js')
+  const res = await patchSweep('sw_a', { name: 'Renamed' })
+  expect(res.name).toBe('Renamed')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a$/)
+  expect(calls[0].opts.method).toBe('PATCH')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Renamed' })
+})
