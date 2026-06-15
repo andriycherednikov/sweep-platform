@@ -447,3 +447,40 @@ test('PeopleAdmin deletes a person via deletePerson', async () => {
   fireEvent.click(getByLabelText('Remove Ann'))
   await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
 })
+
+import { DrawAdmin } from './screens-detail.jsx'
+import { postOwnership, deleteOwnership } from './api/client.js'
+
+function seedDraw() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+}
+
+test('DrawAdmin assigns a team to a person via postOwnership', async () => {
+  seedDraw()
+  postOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
+  fireEvent.click(getByText('Assign'))
+  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
+})
+
+test('DrawAdmin removes an existing assignment via deleteOwnership', async () => {
+  seedDraw()
+  deleteOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<DrawAdmin onToast={noop} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.click(getByLabelText('Unassign Croatia'))
+  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
+})
