@@ -9,8 +9,8 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet } from './components.jsx'
-import { listSweeps, addSweep } from './sweeps.js'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader } from './components.jsx'
+import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -416,4 +416,46 @@ test('SweepsSheet shows a friendly fallback when a stored sweep has no name', ()
   const { getByText, queryByText } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
   expect(getByText('Untitled sweep')).toBeInTheDocument()
   expect(queryByText('sw_zz')).toBeNull()  // never show the raw id as a name
+})
+
+/* "My sweeps" switcher visibility — only worth showing once the device has joined
+   more than one sweep (with 0–1 there's nothing to switch to). */
+
+test('useSweeps re-renders subscribers when sweeps are added and removed', () => {
+  const { result } = renderHook(() => useSweeps())
+  expect(result.current).toEqual([])
+  act(() => { addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' }) })
+  expect(result.current).toHaveLength(1)
+  act(() => { addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' }) })
+  expect(result.current).toHaveLength(2)
+  act(() => { removeSweep('sw_a') })
+  expect(result.current).toHaveLength(1)
+})
+
+test('Sidebar hides "My sweeps" with one joined sweep', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(queryByText('My sweeps')).toBeNull()
+})
+
+test('Sidebar shows "My sweeps" with two joined sweeps', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByText('My sweeps')).toBeInTheDocument()
+})
+
+test('HomeHeader hides the switch-sweep button with one joined sweep', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  const { queryByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(queryByLabelText(/my sweeps/i)).toBeNull()
+})
+
+test('HomeHeader shows the switch-sweep button with two sweeps and opens the switcher', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const onSweeps = vi.fn()
+  const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={onSweeps} />)
+  fireEvent.click(getByLabelText(/my sweeps/i))
+  expect(onSweeps).toHaveBeenCalled()
 })

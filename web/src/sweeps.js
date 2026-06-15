@@ -1,6 +1,11 @@
+import { useState, useEffect } from 'react'
 import { postSession } from './api/client.js'
 
 const KEY = 'sweep.sweeps.v1'
+
+// Subscribers re-render when the joined-sweeps list changes (mirrors social.js).
+const listeners = new Set()
+function notify() { listeners.forEach((fn) => fn()) }
 
 function read() {
   try {
@@ -12,6 +17,7 @@ function read() {
 }
 function write(list) {
   localStorage.setItem(KEY, JSON.stringify(list))
+  notify()
 }
 
 /** @returns {{sweepId:string, name:string|null, role:string, token:string|null}[]} */
@@ -63,4 +69,15 @@ export async function switchTo(sweep, queryClient) {
   await postSession(sweep.token)
   queryClient.invalidateQueries({ queryKey: ['sweep'] })
   queryClient.invalidateQueries({ queryKey: ['social'] })
+}
+
+/** Reactive joined-sweeps list — re-renders the caller when sweeps change. */
+export function useSweeps() {
+  const [, force] = useState(0)
+  useEffect(() => {
+    const fn = () => force((x) => x + 1)
+    listeners.add(fn)
+    return () => listeners.delete(fn)
+  }, [])
+  return listSweeps()
 }

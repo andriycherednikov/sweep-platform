@@ -9,7 +9,7 @@ import {
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
-import { listSweeps, removeSweep, renameSweep, switchTo } from "./sweeps.js";
+import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
@@ -265,8 +265,9 @@ export function MatchCard({ f, onOpen, onToast }) {
 }
 
 /* home header */
-export function HomeHeader({ onAdmin, go }) {
+export function HomeHeader({ onAdmin, go, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
+  const sweeps = useSweeps();
   return (
     <header className="top home-top">
       <div className="brandrow">
@@ -276,6 +277,11 @@ export function HomeHeader({ onAdmin, go }) {
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div className="tz"><b>{fmtDate(new Date())}</b></div>
+          {onSweeps && sweeps.length > 1 && (
+            <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+              <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+            </button>
+          )}
           <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
             <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
@@ -357,6 +363,7 @@ const SB_NAV = [
 ];
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
+  const sweeps = useSweeps();
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
@@ -379,7 +386,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
       </nav>
       <div className="sb-foot">
         <IdentityControl dark/>
-        {onSweeps && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
+        {onSweeps && sweeps.length > 1 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>

@@ -42,7 +42,7 @@ function CardChips({ red, n }) {
 }
 
 /* ---------------- HOME ---------------- */
-export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin }) {
+export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onAdmin, onSweeps }) {
   // a live match stays front-and-center in the hero until it's over; otherwise the soonest
   // kickoff that's still in the future. derived from Date.now() each render (the countdown
   // re-renders every second) so when a match kicks off, the hero rolls to the next one's
@@ -152,7 +152,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   return (
     <div className="scroll pad screen-anim">
-      <HomeHeader onAdmin={onAdmin} go={go}/>
+      <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps}/>
 
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>

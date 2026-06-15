@@ -122,7 +122,7 @@ export default function App() {
   const photoP = modal?.type === "photo" ? S.photos.find((x) => x.id === modal.id) : null;
 
   let base = null;
-  if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin}/>;
+  if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
   else if (tab==="schedule")  base = <ScheduleScreen openMatch={openMatch} openPerson={openPerson}/>;
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
