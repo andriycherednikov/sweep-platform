@@ -232,8 +232,15 @@ a{color:inherit; text-decoration:none;}
 .spoiler-cover{display:inline-flex; align-items:center; justify-content:center; background:#eef1f5; color:var(--muted2); border:0; border-radius:8px; padding:3px 11px; cursor:pointer; flex-shrink:0;}
 .spoiler-cover svg{width:16px; height:16px; stroke:currentColor;}
 .spoiler-cover.dark{background:rgba(255,255,255,.16); color:#fff;}
-.sb-item.spoiler-tog.on{color:var(--accent);}
-.sb-item.spoiler-tog.on svg{stroke:var(--accent);}
+/* privacy-mode toggle (sidebar pill) */
+.privtog{display:flex; align-items:center; gap:11px; width:100%; padding:9px 11px; margin-bottom:10px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:#cdd8e8; cursor:pointer; text-align:left; transition:background .15s,border-color .15s;}
+.privtog:hover{background:rgba(255,255,255,.11);}
+.privtog svg{width:18px; height:18px; stroke:#9fb6d6; flex-shrink:0;}
+.privtog .pt-label{flex:1; min-width:0; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase; color:#cdd8e8;}
+.privtog .pt-state{font-family:'Barlow Condensed'; font-weight:800; font-size:11px; letter-spacing:.6px; padding:2px 9px; border-radius:999px; background:rgba(255,255,255,.13); color:#9fb6d6; flex-shrink:0;}
+.privtog.on{border-color:rgba(233,79,55,.5);}
+.privtog.on svg{stroke:var(--accent2);}
+.privtog.on .pt-state{background:var(--accent); color:#fff;}
 
 /* identity chip */
 /* identity chip: a container holding the profile button (.idmain) + the

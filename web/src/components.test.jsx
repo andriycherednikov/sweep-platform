@@ -509,7 +509,7 @@ test('HomeHeader shows the admin entry on the default sweep even for a member', 
 test('SpoilerToggle reflects and flips the mode', () => {
   setSpoiler(false)
   const { getByLabelText } = render(<SpoilerToggle />)
-  const btn = getByLabelText(/spoiler protection/i)
+  const btn = getByLabelText(/privacy mode/i)
   expect(btn.getAttribute('aria-pressed')).toBe('false')
   act(() => { fireEvent.click(btn) })
   expect(isSpoiler()).toBe(true)
@@ -619,11 +619,22 @@ test('HomeScreen hero covers a live score under spoiler mode', () => {
 test('Sidebar renders the spoiler toggle', () => {
   const noop = () => {}
   const { getByLabelText } = render(<Sidebar current="home" go={noop} onKnock={noop} onAdmin={noop} />)
-  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+  expect(getByLabelText(/privacy mode/i)).toBeTruthy()
 })
 
 test('HomeHeader renders the spoiler toggle', () => {
   const noop = () => {}
   const { getByLabelText } = render(<HomeHeader onAdmin={noop} go={noop} />)
-  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+  expect(getByLabelText(/privacy mode/i)).toBeTruthy()
+})
+
+test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
+  setSpoiler(false)
+  const off = render(<SpoilerToggle compact />)
+  expect(off.container.querySelector('.spoiler-tog.compact.on')).toBeNull()
+  off.unmount()
+  setSpoiler(true)
+  const on = render(<SpoilerToggle compact />)
+  expect(on.container.querySelector('.spoiler-tog.compact.on')).toBeTruthy()
+  setSpoiler(false)
 })
