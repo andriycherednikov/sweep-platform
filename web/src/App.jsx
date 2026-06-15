@@ -18,6 +18,8 @@ import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
+import { SuperConsole } from "./screens-super.jsx";
+import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
 const TABS = ["schedule", "people", "teams", "standings"];
@@ -29,6 +31,7 @@ function urlFor(v) {
   if (v.overlay?.type === "knockouts") return "/knockouts";
   if (v.overlay?.type === "admin") return "/admin";
   if (v.overlay?.type === "sweeps") return "/sweeps";
+  if (v.overlay?.type === "super") return v.overlay.token ? `/super/${v.overlay.token}` : "/super";
   return v.tab === "home" ? "/" : `/${v.tab}`;
 }
 function readView(path) {
@@ -39,6 +42,7 @@ function readView(path) {
   if (seg[0] === "knockouts") return { ...base, tab: "standings", overlay: { type: "knockouts" } };
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
   if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
+  if (seg[0] === "super") return { ...base, overlay: { type: "super", token: parseSuperRoute(path).token } };
   return { ...base, tab: TABS.includes(seg[0]) ? seg[0] : "home" };
 }
 
@@ -100,6 +104,7 @@ export default function App() {
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+  const openSuper  = () => navigate({ overlay: { type: "super" } });
   // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
   // hook would throw — fall back to null and let the sheet skip invalidation.
   let qc = null;
@@ -123,9 +128,10 @@ export default function App() {
   else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
+  else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
 
   const isDesktop = useIsDesktop();
-  const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin")) ? overlay.type : tab;
+  const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;
   const modals = (
     <>
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}

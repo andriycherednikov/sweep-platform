@@ -12,7 +12,17 @@ beforeAll(() => {
 vi.mock('./lib/analytics.js', () => ({
   initAnalytics: vi.fn(), trackPageview: vi.fn(), trackEvent: vi.fn(),
 }))
-vi.mock('./api/client.js', () => ({ postWatch: vi.fn(async () => ({})), postSupport: vi.fn(async () => ({})) }))
+vi.mock('./api/client.js', () => ({
+  postWatch: vi.fn(async () => ({})),
+  postSupport: vi.fn(async () => ({})),
+  postSuperSession: vi.fn(async () => ({ super: true })),
+  fetchSuperSweeps: vi.fn(async () => ([])),
+  createSweep: vi.fn(async () => ({})),
+  rotateSweepToken: vi.fn(async () => ({})),
+  archiveSweep: vi.fn(async () => ({})),
+  unarchiveSweep: vi.fn(async () => ({})),
+  patchSweep: vi.fn(async () => ({})),
+}))
 vi.mock('./hooks/useEventStream.js', () => ({ useEventStream: vi.fn() }))
 // useAdminBadge is a render-enabler, not part of the analytics assertions:
 // HomeHeader calls it during render (like the scrollTo polyfill above for ScheduleScreen).
@@ -85,4 +95,19 @@ test('navigating to /sweeps opens the My-sweeps switcher overlay', () => {
   })
   expect(screen.getByText('My sweeps')).toBeInTheDocument()
   expect(screen.getByText('Office')).toBeInTheDocument()
+})
+
+test('opening /super renders the SuperConsole token prompt', () => {
+  window.history.replaceState(null, '', '/super')
+  const { getByPlaceholderText, getByRole } = render(<App />)
+  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
+  expect(getByRole('button', { name: /unlock/i })).toBeTruthy()
+})
+
+test('readView maps /super/<token> so the console can auto-submit it', () => {
+  // /super/<token> must resolve to the super overlay; the token rides along for auto-submit.
+  window.history.replaceState(null, '', '/super/sekret')
+  const { getByPlaceholderText } = render(<App />)
+  // still the super overlay (prompt visible before the async auto-submit resolves)
+  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
 })
