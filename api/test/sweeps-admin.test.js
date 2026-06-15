@@ -90,3 +90,34 @@ test('co-ownership allowed: two people CAN own the same team; same person twice 
   // the SAME person assigned the SAME team twice → 409 (PK violation):
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(409)
 })
+
+test('super can rename a sweep and edit scoring (PATCH returns updated row)', async () => {
+  const cookie = await superCookie()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Old Name' } })).json()
+  const res = await app.inject({
+    method: 'PATCH', url: `/api/super/sweeps/${created.id}`, headers: { cookie },
+    payload: { name: 'New Name', scoringRule: 'winner_only', coOwners: 'split' },
+  })
+  expect(res.statusCode).toBe(200)
+  const body = res.json()
+  expect(body.id).toBe(created.id)
+  expect(body.name).toBe('New Name')
+  expect(body.scoringRule).toBe('winner_only')
+  expect(body.coOwners).toBe('split')
+  // a follow-up GET reflects the new name
+  const list = (await app.inject({ method: 'GET', url: '/api/super/sweeps', headers: { cookie } })).json()
+  expect(list.find((s) => s.id === created.id).name).toBe('New Name')
+})
+
+test('PATCH a sweep without a super cookie is 401', async () => {
+  const cookie = await superCookie()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Guarded' } })).json()
+  const res = await app.inject({ method: 'PATCH', url: `/api/super/sweeps/${created.id}`, payload: { name: 'Nope' } })
+  expect(res.statusCode).toBe(401)
+})
+
+test('PATCH an unknown sweep id is 404', async () => {
+  const cookie = await superCookie()
+  const res = await app.inject({ method: 'PATCH', url: '/api/super/sweeps/sw_does_not_exist', headers: { cookie }, payload: { name: 'X' } })
+  expect(res.statusCode).toBe(404)
+})

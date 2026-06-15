@@ -17,6 +17,14 @@ const rotateBody = {
   type: 'object', required: ['which'], additionalProperties: false,
   properties: { which: { type: 'string', enum: ['member', 'admin'] } },
 }
+const patchBody = {
+  type: 'object', additionalProperties: false, minProperties: 1,
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 80 },
+    scoringRule: { type: 'string', minLength: 1, maxLength: 40 },
+    coOwners: { type: 'string', minLength: 1, maxLength: 40 },
+  },
+}
 
 function links(app, row) {
   const base = `https://${app.platformHost}/g/${row.memberToken}`
@@ -92,6 +100,19 @@ export async function sweepsRoutes(app) {
     if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
     await app.db.update(sweep).set({ archivedAt: new Date() }).where(eq(sweep.id, id))
     return { id, archived: true }
+  })
+
+  app.patch('/api/super/sweeps/:id', { preHandler: superGuard, schema: { body: patchBody } }, async (req, reply) => {
+    const { id } = req.params
+    const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
+    if (!row) return reply.code(404).send({ error: 'not_found' })
+    const set = {}
+    if (req.body.name !== undefined) set.name = req.body.name
+    if (req.body.scoringRule !== undefined) set.scoringRule = req.body.scoringRule
+    if (req.body.coOwners !== undefined) set.coOwners = req.body.coOwners
+    await app.db.update(sweep).set(set).where(eq(sweep.id, id))
+    const [updated] = await app.db.select().from(sweep).where(eq(sweep.id, id))
+    return { id: updated.id, name: updated.name, scoringRule: updated.scoringRule, coOwners: updated.coOwners, kind: updated.kind, archivedAt: updated.archivedAt }
   })
 
   const groupAdmin = requireSweep(['admin'])
