@@ -25,7 +25,13 @@ test('bootstrap teams carry a squad field (null by default)', async () => {
 
 test('bootstrap returns the current sweep id and display name (D7a)', async () => {
   const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
-  expect(body.sweep).toEqual({ id: 'default', name: 'The Sweep' })
+  expect(body.sweep).toEqual({ id: 'default', name: 'The Sweep', role: 'member' })
+})
+
+test('bootstrap sweep carries the viewer role (drives admin-entry visibility)', async () => {
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  // unauthenticated default-host viewer resolves to the member role
+  expect(body.sweep.role).toBe('member')
 })
 
 test('bootstrap people carry a createdAt timestamp (for sort-by-when-added)', async () => {

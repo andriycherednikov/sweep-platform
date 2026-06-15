@@ -2,7 +2,7 @@
    THE SWEEP — shared components
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
-import { SWEEP as S } from "./data.js";
+import { SWEEP as S, useSweep, canModerate } from "./data.js";
 import {
   useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf, toast,
   supportOf, mySupport, setSupport, DRAW,
@@ -268,6 +268,7 @@ export function MatchCard({ f, onOpen, onToast }) {
 export function HomeHeader({ onAdmin, go, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
+  const showAdmin = canModerate(useSweep());
   return (
     <header className="top home-top">
       <div className="brandrow">
@@ -282,10 +283,12 @@ export function HomeHeader({ onAdmin, go, onSweeps }) {
               <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             </button>
           )}
-          <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-            <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
-            {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
-          </button>
+          {showAdmin && (
+            <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+              <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+              {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
+            </button>
+          )}
         </div>
       </div>
       <IdentityControl dark style={{marginTop:20}}/>
@@ -364,6 +367,7 @@ const SB_NAV = [
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
+  const showAdmin = canModerate(useSweep());
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
@@ -378,12 +382,14 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
           </button>
         ))}
       </nav>
-      <div className="sb-sec">Admin</div>
-      <nav className="sb-nav">
-        <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
-          <Icon.lock/><span>Moderation</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
-        </button>
-      </nav>
+      {showAdmin && <>
+        <div className="sb-sec">Admin</div>
+        <nav className="sb-nav">
+          <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
+            <Icon.lock/><span>Moderation</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
+          </button>
+        </nav>
+      </>}
       <div className="sb-foot">
         <IdentityControl dark/>
         {onSweeps && sweeps.length > 1 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}

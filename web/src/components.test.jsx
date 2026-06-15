@@ -459,3 +459,48 @@ test('HomeHeader shows the switch-sweep button with two sweeps and opens the swi
   fireEvent.click(getByLabelText(/my sweeps/i))
   expect(onSweeps).toHaveBeenCalled()
 })
+
+/* Moderation/admin entry visibility — hidden for non-admins on token sweeps,
+   always shown on the default sweep (its admin enters a PIN there). */
+function setSweep(sweep) {
+  setSweepData(assembleSweep({
+    bootstrap: { teams: [], people: [], ownership: {}, scoring: null, sweep },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+}
+
+test('Sidebar hides Moderation for a non-admin on a token sweep', () => {
+  setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
+  const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(queryByText('Moderation')).toBeNull()
+})
+
+test('Sidebar shows Moderation for an admin on a token sweep', () => {
+  setSweep({ id: 'sw_x', name: 'Office', role: 'admin' })
+  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByText('Moderation')).toBeInTheDocument()
+})
+
+test('Sidebar shows Moderation on the default sweep even for a member', () => {
+  setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
+  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByText('Moderation')).toBeInTheDocument()
+})
+
+test('HomeHeader hides the admin entry for a non-admin on a token sweep', () => {
+  setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
+  const { queryByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(queryByLabelText(/^admin$|moderation/i)).toBeNull()
+})
+
+test('HomeHeader shows the admin entry for an admin on a token sweep', () => {
+  setSweep({ id: 'sw_x', name: 'Office', role: 'admin' })
+  const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
+})
+
+test('HomeHeader shows the admin entry on the default sweep even for a member', () => {
+  setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
+  const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
+})

@@ -18,7 +18,7 @@ export async function bootstrapRoutes(app) {
       people: people.map(serializePerson),
       ownership: ownership_,
       scoring: { rule: req.sweep.scoringRule, coOwners: req.sweep.coOwners },
-      sweep: { id: req.sweep.id, name: req.sweep.name },
+      sweep: { id: req.sweep.id, name: req.sweep.name, role: req.role },
     }
   })
 }

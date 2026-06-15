@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday } from './lib/format.js'
 
 // Safe empty shape so module-scope reads never crash before data loads.
@@ -34,6 +35,19 @@ export function setSweepData(assembled) {
   SWEEP.ownersOf = assembled.ownersOf
   SWEEP.ownersForFixture = assembled.ownersForFixture
   socialListeners.forEach((fn) => fn())
+}
+
+/** Reactive current-sweep meta ({ id, name, role }) — re-renders on sweep load/switch. */
+export function useSweep() {
+  const [, force] = useState(0)
+  useEffect(() => onSweepData(() => force((x) => x + 1)), [])
+  return SWEEP.sweep
+}
+
+/** Whether the admin/moderation entry should be offered for a sweep: only to its
+ *  admins — except the default sweep, whose admin unlocks in-app via a PIN. */
+export function canModerate(sweep) {
+  return sweep?.id === 'default' || sweep?.role === 'admin'
 }
 
 export default SWEEP
