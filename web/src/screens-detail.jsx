@@ -14,7 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
 
@@ -818,17 +818,15 @@ export function AdminScreen({ onBack, onToast }) {
 }
 
 export function AdminConsole({ onBack, onToast }) {
-  const [tab, setTab] = useState("people"); // 'people' | 'draw' | 'mod'
+  const [tab, setTab] = useState("people"); // 'people' | 'mod'
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <PageHeader title="Admin" sub="Manage your sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
       <div className="admintabs">
         <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
-        <button className={"admintab"+(tab==="draw"?" on":"")} onClick={()=>setTab("draw")}>Draw</button>
         <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Moderation</button>
       </div>
       {tab==="people" && <PeopleAdmin onToast={onToast} />}
-      {tab==="draw" && <DrawAdmin onToast={onToast} />}
       {tab==="mod" && <AdminQueue embedded onToast={onToast} />}
     </div>
   );
@@ -1097,65 +1095,6 @@ export function PeopleAdmin({ onToast, queryClient }) {
     </div>
   );
 }
-export function DrawAdmin({ onToast, queryClient }) {
-  const qc = useResolvedQueryClient(queryClient);
-  const people = S.people;
-  const [pid, setPid] = useState(S.people[0]?.id || "");
-  const [code, setCode] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
-  const person = people.find(p=>p.id===pid);
-  const owned = person ? person.teams : [];
-  const free = S.teamList.filter(t=>!owned.includes(t.code));
-
-  async function assign(){
-    if(!pid || !code || busy) return;
-    setBusy(true);
-    try { await postOwnership(pid, code); setCode(""); onToast("Team assigned"); refresh(); }
-    catch { onToast("Couldn't assign — try again"); }
-    finally { setBusy(false); }
-  }
-  async function unassign(tc){
-    if(!pid || busy) return;
-    setBusy(true);
-    try { await deleteOwnership(pid, tc); onToast("Team unassigned"); refresh(); }
-    catch { onToast("Couldn't unassign — try again"); }
-    finally { setBusy(false); }
-  }
-
-  return (
-    <div className="scroll pad screen-anim" style={{paddingTop:10}}>
-      <div className="wrap">
-        <h3 className="adminsec-h">The draw</h3>
-        <div className="adminadd" style={{flexWrap:"wrap"}}>
-          <select aria-label="Person" value={pid} onChange={e=>setPid(e.target.value)}>
-            {people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          <select aria-label="Team" value={code} onChange={e=>setCode(e.target.value)}>
-            <option value="">Pick a team…</option>
-            {free.map(t=><option key={t.code} value={t.code}>{t.name}</option>)}
-          </select>
-          <button className="qbtn app" disabled={busy || !code} onClick={assign}>Assign</button>
-        </div>
-        <div className="plist" style={{marginTop:12}}>
-          {owned.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams assigned yet.</p>}
-          {owned.map(tc=>{
-            const t = S.team(tc);
-            return (
-              <div className="prow" key={tc}>
-                <img className="flag" src={S.flag(tc,40)} alt="" />
-                <div className="pi" style={{flex:1}}><b>{t?.name || tc}</b></div>
-                <button className="iconbtn" aria-label={"Unassign "+(t?.name || tc)} disabled={busy} onClick={()=>unassign(tc)}><Icon.x/></button>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function AdminQueue({ onBack, onToast, embedded }) {
   const [data, setData] = useState({ pending: [], approved: [] });
   const [tab, setTab] = useState("pending");

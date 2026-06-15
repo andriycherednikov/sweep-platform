@@ -13,8 +13,6 @@ vi.mock('./api/client.js', () => ({
   createPerson: vi.fn(async () => ({})),
   deletePerson: vi.fn(async () => ({})),
   patchPerson: vi.fn(async () => ({})),
-  postOwnership: vi.fn(async () => ({})),
-  deleteOwnership: vi.fn(async () => ({})),
   bulkPostOwnership: vi.fn(async () => ({})),
   bulkDeleteOwnership: vi.fn(async () => ({})),
 }))
@@ -517,62 +515,11 @@ test('PeopleAdmin allocation sheet: unallocate an owned team → bulk delete', a
   expect(bulkDeleteOwnership.mock.calls[0][0]).toEqual([{ personId: 'p1', teamCode: 'hr' }])
 })
 
-import { DrawAdmin } from './screens-detail.jsx'
-import { postOwnership, deleteOwnership } from './api/client.js'
+import { AdminConsole } from './screens-detail.jsx'
 
-function seedDraw() {
-  setSweepData(assembleSweep({
-    bootstrap: {
-      teams: [
-        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 },
-        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
-      ],
-      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
-      ownership: { p1: ['hr'] }, scoring: null,
-    },
-    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
-  }))
-  setSocialData({ watch: {}, support: {} })
-}
-
-test('DrawAdmin assigns a team to a person via postOwnership', async () => {
-  seedDraw()
-  postOwnership.mockResolvedValueOnce({ ok: true })
-  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} />)
-  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
-  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
-  fireEvent.click(getByText('Assign'))
-  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
-})
-
-test('DrawAdmin removes an existing assignment via deleteOwnership', async () => {
-  seedDraw()
-  deleteOwnership.mockResolvedValueOnce({ ok: true })
-  const { getByLabelText } = render(<DrawAdmin onToast={noop} />)
-  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
-  fireEvent.click(getByLabelText('Unassign Croatia'))
-  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
-})
-
-test('DrawAdmin invalidates the sweep query after assigning a team', async () => {
-  seedDraw()
-  const qc = { invalidateQueries: vi.fn() }
-  postOwnership.mockResolvedValueOnce({ ok: true })
-  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
-  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
-  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
-  fireEvent.click(getByText('Assign'))
-  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
-  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
-})
-
-test('DrawAdmin invalidates the sweep query after removing a team', async () => {
-  seedDraw()
-  const qc = { invalidateQueries: vi.fn() }
-  deleteOwnership.mockResolvedValueOnce({ ok: true })
-  const { getByLabelText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
-  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
-  fireEvent.click(getByLabelText('Unassign Croatia'))
-  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
-  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+test('AdminConsole offers People + Moderation tabs but no Draw tab', () => {
+  seedPeople()
+  const { getByText, queryByText } = render(<AdminConsole onBack={noop} onToast={noop} />)
+  expect(getByText('Moderation')).toBeInTheDocument()
+  expect(queryByText('Draw')).toBeNull()
 })
