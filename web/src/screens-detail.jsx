@@ -919,12 +919,25 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Priya" autoFocus />
           </div>
           <div className="alloc-rand">
-            <span className="alloc-lbl">Teams: {sel.size} · allocate random</span>
+            <span className="alloc-lbl">Allocate random</span>
             <button type="button" className="allocbtn" onClick={() => allocate(1)}>+1</button>
             <button type="button" className="allocbtn" onClick={() => allocate(2)}>+2</button>
             <button type="button" className="allocbtn" onClick={() => allocate(3)}>+3</button>
           </div>
-          <TeamPicker selected={sel} onToggle={toggle} />
+          {sel.size > 0 && (
+            <>
+              <h4 className="adminsec-h alloc-h">Selected ({sel.size})</h4>
+              <div className="tms tms-wrap alloc-chips">
+                {[...sel].map((tc) => (
+                  <button type="button" className="t t-chip" key={tc} onClick={() => toggle(tc)} aria-label={"Remove " + (S.team(tc)?.name || tc)}>
+                    <img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc)?.name || tc}<Icon.x />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <h4 className="adminsec-h alloc-h">Add teams</h4>
+          <TeamPicker selected={sel} onToggle={toggle} hideCodes={sel} />
           <button className="cta" disabled={busy || !name.trim()} onClick={save} style={{ marginTop: 14 }}>
             <Icon.check /> {busy ? "Adding…" : "Add"}
           </button>

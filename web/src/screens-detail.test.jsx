@@ -452,6 +452,15 @@ test('PeopleAdmin add-member sheet creates a person (+ optional teams) then inva
   await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
 })
 
+test('Add-person sheet shows the selected teams as chips after allocate random', async () => {
+  seedPeople()
+  const { getByText, queryByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Add person'))
+  expect(queryByText(/Selected \(/)).toBeNull()   // nothing selected yet
+  fireEvent.click(getByText('+2'))                 // allocate 2 random
+  expect(getByText('Selected (2)')).toBeTruthy()   // selected summary appears
+})
+
 test('PeopleAdmin allocation sheet renames via patchPerson on apply (name always editable)', async () => {
   seedPeople()
   patchPerson.mockResolvedValueOnce({ id: 'p1', name: 'Annie' })
