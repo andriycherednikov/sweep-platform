@@ -6,13 +6,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
-  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown, ScoreCover,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
   supportOf, mySupport, setSupport, watchersOf, DRAW,
   predictionsOf, predictionAccuracy,
 } from "./social.js";
+import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -64,6 +65,7 @@ export function PeopleScreen({ openPerson }) {
 /* ---------------- PERSON DETAIL ---------------- */
 export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
   useSocial();
+  useSpoiler();
   const isMe = getMe()?.id === person.id;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
@@ -140,7 +142,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                     <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
-                    {(f.status==="final"||live) && <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>}
+                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>)}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
                     {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[myCode===f.t1?"pa":"pb"]}%</span>}
                   </div>
@@ -241,6 +243,7 @@ export function TeamGroup({ title, teams, openTeam, rank }) {
 
 /* ---------------- TEAM DETAIL ---------------- */
 export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) {
+  useSpoiler();
   const t = S.team(code);
   const fixtures = S.fixtures.filter(f=>f.t1===code||f.t2===code);
   const pos = S.standings[t.group].findIndex(x=>x.code===code)+1;
@@ -306,7 +309,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                     <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
-                    {(f.status==="final"||live) && <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>}
+                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>)}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
                     {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[f.t1===code?"pa":"pb"]}%</span>}
                   </div>
@@ -350,6 +353,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
 
 /* ---------------- UPLOAD FLOW ---------------- */
 export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
+  useSpoiler();
   const me = getMe();
   const [name, setName] = useState(()=> me ? me.name : "");
   const [fixtureId, setFixtureId] = useState(presetFixture || null);
@@ -437,7 +441,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                           <i>v</i>
                           <img src={S.flag(f.t2,40)} alt=""/>{S.team(f.t2).name}
                         </span>
-                        <span className="gpk-meta">{f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
+                        <span className="gpk-meta">{spoilerHidden(f) ? <Icon.eyeoff style={{width:13,height:13,stroke:"var(--muted2)"}}/> : f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
                       </button>
                     ))}
                     {games.length===0 && <div className="gpk-empty">No games match “{q}”.</div>}
@@ -562,6 +566,7 @@ function MatchTimeline({ f }) {
 }
 export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhoto }) {
   useSocial();
+  useSpoiler();
   const t1=S.team(f.t1), t2=S.team(f.t2), o=S.ownersForFixture(f);
   const showScore = f.status==="final"||f.status==="live";
   // open by default for a confirmed XI (the match-time highlight); collapsed for the squad fallback
@@ -587,7 +592,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </div>
             <div className="vs-cd">
               {showScore
-                ? <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>
+                ? (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>)
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
               <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
             </div>
