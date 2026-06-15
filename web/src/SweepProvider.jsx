@@ -21,6 +21,16 @@ const queryClient = new QueryClient({
   },
 })
 
+// Branded wordmark shown atop every bootstrap-gate state (loading / pick / error).
+function GateBrand() {
+  return (
+    <div className="sweep-brand">
+      <img className="sweep-brand-mark" src="/trophy.png" alt="" />
+      <div className="sweep-brand-word"><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
+    </div>
+  )
+}
+
 function Gate({ children }) {
   const qc = useQueryClient()
   const { data, isLoading, isError, error, refetch } = useQuery({
@@ -52,35 +62,55 @@ function Gate({ children }) {
 
   if (isLoading) {
     return (
-      <div data-testid="sweep-loading" className="sweep-loading">
-        <div className="spinner" /> Loading the sweep…
+      <div data-testid="sweep-loading" className="sweep-gate">
+        <GateBrand />
+        <div className="sweep-spinner" aria-hidden="true" />
+        <p className="sweep-gate-msg">Loading the sweep…</p>
       </div>
     )
   }
   if (isError && is401(error)) {
     const sweeps = listSweeps()
     return (
-      <div data-testid="sweep-pick" className="sweep-pick">
-        <h2>Pick a sweep</h2>
-        {sweeps.length > 0 ? (
-          <ul className="sweep-pick-list">
-            {sweeps.map((s) => (
-              <li key={s.sweepId}>
-                <button onClick={() => switchTo(s, qc)}>{s.name || s.sweepId}</button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p>You need an invite link to join a sweep.</p>
-        )}
+      <div data-testid="sweep-pick" className="sweep-gate">
+        <GateBrand />
+        <div className="sweep-card">
+          <div className="sweep-card-ic" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m3.5 7.5 8.5 6 8.5-6" />
+            </svg>
+          </div>
+          <h2 className="sweep-card-h">Pick a sweep</h2>
+          {sweeps.length > 0 ? (
+            <>
+              <p className="sweep-card-sub">Jump back into one of your sweeps.</p>
+              <ul className="sweep-pick-list">
+                {sweeps.map((s) => (
+                  <li key={s.sweepId}>
+                    <button className="sweep-pick-row" onClick={() => switchTo(s, qc)}>
+                      <span className="sweep-pick-name">{s.name || s.sweepId}</span>
+                      <svg className="sweep-pick-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p className="sweep-card-sub">You need an invite link to join a sweep. Ask whoever runs your sweep for the link.</p>
+          )}
+        </div>
       </div>
     )
   }
   if (isError) {
     return (
-      <div data-testid="sweep-error" className="sweep-error">
-        <p>Couldn’t load the sweep.</p>
-        <button onClick={() => refetch()}>Retry</button>
+      <div data-testid="sweep-error" className="sweep-gate">
+        <GateBrand />
+        <div className="sweep-card">
+          <h2 className="sweep-card-h">Couldn’t load the sweep</h2>
+          <p className="sweep-card-sub">Something went wrong reaching the server. Check your connection and try again.</p>
+          <button className="sweep-retry" onClick={() => refetch()}>Retry</button>
+        </div>
       </div>
     )
   }

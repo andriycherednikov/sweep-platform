@@ -712,9 +712,58 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .ko-slot .ln.short{max-width:90px;}
 .ko-stage-label{font-family:'Barlow Condensed'; font-weight:800; font-size:13px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted2); margin:14px 2px 8px;}
 
-/* ===== data-layer states (Phase 3): loading / error / stale ===== */
-.sweep-loading, .sweep-error { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; min-height:100dvh; color:var(--ink, #e7e9ee); background:var(--bg, #0d1017); font-weight:600; }
-.sweep-loading .spinner { width:34px; height:34px; border-radius:50%; border:3px solid rgba(255,255,255,.15); border-top-color:var(--accent, #36c); animation:sweepspin .8s linear infinite; }
+/* ===== bootstrap-gate states (loading / pick / error) — branded Matchday field ===== */
+.sweep-gate{
+  position:relative; overflow:hidden; min-height:100dvh;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:26px; padding:40px 24px; text-align:center; color:#eaf1fb;
+  background:
+    radial-gradient(115% 78% at 50% -8%, rgba(233,79,55,.20), transparent 58%),
+    radial-gradient(95% 62% at 50% 2%, rgba(38,86,150,.45), transparent 60%),
+    linear-gradient(168deg, var(--navy2), var(--navy) 48%, var(--navy3));
+}
+.sweep-gate::before{ content:""; position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(125% 95% at 50% 32%, transparent 54%, rgba(0,0,0,.42)); }
+.sweep-gate::after{ content:""; position:absolute; inset:0; pointer-events:none; opacity:.4;
+  background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1.5px); background-size:8px 8px; }
+.sweep-gate > *{ position:relative; z-index:1; }
+
+.sweep-brand{ display:flex; flex-direction:column; align-items:center; gap:11px; animation:sweepRise .55s cubic-bezier(.2,.7,.2,1) both; }
+.sweep-brand-mark{ width:60px; height:60px; object-fit:contain; filter:drop-shadow(0 12px 22px rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(233,79,55,.28)); }
+.sweep-brand-word b{ display:block; font-family:'Barlow Condensed'; font-weight:800; font-size:26px; letter-spacing:.6px; line-height:.95; color:#fff; }
+.sweep-brand-word small{ display:block; margin-top:3px; font-size:10px; letter-spacing:4px; font-weight:600; color:#9fb6d6; }
+
+.sweep-card{ width:100%; max-width:340px; padding:26px 22px; border-radius:20px;
+  background:linear-gradient(180deg, rgba(23,58,107,.55), rgba(16,42,78,.5));
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 26px 60px -22px rgba(0,0,0,.7), inset 0 1px 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(6px); animation:sweepRise .55s cubic-bezier(.2,.7,.2,1) .1s both; }
+.sweep-card-ic{ width:58px; height:58px; margin:0 auto 14px; border-radius:16px; display:grid; place-items:center; color:#fff;
+  background:linear-gradient(160deg, var(--accent2), var(--accentd)); box-shadow:0 12px 26px -8px rgba(233,79,55,.6); }
+.sweep-card-ic svg{ width:26px; height:26px; }
+.sweep-card-h{ margin:0; font-family:'Barlow Condensed'; font-weight:800; font-size:24px; text-transform:uppercase; letter-spacing:.5px; color:#fff; }
+.sweep-card-sub{ margin:8px auto 0; max-width:32ch; font-size:13.5px; line-height:1.5; font-weight:500; color:#aebfd6; }
+
+.sweep-pick-list{ list-style:none; margin:18px 0 0; padding:0; display:flex; flex-direction:column; gap:9px; }
+.sweep-pick-row{ width:100%; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:13px 15px; border-radius:13px;
+  background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.09); color:#fff; cursor:pointer;
+  transition:transform .14s, background .14s, border-color .14s; }
+.sweep-pick-row:hover{ background:rgba(233,79,55,.16); border-color:rgba(233,79,55,.5); transform:translateY(-1px); }
+.sweep-pick-name{ font-family:'Barlow Semi Condensed'; font-weight:700; font-size:16px; letter-spacing:.3px; }
+.sweep-pick-chev{ width:18px; height:18px; flex:0 0 auto; color:#9fb6d6; transition:color .14s; }
+.sweep-pick-row:hover .sweep-pick-chev{ color:var(--accent2); }
+
+.sweep-spinner{ width:30px; height:30px; border-radius:50%; border:3px solid rgba(255,255,255,.16); border-top-color:var(--accent); animation:sweepspin .8s linear infinite; }
+.sweep-gate-msg{ font-size:13px; font-weight:600; color:#aebfd6; animation:sweepRise .55s cubic-bezier(.2,.7,.2,1) .1s both; }
+.sweep-retry{ margin-top:16px; padding:11px 24px; border-radius:11px; border:0; cursor:pointer; color:#fff; font-weight:800; letter-spacing:.4px;
+  background:linear-gradient(160deg, var(--accent2), var(--accentd)); box-shadow:0 12px 26px -8px rgba(233,79,55,.6); transition:filter .14s; }
+.sweep-retry:hover{ filter:brightness(1.07); }
+
 @keyframes sweepspin { to { transform:rotate(360deg); } }
-.sweep-error button { padding:10px 18px; border-radius:10px; border:0; background:var(--accent, #36c); color:#fff; font-weight:700; }
+@keyframes sweepRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+@media (prefers-reduced-motion: reduce){
+  .sweep-brand, .sweep-card, .sweep-gate-msg{ animation:none; opacity:1; }
+  .sweep-spinner{ animation-duration:1.5s; }
+}
+
 .stale-banner { position:sticky; top:0; z-index:40; text-align:center; padding:7px 12px; font-size:13px; font-weight:700; background:#7a5a12; color:#ffe9b3; }
