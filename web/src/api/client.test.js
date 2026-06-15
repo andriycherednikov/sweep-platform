@@ -186,3 +186,55 @@ test('postLogout POSTs /api/session/logout with credentials', async () => {
   expect(calls[0].opts.credentials).toBe('include')
   expect(JSON.parse(calls[0].opts.body)).toEqual({})
 })
+
+test('patchCreds and patchPerson PATCH JSON with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ id: 'p1', name: 'Bo' }) }
+  }))
+  const { patchPerson } = await import('./client.js')
+  const res = await patchPerson('p1', { name: 'Bo' })
+  expect(res).toEqual({ id: 'p1', name: 'Bo' })
+  expect(calls[0].url).toMatch(/\/api\/admin\/people\/p1$/)
+  expect(calls[0].opts.method).toBe('PATCH')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[0].opts.headers['Content-Type']).toBe('application/json')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Bo' })
+})
+
+test('createPerson POSTs the new person fields with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'p9' }) } }))
+  const { createPerson } = await import('./client.js')
+  await createPerson({ name: 'New', short: 'New', initials: 'NW', av: null })
+  expect(calls[0].url).toMatch(/\/api\/admin\/people$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'New', short: 'New', initials: 'NW', av: null })
+})
+
+test('deletePerson DELETEs /api/admin/people/:id with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
+  const { deletePerson } = await import('./client.js')
+  await deletePerson('p1')
+  expect(calls[0].url).toMatch(/\/api\/admin\/people\/p1$/)
+  expect(calls[0].opts.method).toBe('DELETE')
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('postOwnership and deleteOwnership send personId+teamCode with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
+  const { postOwnership, deleteOwnership } = await import('./client.js')
+  await postOwnership('p1', 'hr')
+  expect(calls[0].url).toMatch(/\/api\/admin\/ownership$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
+  await deleteOwnership('p1', 'hr')
+  expect(calls[1].opts.method).toBe('DELETE')
+  expect(calls[1].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[1].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
+})

@@ -47,6 +47,24 @@ async function postCreds(path, body) {
   if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
+async function patchCreds(path, body) {
+  const res = await fetch(path, {
+    method: 'PATCH', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`PATCH ${path} failed: HTTP ${res.status}`)
+  return res.json()
+}
+async function deleteCreds(path, body) {
+  const res = await fetch(path, {
+    method: 'DELETE', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`DELETE ${path} failed: HTTP ${res.status}`)
+  return res.json()
+}
 
 export async function uploadPhoto(formData) {
   const res = await fetch('/api/photos', { method: 'POST', credentials: 'include', body: formData })
@@ -67,3 +85,9 @@ export const moderatePhoto = (id, action) => postCreds(`/api/admin/photos/${id}`
 export const postSession = (token) => postCreds('/api/session', { token })
 export const fetchWhoami = () => getCreds('/api/whoami')
 export const postLogout = () => postCreds('/api/session/logout', {})
+
+export const createPerson = (fields) => postCreds('/api/admin/people', fields)
+export const deletePerson = (id) => deleteCreds(`/api/admin/people/${id}`, {})
+export const patchPerson = (id, fields) => patchCreds(`/api/admin/people/${id}`, fields)
+export const postOwnership = (personId, teamCode) => postCreds('/api/admin/ownership', { personId, teamCode })
+export const deleteOwnership = (personId, teamCode) => deleteCreds('/api/admin/ownership', { personId, teamCode })
