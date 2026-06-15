@@ -228,6 +228,13 @@ a{color:inherit; text-decoration:none;}
 .watchbtn.on svg{fill:var(--accent); stroke:var(--accent);}
 .watchbtn .wn{font-family:'Barlow Condensed'; font-weight:800; font-size:11px; line-height:1;}
 
+/* spoiler protection */
+.spoiler-cover{display:inline-flex; align-items:center; justify-content:center; background:#eef1f5; color:var(--muted2); border:0; border-radius:8px; padding:3px 11px; cursor:pointer; flex-shrink:0;}
+.spoiler-cover svg{width:16px; height:16px; stroke:currentColor;}
+.spoiler-cover.dark{background:rgba(255,255,255,.16); color:#fff;}
+.sb-item.spoiler-tog.on{color:var(--accent);}
+.sb-item.spoiler-tog.on svg{stroke:var(--accent);}
+
 /* identity chip */
 /* identity chip: a container holding the profile button (.idmain) + the
    change-perspective button (.idswap), split by a divider. */

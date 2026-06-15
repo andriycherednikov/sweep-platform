@@ -9,8 +9,9 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
+import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -503,4 +504,126 @@ test('HomeHeader shows the admin entry on the default sweep even for a member', 
   setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
   const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
+})
+
+test('SpoilerToggle reflects and flips the mode', () => {
+  setSpoiler(false)
+  const { getByLabelText } = render(<SpoilerToggle />)
+  const btn = getByLabelText(/spoiler protection/i)
+  expect(btn.getAttribute('aria-pressed')).toBe('false')
+  act(() => { fireEvent.click(btn) })
+  expect(isSpoiler()).toBe(true)
+  expect(btn.getAttribute('aria-pressed')).toBe('true')
+  setSpoiler(false)
+})
+
+test('ScoreCover reveals its fixture when tapped', () => {
+  setSpoiler(true)
+  const { getByLabelText } = render(<ScoreCover f={{ id: 'mX' }} />)
+  expect(isRevealed('mX')).toBe(false)
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(isRevealed('mX')).toBe(true)
+  setSpoiler(false)
+})
+
+function finalCard() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [3, 1], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+}
+
+test('MatchCard covers a final score under spoiler mode and reveals on tap', () => {
+  finalCard()
+  setSpoiler(true)
+  const noop = () => {}
+  const { queryByText, getByLabelText } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
+  expect(queryByText('3')).toBeNull()                 // score not rendered
+  expect(getByLabelText(/reveal score/i)).toBeTruthy() // cover present
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(queryByText('3')).toBeTruthy()                // real score now shown
+  setSpoiler(false)
+})
+
+test('MatchCard shows the score normally when spoiler mode is off', () => {
+  finalCard()
+  setSpoiler(false)
+  const noop = () => {}
+  const { getByText, queryByLabelText } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
+  expect(getByText('3')).toBeTruthy()
+  expect(queryByLabelText(/reveal score/i)).toBeNull()
+})
+
+test('HomeScreen latest-scores covers finals under spoiler mode, reveals on tap', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [4, 2], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group', events: [],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSpoiler(true)
+  const noop = () => {}
+  const { container, queryByText, getAllByLabelText } = render(
+    <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />
+  )
+  expect(container.querySelector('.sidescores .rscore')).toBeNull() // no raw scoreline
+  const covers = getAllByLabelText(/reveal score/i)
+  act(() => { fireEvent.click(covers[0]) })
+  expect(queryByText('4 – 2')).toBeTruthy()
+  setSpoiler(false)
+})
+
+test('HomeScreen hero covers a live score under spoiler mode', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: 'A', pool: 'P', color: '#6cf', strength: 90 },
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [
+      { id: 'live1', group: 'A', matchday: 1, t1: 'ar', t2: 'mx', ko: '2026-06-13T06:30:00Z', venue: 'V', city: 'C', status: 'live', score: [2, 0], minute: 63, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSpoiler(true)
+  const noop = () => {}
+  const { queryByText, getByLabelText } = render(
+    <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />
+  )
+  expect(queryByText('2–0')).toBeNull()                 // live score covered
+  expect(getByLabelText(/reveal score/i)).toBeTruthy()  // cover present
+  expect(queryByText("63' · LIVE")).toBeTruthy()        // LIVE label still shown
+  setSpoiler(false)
+})
+
+test('Sidebar renders the spoiler toggle', () => {
+  const noop = () => {}
+  const { getByLabelText } = render(<Sidebar current="home" go={noop} onKnock={noop} onAdmin={noop} />)
+  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+})
+
+test('HomeHeader renders the spoiler toggle', () => {
+  const noop = () => {}
+  const { getByLabelText } = render(<HomeHeader onAdmin={noop} go={noop} />)
+  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
 })

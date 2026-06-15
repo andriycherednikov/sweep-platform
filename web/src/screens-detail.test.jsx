@@ -1,6 +1,6 @@
 // web/src/screens-detail.test.jsx — MatchSheet lineup block + two-way probability
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, fireEvent } from '@testing-library/react'
+import { render, fireEvent, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
@@ -20,6 +20,7 @@ import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
+import { setSpoiler } from './spoiler.js'
 
 const LINEUPS = [
   { teamCode: 'hr', formation: '4-3-3', startXI: [
@@ -529,4 +530,14 @@ test('AdminConsole offers People + Moderation tabs but no Draw tab', () => {
   const { getByText, queryByText } = render(<AdminConsole onBack={noop} onToast={noop} />)
   expect(getByText('Moderation')).toBeInTheDocument()
   expect(queryByText('Draw')).toBeNull()
+})
+
+test('MatchSheet covers a final score under spoiler mode, reveals on tap', () => {
+  const f = sheetFixture(null, {}, [], { status: 'final', score: [5, 1] })
+  setSpoiler(true)
+  const { queryByText, getByLabelText } = renderSheet(f)
+  expect(queryByText('5–1')).toBeNull()
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(queryByText('5–1')).toBeTruthy()
+  setSpoiler(false)
 })

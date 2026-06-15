@@ -63,6 +63,7 @@
   .deskscreen .page-top .backbtn svg{ stroke:var(--ink); }
   .deskscreen .page-top .iconbtn{ background:#eef1f5; }
   .deskscreen .page-top .iconbtn svg{ stroke:var(--ink); }
+  .deskscreen .spoiler-tog{ display:none; }
 
   /* hero: flush to the top, inset from the sides */
   .deskscreen .hero{ width:min(100% - 72px, 1928px); margin:18px auto 0; padding:24px 36px 26px; border-radius:20px; }

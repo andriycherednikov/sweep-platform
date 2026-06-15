@@ -7,6 +7,7 @@ import { SWEEP as S } from "./data.js";
 import { PersonAvatar } from "./components.jsx";
 import { onNotification } from "./notifications.js";
 import { DRAW } from "./social.js";
+import { isSpoiler, isRevealed } from "./spoiler.js";
 
 const LIFETIME = 4500; // ms — must match the riseFade animation duration
 const HALF = 150; // ~half a card width + margin, to keep cards on-screen
@@ -16,6 +17,9 @@ export function FloatingReactions() {
   const wrapRef = useRef(null);
 
   useEffect(() => onNotification((n) => {
+    // spoiler mode: suppress match-event popups (goal/card/kick-off/full-time) for a
+    // still-hidden match — they would announce the score/result. Social reactions pass.
+    if (n.kind === "match" && isSpoiler() && !isRevealed(n.fixtureId)) return;
     // resolve from already-loaded data; skip silently if we can't render it
     const fx = S.fixture(n.fixtureId);
     if (!fx) return;

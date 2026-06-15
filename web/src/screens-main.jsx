@@ -5,9 +5,10 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, PageHeader,
-  SearchInput, useCountdown, useIsDesktop,
+  SearchInput, useCountdown, useIsDesktop, ScoreCover,
 } from "./components.jsx";
 import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
+import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
 // Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
 // own goal is credited to the team it benefited, tagged "(OG)") and card counts per side.
@@ -56,6 +57,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const cd = useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
 
   useSocial(); // re-render on identity / watch / support changes
+  useSpoiler();
   const me = getMe();
   const isDesktop = useIsDesktop(); // mobile is people-centric: stats go above Next games
 
@@ -114,7 +116,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                   <Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span>
                   {(sum.home.yellow || sum.home.red) ? <span className="res-cards"><CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/></span> : null}
                 </div>
-                <span className="rscore">{f.score[0]} – {f.score[1]}</span>
+                {spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="rscore">{f.score[0]} – {f.score[1]}</span>}
                 <div className="rt" style={{justifyContent:"flex-end"}}>
                   {(sum.away.yellow || sum.away.red) ? <span className="res-cards"><CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/></span> : null}
                   <span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/>
@@ -167,7 +169,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
           <div className="vs-cd">
             {live
-              ? <><span className="cd">{next.score[0]}–{next.score[1]}</span><span className="cdl">{next.minute}' · LIVE</span></>
+              ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}–{next.score[1]}</span>}<span className="cdl">{next.minute}' · LIVE</span></>
               : <><span className="cd">{cd.display}</span><span className="cdl">{cd.unit}</span></>}
           </div>
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
