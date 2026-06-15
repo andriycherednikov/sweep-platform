@@ -134,6 +134,14 @@ export async function sweepsRoutes(app) {
       av: { type: 'string', minLength: 1, maxLength: 20 },
     },
   }
+  const personPatchBody = {
+    type: 'object', additionalProperties: false, minProperties: 1,
+    properties: {
+      name: { type: 'string', minLength: 1, maxLength: 80 },
+      short: { type: 'string', minLength: 1, maxLength: 40 },
+      initials: { type: 'string', minLength: 1, maxLength: 4 },
+    },
+  }
   const ownBody = {
     type: 'object', required: ['personId', 'teamCode'], additionalProperties: false,
     properties: { personId: { type: 'string' }, teamCode: { type: 'string' } },
@@ -153,6 +161,19 @@ export async function sweepsRoutes(app) {
     await app.db.delete(ownership).where(and(eq(ownership.personId, p.id), eq(ownership.sweepId, req.sweep.id)))
     await app.db.delete(person).where(where)
     return { id: p.id, deleted: true }
+  })
+
+  app.patch('/api/admin/people/:id', { preHandler: groupAdmin, schema: { body: personPatchBody } }, async (req, reply) => {
+    const where = and(eq(person.id, req.params.id), eq(person.sweepId, req.sweep.id))
+    const [p] = await app.db.select().from(person).where(where)
+    if (!p) return reply.code(404).send({ error: 'not_found' })
+    const set = {}
+    if (req.body.name !== undefined) set.name = req.body.name
+    if (req.body.short !== undefined) set.short = req.body.short
+    if (req.body.initials !== undefined) set.initials = req.body.initials
+    await app.db.update(person).set(set).where(where)
+    const [updated] = await app.db.select().from(person).where(where)
+    return { id: updated.id, name: updated.name, short: updated.short, initials: updated.initials }
   })
 
   app.post('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req, reply) => {

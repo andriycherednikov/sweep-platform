@@ -7,10 +7,15 @@ import { sweep, person, ownership, watch, support } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz' })
 
 async function sessionCookie(token) {
   const res = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token } })
+  return res.headers['set-cookie']
+}
+
+async function superCookie() {
+  const res = await app.inject({ method: 'POST', url: '/api/super/session', headers: { host: 'platform.test' }, payload: { token: 'super-xyz' } })
   return res.headers['set-cookie']
 }
 
@@ -93,4 +98,49 @@ test('GET /api/fixtures?person= does not read ownership cross-sweep', async () =
   const def = (await app.inject({ method: 'GET', url: '/api/fixtures?person=pb1' })).json()
   // pb1 has no ownership in the default sweep → filter yields empty
   expect(def).toEqual([])
+})
+
+test('group admin can rename a person in their own sweep (PATCH)', async () => {
+  // mint an admin cookie for sweep B from its admin token
+  const [b] = await db.select().from(sweep).where(eq(sweep.id, 'sw_b'))
+  const adminSess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: b.adminToken } })
+  const cookie = adminSess.headers['set-cookie']
+  const res = await app.inject({
+    method: 'PATCH', url: '/api/admin/people/pb1', headers: { host: 'platform.test', cookie },
+    payload: { name: 'Beatrice', short: 'Bea', initials: 'BE' },
+  })
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toEqual({ id: 'pb1', name: 'Beatrice', short: 'Bea', initials: 'BE' })
+  // a scoped read reflects the rename
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { host: 'platform.test', cookie } })).json()
+  expect(body.people.find((p) => p.id === 'pb1').name).toBe('Beatrice')
+})
+
+test('renaming a person from another sweep is 404 (cross-sweep scoping)', async () => {
+  // no cookie at all on the platform host → unauthorized (401), pb1 untouched
+  const res = await app.inject({
+    method: 'PATCH', url: '/api/admin/people/pb1', headers: { host: 'platform.test' },
+    payload: { name: 'Hijack' },
+  })
+  expect(res.statusCode).toBe(401)
+  const [stillBea] = await db.select().from(person).where(eq(person.id, 'pb1'))
+  expect(stillBea.name).toBe('Beatrice')
+})
+
+test('an admin of one sweep cannot rename a person in another sweep (404 not 200)', async () => {
+  const su = await superCookie()
+  // create a fresh sweep C with its own admin
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: su }, payload: { name: 'C' } })).json()
+  const sessC = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: created.adminToken } })
+  const cookieC = sessC.headers['set-cookie']
+  // sweep C admin tries to rename pb1 (lives in sw_b) → invisible → 404
+  const res = await app.inject({
+    method: 'PATCH', url: '/api/admin/people/pb1', headers: { host: 'platform.test', cookie: cookieC },
+    payload: { name: 'Hijack' },
+  })
+  expect(res.statusCode).toBe(404)
+  const [stillBea] = await db.select().from(person).where(eq(person.id, 'pb1'))
+  expect(stillBea.name).toBe('Beatrice')
+  // cleanup sweep C
+  await db.delete(sweep).where(eq(sweep.id, created.id))
 })
