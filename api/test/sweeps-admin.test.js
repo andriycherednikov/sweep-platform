@@ -14,9 +14,14 @@ afterAll(async () => {
   await app.close(); await pool.end()
 })
 
+// Memoized: the super cookie is stateless ('ok'), and /api/super/session is
+// rate-limited (max 10 / 15 min) — minting a fresh cookie per test would exhaust it.
+let _superCookie
 async function superCookie() {
+  if (_superCookie) return _superCookie
   const res = await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-xyz' } })
-  return res.headers['set-cookie']
+  _superCookie = res.headers['set-cookie']
+  return _superCookie
 }
 
 test('super session requires the right token', async () => {
@@ -119,5 +124,40 @@ test('PATCH a sweep without a super cookie is 401', async () => {
 test('PATCH an unknown sweep id is 404', async () => {
   const cookie = await superCookie()
   const res = await app.inject({ method: 'PATCH', url: '/api/super/sweeps/sw_does_not_exist', headers: { cookie }, payload: { name: 'X' } })
+  expect(res.statusCode).toBe(404)
+})
+
+test('super can un-archive a sweep; an archived sweep becomes usable again', async () => {
+  const cookie = await superCookie()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Revivable' } })).json()
+  const tok = created.memberToken
+  // archive it → /api/session refuses (404)
+  expect((await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/archive`, headers: { cookie } })).statusCode).toBe(200)
+  expect((await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: tok } })).statusCode).toBe(404)
+  // un-archive → row active again, session works
+  const un = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive`, headers: { cookie } })
+  expect(un.statusCode).toBe(200)
+  expect(un.json()).toEqual({ id: created.id, archived: false })
+  const sess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: tok } })
+  expect(sess.statusCode).toBe(200)
+  expect(sess.json().sweepId).toBe(created.id)
+})
+
+test('un-archive without a super cookie is 401', async () => {
+  const cookie = await superCookie()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'GuardedUn' } })).json()
+  const res = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive` })
+  expect(res.statusCode).toBe(401)
+})
+
+test('un-archive an unknown sweep id is 404', async () => {
+  const cookie = await superCookie()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/sw_nope/unarchive', headers: { cookie } })
+  expect(res.statusCode).toBe(404)
+})
+
+test('un-archive refuses the default sweep (kind default → 404)', async () => {
+  const cookie = await superCookie()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/default/unarchive', headers: { cookie } })
   expect(res.statusCode).toBe(404)
 })

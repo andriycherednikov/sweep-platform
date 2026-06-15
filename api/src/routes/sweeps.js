@@ -115,6 +115,14 @@ export async function sweepsRoutes(app) {
     return { id: updated.id, name: updated.name, scoringRule: updated.scoringRule, coOwners: updated.coOwners, kind: updated.kind, archivedAt: updated.archivedAt }
   })
 
+  app.post('/api/super/sweeps/:id/unarchive', { preHandler: superGuard }, async (req, reply) => {
+    const { id } = req.params
+    const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
+    if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
+    await app.db.update(sweep).set({ archivedAt: null }).where(eq(sweep.id, id))
+    return { id, archived: false }
+  })
+
   const groupAdmin = requireSweep(['admin'])
 
   const personBody = {
