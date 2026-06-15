@@ -2,6 +2,7 @@
    THE SWEEP — detail screens + flows
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
@@ -13,7 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 
 /* ---------------- PEOPLE ---------------- */
@@ -739,22 +740,57 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
 }
 
 /* ---------------- ADMIN ---------------- */
+
+/* Resolve the TanStack query client: prefer an explicit prop (tests stub it),
+   else the context client. Guarded like App.jsx — admin sub-components are unit-
+   tested without a QueryClientProvider, where the hook would throw. */
+function useResolvedQueryClient(override) {
+  let hookQc = null;
+  try { hookQc = useQueryClient(); } catch { hookQc = null; }
+  return override || hookQc;
+}
+
+/* Host-aware admin gate. On the platform host the sweep_session cookie already
+   carries role 'admin' (minted by the admin capability link) → unlock with no PIN.
+   On the default host (sweepId 'default') keep the 4-digit PIN. A platform member
+   with no admin link gets a "open your admin link" prompt. */
+export function adminGateState(whoami) {
+  if (whoami && whoami.role === 'admin') return 'unlocked';
+  if (whoami && whoami.sweepId === 'default') return 'pin';
+  return 'need-link';
+}
+
 export function AdminScreen({ onBack, onToast }) {
   const [code, setCode] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [gate, setGate] = useState(null); // null = checking; 'unlocked'|'pin'|'need-link'
   const [shake, setShake] = useState(false);
 
-  useEffect(()=>{ fetchAdminMe().then(()=>setUnlocked(true)).catch(()=>{}); },[]);
+  useEffect(()=>{ fetchWhoami().then(w=>setGate(adminGateState(w))).catch(()=>setGate('pin')); },[]);
 
   function fail(){ setShake(true); setTimeout(()=>{ setShake(false); setCode(""); }, 400); }
   function press(d){
     if(code.length>=4) return;
     const nc = code + d; setCode(nc);
-    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setUnlocked(true); refreshAdminBadge(); } catch { fail(); } }, 120); }
+    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setGate('unlocked'); refreshAdminBadge(); } catch { fail(); } }, 120); }
   }
   function del(){ setCode(c=>c.slice(0,-1)); }
 
-  if(!unlocked){
+  if(gate===null) return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><PageHeader title="Admin" sub="Restricted area" onBack={onBack} /></div>;
+
+  if(gate==='need-link'){
+    return (
+      <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+        <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
+        <div className="scroll pad screen-anim" style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:40}}>
+          <div className="lockic"><Icon.lock/></div>
+          <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Open your admin link</h3>
+          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center",maxWidth:280}}>This sweep is admined from its admin link. Open the admin invite link on this device to manage it.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if(gate==='pin'){
     return (
       <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
         <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
@@ -776,10 +812,154 @@ export function AdminScreen({ onBack, onToast }) {
       </div>
     );
   }
-  return <AdminQueue onBack={onBack} onToast={onToast} />;
+
+  return <AdminConsole onBack={onBack} onToast={onToast} />;
 }
 
-export function AdminQueue({ onBack, onToast }) {
+export function AdminConsole({ onBack, onToast }) {
+  const [tab, setTab] = useState("people"); // 'people' | 'draw' | 'mod'
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <PageHeader title="Admin" sub="Manage your sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
+      <div className="admintabs">
+        <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
+        <button className={"admintab"+(tab==="draw"?" on":"")} onClick={()=>setTab("draw")}>Draw</button>
+        <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Moderation</button>
+      </div>
+      {tab==="people" && <PeopleAdmin onToast={onToast} />}
+      {tab==="draw" && <DrawAdmin onToast={onToast} />}
+      {tab==="mod" && <AdminQueue embedded onToast={onToast} />}
+    </div>
+  );
+}
+
+export function PeopleAdmin({ onToast, queryClient }) {
+  const qc = useResolvedQueryClient(queryClient);
+  const people = S.people;
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(null); // person id
+  const [editName, setEditName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
+
+  async function add(){
+    const nm = name.trim();
+    if(!nm || busy) return;
+    setBusy(true);
+    try {
+      const initials = nm.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase() || "??";
+      await createPerson({ name: nm, short: nm, initials, av: null });
+      setName(""); onToast("Person added"); refresh();
+    } catch { onToast("Couldn't add — try again"); }
+    finally { setBusy(false); }
+  }
+  async function save(id){
+    const nm = editName.trim();
+    if(!nm || busy) return;
+    setBusy(true);
+    try { await patchPerson(id, { name: nm }); setEditing(null); onToast("Saved"); refresh(); }
+    catch { onToast("Couldn't save — try again"); }
+    finally { setBusy(false); }
+  }
+  async function remove(p){
+    if(busy) return;
+    setBusy(true);
+    try { await deletePerson(p.id); onToast("Person removed"); refresh(); }
+    catch { onToast("Couldn't remove — try again"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="scroll pad screen-anim" style={{paddingTop:10}}>
+      <div className="wrap">
+        <h3 className="adminsec-h">People</h3>
+        <div className="adminadd">
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Add a person…" onKeyDown={e=>{ if(e.key==="Enter") add(); }} />
+          <button className="qbtn app" disabled={busy} onClick={add}><Icon.check/> Add</button>
+        </div>
+        <div className="plist" style={{marginTop:12}}>
+          {people.map(p=>(
+            <div className="prow" key={p.id}>
+              <PersonAvatar p={p} cls="pav"/>
+              <div className="pi" style={{flex:1}}>
+                {editing===p.id ? (
+                  <input className="adminrename" defaultValue={p.name} onChange={e=>setEditName(e.target.value)} aria-label={"Edit name "+p.name} />
+                ) : <b>{p.name}</b>}
+              </div>
+              {editing===p.id ? (
+                <button className="qbtn app" disabled={busy} onClick={()=>save(p.id)}>Save</button>
+              ) : (
+                <button className="iconbtn" aria-label={"Rename "+p.name} onClick={()=>{ setEditing(p.id); setEditName(p.name); }}><Icon.swap/></button>
+              )}
+              <button className="iconbtn" aria-label={"Remove "+p.name} disabled={busy} onClick={()=>remove(p)}><Icon.trash/></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+export function DrawAdmin({ onToast, queryClient }) {
+  const qc = useResolvedQueryClient(queryClient);
+  const people = S.people;
+  const [pid, setPid] = useState(S.people[0]?.id || "");
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
+  const person = people.find(p=>p.id===pid);
+  const owned = person ? person.teams : [];
+  const free = S.teamList.filter(t=>!owned.includes(t.code));
+
+  async function assign(){
+    if(!pid || !code || busy) return;
+    setBusy(true);
+    try { await postOwnership(pid, code); setCode(""); onToast("Team assigned"); refresh(); }
+    catch { onToast("Couldn't assign — try again"); }
+    finally { setBusy(false); }
+  }
+  async function unassign(tc){
+    if(!pid || busy) return;
+    setBusy(true);
+    try { await deleteOwnership(pid, tc); onToast("Team unassigned"); refresh(); }
+    catch { onToast("Couldn't unassign — try again"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="scroll pad screen-anim" style={{paddingTop:10}}>
+      <div className="wrap">
+        <h3 className="adminsec-h">The draw</h3>
+        <div className="adminadd" style={{flexWrap:"wrap"}}>
+          <select aria-label="Person" value={pid} onChange={e=>setPid(e.target.value)}>
+            {people.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+          <select aria-label="Team" value={code} onChange={e=>setCode(e.target.value)}>
+            <option value="">Pick a team…</option>
+            {free.map(t=><option key={t.code} value={t.code}>{t.name}</option>)}
+          </select>
+          <button className="qbtn app" disabled={busy || !code} onClick={assign}>Assign</button>
+        </div>
+        <div className="plist" style={{marginTop:12}}>
+          {owned.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams assigned yet.</p>}
+          {owned.map(tc=>{
+            const t = S.team(tc);
+            return (
+              <div className="prow" key={tc}>
+                <img className="flag" src={S.flag(tc,40)} alt="" />
+                <div className="pi" style={{flex:1}}><b>{t?.name || tc}</b></div>
+                <button className="iconbtn" aria-label={"Unassign "+(t?.name || tc)} disabled={busy} onClick={()=>unassign(tc)}><Icon.x/></button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function AdminQueue({ onBack, onToast, embedded }) {
   const [data, setData] = useState({ pending: [], approved: [] });
   const [tab, setTab] = useState("pending");
   const [busy, setBusy] = useState(null);
@@ -802,7 +982,7 @@ export function AdminQueue({ onBack, onToast }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
+      {!embedded && <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
       <div className="admintabs">
         <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
         <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {data.approved.length}</button>

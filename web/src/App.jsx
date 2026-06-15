@@ -2,9 +2,10 @@
    THE SWEEP — app shell, history-synced routing, modals
    ============================================================ */
 import { useState, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, BottomNav, Sidebar, IdentitySheet, useIsDesktop,
+  Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop,
 } from "./components.jsx";
 import { setGlobalToast, getMe } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -17,16 +18,24 @@ import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
+import { SuperConsole } from "./screens-super.jsx";
+import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
 const TABS = ["schedule", "people", "teams", "standings"];
 
 /* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
-function urlFor(v) {
+export function urlFor(v) {
   if (v.overlay?.type === "team") return `/teams/${v.overlay.code}`;
   if (v.overlay?.type === "person") return `/people/${v.overlay.id}`;
   if (v.overlay?.type === "knockouts") return "/knockouts";
   if (v.overlay?.type === "admin") return "/admin";
+  if (v.overlay?.type === "sweeps") return "/sweeps";
+  // SECURITY: the super token is the platform master credential. It rides in the
+  // in-memory view (so SuperConsole can auto-submit a /super/<token> deep link) but
+  // is NEVER emitted to the URL — that keeps it out of the address bar/history AND
+  // out of analytics (trackPageview builds its path from urlFor). Always bare /super.
+  if (v.overlay?.type === "super") return "/super";
   return v.tab === "home" ? "/" : `/${v.tab}`;
 }
 function readView(path) {
@@ -36,6 +45,8 @@ function readView(path) {
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
   if (seg[0] === "knockouts") return { ...base, tab: "standings", overlay: { type: "knockouts" } };
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
+  if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
+  if (seg[0] === "super") return { ...base, overlay: { type: "super", token: parseSuperRoute(path).token } };
   return { ...base, tab: TABS.includes(seg[0]) ? seg[0] : "home" };
 }
 
@@ -97,6 +108,13 @@ export default function App() {
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+  // intentional future entry point (sidebar/landing); no UI trigger wired this slice
+  const openSuper  = () => navigate({ overlay: { type: "super" } });
+  // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
+  // hook would throw — fall back to null and let the sheet skip invalidation.
+  let qc = null;
+  try { qc = useQueryClient(); } catch (e) { qc = null; }
+  const openSweeps = () => navigate({ overlay: { type: "sweeps" } });
 
   // resolve serializable ids back into the live objects the screens expect
   const person = overlay?.type === "person" ? S.peopleById[overlay.id] : null;
@@ -115,15 +133,17 @@ export default function App() {
   else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
+  else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
 
   const isDesktop = useIsDesktop();
-  const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin")) ? overlay.type : tab;
+  const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;
   const modals = (
     <>
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}
       {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
       {identity && <IdentitySheet onClose={goBack}/>}
+      {overlay?.type==="sweeps" && <SweepsSheet activeSweepId={S.sweep?.id ?? null} onClose={goBack} queryClient={qc}/>}
       <FloatingReactions/>
       {toast && <div className="toast"><Icon.check/> {toast}</div>}
     </>
@@ -132,7 +152,7 @@ export default function App() {
   if (isDesktop) {
     return (
       <div className="deskwrap">
-        <Sidebar current={current} go={go} onKnock={openKnock} onAdmin={openAdmin}/>
+        <Sidebar current={current} go={go} onKnock={openKnock} onAdmin={openAdmin} onSweeps={openSweeps}/>
         <main className="deskmain">
           <div className="deskmain-rel">
             <div className={"deskscreen" + (tab==="standings" && !overlay ? " wide" : "")}>{base}</div>

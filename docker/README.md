@@ -7,9 +7,12 @@ pulled on the server. The app plugs into the server's **shared Postgres**
 `simulation-network`. No host ports are published — Caddy routes the domain by
 container name.
 
-> **Domains:** currently live on `sweep.andriycherednikov.com` (temporary).
-> The permanent home will be `sweep.yowiebay.au` — add it to the Caddy site
-> block once that zone's DNS points at this host (see `caddy/sweep.Caddyfile`).
+> **Domains:** the default community is live on `sweep.andriycherednikov.com`
+> (permanent home `sweep.yowiebay.au`, added once that zone's DNS points here).
+> The **multi-sweep platform** is served at `worldcupsweep.yowiebay.au` — the
+> same `sweep-api` container handles it as the platform host (`PLATFORM_HOST`
+> in `.env.docker`). Add each host to the Caddy site block only after its DNS
+> resolves to this host (see `caddy/sweep.Caddyfile`).
 
 ```
               sweep.andriycherednikov.com (TLS auto)
@@ -101,6 +104,25 @@ curl -N https://sweep.andriycherednikov.com/api/stream  # SSE stays open / strea
 ```
 Then load the site, refresh a deep link (e.g. `/teams/ar`) to confirm the SPA
 history fallback, and check an approved photo renders via `/photos/…`.
+
+### Platform host (multi-sweep)
+
+`PLATFORM_HOST` must already equal `worldcupsweep.yowiebay.au` in
+`/root/sweep/.env.docker` (it is set on the server). After appending the
+`worldcupsweep.yowiebay.au` block to `/root/caddy/Caddyfile` and reloading:
+
+```bash
+# Unauthenticated platform visitor → "pick a sweep" landing signal:
+curl https://worldcupsweep.yowiebay.au/api/whoami   # {"sweepId":null,"role":null}
+# Default host is unaffected (anon = member of the default sweep):
+curl https://sweep.andriycherednikov.com/api/whoami # {"sweepId":"default","role":"member"}
+```
+
+Then open a member capability link in a browser
+(`https://worldcupsweep.yowiebay.au/g/<memberToken>`): the SPA exchanges the
+token via `POST /api/session`, strips it from the URL, and renders that sweep's
+scoped data. Re-running `curl … /api/whoami` from that browser session (with the
+`sweep_session` cookie) returns that sweep's `{sweepId, role}`.
 
 ## Operations
 

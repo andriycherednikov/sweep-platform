@@ -5,7 +5,7 @@ function emptySweep() {
   return {
     teams: {}, teamList: [], groups: [], people: [], peopleById: {},
     fixtures: [], fixturesById: {}, standings: {}, photos: [], derbies: [], money: [],
-    nextMatch: null, liveMatch: null, scoring: null,
+    nextMatch: null, liveMatch: null, scoring: null, sweep: { id: 'default', name: 'The Sweep' },
     team: (code) => SWEEP.teams[code],
     fixture: (id) => SWEEP.fixturesById[id] || null,
     ownersOf: (code) => (SWEEP._ownersByTeam && SWEEP._ownersByTeam[code]) || [],
@@ -19,7 +19,7 @@ export const SWEEP = emptySweep()
 
 const DATA_KEYS = [
   'teams', 'teamList', 'groups', 'people', 'peopleById', 'fixtures', 'fixturesById', 'standings',
-  'photos', 'derbies', 'money', 'nextMatch', 'liveMatch', 'scoring', 'todayKey',
+  'photos', 'derbies', 'money', 'nextMatch', 'liveMatch', 'scoring', 'sweep', 'todayKey',
 ]
 
 const socialListeners = new Set()

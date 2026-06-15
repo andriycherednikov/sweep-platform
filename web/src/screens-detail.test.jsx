@@ -5,6 +5,16 @@ import { render, fireEvent } from '@testing-library/react'
 vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
+  uploadPhoto: vi.fn(async () => ({})),
+  adminLogin: vi.fn(async () => ({ admin: true })),
+  fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
+  moderatePhoto: vi.fn(async () => ({})),
+  fetchWhoami: vi.fn(async () => ({ sweepId: 'default', role: 'member' })),
+  createPerson: vi.fn(async () => ({})),
+  deletePerson: vi.fn(async () => ({})),
+  patchPerson: vi.fn(async () => ({})),
+  postOwnership: vi.fn(async () => ({})),
+  deleteOwnership: vi.fn(async () => ({})),
 }))
 import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
@@ -349,4 +359,171 @@ test('PersonDetail hides the Prediction history section when the person made no 
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
   )
   expect(queryByText('Prediction history')).toBeNull()
+})
+
+import { adminGateState, AdminScreen } from './screens-detail.jsx'
+import { waitFor } from '@testing-library/react'
+import { fetchWhoami } from './api/client.js'
+
+test('adminGateState forks on whoami role / default sweep', () => {
+  expect(adminGateState({ sweepId: 'sw_abc', role: 'admin' })).toBe('unlocked')
+  expect(adminGateState({ sweepId: 'default', role: 'admin' })).toBe('unlocked')
+  expect(adminGateState({ sweepId: 'default', role: 'member' })).toBe('pin')
+  expect(adminGateState({ sweepId: 'default', role: null })).toBe('pin')
+  expect(adminGateState({ sweepId: 'sw_abc', role: 'member' })).toBe('need-link')
+  expect(adminGateState({ sweepId: null, role: null })).toBe('need-link')
+})
+
+test('AdminScreen on the platform host with an admin cookie unlocks without a PIN', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'admin' })
+  setSweepData(assembleSweep({
+    bootstrap: { teams: [], people: [], ownership: {}, scoring: null },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText('People', { selector: '.admintab' })).toBeTruthy() // landed on the People tab, no keypad
+  expect(queryByText('Enter passcode')).toBeNull()
+})
+
+test('AdminScreen on a platform member (no admin link) prompts to open the admin link', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'member' })
+  const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText(/open your admin link/i)).toBeTruthy()
+  expect(queryByText('Enter passcode')).toBeNull()
+})
+
+test('AdminScreen on the default host with no admin cookie still shows the PIN keypad', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'default', role: 'member' })
+  const { findByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText('Enter passcode')).toBeTruthy()
+})
+
+import { PeopleAdmin } from './screens-detail.jsx'
+import { createPerson, patchPerson, deletePerson } from './api/client.js'
+
+function seedPeople() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 }],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+}
+
+test('PeopleAdmin lists existing sweep people', () => {
+  seedPeople()
+  const { getByText } = render(<PeopleAdmin onToast={noop} />)
+  expect(getByText('Ann')).toBeTruthy()
+})
+
+test('PeopleAdmin creates a person via createPerson', async () => {
+  seedPeople()
+  createPerson.mockResolvedValueOnce({ id: 'p2', name: 'Bo' })
+  const { getByPlaceholderText, getByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.change(getByPlaceholderText('Add a person…'), { target: { value: 'Bo' } })
+  fireEvent.click(getByText('Add'))
+  await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
+  expect(createPerson.mock.calls[0][0]).toMatchObject({ name: 'Bo', short: 'Bo', initials: 'BO' })
+})
+
+test('PeopleAdmin renames a person via patchPerson', async () => {
+  seedPeople()
+  patchPerson.mockResolvedValueOnce({ id: 'p1', name: 'Annie' })
+  const { getByLabelText, getByDisplayValue, getByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByLabelText('Rename Ann'))
+  fireEvent.change(getByDisplayValue('Ann'), { target: { value: 'Annie' } })
+  fireEvent.click(getByText('Save'))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+})
+
+test('PeopleAdmin deletes a person via deletePerson', async () => {
+  seedPeople()
+  deletePerson.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByLabelText('Remove Ann'))
+  await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
+})
+
+import { DrawAdmin } from './screens-detail.jsx'
+import { postOwnership, deleteOwnership } from './api/client.js'
+
+function seedDraw() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+}
+
+test('DrawAdmin assigns a team to a person via postOwnership', async () => {
+  seedDraw()
+  postOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
+  fireEvent.click(getByText('Assign'))
+  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
+})
+
+test('DrawAdmin removes an existing assignment via deleteOwnership', async () => {
+  seedDraw()
+  deleteOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<DrawAdmin onToast={noop} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.click(getByLabelText('Unassign Croatia'))
+  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
+})
+
+test('PeopleAdmin invalidates the sweep query after creating a person', async () => {
+  seedPeople()
+  const qc = { invalidateQueries: vi.fn() }
+  createPerson.mockResolvedValueOnce({ id: 'p2', name: 'Bo' })
+  const { getByPlaceholderText, getByText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByPlaceholderText('Add a person…'), { target: { value: 'Bo' } })
+  fireEvent.click(getByText('Add'))
+  await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('PeopleAdmin invalidates the sweep query after deleting a person', async () => {
+  seedPeople()
+  const qc = { invalidateQueries: vi.fn() }
+  deletePerson.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.click(getByLabelText('Remove Ann'))
+  await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('DrawAdmin invalidates the sweep query after assigning a team', async () => {
+  seedDraw()
+  const qc = { invalidateQueries: vi.fn() }
+  postOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
+  fireEvent.click(getByText('Assign'))
+  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('DrawAdmin invalidates the sweep query after removing a team', async () => {
+  seedDraw()
+  const qc = { invalidateQueries: vi.fn() }
+  deleteOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.click(getByLabelText('Unassign Croatia'))
+  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
 })

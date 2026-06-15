@@ -1,5 +1,5 @@
 import { expect, test, beforeEach, beforeAll, vi } from 'vitest'
-import { render, act } from '@testing-library/react'
+import { render, act, screen, waitFor } from '@testing-library/react'
 
 // jsdom does not implement scrollTo — stub it globally so ScheduleScreen's
 // scroll-into-view effect does not throw when navigating to /schedule in tests.
@@ -12,7 +12,17 @@ beforeAll(() => {
 vi.mock('./lib/analytics.js', () => ({
   initAnalytics: vi.fn(), trackPageview: vi.fn(), trackEvent: vi.fn(),
 }))
-vi.mock('./api/client.js', () => ({ postWatch: vi.fn(async () => ({})), postSupport: vi.fn(async () => ({})) }))
+vi.mock('./api/client.js', () => ({
+  postWatch: vi.fn(async () => ({})),
+  postSupport: vi.fn(async () => ({})),
+  postSuperSession: vi.fn(async () => ({ super: true })),
+  fetchSuperSweeps: vi.fn(async () => ([])),
+  createSweep: vi.fn(async () => ({})),
+  rotateSweepToken: vi.fn(async () => ({})),
+  archiveSweep: vi.fn(async () => ({})),
+  unarchiveSweep: vi.fn(async () => ({})),
+  patchSweep: vi.fn(async () => ({})),
+}))
 vi.mock('./hooks/useEventStream.js', () => ({ useEventStream: vi.fn() }))
 // useAdminBadge is a render-enabler, not part of the analytics assertions:
 // HomeHeader calls it during render (like the scrollTo polyfill above for ScheduleScreen).
@@ -21,11 +31,13 @@ vi.mock('./admin.js', () => ({
   useAdminBadge: vi.fn(() => ({ isAdmin: false, pending: 0 })),
 }))
 
-import App from './App.jsx'
+import App, { urlFor } from './App.jsx'
+import * as client from './api/client.js'
 import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
+import { addSweep } from './sweeps.js'
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks()
@@ -72,4 +84,58 @@ test('emits match_open when a match card is opened', () => {
   expect(card).not.toBeNull()
   act(() => { card.click() })
   expect(trackEvent).toHaveBeenCalledWith('match_open', { match_id: 'm1' })
+})
+
+test('navigating to /sweeps opens the My-sweeps switcher overlay', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  render(<App />)
+  act(() => {
+    window.dispatchEvent(new PopStateEvent('popstate', {
+      state: { tab: 'home', overlay: { type: 'sweeps' }, modal: null, identity: false },
+    }))
+  })
+  expect(screen.getByText('My sweeps')).toBeInTheDocument()
+  expect(screen.getByText('Office')).toBeInTheDocument()
+})
+
+test('opening /super renders the SuperConsole token prompt', () => {
+  window.history.replaceState(null, '', '/super')
+  const { getByPlaceholderText, getByRole } = render(<App />)
+  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
+  expect(getByRole('button', { name: /unlock/i })).toBeTruthy()
+})
+
+test('readView maps /super/<token> so the console can auto-submit it', () => {
+  // /super/<token> must resolve to the super overlay; the token rides along for auto-submit.
+  window.history.replaceState(null, '', '/super/sekret')
+  const { getByPlaceholderText } = render(<App />)
+  // still the super overlay (prompt visible before the async auto-submit resolves)
+  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
+})
+
+test('urlFor never includes the super token (analytics + history never see it)', () => {
+  // The token lives only in the in-memory view; the emitted URL is always bare /super.
+  expect(urlFor({ tab: 'home', overlay: { type: 'super', token: 'sekret' } })).toBe('/super')
+  expect(urlFor({ tab: 'home', overlay: { type: 'super', token: null } })).toBe('/super')
+})
+
+test('mounting /super/<token> strips the token from the URL but still auto-submits it', async () => {
+  window.history.replaceState(null, '', '/super/sekret')
+  render(<App />)
+  // token is gone from the address bar immediately (no lingering secret, no GA leak)
+  expect(window.location.pathname).toBe('/super')
+  expect(window.location.href).not.toContain('sekret')
+  // ...but the console still received it (via in-memory state) and auto-submitted
+  await waitFor(() => expect(client.postSuperSession).toHaveBeenCalledWith('sekret'))
+})
+
+test('the super pageview path sent to analytics excludes the token', async () => {
+  window.history.replaceState(null, '', '/super/sekret')
+  render(<App />)
+  await waitFor(() => expect(trackPageview).toHaveBeenCalled())
+  // every pageview path for the super route must be bare /super
+  for (const call of trackPageview.mock.calls) {
+    expect(call[0]).not.toContain('sekret')
+  }
+  expect(trackPageview).toHaveBeenCalledWith('/super')
 })

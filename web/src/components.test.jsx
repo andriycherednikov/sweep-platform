@@ -1,13 +1,16 @@
 // web/src/components.test.jsx
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, fireEvent, renderHook } from '@testing-library/react'
+import { render, fireEvent, renderHook, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
+  postSession: vi.fn(async () => ({ sweepId: 'sw_b', role: 'member' })),
+  postLogout: vi.fn(async () => ({})),
 }))
-import { postSupport } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown } from './components.jsx'
+import { postSupport, postSession, postLogout } from './api/client.js'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet } from './components.jsx'
+import { listSweeps, addSweep } from './sweeps.js'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -344,4 +347,57 @@ test('MatchCard shows the one-line local date/time and no timezone label', () =>
   expect(getByText('Sun, 14 June · 8:00 AM')).toBeTruthy()
   expect(queryByText(/AEST/)).toBeNull()
   expect(container.querySelector('.mc-time').textContent).not.toMatch(/AEST/)
+})
+
+test('SweepsSheet lists stored sweeps and marks the active one', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const { getByText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  expect(getByText('Office')).toBeInTheDocument()
+  expect(getByText('Pub')).toBeInTheDocument()
+  expect(getByText(/current/i)).toBeInTheDocument()  // the active sweep is badged
+})
+
+test('SweepsSheet switching a stored sweep posts its token and invalidates queries', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const qc = { invalidateQueries: vi.fn() }
+  const { getByText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
+  await act(async () => { fireEvent.click(getByText('Pub')) })
+  expect(postSession).toHaveBeenCalledWith('tb')
+  expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
+})
+
+test('SweepsSheet leaving the active sweep removes it from the store and logs out', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  await act(async () => { fireEvent.click(getAllByLabelText(/leave/i)[0]) })  // first row = sw_a (active)
+  expect(listSweeps().map((s) => s.sweepId)).toEqual(['sw_b'])
+  expect(postLogout).toHaveBeenCalled()
+})
+
+test('SweepsSheet leaving the active sweep invalidates the sweep query so the Gate drops to "pick a sweep"', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const qc = { invalidateQueries: vi.fn() }
+  const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
+  await act(async () => { fireEvent.click(getAllByLabelText(/leave/i)[0]) })  // first row = sw_a (active)
+  expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
+})
+
+test('SweepsSheet shows an empty state when no sweeps are stored', () => {
+  const { getByText } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  expect(getByText(/invite link/i)).toBeInTheDocument()
+})
+
+test('SweepsSheet surfaces an error and stays open when switching fails (revoked/expired token)', async () => {
+  postSession.mockRejectedValueOnce(new Error('HTTP 401'))
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const onClose = vi.fn()
+  const { getByText, findByText } = render(<SweepsSheet activeSweepId="sw_a" onClose={onClose} queryClient={{ invalidateQueries: vi.fn() }} />)
+  await act(async () => { fireEvent.click(getByText('Pub')) })
+  expect(await findByText(/couldn.t switch/i)).toBeInTheDocument()
+  expect(onClose).not.toHaveBeenCalled()  // error surfaced instead of an unhandled rejection + close
 })

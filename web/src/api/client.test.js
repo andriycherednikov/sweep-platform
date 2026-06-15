@@ -108,3 +108,202 @@ test('adminLogin throws on 401', async () => {
   const { adminLogin } = await import('./client.js')
   await expect(adminLogin('nope')).rejects.toThrow(/login/i)
 })
+
+test('public get sends credentials:include (cookie scopes platform-host reads)', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ teams: [] }) }
+  }))
+  const { fetchBootstrap } = await import('./client.js')
+  await fetchBootstrap()
+  expect(calls[0].url).toMatch(/\/api\/bootstrap$/)
+  expect(calls[0].opts?.credentials).toBe('include')
+})
+
+test('public post sends credentials:include', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ watching: true }) }
+  }))
+  const { postWatch } = await import('./client.js')
+  await postWatch('m1', 'p1')
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('uploadPhoto sends credentials:include with raw FormData', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 201, json: async () => ({ id: 'x', status: 'pending' }) }
+  }))
+  const { uploadPhoto } = await import('./client.js')
+  const fd = new FormData()
+  await uploadPhoto(fd)
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[0].opts.body).toBe(fd)
+})
+
+test('postSession POSTs the token with credentials and returns {sweepId, role}', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ sweepId: 'sw_a', role: 'member' }) }
+  }))
+  const { postSession } = await import('./client.js')
+  const res = await postSession('tok123')
+  expect(res).toEqual({ sweepId: 'sw_a', role: 'member' })
+  expect(calls[0].url).toMatch(/\/api\/session$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ token: 'tok123' })
+})
+
+test('fetchWhoami GETs /api/whoami with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ sweepId: null, role: null }) }
+  }))
+  const { fetchWhoami } = await import('./client.js')
+  const res = await fetchWhoami()
+  expect(res).toEqual({ sweepId: null, role: null })
+  expect(calls[0].url).toMatch(/\/api\/whoami$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('postLogout POSTs /api/session/logout with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ ok: true }) }
+  }))
+  const { postLogout } = await import('./client.js')
+  await postLogout()
+  expect(calls[0].url).toMatch(/\/api\/session\/logout$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({})
+})
+
+test('patchCreds and patchPerson PATCH JSON with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ id: 'p1', name: 'Bo' }) }
+  }))
+  const { patchPerson } = await import('./client.js')
+  const res = await patchPerson('p1', { name: 'Bo' })
+  expect(res).toEqual({ id: 'p1', name: 'Bo' })
+  expect(calls[0].url).toMatch(/\/api\/admin\/people\/p1$/)
+  expect(calls[0].opts.method).toBe('PATCH')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[0].opts.headers['Content-Type']).toBe('application/json')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Bo' })
+})
+
+test('createPerson POSTs the new person fields with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'p9' }) } }))
+  const { createPerson } = await import('./client.js')
+  await createPerson({ name: 'New', short: 'New', initials: 'NW', av: null })
+  expect(calls[0].url).toMatch(/\/api\/admin\/people$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'New', short: 'New', initials: 'NW', av: null })
+})
+
+test('deletePerson DELETEs /api/admin/people/:id with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
+  const { deletePerson } = await import('./client.js')
+  await deletePerson('p1')
+  expect(calls[0].url).toMatch(/\/api\/admin\/people\/p1$/)
+  expect(calls[0].opts.method).toBe('DELETE')
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('postOwnership and deleteOwnership send personId+teamCode with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
+  const { postOwnership, deleteOwnership } = await import('./client.js')
+  await postOwnership('p1', 'hr')
+  expect(calls[0].url).toMatch(/\/api\/admin\/ownership$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
+  await deleteOwnership('p1', 'hr')
+  expect(calls[1].opts.method).toBe('DELETE')
+  expect(calls[1].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[1].opts.body)).toEqual({ personId: 'p1', teamCode: 'hr' })
+})
+
+test('postSuperSession POSTs the token to /api/super/session with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ super: true }) } }))
+  const { postSuperSession } = await import('./client.js')
+  const res = await postSuperSession('sup3rt0ken')
+  expect(res).toEqual({ super: true })
+  expect(calls[0].url).toMatch(/\/api\/super\/session$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ token: 'sup3rt0ken' })
+})
+
+test('fetchSuperSweeps GETs /api/super/sweeps with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ([{ id: 'sw_a', name: 'A' }]) } }))
+  const { fetchSuperSweeps } = await import('./client.js')
+  const list = await fetchSuperSweeps()
+  expect(list).toHaveLength(1)
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('createSweep POSTs the name and returns the link bundle', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'sw_b', name: 'Office', memberLink: '/g/m', adminLink: '/g/m/admin/a' }) } }))
+  const { createSweep } = await import('./client.js')
+  const res = await createSweep('Office')
+  expect(res.memberLink).toBe('/g/m')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Office' })
+})
+
+test('rotateSweepToken POSTs which to the rotate route', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ memberLink: '/g/new' }) } }))
+  const { rotateSweepToken } = await import('./client.js')
+  await rotateSweepToken('sw_a', 'member')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a\/rotate$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ which: 'member' })
+})
+
+test('archiveSweep and unarchiveSweep hit their routes with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({}) } }))
+  const { archiveSweep, unarchiveSweep } = await import('./client.js')
+  await archiveSweep('sw_a')
+  await unarchiveSweep('sw_a')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a\/archive$/)
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[1].url).toMatch(/\/api\/super\/sweeps\/sw_a\/unarchive$/)
+  expect(calls[1].opts.credentials).toBe('include')
+})
+
+test('patchSweep PATCHes the fields with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ id: 'sw_a', name: 'Renamed' }) } }))
+  const { patchSweep } = await import('./client.js')
+  const res = await patchSweep('sw_a', { name: 'Renamed' })
+  expect(res.name).toBe('Renamed')
+  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a$/)
+  expect(calls[0].opts.method).toBe('PATCH')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Renamed' })
+})

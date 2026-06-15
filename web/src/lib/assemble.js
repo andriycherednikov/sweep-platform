@@ -135,6 +135,7 @@ export function assembleSweep(api) {
   return {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
+    sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
     team, fixture, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }
