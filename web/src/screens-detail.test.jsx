@@ -436,12 +436,19 @@ test('PeopleAdmin sorts newest-added first by default', () => {
   expect(names).toEqual(['Cara', 'Ann']) // Cara created later → first
 })
 
+test('PeopleAdmin add trigger is a compact icon button labelled "Add person"', () => {
+  seedPeople()
+  const { getByLabelText, queryByText } = render(<PeopleAdmin onToast={noop} />)
+  expect(getByLabelText('Add person')).toBeInTheDocument()  // accessible name preserved
+  expect(queryByText('Add person')).toBeNull()              // text label replaced by "+"
+})
+
 test('PeopleAdmin add-member sheet creates a person (+ optional teams) then invalidates once', async () => {
   seedPeople()
   const qc = { invalidateQueries: vi.fn() }
   createPerson.mockResolvedValueOnce({ id: 'p9', name: 'Bo' })
-  const { getByText, getByPlaceholderText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
-  fireEvent.click(getByText('Add person'))                       // open the sheet
+  const { getByText, getByLabelText, getByPlaceholderText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.click(getByLabelText('Add person'))                       // open the sheet
   fireEvent.change(getByPlaceholderText('e.g. Priya'), { target: { value: 'Bo' } })
   fireEvent.click(getByText('Add'))                              // submit (cta)
   await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
@@ -452,8 +459,8 @@ test('PeopleAdmin add-member sheet creates a person (+ optional teams) then inva
 
 test('Add-person sheet shows the selected teams as chips after allocate random', async () => {
   seedPeople()
-  const { getByText, queryByText } = render(<PeopleAdmin onToast={noop} />)
-  fireEvent.click(getByText('Add person'))
+  const { getByText, getByLabelText, queryByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByLabelText('Add person'))
   expect(queryByText(/Selected \(/)).toBeNull()   // nothing selected yet
   fireEvent.click(getByText('+2'))                 // allocate 2 random
   expect(getByText('Selected (2)')).toBeTruthy()   // selected summary appears

@@ -1069,7 +1069,7 @@ export function PeopleAdmin({ onToast, queryClient }) {
       <div className="wrap">
         <div className="adminadd alloc-row" style={{ justifyContent: "space-between" }}>
           <h3 className="adminsec-h" style={{ margin: 0 }}>People <span className="ct">{people.length}</span></h3>
-          <button className="qbtn app" onClick={() => setAdding(true)}><Icon.check /> Add person</button>
+          <button className="qbtn app" aria-label="Add person" title="Add person" onClick={() => setAdding(true)} style={{ minWidth: 0, width: 38, height: 38, padding: 0 }}><Icon.plus /></button>
         </div>
         <div className="filterbar" style={{ marginTop: 8 }}>
           <button className={"fchip" + (sort === "recent" ? " on" : "")} onClick={() => setSort("recent")}>Recently added</button>
