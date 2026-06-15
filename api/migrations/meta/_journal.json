@@ -71,6 +71,13 @@
       "when": 1781342831832,
       "tag": "0009_productive_skreet",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781512897046,
+      "tag": "0010_kind_secret_warriors",
+      "breakpoints": true
     }
   ]
 }

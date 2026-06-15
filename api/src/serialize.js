@@ -2,7 +2,7 @@ export function serializeTeam(t) {
   return { code: t.code, name: t.name, group: t.group, pool: t.pool, color: t.color, strength: t.strength, squad: t.squad ?? null }
 }
 export function serializePerson(p) {
-  return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath }
+  return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath, createdAt: p.createdAt }
 }
 export function serializeFixture(f) {
   return {

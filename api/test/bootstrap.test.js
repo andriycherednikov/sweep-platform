@@ -27,3 +27,10 @@ test('bootstrap returns the current sweep id and display name (D7a)', async () =
   const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(body.sweep).toEqual({ id: 'default', name: 'The Sweep' })
 })
+
+test('bootstrap people carry a createdAt timestamp (for sort-by-when-added)', async () => {
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const p = body.people[0]
+  expect(p.createdAt).toBeTruthy()
+  expect(Number.isNaN(Date.parse(p.createdAt))).toBe(false)
+})

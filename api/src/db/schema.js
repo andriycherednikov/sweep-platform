@@ -20,6 +20,7 @@ export const person = pgTable('person', {
   initials: text('initials').notNull(),
   avColor: text('av_color').notNull(),
   avatarPath: text('avatar_path'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   sweepIdx: index('person_sweep_id_idx').on(t.sweepId),
   // target for child composite FKs that pin a row to its person's sweep
