@@ -9,6 +9,8 @@ import {
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
+import { listSweeps, removeSweep, switchTo } from "./sweeps.js";
+import { postLogout } from "./api/client.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -422,6 +424,63 @@ export function IdentityControl({ dark, style }){
           <Icon.swap/>
         </button>
       )}
+    </div>
+  );
+}
+/* "My sweeps" switcher — lists sweep.sweeps.v1; tap to switch, Leave to drop.
+   Leaving the active sweep also clears the server session (postLogout). A failed
+   switch (revoked/expired stored token) surfaces an inline error and keeps the
+   sheet open, rather than closing on an unhandled rejection. */
+export function SweepsSheet({ activeSweepId, onClose, queryClient }){
+  const [sweeps, setSweeps] = useState(() => listSweeps());
+  const [err, setErr] = useState(null);
+  const refresh = () => setSweeps(listSweeps());
+
+  const onSwitch = async (s) => {
+    if (s.sweepId === activeSweepId) { onClose(); return; }
+    setErr(null);
+    try {
+      await switchTo(s, queryClient);
+      onClose();
+    } catch (e) {
+      setErr("Couldn't switch sweeps — that invite may have expired. Try again or rejoin from a fresh link.");
+    }
+  };
+  const onLeave = async (s) => {
+    removeSweep(s.sweepId);
+    if (s.sweepId === activeSweepId) { try { await postLogout(); } catch (e) { /* ignore */ } }
+    refresh();
+  };
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"84%"}}>
+        <div className="grab"></div>
+        <div className="sheet-head"><h3>My sweeps</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
+        <div className="sheet-body">
+          {err && <p role="alert" style={{fontSize:13,color:"var(--danger,#c0392b)",margin:"0 0 12px"}}>{err}</p>}
+          {sweeps.length === 0 ? (
+            <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",padding:"24px 0"}}>
+              No sweeps on this device yet. Open an invite link to join one.
+            </p>
+          ) : (
+            <div className="plist">
+              {sweeps.map(s=>(
+                <div className={"prow"+(s.sweepId===activeSweepId?" mepick":"")} key={s.sweepId} style={{padding:"9px 12px"}}>
+                  <button className="pi" onClick={()=>onSwitch(s)} style={{flex:1,textAlign:"left",border:0,background:"transparent",cursor:"pointer"}}>
+                    <b style={{fontSize:16}}>{s.name || s.sweepId}</b>
+                    <div className="tms">
+                      <span className="t">{s.role === "admin" ? "You can admin this sweep" : "Member"}</span>
+                      {s.sweepId===activeSweepId && <span className="t">· current</span>}
+                    </div>
+                  </button>
+                  <button className="x" aria-label={`Leave ${s.name || s.sweepId}`} title="Leave" onClick={()=>onLeave(s)}><Icon.x/></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
