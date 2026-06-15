@@ -824,7 +824,70 @@ export function AdminConsole({ onBack, onToast }) {
 }
 
 export function PeopleAdmin({ onToast }) {
-  return <div className="scroll pad screen-anim" style={{paddingTop:10}}><div className="wrap"><h3 className="adminsec-h">People</h3></div></div>;
+  const [people, setPeople] = useState(S.people);
+  const [name, setName] = useState("");
+  const [editing, setEditing] = useState(null); // person id
+  const [editName, setEditName] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const sync = () => setPeople(S.people.slice());
+
+  async function add(){
+    const nm = name.trim();
+    if(!nm || busy) return;
+    setBusy(true);
+    try {
+      const initials = nm.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase() || "??";
+      await createPerson({ name: nm, short: nm, initials, av: null });
+      setName(""); onToast("Person added");
+    } catch { onToast("Couldn't add — try again"); }
+    finally { setBusy(false); }
+  }
+  async function save(id){
+    const nm = editName.trim();
+    if(!nm || busy) return;
+    setBusy(true);
+    try { await patchPerson(id, { name: nm }); setEditing(null); onToast("Saved"); }
+    catch { onToast("Couldn't save — try again"); }
+    finally { setBusy(false); }
+  }
+  async function remove(p){
+    if(busy) return;
+    setBusy(true);
+    try { await deletePerson(p.id); onToast("Person removed"); sync(); }
+    catch { onToast("Couldn't remove — try again"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="scroll pad screen-anim" style={{paddingTop:10}}>
+      <div className="wrap">
+        <h3 className="adminsec-h">People</h3>
+        <div className="adminadd">
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Add a person…" onKeyDown={e=>{ if(e.key==="Enter") add(); }} />
+          <button className="qbtn app" disabled={busy} onClick={add}><Icon.check/> Add</button>
+        </div>
+        <div className="plist" style={{marginTop:12}}>
+          {people.map(p=>(
+            <div className="prow" key={p.id}>
+              <PersonAvatar p={p} cls="pav"/>
+              <div className="pi" style={{flex:1}}>
+                {editing===p.id ? (
+                  <input className="adminrename" defaultValue={p.name} onChange={e=>setEditName(e.target.value)} aria-label={"Edit name "+p.name} />
+                ) : <b>{p.name}</b>}
+              </div>
+              {editing===p.id ? (
+                <button className="qbtn app" disabled={busy} onClick={()=>save(p.id)}>Save</button>
+              ) : (
+                <button className="iconbtn" aria-label={"Rename "+p.name} onClick={()=>{ setEditing(p.id); setEditName(p.name); }}><Icon.swap/></button>
+              )}
+              <button className="iconbtn" aria-label={"Remove "+p.name} disabled={busy} onClick={()=>remove(p)}><Icon.trash/></button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 export function DrawAdmin({ onToast }) {
   return <div className="scroll pad screen-anim" style={{paddingTop:10}}><div className="wrap"><h3 className="adminsec-h">The draw</h3></div></div>;

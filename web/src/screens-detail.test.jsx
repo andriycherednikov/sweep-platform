@@ -398,3 +398,52 @@ test('AdminScreen on the default host with no admin cookie still shows the PIN k
   const { findByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
   expect(await findByText('Enter passcode')).toBeTruthy()
 })
+
+import { PeopleAdmin } from './screens-detail.jsx'
+import { createPerson, patchPerson, deletePerson } from './api/client.js'
+
+function seedPeople() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 }],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+}
+
+test('PeopleAdmin lists existing sweep people', () => {
+  seedPeople()
+  const { getByText } = render(<PeopleAdmin onToast={noop} />)
+  expect(getByText('Ann')).toBeTruthy()
+})
+
+test('PeopleAdmin creates a person via createPerson', async () => {
+  seedPeople()
+  createPerson.mockResolvedValueOnce({ id: 'p2', name: 'Bo' })
+  const { getByPlaceholderText, getByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.change(getByPlaceholderText('Add a person…'), { target: { value: 'Bo' } })
+  fireEvent.click(getByText('Add'))
+  await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
+  expect(createPerson.mock.calls[0][0]).toMatchObject({ name: 'Bo', short: 'Bo', initials: 'BO' })
+})
+
+test('PeopleAdmin renames a person via patchPerson', async () => {
+  seedPeople()
+  patchPerson.mockResolvedValueOnce({ id: 'p1', name: 'Annie' })
+  const { getByLabelText, getByDisplayValue, getByText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByLabelText('Rename Ann'))
+  fireEvent.change(getByDisplayValue('Ann'), { target: { value: 'Annie' } })
+  fireEvent.click(getByText('Save'))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+})
+
+test('PeopleAdmin deletes a person via deletePerson', async () => {
+  seedPeople()
+  deletePerson.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByLabelText('Remove Ann'))
+  await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
+})
