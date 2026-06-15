@@ -627,6 +627,28 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .adminadd .qbtn{flex:0 0 auto; min-width:96px;}
 .adminrename{width:100%; background:var(--card); border:1px solid var(--accent); border-radius:9px; padding:7px 10px; font-family:'Barlow Condensed'; font-weight:700; font-size:18px; letter-spacing:.3px; color:var(--navy);}
 
+/* People-admin: clickable person cards, team chips, allocation sheet */
+.prow-click{width:100%; text-align:left; font:inherit; cursor:pointer; appearance:none;}
+.prow-click:active{transform:scale(.995);}
+.tms-wrap{display:flex; flex-wrap:wrap; gap:5px; margin-top:5px;}
+.tc-flag{padding:0; background:transparent; border:0;}
+.tc-flag .flag{width:22px; height:16px; border-radius:3px;}
+.tc-none{font-size:12.5px; color:var(--muted2); font-weight:600;}
+.tc-more{font-size:11px; font-weight:800; color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:6px; padding:1px 6px;}
+.pcount{display:flex; flex-direction:column; align-items:center; flex:0 0 auto; min-width:42px;}
+.pcount b{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1;}
+.pcount small{font-size:10px; color:var(--muted2); text-transform:uppercase; letter-spacing:.4px;}
+.alloc-row{flex-wrap:wrap;}
+.alloc-lbl{font-size:13px; color:var(--muted2); font-weight:700;}
+.alloc-h{margin:14px 0 6px;}
+.alloc-head{display:flex; align-items:center; gap:10px; min-width:0;}
+.alloc-head h3{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.alloc-chips{margin-bottom:4px;}
+.t-chip{display:inline-flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--line); border-radius:999px; padding:5px 10px; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; color:var(--navy); cursor:pointer;}
+.t-chip .flag{width:20px; height:14px; border-radius:2px;}
+.t-chip svg{width:13px; height:13px; stroke:var(--accent);}
+.t-chip:active{transform:scale(.96);}
+
 .toast{position:absolute; left:50%; bottom:96px; transform:translateX(-50%); background:var(--navy); color:#fff; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:13px; padding:11px 18px; border-radius:12px; z-index:80; box-shadow:0 12px 24px -10px rgba(0,0,0,.5); display:flex; align-items:center; gap:9px; animation:rise .26s; white-space:nowrap;}
 .toast svg{width:16px; height:16px; stroke:var(--live);}
 

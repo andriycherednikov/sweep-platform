@@ -14,8 +14,9 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
+import { allocateRandomForPerson } from "./lib/allocate.js";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
@@ -837,73 +838,254 @@ export function AdminConsole({ onBack, onToast }) {
 // name; av is required server-side). Stable per name via a simple char-sum hash.
 const AV_PALETTE = ["#c9472f","#3b6fd1","#1f9d57","#b8860b","#7b4bd1","#0a9396","#bb3e03","#6a4c93"];
 
+// Whole-sweep owner-count map so "allocate random" spreads teams evenly.
+function ownerCounts() {
+  const m = {};
+  for (const t of S.teamList) m[t.code] = t.owners ? t.owners.length : 0;
+  return m;
+}
+// Derive a stable avatar colour from a name (av is required server-side).
+function avFor(nm) {
+  return AV_PALETTE[Math.abs([...nm].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) % AV_PALETTE.length];
+}
+
+// Compact flag chips for a person card, capped with a +N overflow.
+function TeamChips({ codes, max = 8 }) {
+  if (!codes.length) return <span className="tc-none">No teams yet</span>;
+  const shown = codes.slice(0, max);
+  const extra = codes.length - shown.length;
+  return (
+    <div className="tms tms-wrap">
+      {shown.map((tc) => <span className="t tc-flag" key={tc}><img className="flag" src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} /></span>)}
+      {extra > 0 && <span className="t tc-more">+{extra}</span>}
+    </div>
+  );
+}
+
+// Searchable team list (.gpk). selected = Set of codes; hideCodes excluded from the list.
+function TeamPicker({ selected, onToggle, hideCodes }) {
+  const [q, setQ] = useState("");
+  const list = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return S.teamList
+      .filter((t) => !(hideCodes && hideCodes.has(t.code)))
+      .filter((t) => !needle || t.name.toLowerCase().includes(needle))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [q, hideCodes]);
+  return (
+    <div className="field">
+      <SearchInput value={q} onChange={setQ} placeholder="Search teams" />
+      <div className="gamepick">
+        {list.map((t) => (
+          <button key={t.code} type="button" className={"gpk" + (selected.has(t.code) ? " on" : "")} onClick={() => onToggle(t.code)}>
+            <span className="gpk-teams"><img src={S.flag(t.code, 40)} alt="" />{t.name}</span>
+            {selected.has(t.code) && <span className="gpk-meta"><Icon.check /></span>}
+          </button>
+        ))}
+        {list.length === 0 && <div className="gpk-empty">No teams match “{q}”.</div>}
+      </div>
+    </div>
+  );
+}
+
+// Add a new person + (optionally) allocate teams straight away.
+function AddMemberSheet({ onClose, onToast, refresh }) {
+  const [name, setName] = useState("");
+  const [sel, setSel] = useState(new Set());
+  const [busy, setBusy] = useState(false);
+  const toggle = (c) => setSel((p) => { const n = new Set(p); n.has(c) ? n.delete(c) : n.add(c); return n; });
+  const allocate = (count) => {
+    const codes = allocateRandomForPerson({ teams: [...sel] }, count, S.teamList, ownerCounts());
+    setSel((p) => { const n = new Set(p); codes.forEach((c) => n.add(c)); return n; });
+  };
+  async function save() {
+    const nm = name.trim();
+    if (!nm || busy) return;
+    setBusy(true);
+    try {
+      const initials = nm.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??";
+      const created = await createPerson({ name: nm, short: nm, initials, av: avFor(nm) });
+      if (sel.size) await bulkPostOwnership([...sel].map((tc) => ({ personId: created.id, teamCode: tc })));
+      onToast("Person added"); refresh(); onClose();
+    } catch { onToast("Couldn't add — try again"); setBusy(false); }
+  }
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "90%" }}>
+        <div className="grab"></div>
+        <div className="sheet-head"><h3>Add person</h3><button className="x" onClick={onClose}><Icon.x /></button></div>
+        <div className="sheet-body">
+          <div className="field"><label>Name</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Priya" autoFocus />
+          </div>
+          <div className="adminadd alloc-row">
+            <span className="alloc-lbl">Teams: {sel.size}</span>
+            <button type="button" className="qbtn" onClick={() => allocate(1)}>+1 random</button>
+            <button type="button" className="qbtn" onClick={() => allocate(2)}>+2 random</button>
+          </div>
+          <TeamPicker selected={sel} onToggle={toggle} />
+          <button className="cta" disabled={busy || !name.trim()} onClick={save} style={{ marginTop: 14 }}>
+            <Icon.check /> {busy ? "Adding…" : "Add"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Show + allocate/reallocate/unallocate one person's teams; rename/remove.
+function AllocateSheet({ person, onClose, onToast, refresh }) {
+  const [adds, setAdds] = useState(new Set());      // brand-new teams to insert
+  const [removes, setRemoves] = useState(new Set()); // owned teams to delete
+  const [editing, setEditing] = useState(false);
+  const [editName, setEditName] = useState(person.name);
+  const [busy, setBusy] = useState(false);
+
+  const current = useMemo(() => {
+    const s = new Set(person.teams);
+    removes.forEach((c) => s.delete(c));
+    adds.forEach((c) => s.add(c));
+    return s;
+  }, [person.teams, adds, removes]);
+
+  // add a team (un-stages a pending removal; only stages an add if it isn't already owned)
+  const addTeam = (c) => {
+    setRemoves((p) => { const n = new Set(p); n.delete(c); return n; });
+    setAdds((p) => { if (person.teams.includes(c)) return p; const n = new Set(p); n.add(c); return n; });
+  };
+  const removeTeam = (c) => {
+    if (adds.has(c)) { setAdds((p) => { const n = new Set(p); n.delete(c); return n; }); return; }
+    setRemoves((p) => { const n = new Set(p); n.add(c); return n; });
+  };
+  const allocate = (count) => {
+    const codes = allocateRandomForPerson({ teams: [...current] }, count, S.teamList, ownerCounts());
+    codes.forEach(addTeam);
+  };
+
+  async function apply() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const addItems = [...adds].map((tc) => ({ personId: person.id, teamCode: tc }));
+      const removeItems = [...removes].map((tc) => ({ personId: person.id, teamCode: tc }));
+      if (addItems.length) await bulkPostOwnership(addItems);
+      if (removeItems.length) await bulkDeleteOwnership(removeItems);
+      onToast("Teams updated"); refresh(); onClose();
+    } catch { onToast("Couldn't save — try again"); setBusy(false); }
+  }
+  async function saveName() {
+    const nm = editName.trim();
+    if (!nm || busy) return;
+    setBusy(true);
+    try { await patchPerson(person.id, { name: nm }); onToast("Renamed"); refresh(); onClose(); }
+    catch { onToast("Couldn't rename — try again"); setBusy(false); }
+  }
+  async function removePerson() {
+    if (busy) return;
+    setBusy(true);
+    try { await deletePerson(person.id); onToast("Person removed"); refresh(); onClose(); }
+    catch { onToast("Couldn't remove — try again"); setBusy(false); }
+  }
+
+  const dirty = adds.size > 0 || removes.size > 0;
+  const currentCodes = [...current];
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "92%" }}>
+        <div className="grab"></div>
+        <div className="sheet-head">
+          <div className="alloc-head">
+            <PersonAvatar p={person} cls="pav" style={{ width: 38, height: 38, fontSize: 15 }} />
+            {editing
+              ? <input className="adminrename" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Edit name" />
+              : <h3>{person.name}</h3>}
+          </div>
+          <button className="x" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="sheet-body">
+          <div className="adminadd alloc-row">
+            {editing
+              ? <button className="qbtn app" disabled={busy} onClick={saveName}>Save name</button>
+              : <button className="qbtn" onClick={() => { setEditing(true); setEditName(person.name); }}><Icon.swap /> Rename</button>}
+            <button className="qbtn rej" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name}><Icon.trash /> Remove</button>
+          </div>
+
+          <h4 className="adminsec-h alloc-h">Teams ({currentCodes.length})</h4>
+          <div className="tms tms-wrap alloc-chips">
+            {currentCodes.length === 0 && <span className="tc-none">No teams yet</span>}
+            {currentCodes.map((tc) => (
+              <button type="button" className="t t-chip" key={tc} onClick={() => removeTeam(tc)} aria-label={"Unallocate " + (S.team(tc)?.name || tc)}>
+                <img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc)?.name || tc}<Icon.x />
+              </button>
+            ))}
+          </div>
+
+          <div className="adminadd alloc-row">
+            <span className="alloc-lbl">Allocate random</span>
+            <button type="button" className="qbtn" onClick={() => allocate(1)}>+1</button>
+            <button type="button" className="qbtn" onClick={() => allocate(2)}>+2</button>
+            <button type="button" className="qbtn" onClick={() => allocate(3)}>+3</button>
+          </div>
+
+          <h4 className="adminsec-h alloc-h">Add teams</h4>
+          <TeamPicker selected={adds} onToggle={addTeam} hideCodes={current} />
+
+          <button className="cta" disabled={busy || !dirty} onClick={apply} style={{ marginTop: 14, opacity: dirty ? 1 : 0.5 }}>
+            <Icon.check /> {busy ? "Saving…" : "Apply changes"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PeopleAdmin({ onToast, queryClient }) {
   const qc = useResolvedQueryClient(queryClient);
   const people = S.people;
-  const [name, setName] = useState("");
-  const [editing, setEditing] = useState(null); // person id
-  const [editName, setEditName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [sort, setSort] = useState("recent");
+  const [adding, setAdding] = useState(false);
+  const [allocId, setAllocId] = useState(null);
 
   const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
 
-  async function add(){
-    const nm = name.trim();
-    if(!nm || busy) return;
-    setBusy(true);
-    try {
-      const initials = nm.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase() || "??";
-      // av (avatar colour) is required server-side (avColor, minLength 1). The form
-      // only collects a name, so derive a stable colour from it (deterministic per name).
-      const av = AV_PALETTE[Math.abs([...nm].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)) % AV_PALETTE.length];
-      await createPerson({ name: nm, short: nm, initials, av });
-      setName(""); onToast("Person added"); refresh();
-    } catch { onToast("Couldn't add — try again"); }
-    finally { setBusy(false); }
-  }
-  async function save(id){
-    const nm = editName.trim();
-    if(!nm || busy) return;
-    setBusy(true);
-    try { await patchPerson(id, { name: nm }); setEditing(null); onToast("Saved"); refresh(); }
-    catch { onToast("Couldn't save — try again"); }
-    finally { setBusy(false); }
-  }
-  async function remove(p){
-    if(busy) return;
-    setBusy(true);
-    try { await deletePerson(p.id); onToast("Person removed"); refresh(); }
-    catch { onToast("Couldn't remove — try again"); }
-    finally { setBusy(false); }
-  }
+  const sorted = useMemo(() => {
+    const arr = people.slice();
+    if (sort === "name") arr.sort((a, b) => a.name.localeCompare(b.name));
+    else if (sort === "teams") arr.sort((a, b) => b.teams.length - a.teams.length || a.name.localeCompare(b.name));
+    else arr.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")) || a.name.localeCompare(b.name));
+    return arr;
+  }, [people, sort]);
+
+  const allocPerson = allocId ? people.find((p) => p.id === allocId) : null;
 
   return (
-    <div className="scroll pad screen-anim" style={{paddingTop:10}}>
+    <div className="scroll pad screen-anim" style={{ paddingTop: 10 }}>
       <div className="wrap">
-        <h3 className="adminsec-h">People</h3>
-        <div className="adminadd">
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Add a person…" onKeyDown={e=>{ if(e.key==="Enter") add(); }} />
-          <button className="qbtn app" disabled={busy} onClick={add}><Icon.check/> Add</button>
+        <div className="adminadd alloc-row" style={{ justifyContent: "space-between" }}>
+          <h3 className="adminsec-h" style={{ margin: 0 }}>People <span className="ct">{people.length}</span></h3>
+          <button className="qbtn app" onClick={() => setAdding(true)}><Icon.check /> Add person</button>
         </div>
-        <div className="plist" style={{marginTop:12}}>
-          {people.map(p=>(
-            <div className="prow" key={p.id}>
-              <PersonAvatar p={p} cls="pav"/>
-              <div className="pi" style={{flex:1}}>
-                {editing===p.id ? (
-                  <input className="adminrename" defaultValue={p.name} onChange={e=>setEditName(e.target.value)} aria-label={"Edit name "+p.name} />
-                ) : <b>{p.name}</b>}
+        <div className="filterbar" style={{ marginTop: 8 }}>
+          <button className={"fchip" + (sort === "recent" ? " on" : "")} onClick={() => setSort("recent")}>Recently added</button>
+          <button className={"fchip" + (sort === "name" ? " on" : "")} onClick={() => setSort("name")}>Name</button>
+          <button className={"fchip" + (sort === "teams" ? " on" : "")} onClick={() => setSort("teams")}>Teams</button>
+        </div>
+        <div className="plist" style={{ marginTop: 12 }}>
+          {sorted.map((p) => (
+            <button className="prow prow-click" key={p.id} onClick={() => setAllocId(p.id)}>
+              <PersonAvatar p={p} cls="pav" />
+              <div className="pi" style={{ flex: 1, minWidth: 0 }}>
+                <b>{p.name}</b>
+                <TeamChips codes={p.teams} />
               </div>
-              {editing===p.id ? (
-                <button className="qbtn app" disabled={busy} onClick={()=>save(p.id)}>Save</button>
-              ) : (
-                <button className="iconbtn" aria-label={"Rename "+p.name} onClick={()=>{ setEditing(p.id); setEditName(p.name); }}><Icon.swap/></button>
-              )}
-              <button className="iconbtn" aria-label={"Remove "+p.name} disabled={busy} onClick={()=>remove(p)}><Icon.trash/></button>
-            </div>
+              <div className="pcount"><b>{p.teams.length}</b><small>teams</small></div>
+              <span className="chev"><Icon.chev /></span>
+            </button>
           ))}
         </div>
       </div>
+      {adding && <AddMemberSheet onClose={() => setAdding(false)} onToast={onToast} refresh={refresh} />}
+      {allocPerson && <AllocateSheet person={allocPerson} onClose={() => setAllocId(null)} onToast={onToast} refresh={refresh} />}
     </div>
   );
 }
