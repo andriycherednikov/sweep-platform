@@ -48,27 +48,31 @@ function SweepRow({ s, onToast, reload }) {
 
       <div className="field" style={{ marginTop: 8 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted2)" }}>Name</span>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div className="super-row">
           <input value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 1 }} />
-          <button className="cta ghost" disabled={busy} aria-label={`Save name ${s.id}`}
+          <button className="allocbtn" disabled={busy} aria-label={`Save name ${s.id}`}
             onClick={() => run(() => patchSweep(s.id, { name: name.trim() }), "Renamed")}>Save</button>
         </div>
       </div>
 
-      {s.memberLink && <LinkField label="Member link" value={s.memberLink} />}
-      {s.adminLink && <LinkField label="Admin link" value={s.adminLink} />}
-
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
-        <button className="cta ghost" disabled={busy} aria-label={`Rotate member ${s.id}`}
-          onClick={() => run(() => rotateSweepToken(s.id, "member"), "Member link rotated")}>Rotate member link</button>
-        <button className="cta ghost" disabled={busy} aria-label={`Rotate admin ${s.id}`}
-          onClick={() => run(() => rotateSweepToken(s.id, "admin"), "Admin link rotated")}>Rotate admin link</button>
-        {archived
-          ? <button className="cta ghost" disabled={busy} aria-label={`Restore ${s.id}`}
-              onClick={() => run(() => unarchiveSweep(s.id), "Restored")}>Restore</button>
-          : <button className="cta ghost" disabled={busy} aria-label={`Archive ${s.id}`}
-              onClick={() => run(() => archiveSweep(s.id), "Archived")}>Archive</button>}
-      </div>
+      {/* The default sweep is host-bound (no capability tokens); only its name is editable. */}
+      {s.kind !== "default" && (
+        <>
+          {s.memberLink && <LinkField label="Member link" value={s.memberLink} />}
+          {s.adminLink && <LinkField label="Admin link" value={s.adminLink} />}
+          <div className="super-actions">
+            <button className="allocbtn" disabled={busy} aria-label={`Rotate member ${s.id}`}
+              onClick={() => run(() => rotateSweepToken(s.id, "member"), "Member link rotated")}>Rotate member link</button>
+            <button className="allocbtn" disabled={busy} aria-label={`Rotate admin ${s.id}`}
+              onClick={() => run(() => rotateSweepToken(s.id, "admin"), "Admin link rotated")}>Rotate admin link</button>
+            {archived
+              ? <button className="allocbtn" disabled={busy} aria-label={`Restore ${s.id}`}
+                  onClick={() => run(() => unarchiveSweep(s.id), "Restored")}>Restore</button>
+              : <button className="allocbtn danger" disabled={busy} aria-label={`Archive ${s.id}`}
+                  onClick={() => run(() => archiveSweep(s.id), "Archived")}>Archive</button>}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -102,14 +106,14 @@ function SuperList({ onToast }) {
 
   return (
     <div className="scroll pad screen-anim" style={{ paddingTop: 12 }}>
-      <div className="wrap">
+      <div className="wrap super-wrap">
         {/* create */}
         <div className="block" style={{ padding: "12px 14px", marginBottom: 14 }}>
           <div className="field">
             <label>New sweep</label>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div className="super-row">
               <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New sweep name" style={{ flex: 1 }} />
-              <button className="cta" disabled={busy || !newName.trim()} onClick={create}>Create sweep</button>
+              <button className="allocbtn primary" disabled={busy || !newName.trim()} onClick={create}>Create sweep</button>
             </div>
           </div>
           {created && (
