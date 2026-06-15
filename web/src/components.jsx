@@ -71,8 +71,11 @@ export function Av({ p, size, light }) {
 }
 /* person avatar for the bigger chips (.pav / .av) — renders the profile image when present */
 export function PersonAvatar({ p, cls = "pav", style }) {
+  const [broken, setBroken] = useState(false);
   if (!p) return null;
-  if (p.avatarPath) return <img className={cls} src={p.avatarPath} alt={p.initials || ""} style={{ objectFit: "cover", ...style }} />;
+  // Fall back to the coloured-initials avatar if the photo is missing or fails to load.
+  if (p.avatarPath && !broken)
+    return <img className={cls} src={p.avatarPath} alt={p.initials || ""} style={{ objectFit: "cover", ...style }} onError={() => setBroken(true)} />;
   return <span className={cls} style={{ background: p.av, ...style }}>{p.initials}</span>;
 }
 export function AvStack({ people, size, light, max }) {

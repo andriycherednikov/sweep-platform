@@ -648,11 +648,13 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .t-chip .flag{width:20px; height:14px; border-radius:2px;}
 .t-chip svg{width:13px; height:13px; stroke:var(--accent);}
 .t-chip:active{transform:scale(.96);}
+/* base avatar look so PersonAvatar renders correctly outside .prow/.dh-person too */
+.pav{display:grid; place-items:center; border-radius:13px; overflow:hidden; object-fit:cover; font-family:'Barlow Condensed'; font-weight:800; color:#fff; flex-shrink:0;}
 /* allocation sheet: person block, +N buttons, remove */
-.alloc-person{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:10px 12px; margin-bottom:14px;}
-.alloc-name{flex:1; min-width:0; margin:0;}
-.alloc-name input{width:100%;}
-.alloc-remove{flex:0 0 auto; width:42px; height:42px; display:flex; align-items:center; justify-content:center; border-radius:11px; background:#fbecea; border:1px solid #f3d6d2; cursor:pointer;}
+.alloc-person{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.alloc-av{width:46px; height:46px; font-size:18px;}
+.alloc-name-input{flex:1; min-width:0; background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 13px; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:16px; color:var(--navy);}
+.alloc-remove{flex:0 0 auto; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:11px; background:#fbecea; border:1px solid #f3d6d2; cursor:pointer;}
 .alloc-remove svg{width:18px; height:18px; stroke:var(--accent);}
 .alloc-remove:active{transform:scale(.95);}
 .alloc-rand{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:6px 0 4px;}

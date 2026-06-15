@@ -993,13 +993,10 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
         <div className="grab"></div>
         <div className="sheet-head"><h3>Manage person</h3><button className="x" onClick={onClose}><Icon.x /></button></div>
         <div className="sheet-body">
-          {/* identity: avatar + always-editable name + remove */}
+          {/* identity: avatar + always-editable name + remove (single centered row) */}
           <div className="alloc-person">
-            <PersonAvatar p={person} cls="pav" style={{ width: 46, height: 46, fontSize: 18 }} />
-            <div className="field alloc-name">
-              <label>Name</label>
-              <input value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" />
-            </div>
+            <PersonAvatar p={person} cls="pav alloc-av" />
+            <input className="alloc-name-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" placeholder="Name" />
             <button className="alloc-remove" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name} title="Remove person"><Icon.trash /></button>
           </div>
 
