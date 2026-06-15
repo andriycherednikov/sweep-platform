@@ -372,7 +372,7 @@ test('SweepsSheet leaving the active sweep removes it from the store and logs ou
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
   const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
-  await act(async () => { fireEvent.click(getAllByLabelText(/leave/i)[0]) })  // first row = sw_a (active)
+  await act(async () => { fireEvent.click(getAllByLabelText(/remove/i)[0]) })  // first row = sw_a (active)
   expect(listSweeps().map((s) => s.sweepId)).toEqual(['sw_b'])
   expect(postLogout).toHaveBeenCalled()
 })
@@ -382,7 +382,7 @@ test('SweepsSheet leaving the active sweep invalidates the sweep query so the Ga
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
   const qc = { invalidateQueries: vi.fn() }
   const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
-  await act(async () => { fireEvent.click(getAllByLabelText(/leave/i)[0]) })  // first row = sw_a (active)
+  await act(async () => { fireEvent.click(getAllByLabelText(/remove/i)[0]) })  // first row = sw_a (active)
   expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
 })
 
@@ -400,4 +400,20 @@ test('SweepsSheet surfaces an error and stays open when switching fails (revoked
   await act(async () => { fireEvent.click(getByText('Pub')) })
   expect(await findByText(/couldn.t switch/i)).toBeInTheDocument()
   expect(onClose).not.toHaveBeenCalled()  // error surfaced instead of an unhandled rejection + close
+})
+
+test('SweepsSheet can rename a stored sweep (local label)', () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  const { getByLabelText, getByText, getByDisplayValue } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  fireEvent.click(getByLabelText(/rename office/i))
+  fireEvent.change(getByDisplayValue('Office'), { target: { value: 'Office Pool' } })
+  fireEvent.click(getByText('Save'))
+  expect(listSweeps()[0].name).toBe('Office Pool')
+})
+
+test('SweepsSheet shows a friendly fallback when a stored sweep has no name', () => {
+  addSweep({ sweepId: 'sw_zz', name: null, role: 'member', token: 'tz' })
+  const { getByText, queryByText } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  expect(getByText('Untitled sweep')).toBeInTheDocument()
+  expect(queryByText('sw_zz')).toBeNull()  // never show the raw id as a name
 })

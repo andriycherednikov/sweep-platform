@@ -665,6 +665,12 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .allocbtn.primary:hover{filter:brightness(1.05);}
 .allocbtn.danger{background:#fbecea; border-color:#f3d6d2; color:var(--accent);}
 .allocbtn[disabled]{opacity:.5; cursor:default;}
+/* light-background icon button (e.g. rename/remove rows in sheets) */
+.rowicon{width:36px; height:36px; flex:0 0 auto; border-radius:10px; background:var(--bg); border:1px solid var(--line); display:grid; place-items:center; cursor:pointer;}
+.rowicon svg{width:17px; height:17px; stroke:var(--muted);}
+.rowicon.danger{background:#fbecea; border-color:#f3d6d2;}
+.rowicon.danger svg{stroke:var(--accent);}
+.rowicon:active{transform:scale(.95);}
 /* super-admin console: keep inline rows tidy + cap width on desktop */
 .super-wrap{max-width:720px; margin:0 auto;}
 .super-row{display:flex; gap:8px; align-items:center;}

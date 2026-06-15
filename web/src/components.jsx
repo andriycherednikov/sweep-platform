@@ -9,7 +9,7 @@ import {
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
-import { listSweeps, removeSweep, switchTo } from "./sweeps.js";
+import { listSweeps, removeSweep, renameSweep, switchTo } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
@@ -438,7 +438,10 @@ export function IdentityControl({ dark, style }){
 export function SweepsSheet({ activeSweepId, onClose, queryClient }){
   const [sweeps, setSweeps] = useState(() => listSweeps());
   const [err, setErr] = useState(null);
+  const [editId, setEditId] = useState(null);
+  const [editName, setEditName] = useState("");
   const refresh = () => setSweeps(listSweeps());
+  const label = (s) => s.name || "Untitled sweep";
 
   const onSwitch = async (s) => {
     if (s.sweepId === activeSweepId) { onClose(); return; }
@@ -447,7 +450,7 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
       await switchTo(s, queryClient);
       onClose();
     } catch (e) {
-      setErr("Couldn't switch sweeps — that invite may have expired. Try again or rejoin from a fresh link.");
+      setErr("Couldn't switch sweeps — that invite may have expired. Rejoin from a fresh link, or remove it below.");
     }
   };
   const onLeave = async (s) => {
@@ -460,6 +463,12 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
     }
     refresh();
   };
+  const startEdit = (s) => { setEditId(s.sweepId); setEditName(s.name || ""); };
+  const saveEdit = (s) => {
+    const nm = editName.trim();
+    if (nm) renameSweep(s.sweepId, nm);
+    setEditId(null); refresh();
+  };
 
   return (
     <div className="overlay" onClick={onClose}>
@@ -467,7 +476,7 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
         <div className="grab"></div>
         <div className="sheet-head"><h3>My sweeps</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
         <div className="sheet-body">
-          {err && <p role="alert" style={{fontSize:13,color:"var(--danger,#c0392b)",margin:"0 0 12px"}}>{err}</p>}
+          {err && <p role="alert" style={{fontSize:13,color:"var(--accent)",margin:"0 0 12px"}}>{err}</p>}
           {sweeps.length === 0 ? (
             <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",padding:"24px 0"}}>
               No sweeps on this device yet. Open an invite link to join one.
@@ -476,14 +485,26 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
             <div className="plist">
               {sweeps.map(s=>(
                 <div className={"prow"+(s.sweepId===activeSweepId?" mepick":"")} key={s.sweepId} style={{padding:"9px 12px"}}>
-                  <button className="pi" onClick={()=>onSwitch(s)} style={{flex:1,textAlign:"left",border:0,background:"transparent",cursor:"pointer"}}>
-                    <b style={{fontSize:16}}>{s.name || s.sweepId}</b>
-                    <div className="tms">
-                      <span className="t">{s.role === "admin" ? "You can admin this sweep" : "Member"}</span>
-                      {s.sweepId===activeSweepId && <span className="t">· current</span>}
-                    </div>
-                  </button>
-                  <button className="x" aria-label={`Leave ${s.name || s.sweepId}`} title="Leave" onClick={()=>onLeave(s)}><Icon.x/></button>
+                  {editId === s.sweepId ? (
+                    <>
+                      <input className="adminrename" value={editName} onChange={e=>setEditName(e.target.value)}
+                        placeholder="Sweep name" aria-label="Sweep name" autoFocus
+                        onKeyDown={e=>{ if(e.key==="Enter") saveEdit(s); if(e.key==="Escape") setEditId(null); }} />
+                      <button className="allocbtn" onClick={()=>saveEdit(s)}>Save</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="pi" onClick={()=>onSwitch(s)} style={{flex:1,textAlign:"left",border:0,background:"transparent",cursor:"pointer",minWidth:0}}>
+                        <b style={{fontSize:16}}>{label(s)}</b>
+                        <div className="tms">
+                          <span className="t">{s.role === "admin" ? "You can admin this sweep" : "Member"}</span>
+                          {s.sweepId===activeSweepId && <span className="t">· current</span>}
+                        </div>
+                      </button>
+                      <button className="rowicon" aria-label={`Rename ${label(s)}`} title="Rename" onClick={()=>startEdit(s)}><Icon.swap/></button>
+                      <button className="rowicon danger" aria-label={`Remove ${label(s)}`} title="Remove" onClick={()=>onLeave(s)}><Icon.trash/></button>
+                    </>
+                  )}
                 </div>
               ))}
             </div>

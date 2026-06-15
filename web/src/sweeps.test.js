@@ -48,6 +48,20 @@ test('listSweeps tolerates corrupt JSON → []', async () => {
   expect(listSweeps()).toEqual([])
 })
 
+test('renameSweep updates the local label', async () => {
+  const { addSweep, renameSweep, listSweeps } = await import('./sweeps.js')
+  addSweep({ sweepId: 'sw_1', name: 'Old', role: 'member', token: 't1' })
+  renameSweep('sw_1', 'New Name')
+  expect(listSweeps()[0].name).toBe('New Name')
+})
+
+test('addSweep keeps an existing name when re-joined with name:null', async () => {
+  const { addSweep, listSweeps } = await import('./sweeps.js')
+  addSweep({ sweepId: 'sw_1', name: 'Real Name', role: 'admin', token: 't1' })
+  addSweep({ sweepId: 'sw_1', name: null, role: 'admin', token: 't1' }) // re-join (name not yet known)
+  expect(listSweeps()[0].name).toBe('Real Name')
+})
+
 test('switchTo posts the stored token then invalidates sweep + social queries', async () => {
   const postSession = vi.fn(async () => ({ sweepId: 'sw_2', role: 'member' }))
   vi.doMock('./api/client.js', () => ({ postSession }))

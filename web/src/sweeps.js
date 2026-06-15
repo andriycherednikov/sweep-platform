@@ -32,12 +32,20 @@ export function addSweep({ sweepId, name, role, token }) {
   } else {
     list[i] = {
       sweepId,
-      name,
-      role,
+      // never clobber a captured name/token with null (e.g. the join call passes name:null)
+      name: name != null ? name : list[i].name,
+      role: role != null ? role : list[i].role,
       token: token != null ? token : list[i].token,
     }
   }
   write(list)
+}
+
+/** Rename a joined sweep's local label. */
+export function renameSweep(sweepId, name) {
+  const list = read()
+  const i = list.findIndex((s) => s.sweepId === sweepId)
+  if (i !== -1) { list[i] = { ...list[i], name }; write(list) }
 }
 
 /** Remove a joined sweep by id. */
