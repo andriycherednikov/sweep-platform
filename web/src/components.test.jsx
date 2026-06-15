@@ -525,3 +525,41 @@ test('ScoreCover reveals its fixture when tapped', () => {
   expect(isRevealed('mX')).toBe(true)
   setSpoiler(false)
 })
+
+function finalCard() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [3, 1], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+}
+
+test('MatchCard covers a final score under spoiler mode and reveals on tap', () => {
+  finalCard()
+  setSpoiler(true)
+  const noop = () => {}
+  const { queryByText, getByLabelText } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
+  expect(queryByText('3')).toBeNull()                 // score not rendered
+  expect(getByLabelText(/reveal score/i)).toBeTruthy() // cover present
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(queryByText('3')).toBeTruthy()                // real score now shown
+  setSpoiler(false)
+})
+
+test('MatchCard shows the score normally when spoiler mode is off', () => {
+  finalCard()
+  setSpoiler(false)
+  const noop = () => {}
+  const { getByText, queryByLabelText } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
+  expect(getByText('3')).toBeTruthy()
+  expect(queryByLabelText(/reveal score/i)).toBeNull()
+})

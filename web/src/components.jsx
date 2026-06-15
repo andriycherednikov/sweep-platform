@@ -249,6 +249,7 @@ export function CrowdPick({ f, onToast, light, locked }) {
 /* full match card (home + schedule) */
 export function MatchCard({ f, onOpen, onToast }) {
   useSocial();
+  useSpoiler();
   const me = getMe();
   const myTeam = !!me && (me.teams.indexOf(f.t1)>=0 || me.teams.indexOf(f.t2)>=0);
   const mine = myTeam || isWatching(f.id); // highlight: your team plays, or you're watching
@@ -280,7 +281,7 @@ export function MatchCard({ f, onOpen, onToast }) {
         </div>
         <div className="mc-h-mid">
           {showScore
-            ? <span className="mc-sc">{s1}<i>–</i>{s2}</span>
+            ? (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="mc-sc"><span>{s1}</span><i>–</i><span>{s2}</span></span>)
             : <span className="mc-vs">VS</span>}
         </div>
         <div className={"mc-h-team right" + (showScore && s2 < s1 ? " dim":"")}>
