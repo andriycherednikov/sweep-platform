@@ -449,7 +449,12 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
   };
   const onLeave = async (s) => {
     removeSweep(s.sweepId);
-    if (s.sweepId === activeSweepId) { try { await postLogout(); } catch (e) { /* ignore */ } }
+    if (s.sweepId === activeSweepId) {
+      try { await postLogout(); } catch (e) { /* ignore */ }
+      // session is gone — drop the now-orphaned sweep data so the Gate falls to
+      // the "pick a sweep" landing immediately (refetchOnWindowFocus:false won't).
+      queryClient?.invalidateQueries({ queryKey: ["sweep"] });
+    }
     refresh();
   };
 

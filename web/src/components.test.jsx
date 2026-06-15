@@ -377,6 +377,15 @@ test('SweepsSheet leaving the active sweep removes it from the store and logs ou
   expect(postLogout).toHaveBeenCalled()
 })
 
+test('SweepsSheet leaving the active sweep invalidates the sweep query so the Gate drops to "pick a sweep"', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  const qc = { invalidateQueries: vi.fn() }
+  const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
+  await act(async () => { fireEvent.click(getAllByLabelText(/leave/i)[0]) })  // first row = sw_a (active)
+  expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
+})
+
 test('SweepsSheet shows an empty state when no sweeps are stored', () => {
   const { getByText } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
   expect(getByText(/invite link/i)).toBeInTheDocument()
