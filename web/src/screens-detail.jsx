@@ -3,7 +3,7 @@
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { SWEEP as S } from "./data.js";
+import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown,
@@ -906,7 +906,7 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
       const initials = nm.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??";
       const created = await createPerson({ name: nm, short: nm, initials, av: avFor(nm) });
       if (sel.size) await bulkPostOwnership([...sel].map((tc) => ({ personId: created.id, teamCode: tc })));
-      onToast("Person added"); refresh(); onClose();
+      onToast("Person added"); await refresh(); onClose();
     } catch { onToast("Couldn't add — try again"); setBusy(false); }
   }
   return (
@@ -918,10 +918,11 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
           <div className="field"><label>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Priya" autoFocus />
           </div>
-          <div className="adminadd alloc-row">
-            <span className="alloc-lbl">Teams: {sel.size}</span>
-            <button type="button" className="qbtn" onClick={() => allocate(1)}>+1 random</button>
-            <button type="button" className="qbtn" onClick={() => allocate(2)}>+2 random</button>
+          <div className="alloc-rand">
+            <span className="alloc-lbl">Teams: {sel.size} · allocate random</span>
+            <button type="button" className="allocbtn" onClick={() => allocate(1)}>+1</button>
+            <button type="button" className="allocbtn" onClick={() => allocate(2)}>+2</button>
+            <button type="button" className="allocbtn" onClick={() => allocate(3)}>+3</button>
           </div>
           <TeamPicker selected={sel} onToggle={toggle} />
           <button className="cta" disabled={busy || !name.trim()} onClick={save} style={{ marginTop: 14 }}>
@@ -933,11 +934,11 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
   );
 }
 
-// Show + allocate/reallocate/unallocate one person's teams; rename/remove.
+// Show + allocate/reallocate/unallocate one person's teams; name is always editable
+// and "Apply changes" commits the rename + team add/remove together (one round-trip).
 function AllocateSheet({ person, onClose, onToast, refresh }) {
   const [adds, setAdds] = useState(new Set());      // brand-new teams to insert
   const [removes, setRemoves] = useState(new Set()); // owned teams to delete
-  const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(person.name);
   const [busy, setBusy] = useState(false);
 
@@ -962,52 +963,44 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
     codes.forEach(addTeam);
   };
 
+  const nm = editName.trim();
+  const nameChanged = !!nm && nm !== person.name;
+  const dirty = nameChanged || adds.size > 0 || removes.size > 0;
+
   async function apply() {
-    if (busy) return;
+    if (busy || !dirty) return;
     setBusy(true);
     try {
+      if (nameChanged) await patchPerson(person.id, { name: nm });
       const addItems = [...adds].map((tc) => ({ personId: person.id, teamCode: tc }));
       const removeItems = [...removes].map((tc) => ({ personId: person.id, teamCode: tc }));
       if (addItems.length) await bulkPostOwnership(addItems);
       if (removeItems.length) await bulkDeleteOwnership(removeItems);
-      onToast("Teams updated"); refresh(); onClose();
+      onToast("Changes saved"); await refresh(); onClose();
     } catch { onToast("Couldn't save — try again"); setBusy(false); }
-  }
-  async function saveName() {
-    const nm = editName.trim();
-    if (!nm || busy) return;
-    setBusy(true);
-    try { await patchPerson(person.id, { name: nm }); onToast("Renamed"); refresh(); onClose(); }
-    catch { onToast("Couldn't rename — try again"); setBusy(false); }
   }
   async function removePerson() {
     if (busy) return;
     setBusy(true);
-    try { await deletePerson(person.id); onToast("Person removed"); refresh(); onClose(); }
+    try { await deletePerson(person.id); onToast("Person removed"); await refresh(); onClose(); }
     catch { onToast("Couldn't remove — try again"); setBusy(false); }
   }
 
-  const dirty = adds.size > 0 || removes.size > 0;
   const currentCodes = [...current];
   return (
     <div className="overlay" onClick={onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "92%" }}>
         <div className="grab"></div>
-        <div className="sheet-head">
-          <div className="alloc-head">
-            <PersonAvatar p={person} cls="pav" style={{ width: 38, height: 38, fontSize: 15 }} />
-            {editing
-              ? <input className="adminrename" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Edit name" />
-              : <h3>{person.name}</h3>}
-          </div>
-          <button className="x" onClick={onClose}><Icon.x /></button>
-        </div>
+        <div className="sheet-head"><h3>Manage person</h3><button className="x" onClick={onClose}><Icon.x /></button></div>
         <div className="sheet-body">
-          <div className="adminadd alloc-row">
-            {editing
-              ? <button className="qbtn app" disabled={busy} onClick={saveName}>Save name</button>
-              : <button className="qbtn" onClick={() => { setEditing(true); setEditName(person.name); }}><Icon.swap /> Rename</button>}
-            <button className="qbtn rej" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name}><Icon.trash /> Remove</button>
+          {/* identity: avatar + always-editable name + remove */}
+          <div className="alloc-person">
+            <PersonAvatar p={person} cls="pav" style={{ width: 46, height: 46, fontSize: 18 }} />
+            <div className="field alloc-name">
+              <label>Name</label>
+              <input value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" />
+            </div>
+            <button className="alloc-remove" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name} title="Remove person"><Icon.trash /></button>
           </div>
 
           <h4 className="adminsec-h alloc-h">Teams ({currentCodes.length})</h4>
@@ -1020,11 +1013,11 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
             ))}
           </div>
 
-          <div className="adminadd alloc-row">
+          <div className="alloc-rand">
             <span className="alloc-lbl">Allocate random</span>
-            <button type="button" className="qbtn" onClick={() => allocate(1)}>+1</button>
-            <button type="button" className="qbtn" onClick={() => allocate(2)}>+2</button>
-            <button type="button" className="qbtn" onClick={() => allocate(3)}>+3</button>
+            <button type="button" className="allocbtn" onClick={() => allocate(1)}>+1</button>
+            <button type="button" className="allocbtn" onClick={() => allocate(2)}>+2</button>
+            <button type="button" className="allocbtn" onClick={() => allocate(3)}>+3</button>
           </div>
 
           <h4 className="adminsec-h alloc-h">Add teams</h4>
@@ -1041,6 +1034,11 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
 
 export function PeopleAdmin({ onToast, queryClient }) {
   const qc = useResolvedQueryClient(queryClient);
+  // Re-render whenever the sweep store updates (e.g. after a write refetch), so the
+  // list reflects allocations without a manual reload — the ['sweep'] query's data
+  // (syncStatus) can be unchanged, so we can't rely on it alone to re-render.
+  const [, bump] = useState(0);
+  useEffect(() => onSweepData(() => bump((n) => n + 1)), []);
   const people = S.people;
   const [sort, setSort] = useState("recent");
   const [adding, setAdding] = useState(false);

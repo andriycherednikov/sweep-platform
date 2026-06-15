@@ -452,15 +452,26 @@ test('PeopleAdmin add-member sheet creates a person (+ optional teams) then inva
   await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
 })
 
-test('PeopleAdmin allocation sheet renames via patchPerson', async () => {
+test('PeopleAdmin allocation sheet renames via patchPerson on apply (name always editable)', async () => {
   seedPeople()
   patchPerson.mockResolvedValueOnce({ id: 'p1', name: 'Annie' })
-  const { getByText, getByLabelText, getByDisplayValue } = render(<PeopleAdmin onToast={noop} />)
+  const { getByText, getByLabelText } = render(<PeopleAdmin onToast={noop} />)
   fireEvent.click(getByText('Ann'))            // open allocation sheet
-  fireEvent.click(getByText('Rename'))
-  fireEvent.change(getByDisplayValue('Ann'), { target: { value: 'Annie' } })
-  fireEvent.click(getByText('Save name'))
+  fireEvent.change(getByLabelText('Name'), { target: { value: 'Annie' } })
+  fireEvent.click(getByText('Apply changes'))  // single Apply commits the rename
   await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+})
+
+test('PeopleAdmin allocation sheet applies a rename + team change together', async () => {
+  seedPeople()
+  patchPerson.mockResolvedValueOnce({ id: 'p1', name: 'Annie' })
+  const { getByText, getByLabelText } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Ann'))
+  fireEvent.change(getByLabelText('Name'), { target: { value: 'Annie' } })
+  fireEvent.click(getByText('+1'))             // allocate a random team too
+  fireEvent.click(getByText('Apply changes'))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+  await waitFor(() => expect(bulkPostOwnership).toHaveBeenCalledTimes(1))
 })
 
 test('PeopleAdmin allocation sheet removes a person via deletePerson', async () => {
