@@ -13,7 +13,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 
 /* ---------------- PEOPLE ---------------- */
@@ -739,22 +739,48 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
 }
 
 /* ---------------- ADMIN ---------------- */
+
+/* Host-aware admin gate. On the platform host the sweep_session cookie already
+   carries role 'admin' (minted by the admin capability link) → unlock with no PIN.
+   On the default host (sweepId 'default') keep the 4-digit PIN. A platform member
+   with no admin link gets a "open your admin link" prompt. */
+export function adminGateState(whoami) {
+  if (whoami && whoami.role === 'admin') return 'unlocked';
+  if (whoami && whoami.sweepId === 'default') return 'pin';
+  return 'need-link';
+}
+
 export function AdminScreen({ onBack, onToast }) {
   const [code, setCode] = useState("");
-  const [unlocked, setUnlocked] = useState(false);
+  const [gate, setGate] = useState(null); // null = checking; 'unlocked'|'pin'|'need-link'
   const [shake, setShake] = useState(false);
 
-  useEffect(()=>{ fetchAdminMe().then(()=>setUnlocked(true)).catch(()=>{}); },[]);
+  useEffect(()=>{ fetchWhoami().then(w=>setGate(adminGateState(w))).catch(()=>setGate('pin')); },[]);
 
   function fail(){ setShake(true); setTimeout(()=>{ setShake(false); setCode(""); }, 400); }
   function press(d){
     if(code.length>=4) return;
     const nc = code + d; setCode(nc);
-    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setUnlocked(true); refreshAdminBadge(); } catch { fail(); } }, 120); }
+    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setGate('unlocked'); refreshAdminBadge(); } catch { fail(); } }, 120); }
   }
   function del(){ setCode(c=>c.slice(0,-1)); }
 
-  if(!unlocked){
+  if(gate===null) return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><PageHeader title="Admin" sub="Restricted area" onBack={onBack} /></div>;
+
+  if(gate==='need-link'){
+    return (
+      <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+        <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
+        <div className="scroll pad screen-anim" style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:40}}>
+          <div className="lockic"><Icon.lock/></div>
+          <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Open your admin link</h3>
+          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center",maxWidth:280}}>This sweep is admined from its admin link. Open the admin invite link on this device to manage it.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if(gate==='pin'){
     return (
       <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
         <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
@@ -776,10 +802,35 @@ export function AdminScreen({ onBack, onToast }) {
       </div>
     );
   }
-  return <AdminQueue onBack={onBack} onToast={onToast} />;
+
+  return <AdminConsole onBack={onBack} onToast={onToast} />;
 }
 
-export function AdminQueue({ onBack, onToast }) {
+export function AdminConsole({ onBack, onToast }) {
+  const [tab, setTab] = useState("people"); // 'people' | 'draw' | 'mod'
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <PageHeader title="Admin" sub="Manage your sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
+      <div className="admintabs">
+        <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
+        <button className={"admintab"+(tab==="draw"?" on":"")} onClick={()=>setTab("draw")}>Draw</button>
+        <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Moderation</button>
+      </div>
+      {tab==="people" && <PeopleAdmin onToast={onToast} />}
+      {tab==="draw" && <DrawAdmin onToast={onToast} />}
+      {tab==="mod" && <AdminQueue embedded onToast={onToast} />}
+    </div>
+  );
+}
+
+export function PeopleAdmin({ onToast }) {
+  return <div className="scroll pad screen-anim" style={{paddingTop:10}}><div className="wrap"><h3 className="adminsec-h">People</h3></div></div>;
+}
+export function DrawAdmin({ onToast }) {
+  return <div className="scroll pad screen-anim" style={{paddingTop:10}}><div className="wrap"><h3 className="adminsec-h">The draw</h3></div></div>;
+}
+
+export function AdminQueue({ onBack, onToast, embedded }) {
   const [data, setData] = useState({ pending: [], approved: [] });
   const [tab, setTab] = useState("pending");
   const [busy, setBusy] = useState(null);
@@ -802,7 +853,7 @@ export function AdminQueue({ onBack, onToast }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
+      {!embedded && <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
       <div className="admintabs">
         <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
         <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {data.approved.length}</button>

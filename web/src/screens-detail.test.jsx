@@ -5,6 +5,17 @@ import { render, fireEvent } from '@testing-library/react'
 vi.mock('./api/client.js', () => ({
   postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
+  uploadPhoto: vi.fn(async () => ({})),
+  adminLogin: vi.fn(async () => ({ admin: true })),
+  fetchAdminMe: vi.fn(async () => { throw new Error('401') }),
+  fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
+  moderatePhoto: vi.fn(async () => ({})),
+  fetchWhoami: vi.fn(async () => ({ sweepId: 'default', role: 'member' })),
+  createPerson: vi.fn(async () => ({})),
+  deletePerson: vi.fn(async () => ({})),
+  patchPerson: vi.fn(async () => ({})),
+  postOwnership: vi.fn(async () => ({})),
+  deleteOwnership: vi.fn(async () => ({})),
 }))
 import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
@@ -349,4 +360,41 @@ test('PersonDetail hides the Prediction history section when the person made no 
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
   )
   expect(queryByText('Prediction history')).toBeNull()
+})
+
+import { adminGateState, AdminScreen } from './screens-detail.jsx'
+import { waitFor } from '@testing-library/react'
+import { fetchWhoami } from './api/client.js'
+
+test('adminGateState forks on whoami role / default sweep', () => {
+  expect(adminGateState({ sweepId: 'sw_abc', role: 'admin' })).toBe('unlocked')
+  expect(adminGateState({ sweepId: 'default', role: 'admin' })).toBe('unlocked')
+  expect(adminGateState({ sweepId: 'default', role: 'member' })).toBe('pin')
+  expect(adminGateState({ sweepId: 'default', role: null })).toBe('pin')
+  expect(adminGateState({ sweepId: 'sw_abc', role: 'member' })).toBe('need-link')
+  expect(adminGateState({ sweepId: null, role: null })).toBe('need-link')
+})
+
+test('AdminScreen on the platform host with an admin cookie unlocks without a PIN', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'admin' })
+  setSweepData(assembleSweep({
+    bootstrap: { teams: [], people: [], ownership: {}, scoring: null },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText('People', { selector: '.admintab' })).toBeTruthy() // landed on the People tab, no keypad
+  expect(queryByText('Enter passcode')).toBeNull()
+})
+
+test('AdminScreen on a platform member (no admin link) prompts to open the admin link', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'member' })
+  const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText(/open your admin link/i)).toBeTruthy()
+  expect(queryByText('Enter passcode')).toBeNull()
+})
+
+test('AdminScreen on the default host with no admin cookie still shows the PIN keypad', async () => {
+  fetchWhoami.mockResolvedValueOnce({ sweepId: 'default', role: 'member' })
+  const { findByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
+  expect(await findByText('Enter passcode')).toBeTruthy()
 })
