@@ -1,5 +1,5 @@
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, fireEvent, waitFor, act } from '@testing-library/react'
+import { render, fireEvent, waitFor } from '@testing-library/react'
 
 // Mock the whole client module; assert observable calls (no spyOn of ESM named imports).
 vi.mock('./api/client.js', () => ({

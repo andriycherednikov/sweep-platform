@@ -1,5 +1,5 @@
 import { expect, test, beforeEach, beforeAll, vi } from 'vitest'
-import { render, act, screen } from '@testing-library/react'
+import { render, act, screen, waitFor } from '@testing-library/react'
 
 // jsdom does not implement scrollTo — stub it globally so ScheduleScreen's
 // scroll-into-view effect does not throw when navigating to /schedule in tests.
@@ -31,7 +31,8 @@ vi.mock('./admin.js', () => ({
   useAdminBadge: vi.fn(() => ({ isAdmin: false, pending: 0 })),
 }))
 
-import App from './App.jsx'
+import App, { urlFor } from './App.jsx'
+import * as client from './api/client.js'
 import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -110,4 +111,31 @@ test('readView maps /super/<token> so the console can auto-submit it', () => {
   const { getByPlaceholderText } = render(<App />)
   // still the super overlay (prompt visible before the async auto-submit resolves)
   expect(getByPlaceholderText(/super token/i)).toBeTruthy()
+})
+
+test('urlFor never includes the super token (analytics + history never see it)', () => {
+  // The token lives only in the in-memory view; the emitted URL is always bare /super.
+  expect(urlFor({ tab: 'home', overlay: { type: 'super', token: 'sekret' } })).toBe('/super')
+  expect(urlFor({ tab: 'home', overlay: { type: 'super', token: null } })).toBe('/super')
+})
+
+test('mounting /super/<token> strips the token from the URL but still auto-submits it', async () => {
+  window.history.replaceState(null, '', '/super/sekret')
+  render(<App />)
+  // token is gone from the address bar immediately (no lingering secret, no GA leak)
+  expect(window.location.pathname).toBe('/super')
+  expect(window.location.href).not.toContain('sekret')
+  // ...but the console still received it (via in-memory state) and auto-submitted
+  await waitFor(() => expect(client.postSuperSession).toHaveBeenCalledWith('sekret'))
+})
+
+test('the super pageview path sent to analytics excludes the token', async () => {
+  window.history.replaceState(null, '', '/super/sekret')
+  render(<App />)
+  await waitFor(() => expect(trackPageview).toHaveBeenCalled())
+  // every pageview path for the super route must be bare /super
+  for (const call of trackPageview.mock.calls) {
+    expect(call[0]).not.toContain('sekret')
+  }
+  expect(trackPageview).toHaveBeenCalledWith('/super')
 })

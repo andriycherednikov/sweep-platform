@@ -25,13 +25,17 @@ import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 const TABS = ["schedule", "people", "teams", "standings"];
 
 /* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
-function urlFor(v) {
+export function urlFor(v) {
   if (v.overlay?.type === "team") return `/teams/${v.overlay.code}`;
   if (v.overlay?.type === "person") return `/people/${v.overlay.id}`;
   if (v.overlay?.type === "knockouts") return "/knockouts";
   if (v.overlay?.type === "admin") return "/admin";
   if (v.overlay?.type === "sweeps") return "/sweeps";
-  if (v.overlay?.type === "super") return v.overlay.token ? `/super/${v.overlay.token}` : "/super";
+  // SECURITY: the super token is the platform master credential. It rides in the
+  // in-memory view (so SuperConsole can auto-submit a /super/<token> deep link) but
+  // is NEVER emitted to the URL — that keeps it out of the address bar/history AND
+  // out of analytics (trackPageview builds its path from urlFor). Always bare /super.
+  if (v.overlay?.type === "super") return "/super";
   return v.tab === "home" ? "/" : `/${v.tab}`;
 }
 function readView(path) {
@@ -104,6 +108,7 @@ export default function App() {
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+  // intentional future entry point (sidebar/landing); no UI trigger wired this slice
   const openSuper  = () => navigate({ overlay: { type: "super" } });
   // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
   // hook would throw — fall back to null and let the sheet skip invalidation.
