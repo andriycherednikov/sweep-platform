@@ -7,7 +7,6 @@ vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
   uploadPhoto: vi.fn(async () => ({})),
   adminLogin: vi.fn(async () => ({ admin: true })),
-  fetchAdminMe: vi.fn(async () => { throw new Error('401') }),
   fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
   moderatePhoto: vi.fn(async () => ({})),
   fetchWhoami: vi.fn(async () => ({ sweepId: 'default', role: 'member' })),
@@ -483,4 +482,48 @@ test('DrawAdmin removes an existing assignment via deleteOwnership', async () =>
   fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
   fireEvent.click(getByLabelText('Unassign Croatia'))
   await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
+})
+
+test('PeopleAdmin invalidates the sweep query after creating a person', async () => {
+  seedPeople()
+  const qc = { invalidateQueries: vi.fn() }
+  createPerson.mockResolvedValueOnce({ id: 'p2', name: 'Bo' })
+  const { getByPlaceholderText, getByText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByPlaceholderText('Add a person…'), { target: { value: 'Bo' } })
+  fireEvent.click(getByText('Add'))
+  await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('PeopleAdmin invalidates the sweep query after deleting a person', async () => {
+  seedPeople()
+  const qc = { invalidateQueries: vi.fn() }
+  deletePerson.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.click(getByLabelText('Remove Ann'))
+  await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('DrawAdmin invalidates the sweep query after assigning a team', async () => {
+  seedDraw()
+  const qc = { invalidateQueries: vi.fn() }
+  postOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText, getByText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.change(getByLabelText('Team'), { target: { value: 'en' } })
+  fireEvent.click(getByText('Assign'))
+  await waitFor(() => expect(postOwnership).toHaveBeenCalledWith('p1', 'en'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
+})
+
+test('DrawAdmin invalidates the sweep query after removing a team', async () => {
+  seedDraw()
+  const qc = { invalidateQueries: vi.fn() }
+  deleteOwnership.mockResolvedValueOnce({ ok: true })
+  const { getByLabelText } = render(<DrawAdmin onToast={noop} queryClient={qc} />)
+  fireEvent.change(getByLabelText('Person'), { target: { value: 'p1' } })
+  fireEvent.click(getByLabelText('Unassign Croatia'))
+  await waitFor(() => expect(deleteOwnership).toHaveBeenCalledWith('p1', 'hr'))
+  await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
 })

@@ -2,6 +2,7 @@
    THE SWEEP — detail screens + flows
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
@@ -13,7 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminMe, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, postOwnership, deleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 
 /* ---------------- PEOPLE ---------------- */
@@ -740,6 +741,15 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
 
 /* ---------------- ADMIN ---------------- */
 
+/* Resolve the TanStack query client: prefer an explicit prop (tests stub it),
+   else the context client. Guarded like App.jsx — admin sub-components are unit-
+   tested without a QueryClientProvider, where the hook would throw. */
+function useResolvedQueryClient(override) {
+  let hookQc = null;
+  try { hookQc = useQueryClient(); } catch { hookQc = null; }
+  return override || hookQc;
+}
+
 /* Host-aware admin gate. On the platform host the sweep_session cookie already
    carries role 'admin' (minted by the admin capability link) → unlock with no PIN.
    On the default host (sweepId 'default') keep the 4-digit PIN. A platform member
@@ -823,14 +833,15 @@ export function AdminConsole({ onBack, onToast }) {
   );
 }
 
-export function PeopleAdmin({ onToast }) {
-  const [people, setPeople] = useState(S.people);
+export function PeopleAdmin({ onToast, queryClient }) {
+  const qc = useResolvedQueryClient(queryClient);
+  const people = S.people;
   const [name, setName] = useState("");
   const [editing, setEditing] = useState(null); // person id
   const [editName, setEditName] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const sync = () => setPeople(S.people.slice());
+  const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
 
   async function add(){
     const nm = name.trim();
@@ -839,7 +850,7 @@ export function PeopleAdmin({ onToast }) {
     try {
       const initials = nm.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase() || "??";
       await createPerson({ name: nm, short: nm, initials, av: null });
-      setName(""); onToast("Person added");
+      setName(""); onToast("Person added"); refresh();
     } catch { onToast("Couldn't add — try again"); }
     finally { setBusy(false); }
   }
@@ -847,14 +858,14 @@ export function PeopleAdmin({ onToast }) {
     const nm = editName.trim();
     if(!nm || busy) return;
     setBusy(true);
-    try { await patchPerson(id, { name: nm }); setEditing(null); onToast("Saved"); }
+    try { await patchPerson(id, { name: nm }); setEditing(null); onToast("Saved"); refresh(); }
     catch { onToast("Couldn't save — try again"); }
     finally { setBusy(false); }
   }
   async function remove(p){
     if(busy) return;
     setBusy(true);
-    try { await deletePerson(p.id); onToast("Person removed"); sync(); }
+    try { await deletePerson(p.id); onToast("Person removed"); refresh(); }
     catch { onToast("Couldn't remove — try again"); }
     finally { setBusy(false); }
   }
@@ -889,13 +900,14 @@ export function PeopleAdmin({ onToast }) {
     </div>
   );
 }
-export function DrawAdmin({ onToast }) {
-  const [people, setPeople] = useState(S.people);
+export function DrawAdmin({ onToast, queryClient }) {
+  const qc = useResolvedQueryClient(queryClient);
+  const people = S.people;
   const [pid, setPid] = useState(S.people[0]?.id || "");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const sync = () => setPeople(S.people.slice());
+  const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
   const person = people.find(p=>p.id===pid);
   const owned = person ? person.teams : [];
   const free = S.teamList.filter(t=>!owned.includes(t.code));
@@ -903,14 +915,14 @@ export function DrawAdmin({ onToast }) {
   async function assign(){
     if(!pid || !code || busy) return;
     setBusy(true);
-    try { await postOwnership(pid, code); setCode(""); onToast("Team assigned"); sync(); }
+    try { await postOwnership(pid, code); setCode(""); onToast("Team assigned"); refresh(); }
     catch { onToast("Couldn't assign — try again"); }
     finally { setBusy(false); }
   }
   async function unassign(tc){
     if(!pid || busy) return;
     setBusy(true);
-    try { await deleteOwnership(pid, tc); onToast("Team unassigned"); sync(); }
+    try { await deleteOwnership(pid, tc); onToast("Team unassigned"); refresh(); }
     catch { onToast("Couldn't unassign — try again"); }
     finally { setBusy(false); }
   }
