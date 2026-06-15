@@ -1,5 +1,5 @@
 async function get(path) {
-  const res = await fetch(path)
+  const res = await fetch(path, { credentials: 'include' })
   if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
@@ -21,6 +21,7 @@ export async function fetchAll() {
 async function post(path, body) {
   const res = await fetch(path, {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
@@ -48,7 +49,7 @@ async function postCreds(path, body) {
 }
 
 export async function uploadPhoto(formData) {
-  const res = await fetch('/api/photos', { method: 'POST', body: formData })
+  const res = await fetch('/api/photos', { method: 'POST', credentials: 'include', body: formData })
   if (!res.ok) {
     let msg = `HTTP ${res.status}`
     try { msg = (await res.json()).error || msg } catch { /* ignore */ }

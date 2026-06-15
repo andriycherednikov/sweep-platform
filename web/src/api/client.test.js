@@ -108,3 +108,39 @@ test('adminLogin throws on 401', async () => {
   const { adminLogin } = await import('./client.js')
   await expect(adminLogin('nope')).rejects.toThrow(/login/i)
 })
+
+test('public get sends credentials:include (cookie scopes platform-host reads)', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ teams: [] }) }
+  }))
+  const { fetchBootstrap } = await import('./client.js')
+  await fetchBootstrap()
+  expect(calls[0].url).toMatch(/\/api\/bootstrap$/)
+  expect(calls[0].opts?.credentials).toBe('include')
+})
+
+test('public post sends credentials:include', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ watching: true }) }
+  }))
+  const { postWatch } = await import('./client.js')
+  await postWatch('m1', 'p1')
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('uploadPhoto sends credentials:include with raw FormData', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 201, json: async () => ({ id: 'x', status: 'pending' }) }
+  }))
+  const { uploadPhoto } = await import('./client.js')
+  const fd = new FormData()
+  await uploadPhoto(fd)
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[0].opts.body).toBe(fd)
+})
