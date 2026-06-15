@@ -11,6 +11,7 @@ import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
 import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
+import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -37,6 +38,7 @@ export const Icon = {
   pin:     (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M12 21s7-6.2 7-11a7 7 0 10-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>,
   bolt:    (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg>,
   eye:     (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>,
+  eyeoff:  (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><path d="M3 3l18 18"/><path d="M10.6 5.1A10.8 10.8 0 0112 5c6 0 10 7 10 7a18.4 18.4 0 01-3.2 4M6.7 6.7A18.4 18.4 0 002 12s4 7 10 7a10.8 10.8 0 004.3-.9"/><path d="M9.9 9.9a3 3 0 004.2 4.2"/></svg>,
   search:  (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>,
   eyefill: (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="#fff"/></svg>,
   thumb:   (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 9.5h3.5V21H2zM21.6 9.2A2 2 0 0020 8.4h-5.1l.77-3.7.02-.32a1.5 1.5 0 00-.44-1.06L14.4 2.5 8.2 8.7a2 2 0 00-.6 1.4V19a2 2 0 002 2h7.3a2 2 0 001.86-1.27l2.27-6.3a2 2 0 00.07-.5V11a2 2 0 00-.5-1.8z"/></svg>,
@@ -54,6 +56,39 @@ export function WatchBtn({ id, compact }){
       {on ? <Icon.eyefill/> : <Icon.eye/>}
       {n>0 && <span className="wn">{n}</span>}
       {!compact && <span>{on ? "Watching" : "Watch"}</span>}
+    </button>
+  );
+}
+
+/* spoiler protection: a tap-to-reveal cover shown in place of a hidden score */
+export function ScoreCover({ f, dark }) {
+  function click(e){ e.stopPropagation(); revealScore(f.id); }
+  return (
+    <button type="button" className={"spoiler-cover" + (dark ? " dark" : "")} onClick={click}
+      aria-label="Reveal score" title="Tap to reveal score">
+      <Icon.eyeoff/>
+    </button>
+  );
+}
+
+/* spoiler protection toggle — pill in the desktop sidebar, round icon in mobile headers */
+export function SpoilerToggle({ compact }) {
+  const { on, setSpoiler } = useSpoiler();
+  const Ic = on ? Icon.eyeoff : Icon.eye;
+  const label = "Spoiler protection " + (on ? "on" : "off");
+  if (compact) {
+    return (
+      <button type="button" className="spoiler-tog compact" onClick={()=>setSpoiler(!on)}
+        aria-pressed={on} aria-label={label} title={on ? "Scores hidden" : "Hide scores"}
+        style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+        <Ic style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+      </button>
+    );
+  }
+  return (
+    <button type="button" className={"sb-item spoiler-tog" + (on ? " on" : "")} onClick={()=>setSpoiler(!on)}
+      aria-pressed={on} aria-label={label}>
+      <Ic/><span>{on ? "Scores hidden" : "Hide scores"}</span>
     </button>
   );
 }

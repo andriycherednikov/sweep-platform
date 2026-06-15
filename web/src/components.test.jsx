@@ -9,8 +9,9 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
+import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
@@ -503,4 +504,24 @@ test('HomeHeader shows the admin entry on the default sweep even for a member', 
   setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
   const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
+})
+
+test('SpoilerToggle reflects and flips the mode', () => {
+  setSpoiler(false)
+  const { getByLabelText } = render(<SpoilerToggle />)
+  const btn = getByLabelText(/spoiler protection/i)
+  expect(btn.getAttribute('aria-pressed')).toBe('false')
+  act(() => { fireEvent.click(btn) })
+  expect(isSpoiler()).toBe(true)
+  expect(btn.getAttribute('aria-pressed')).toBe('true')
+  setSpoiler(false)
+})
+
+test('ScoreCover reveals its fixture when tapped', () => {
+  setSpoiler(true)
+  const { getByLabelText } = render(<ScoreCover f={{ id: 'mX' }} />)
+  expect(isRevealed('mX')).toBe(false)
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(isRevealed('mX')).toBe(true)
+  setSpoiler(false)
 })
