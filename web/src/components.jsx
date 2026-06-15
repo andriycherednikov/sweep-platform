@@ -315,6 +315,7 @@ export function HomeHeader({ onAdmin, go, onSweeps }) {
         </button>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           <div className="tz"><b>{fmtDate(new Date())}</b></div>
+          <SpoilerToggle compact/>
           {onSweeps && sweeps.length > 1 && (
             <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
@@ -343,7 +344,10 @@ export function PageHeader({ title, sub, onBack, right, tall }) {
           <h1>{title}</h1>
           {sub && <div className="sub">{sub}</div>}
         </div>
-        {right}
+        <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          <SpoilerToggle compact/>
+          {right}
+        </div>
       </div>
     </header>
   );
@@ -429,6 +433,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
       </>}
       <div className="sb-foot">
         <IdentityControl dark/>
+        <SpoilerToggle/>
         {onSweeps && sweeps.length > 1 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>

@@ -615,3 +615,15 @@ test('HomeScreen hero covers a live score under spoiler mode', () => {
   expect(queryByText("63' · LIVE")).toBeTruthy()        // LIVE label still shown
   setSpoiler(false)
 })
+
+test('Sidebar renders the spoiler toggle', () => {
+  const noop = () => {}
+  const { getByLabelText } = render(<Sidebar current="home" go={noop} onKnock={noop} onAdmin={noop} />)
+  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+})
+
+test('HomeHeader renders the spoiler toggle', () => {
+  const noop = () => {}
+  const { getByLabelText } = render(<HomeHeader onAdmin={noop} go={noop} />)
+  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+})
