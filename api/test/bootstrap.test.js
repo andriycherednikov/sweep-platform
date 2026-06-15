@@ -22,3 +22,8 @@ test('bootstrap teams carry a squad field (null by default)', async () => {
   expect(body.teams.every((t) => 'squad' in t)).toBe(true)
   expect(body.teams[0].squad).toBeNull()
 })
+
+test('bootstrap returns the current sweep id and display name (D7a)', async () => {
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  expect(body.sweep).toEqual({ id: 'default', name: 'The Sweep' })
+})
