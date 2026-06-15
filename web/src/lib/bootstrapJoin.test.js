@@ -1,5 +1,6 @@
 import { expect, test, vi } from 'vitest'
 import { joinFromLocation } from './bootstrapJoin.js'
+import { listSweeps } from '../sweeps.js'
 
 function fakeHistory() {
   return { replaceState: vi.fn() }
@@ -39,4 +40,18 @@ test('a failed exchange still strips the URL (no token left in the address bar)'
   await joinFromLocation({ pathname: '/g/badtoken000000000000' }, history, postSession)
   expect(postSession).toHaveBeenCalledWith('badtoken000000000000')
   expect(history.replaceState).toHaveBeenCalledWith({}, '', '/')
+})
+
+test('a successful join persists the real link token via addSweep (name null pre-bootstrap)', async () => {
+  localStorage.clear()
+  const postSession = vi.fn(async () => ({ sweepId: 'sw_42', role: 'admin' }))
+  const history = fakeHistory()
+  await joinFromLocation(
+    { pathname: '/g/MEMBERtoken0000000000/admin/ADMINtoken00000000000' },
+    history,
+    postSession,
+  )
+  expect(listSweeps()).toEqual([
+    { sweepId: 'sw_42', name: null, role: 'admin', token: 'ADMINtoken00000000000' },
+  ])
 })
