@@ -833,6 +833,10 @@ export function AdminConsole({ onBack, onToast }) {
   );
 }
 
+// Avatar colours assigned to admin-created people (the add form collects only a
+// name; av is required server-side). Stable per name via a simple char-sum hash.
+const AV_PALETTE = ["#c9472f","#3b6fd1","#1f9d57","#b8860b","#7b4bd1","#0a9396","#bb3e03","#6a4c93"];
+
 export function PeopleAdmin({ onToast, queryClient }) {
   const qc = useResolvedQueryClient(queryClient);
   const people = S.people;
@@ -849,7 +853,10 @@ export function PeopleAdmin({ onToast, queryClient }) {
     setBusy(true);
     try {
       const initials = nm.replace(/[^A-Za-z]/g,"").slice(0,2).toUpperCase() || "??";
-      await createPerson({ name: nm, short: nm, initials, av: null });
+      // av (avatar colour) is required server-side (avColor, minLength 1). The form
+      // only collects a name, so derive a stable colour from it (deterministic per name).
+      const av = AV_PALETTE[Math.abs([...nm].reduce((h,c)=>(h*31+c.charCodeAt(0))|0,0)) % AV_PALETTE.length];
+      await createPerson({ name: nm, short: nm, initials, av });
       setName(""); onToast("Person added"); refresh();
     } catch { onToast("Couldn't add — try again"); }
     finally { setBusy(false); }

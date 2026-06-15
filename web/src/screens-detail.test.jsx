@@ -427,6 +427,10 @@ test('PeopleAdmin creates a person via createPerson', async () => {
   fireEvent.click(getByText('Add'))
   await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
   expect(createPerson.mock.calls[0][0]).toMatchObject({ name: 'Bo', short: 'Bo', initials: 'BO' })
+  // av is required by the server (avColor, minLength 1) — must be a non-empty hex color, never null
+  const av = createPerson.mock.calls[0][0].av
+  expect(typeof av).toBe('string')
+  expect(av).toMatch(/^#[0-9a-fA-F]{3,8}$/)
 })
 
 test('PeopleAdmin renames a person via patchPerson', async () => {
