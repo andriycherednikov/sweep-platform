@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
-  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown, ScoreCover,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
@@ -43,7 +43,7 @@ export function PeopleScreen({ openPerson }) {
                   <PersonAvatar p={p} cls="pav"/>
                   <div className="pi">
                     <b>{p.name}</b>
-                    <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
+                    <PersonTeams codes={p.teams} />
                   </div>
                   {m.wins > 0 && (
                     <div className="stat">

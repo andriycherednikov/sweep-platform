@@ -404,9 +404,13 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .prow .pav{width:63px; height:63px; border-radius:14px; display:grid; place-items:center; font-family:'Barlow Condensed'; font-weight:800; font-size:25px; color:#fff; flex-shrink:0;}
 .prow .pi{flex:1; min-width:0;}
 .prow .pi b{font-family:'Barlow Condensed'; font-weight:700; font-size:18px; letter-spacing:.3px; display:block; line-height:1.1;}
-.prow .pi .tms{display:flex; align-items:center; gap:7px; margin-top:5px;}
+.prow .pi .tms{display:flex; align-items:center; flex-wrap:wrap; gap:7px; margin-top:5px;}
 .prow .pi .tms .t{display:flex; align-items:center; gap:4px; font-size:11px; color:var(--muted); font-weight:600;}
 .prow .pi .tms img{width:18px; height:13px;}
+/* compact flags-only variant (3+ teams) */
+.prow .pi .tms.tms-flags{gap:6px;}
+.prow .pi .tms.tms-flags img{width:22px; height:16px; border-radius:3px;}
+.prow .pi .tms .tms-count{font-size:11px; color:var(--muted2); font-weight:700; letter-spacing:.2px;}
 .prow .stat{text-align:center; flex-shrink:0; min-width:38px;}
 .prow .stat .pp{font-family:'Barlow Condensed'; font-weight:800; font-size:19px; color:var(--navy); line-height:1.05;}
 .prow .stat small{display:block; font-size:9px; color:var(--muted2); font-weight:700; letter-spacing:.5px; text-transform:uppercase;}

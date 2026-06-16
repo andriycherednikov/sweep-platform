@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, PageHeader,
-  SearchInput, useCountdown, useIsDesktop, ScoreCover,
+  SearchInput, useCountdown, useIsDesktop, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
@@ -346,7 +346,7 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
                 <div className="prow" key={p.id} onClick={()=>onPerson(p)} style={{padding:"9px 12px"}}>
                   <PersonAvatar p={p} cls="pav" style={{width:57,height:57,fontSize:22}}/>
                   <div className="pi"><b style={{fontSize:16}}>{p.name}</b>
-                    <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div>
+                    <PersonTeams codes={p.teams} />
                   </div>
                   <Icon.chev className="chev"/>
                 </div>

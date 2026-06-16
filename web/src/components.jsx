@@ -60,6 +60,26 @@ export function WatchBtn({ id, compact }){
   );
 }
 
+/* a person's owned teams — flag + name for ≤2, compact flags + count once there are more */
+export function PersonTeams({ codes }) {
+  if (!codes || codes.length === 0) return null;
+  if (codes.length <= 2) {
+    return (
+      <div className="tms">
+        {codes.map((tc) => (
+          <span className="t" key={tc}><img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc).name}</span>
+        ))}
+      </div>
+    );
+  }
+  return (
+    <div className="tms tms-flags">
+      {codes.map((tc) => <img className="flag" key={tc} src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} />)}
+      <span className="tms-count">· {codes.length} teams</span>
+    </div>
+  );
+}
+
 /* spoiler protection: a tap-to-reveal cover shown in place of a hidden score */
 export function ScoreCover({ f, dark }) {
   function click(e){ e.stopPropagation(); revealScore(f.id); }
@@ -593,7 +613,7 @@ export function IdentitySheet({ onClose }){
               <div className={"prow"+(me&&me.id===p.id?" mepick":"")} key={p.id} onClick={()=>{ setMe(p.id); toast("You're set as "+p.short); onClose(); }} style={{padding:"9px 12px"}}>
                 <PersonAvatar p={p} cls="pav" style={{width:57,height:57,fontSize:22}}/>
                 <div className="pi"><b style={{fontSize:16}}>{p.name}</b>
-                  <div className="tms">{p.teams.map(tc=><span className="t" key={tc}><img className="flag" src={S.flag(tc,40)} alt=""/>{S.team(tc).name}</span>)}</div></div>
+                  <PersonTeams codes={p.teams} /></div>
                 {me&&me.id===p.id ? <Icon.check className="chev" style={{stroke:"var(--accent)"}}/> : <Icon.chev className="chev"/>}
               </div>
             ))}

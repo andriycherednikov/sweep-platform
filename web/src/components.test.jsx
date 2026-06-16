@@ -9,7 +9,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
@@ -652,6 +652,30 @@ test('HomeScreen hides goal scorers in Latest scores under privacy mode', () => 
   setSpoiler(false)
   const shown = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
   expect(shown.queryByText(/Quiñones/)).toBeTruthy()  // scorer shown when privacy off
+})
+
+test('PersonTeams shows names for <=2 teams, compact flags + count for more', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'dz', name: 'Algeria', group: 'A', pool: 'P', color: '#0a7', strength: 70 },
+        { code: 'au', name: 'Australia', group: 'A', pool: 'P', color: '#a30', strength: 65 },
+        { code: 'pl', name: 'Poland', group: 'A', pool: 'P', color: '#c00', strength: 68 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const two = render(<PersonTeams codes={['dz', 'au']} />)
+  expect(two.queryByText('Algeria')).toBeTruthy()
+  expect(two.queryByText('Australia')).toBeTruthy()
+  expect(two.container.querySelector('.tms-flags')).toBeNull()
+  two.unmount()
+  const many = render(<PersonTeams codes={['dz', 'au', 'pl']} />)
+  expect(many.queryByText('Algeria')).toBeNull()                 // names hidden once >2
+  expect(many.container.querySelector('.tms-flags')).toBeTruthy() // compact flags mode
+  expect(many.getByText(/3 teams/)).toBeTruthy()                 // count label
+  expect(many.container.querySelectorAll('.tms-flags img').length).toBe(3)
 })
 
 test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
