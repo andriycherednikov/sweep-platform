@@ -847,3 +847,56 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 @media (prefers-reduced-motion: reduce){
   .sweep-new-flag.in .flag, .sweep-owner-chip.in{ animation:none; }
 }
+
+/* ===== Coins screen ===== */
+.coin-wallet-header{
+  background:radial-gradient(120% 90% at 85% -10%, var(--navy4) 0%, transparent 55%),
+             linear-gradient(180deg, var(--navy) 0%, var(--navy3) 100%);
+  color:#fff; padding:18px 18px 22px; flex-shrink:0; position:relative; overflow:hidden;
+}
+.coin-wallet-header::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
+.coin-balance-row{display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
+.coin-icon{width:32px; height:32px; stroke:var(--gold); flex-shrink:0;}
+.coin-balance{font-family:'Barlow Condensed'; font-weight:800; font-size:40px; letter-spacing:.5px; color:var(--gold); line-height:1;}
+.coin-label{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:1px; color:rgba(255,255,255,.6); text-transform:uppercase; align-self:flex-end; padding-bottom:4px;}
+.coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; position:relative; z-index:1; letter-spacing:.3px;}
+.coin-no-id{position:relative; z-index:1;}
+.coin-no-id p{font-size:13px; color:rgba(255,255,255,.7); margin-bottom:10px;}
+
+/* match betting row */
+.coin-match-row{padding:12px 14px; margin-bottom:12px;}
+.coin-match-teams{display:flex; align-items:center; gap:6px; margin-bottom:6px;}
+.coin-team{flex:1; min-width:0;}
+.coin-team-r{text-align:right;}
+.coin-team-name{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
+.coin-vs{font-size:11px; color:var(--muted2); font-weight:700; flex-shrink:0;}
+.coin-book{font-size:10.5px; color:var(--muted2); font-weight:700; letter-spacing:.5px; margin-bottom:8px; text-transform:uppercase;}
+.coin-odds-row{display:flex; gap:7px;}
+.coin-odds-btn{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 6px; border-radius:11px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s;}
+.coin-odds-btn:hover{border-color:var(--gold); background:#fffdf4;}
+.coin-odds-btn:active{transform:scale(.97);}
+.coin-odds-side{font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+.coin-odds-val{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1.05;}
+
+/* bet sheet internals */
+.coin-bet-match{background:var(--bg); border-radius:12px; padding:12px 14px;}
+.coin-bet-teams{display:flex; align-items:center; gap:6px; font-family:'Barlow Condensed'; font-weight:700; font-size:17px; color:var(--navy);}
+.coin-bet-vs{font-size:12px; color:var(--muted2); font-weight:700;}
+.coin-bet-selection{display:flex; align-items:center; gap:8px; margin-top:6px;}
+.coin-sel-label{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:14px; color:var(--navy);}
+.coin-sel-odds{font-family:'Barlow Condensed'; font-weight:800; font-size:17px; color:var(--gold);}
+.coin-payout-preview{font-size:13px; color:var(--muted); font-weight:600; margin-top:-4px; margin-bottom:4px;}
+.coin-payout-preview b{color:var(--navy); font-family:'Barlow Condensed'; font-size:18px; font-weight:800;}
+
+/* open + settled bet rows */
+.coin-bet-row{display:flex; align-items:center; gap:10px; padding:10px 4px; border-bottom:1px solid var(--line);}
+.coin-bet-row:last-child{border-bottom:0;}
+.coin-bet-info{flex:1; min-width:0; display:flex; flex-direction:column; gap:2px;}
+.coin-bet-sel{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.coin-bet-match-name{font-size:11px; color:var(--muted2); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.coin-bet-nums{display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex-shrink:0;}
+.coin-bet-stake{font-size:12px; color:var(--muted); font-weight:600;}
+.coin-bet-payout{font-family:'Barlow Condensed'; font-weight:800; font-size:15px; color:var(--live);}
+.coin-status-pill{flex-shrink:0;}
+.coin-won{background:#e7f6ee; color:var(--live);}
+.coin-lost{background:#fbecea; color:var(--accent);}
