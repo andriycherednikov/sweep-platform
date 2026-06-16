@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { team, fixture, standing } from '../db/schema.js'
+import { fixtureResult } from '../coins/settle.js'
 
 /**
  * Recompute group standings from our OWN final results and upsert the standing table.
@@ -24,8 +25,9 @@ export async function recomputeStandings(db) {
     a.played++; b.played++
     a.gf += f.score1; a.ga += f.score2
     b.gf += f.score2; b.ga += f.score1
-    if (f.score1 > f.score2) { a.win++; a.pts += 3; b.loss++ }
-    else if (f.score1 < f.score2) { b.win++; b.pts += 3; a.loss++ }
+    const res = fixtureResult(f)
+    if (res === 'HOME') { a.win++; a.pts += 3; b.loss++ }
+    else if (res === 'AWAY') { b.win++; b.pts += 3; a.loss++ }
     else { a.draw++; b.draw++; a.pts++; b.pts++ }
   }
 
