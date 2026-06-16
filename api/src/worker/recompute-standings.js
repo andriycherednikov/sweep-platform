@@ -22,10 +22,11 @@ export async function recomputeStandings(db) {
     if (f.score1 == null || f.score2 == null) continue
     const a = agg[f.t1Code], b = agg[f.t2Code]
     if (!a || !b) continue
+    const res = fixtureResult(f)
+    if (!res) continue // unresolved (shouldn't happen past the score guard, but never count a non-result as a draw)
     a.played++; b.played++
     a.gf += f.score1; a.ga += f.score2
     b.gf += f.score2; b.ga += f.score1
-    const res = fixtureResult(f)
     if (res === 'HOME') { a.win++; a.pts += 3; b.loss++ }
     else if (res === 'AWAY') { b.win++; b.pts += 3; a.loss++ }
     else { a.draw++; b.draw++; a.pts++; b.pts++ }

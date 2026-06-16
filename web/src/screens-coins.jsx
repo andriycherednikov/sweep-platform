@@ -102,9 +102,10 @@ export function CoinsScreen({ go, openMatch }) {
 
   const [betSheet, setBetSheet] = useState(null) // { f, selection, odds } | null
 
-  // Upcoming bettable matches, sorted by kickoff
+  // Upcoming bettable matches, sorted by kickoff. Group stage only for now — knockout
+  // odds are the 90-min 1X2 market, which would mis-settle against our final winnerCode.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && f.odds)
+    .filter(f => f.status === 'upcoming' && f.odds && f.stage === 'group')
     .sort((a, b) => a.ko - b.ko)
 
   function openBet(f, selection, odds) {

@@ -134,7 +134,7 @@ export default function App() {
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
-  else if (tab==="coins")    base = <CoinsScreen go={go} openMatch={(id) => navigate({ modal: { type: "match", id } })}/>;
+  else if (tab==="coins")    base = <CoinsScreen go={go} openMatch={openMatch}/>;
 
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;

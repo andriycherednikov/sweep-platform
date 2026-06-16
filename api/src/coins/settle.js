@@ -26,11 +26,16 @@ export async function settleBets(db, fixtureId, publish = () => {}) {
   const sweeps = new Set()
   for (const b of open) {
     const won = b.selection === result
-    await db.transaction(async (tx) => {
+    const settled = await db.transaction(async (tx) => {
+      // claim the bet atomically: the conditional update wins exactly once, so a concurrent
+      // settle of the same fixture finds 0 rows and skips the payout (no double-pay, no crash).
+      const claimed = await tx.update(bet).set({ status: won ? 'won' : 'lost', settledAt: new Date() })
+        .where(and(eq(bet.id, b.id), eq(bet.status, 'open'))).returning({ id: bet.id })
+      if (claimed.length === 0) return false
       if (won) await tx.insert(coinLedger).values({ sweepId: b.sweepId, personId: b.personId, type: 'payout', amount: b.potentialPayout, refId: b.id })
-      await tx.update(bet).set({ status: won ? 'won' : 'lost', settledAt: new Date() }).where(eq(bet.id, b.id))
+      return true
     })
-    sweeps.add(b.sweepId)
+    if (settled) sweeps.add(b.sweepId)
   }
   for (const sweepId of sweeps) await publish({ type: 'bet-settled', sweepId })
   return open.length

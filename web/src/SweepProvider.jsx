@@ -34,7 +34,7 @@ function GateBrand() {
 
 function Gate({ children }) {
   const qc = useQueryClient()
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch, isSuccess } = useQuery({
     queryKey: ['sweep'],
     queryFn: async () => {
       const api = await fetchAll()
@@ -61,6 +61,9 @@ function Gate({ children }) {
 
   useQuery({
     queryKey: ['coins'],
+    // wait for the sweep query: getMe() resolves against S.people (populated by setSweepData),
+    // so running earlier would fetch an empty wallet that never refetches.
+    enabled: isSuccess,
     queryFn: async () => {
       const me = getMe()
       const wallet = await fetchWallet(me ? me.id : '')
