@@ -787,41 +787,53 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .stale-banner { position:sticky; top:0; z-index:40; text-align:center; padding:7px 12px; font-size:13px; font-weight:700; background:#7a5a12; color:#ffe9b3; }
 
 /* ---------------- ADMIN: SWEEP (draw) ---------------- */
-.sweep-controls{ display:flex; flex-direction:column; gap:8px; padding:4px 0 12px; border-bottom:1px solid var(--line); margin-bottom:12px; }
-.sweep-n{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
-.sweep-stepper{ display:flex; align-items:center; gap:8px; }
-.sweep-stepper .allocbtn{ min-width:40px; width:40px; height:40px; padding:0; font-size:20px; }
-.sweep-n-val{ font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:var(--navy); min-width:24px; text-align:center; }
-.sweep-summary{ margin:0; font-size:13px; color:var(--muted2); font-weight:600; }
+.sweep-controls{ position:sticky; top:0; z-index:3; display:flex; flex-direction:column; gap:10px; padding:10px 0 12px; margin-bottom:12px; background:var(--bg); border-bottom:1px solid var(--line); }
+.sweep-n{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.sweep-n .alloc-lbl{ display:block; }
+.sweep-stepper{ display:flex; align-items:center; gap:6px; flex:0 0 auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px; }
+.sweep-stepper .allocbtn{ min-width:38px; width:38px; height:38px; padding:0; font-size:20px; border:0; background:transparent; }
+.sweep-stepper .allocbtn:hover:not([disabled]){ background:var(--bg); }
+.sweep-n-val{ font-family:'Barlow Condensed'; font-weight:800; font-size:26px; color:var(--navy); min-width:30px; text-align:center; line-height:1; }
+.sweep-summary{ margin:2px 0 0; font-size:13px; color:var(--muted2); font-weight:600; }
 .sweep-actions{ display:flex; gap:8px; }
 .sweep-actions .cta{ flex:1; margin-top:0; }
 .sweep-actions .sweep-reroll{ flex:0 0 auto; }
 
-.sweepgrid{ display:grid; grid-template-columns:1fr; gap:16px; }
-.sweep-col .adminsec-h{ position:sticky; top:0; background:var(--bg); padding:4px 0; z-index:1; }
-.sweep-col .ct{ display:inline-grid; place-items:center; min-width:18px; height:18px; padding:0 5px; border-radius:9px; background:var(--navy); color:#fff; font-size:10px; font-weight:800; margin-left:5px; }
+.sweepgrid{ display:grid; grid-template-columns:1fr; gap:18px; }
+.sweep-col > .adminsec-h{ margin-bottom:8px; }
 
-.sweep-person{ transition:background .18s, box-shadow .18s; }
-.sweep-person.is-full{ opacity:.55; }
-.sweep-person.is-drawing{ background:#fff5f2; box-shadow:0 0 0 2px var(--accent) inset; animation:sweepSpot .5s ease; }
-.sweep-slot{ min-height:18px; }
-.sweep-old-flag{ opacity:.4; }
-.sweep-new-flag{ }
-.sweep-new-flag.pending{ display:none; }
-.sweep-new-flag.in .flag{ animation:flagPop .26s cubic-bezier(.2,1.3,.5,1) both; animation-delay:calc(var(--i, 0) * 60ms); box-shadow:0 0 0 2px var(--accent); }
+/* People: one row per person */
+.sweep-people{ display:flex; flex-direction:column; gap:6px; }
+.sweep-person{ display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:12px; transition:background .18s, box-shadow .18s, border-color .18s; }
+.sweep-person .pav{ flex:0 0 auto; }
+.sweep-person-main{ flex:1; min-width:0; }
+.sweep-person-name{ font-size:14px; color:var(--navy); }
+.sweep-person.is-full{ opacity:.5; }
+.sweep-person.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset; animation:sweepSpot .45s ease; }
+.sweep-slot{ min-height:16px; }
+.sweep-old-flag{ opacity:.38; }
+.sweep-new-flag .flag{ box-shadow:0 0 0 1.5px var(--accent); }
+.sweep-new-flag.in .flag{ animation:flagPop .28s cubic-bezier(.2,1.3,.5,1) both; }
+.sweep-count{ flex:0 0 auto; display:grid; place-items:center; min-width:34px; height:34px; border-radius:9px; background:var(--bg); }
+.sweep-count b{ font-family:'Barlow Condensed'; font-weight:800; font-size:18px; color:var(--navy); line-height:1; }
 
-.sweep-pool{ display:flex; flex-direction:column; gap:4px; }
-.sweep-pool.is-shuffling{ animation:poolShuffle .4s linear infinite; }
-.sweep-pool-team{ display:flex; align-items:center; gap:8px; padding:5px 8px; border:1px solid var(--line); border-radius:8px; background:var(--card); }
-.sweep-pool-team .flag{ width:22px; height:16px; border-radius:3px; flex:0 0 auto; }
-.sweep-pool-name{ flex:1; min-width:0; font-size:13px; font-weight:600; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sweep-pool-count{ flex:0 0 auto; display:inline-grid; place-items:center; min-width:20px; height:20px; padding:0 5px; border-radius:10px; background:var(--bg); color:var(--muted2); font-size:11px; font-weight:800; }
+/* Teams: one row per team, people names assigned */
+.sweep-pool{ display:flex; flex-direction:column; gap:6px; }
+.sweep-pool-team{ display:flex; align-items:center; gap:9px; padding:7px 10px; border:1px solid var(--line); border-radius:12px; background:var(--card); transition:border-color .18s, box-shadow .18s; }
+.sweep-pool-team .flag{ width:24px; height:17px; border-radius:3px; flex:0 0 auto; }
+.sweep-pool-team.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset; animation:sweepSpot .45s ease; }
+.sweep-pool-name{ flex:0 0 92px; font-size:13px; font-weight:700; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sweep-pool-owners{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:4px; }
+.sweep-owner-chip{ display:inline-flex; align-items:center; gap:4px; max-width:100%; padding:2px 7px 2px 2px; border-radius:11px; background:var(--bg); font-size:11px; font-weight:700; color:var(--navy); }
+.sweep-owner-chip.in{ animation:chipPop .26s cubic-bezier(.2,1.3,.5,1) both; }
+.sweep-ownav{ flex:0 0 auto; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; color:#fff; font-size:9px; font-weight:800; letter-spacing:.2px; }
+.sweep-owner-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sweep-pool-count{ flex:0 0 auto; display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--navy); color:#fff; font-size:11px; font-weight:800; }
 
 @keyframes flagPop{ from{ opacity:0; transform:scale(.4) translateY(-6px); } to{ opacity:1; transform:none; } }
+@keyframes chipPop{ from{ opacity:0; transform:scale(.6); } to{ opacity:1; transform:none; } }
 @keyframes sweepSpot{ from{ box-shadow:0 0 0 6px rgba(233,79,55,.35) inset; } to{ box-shadow:0 0 0 2px var(--accent) inset; } }
-@keyframes poolShuffle{ 0%,100%{ transform:translateX(0); } 25%{ transform:translateX(-1.5px); } 75%{ transform:translateX(1.5px); } }
 @media (prefers-reduced-motion: reduce){
-  .sweep-person.is-drawing{ animation:none; }
-  .sweep-new-flag.in .flag{ animation:none; }
-  .sweep-pool.is-shuffling{ animation:none; }
+  .sweep-person.is-drawing, .sweep-pool-team.is-drawing{ animation:none; }
+  .sweep-new-flag.in .flag, .sweep-owner-chip.in{ animation:none; }
 }

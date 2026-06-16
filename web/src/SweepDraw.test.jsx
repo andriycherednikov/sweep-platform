@@ -37,7 +37,7 @@ test('Run previews a draft (flags dealt) without persisting anything', () => {
   setup({ b: ['t0'], c: ['t1', 't2'] }) // a needs 2, b needs 1, c needs 0 → 3 new at N=2
   const { getByText, container } = render(<SweepDraw onToast={noop} queryClient={{ invalidateQueries: vi.fn() }} />)
   act(() => { fireEvent.click(getByText('Run sweep')) })
-  act(() => { fireEvent.click(getByText('Skip')) })
+  act(() => { fireEvent.click(getByText('Skip animation')) })
   expect(container.querySelectorAll('.sweep-new-flag')).toHaveLength(3)
   expect(bulkPostOwnership).not.toHaveBeenCalled()
 })
@@ -47,9 +47,9 @@ test('Re-roll keeps it unsaved; Confirm persists the drafted items and refreshes
   const qc = { invalidateQueries: vi.fn() }
   const { getByText } = render(<SweepDraw onToast={noop} queryClient={qc} />)
   act(() => { fireEvent.click(getByText('Run sweep')) })
-  act(() => { fireEvent.click(getByText('Skip')) })
+  act(() => { fireEvent.click(getByText('Skip animation')) })
   act(() => { fireEvent.click(getByText('Re-roll')) })
-  act(() => { fireEvent.click(getByText('Skip')) })
+  act(() => { fireEvent.click(getByText('Skip animation')) })
   expect(bulkPostOwnership).not.toHaveBeenCalled()
 
   await act(async () => { fireEvent.click(getByText('Confirm')) })
@@ -64,9 +64,23 @@ test('Re-roll keeps it unsaved; Confirm persists the drafted items and refreshes
 })
 
 test('Run is disabled when everyone already has N teams', () => {
-  setup({ a: ['t0', 't1'], b: ['t2', 't3'], c: ['t4', 't5'] }) // all at 2
+  setup({ a: ['t0', 't1'], b: ['t2', 't3'], c: ['t4', 't5'] }) // all at 2 → default N = round(6/3) = 2
   const { getByText } = render(<SweepDraw onToast={noop} queryClient={{ invalidateQueries: vi.fn() }} />)
   const btn = getByText('Run sweep')
   expect(btn).toBeDisabled()
   expect(S.people.every((p) => p.teams.length === 2)).toBe(true)
+})
+
+test('team rows list the names of the people who own them', () => {
+  setup({ b: ['t0'], c: ['t1', 't2'] }) // Bob owns t0; Cy owns t1, t2
+  const { container } = render(<SweepDraw onToast={noop} queryClient={{ invalidateQueries: vi.fn() }} />)
+  const chips = [...container.querySelectorAll('.sweep-pool-owners .sweep-owner-chip')].map((e) => e.textContent)
+  expect(chips.join(' ')).toContain('Bob')
+  expect(chips.join(' ')).toContain('Cy')
+})
+
+test('the default N is the count that spreads teams most evenly (round teams/people)', () => {
+  setup({}) // 6 teams, 3 people → round(2) = 2
+  const { container } = render(<SweepDraw onToast={noop} queryClient={{ invalidateQueries: vi.fn() }} />)
+  expect(container.querySelector('.sweep-n-val').textContent).toBe('2')
 })
