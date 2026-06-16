@@ -99,3 +99,27 @@ test('a provider failure leaves last-good data and logs an error row', async () 
   expect(logs.at(-1).status).toBe('error')
   expect(logs.at(-1).error).toMatch(/503/)
 })
+
+test('persists decimal odds and winnerCode when fixture is final', async () => {
+  // Arrange: override fetchFixtures to inject winnerSide:'home' into fixture 9001 (Croatia won)
+  // and fetchOdds to return Pinnacle odds for 9001.
+  const pinnacleOddsProvider = {
+    ...provider,
+    async fetchFixtures(season) {
+      const base = await provider.fetchFixtures(season)
+      return base.map((f) => f.id === '9001' ? { ...f, winnerSide: 'home' } : f)
+    },
+    async fetchOdds(fixtureId) {
+      if (fixtureId === '9001') {
+        return { a: 50, d: 25, b: 25, odds: { home: 2, draw: 3.5, away: 4 }, book: 'Pinnacle' }
+      }
+      return null
+    },
+  }
+  await syncBaseline(db, pinnacleOddsProvider, { season: 2026 })
+  const [f] = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  expect(Number(f.oddsHome)).toBe(2)
+  expect(Number(f.oddsAway)).toBe(4)
+  expect(f.oddsBook).toBe('Pinnacle')
+  expect(f.winnerCode).toBe(f.t1Code) // winnerSide 'home' → t1Code ('hr')
+})
