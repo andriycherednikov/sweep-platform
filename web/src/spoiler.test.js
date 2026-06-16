@@ -12,10 +12,10 @@ beforeEach(() => {
   setSpoiler(false) // reset persisted flag + in-memory mirror
 })
 
-test('defaults OFF when nothing is stored', () => {
+test('defaults ON when nothing is stored', () => {
   localStorage.clear()
-  expect(isSpoiler()).toBe(false)
-  expect(spoilerHidden(fin)).toBe(false)
+  expect(isSpoiler()).toBe(true)
+  expect(spoilerHidden(fin)).toBe(true)
 })
 
 test('setSpoiler(true) turns the mode on and persists', () => {

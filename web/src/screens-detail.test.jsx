@@ -65,7 +65,7 @@ const renderSheet = (f) => render(
   <MatchSheet f={f} onClose={noop} onToast={noop} openTeam={noop} openPerson={noop} openPhoto={noop} />,
 )
 
-beforeEach(() => { localStorage.clear(); setMe(null); vi.clearAllMocks() })
+beforeEach(() => { localStorage.clear(); setMe(null); vi.clearAllMocks(); setSpoiler(false) })
 
 test('MatchSheet shows the watch CTA + who\'s-watching for an upcoming game', () => {
   const { getByText } = renderSheet(sheetFixture(null, {}, [], { status: 'upcoming' }))

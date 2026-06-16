@@ -123,7 +123,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                 </div>
                 <span className="ft">FT</span>
               </div>
-              {(sum.home.scorers.length || sum.away.scorers.length) ? (
+              {!spoilerHidden(f) && (sum.home.scorers.length || sum.away.scorers.length) ? (
                 <div className="res-extra">
                   <div className="res-side">
                     {sum.home.scorers.length>0 && <span className="res-scorers">{sum.home.scorers.join(", ")}</span>}
