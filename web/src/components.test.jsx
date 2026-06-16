@@ -34,7 +34,7 @@ const F = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming' }
 const FG = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming', stage: 'group' }
 
 beforeEach(() => {
-  localStorage.clear(); setMe(null); vi.clearAllMocks()
+  localStorage.clear(); setMe(null); vi.clearAllMocks(); setSpoiler(false)
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -509,7 +509,7 @@ test('HomeHeader shows the admin entry on the default sweep even for a member', 
 test('SpoilerToggle reflects and flips the mode', () => {
   setSpoiler(false)
   const { getByLabelText } = render(<SpoilerToggle />)
-  const btn = getByLabelText(/spoiler protection/i)
+  const btn = getByLabelText(/privacy mode/i)
   expect(btn.getAttribute('aria-pressed')).toBe('false')
   act(() => { fireEvent.click(btn) })
   expect(isSpoiler()).toBe(true)
@@ -619,11 +619,48 @@ test('HomeScreen hero covers a live score under spoiler mode', () => {
 test('Sidebar renders the spoiler toggle', () => {
   const noop = () => {}
   const { getByLabelText } = render(<Sidebar current="home" go={noop} onKnock={noop} onAdmin={noop} />)
-  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+  expect(getByLabelText(/privacy mode/i)).toBeTruthy()
 })
 
 test('HomeHeader renders the spoiler toggle', () => {
   const noop = () => {}
   const { getByLabelText } = render(<HomeHeader onAdmin={noop} go={noop} />)
-  expect(getByLabelText(/spoiler protection/i)).toBeTruthy()
+  expect(getByLabelText(/privacy mode/i)).toBeTruthy()
+})
+
+test('HomeScreen hides goal scorers in Latest scores under privacy mode', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [2, 0], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+      events: [{ id: 'g1', type: 'goal', teamCode: 'mx', player: 'Julián Quiñones', assist: null, minute: 9, detail: 'Normal Goal' }],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  setSpoiler(true)
+  const hidden = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(hidden.queryByText(/Quiñones/)).toBeNull()   // scorer hidden under privacy mode
+  hidden.unmount()
+  setSpoiler(false)
+  const shown = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(shown.queryByText(/Quiñones/)).toBeTruthy()  // scorer shown when privacy off
+})
+
+test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
+  setSpoiler(false)
+  const off = render(<SpoilerToggle compact />)
+  expect(off.container.querySelector('.spoiler-tog.compact.on')).toBeNull()
+  off.unmount()
+  setSpoiler(true)
+  const on = render(<SpoilerToggle compact />)
+  expect(on.container.querySelector('.spoiler-tog.compact.on')).toBeTruthy()
+  setSpoiler(false)
 })

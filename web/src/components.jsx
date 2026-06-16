@@ -75,20 +75,22 @@ export function ScoreCover({ f, dark }) {
 export function SpoilerToggle({ compact }) {
   const { on, setSpoiler } = useSpoiler();
   const Ic = on ? Icon.eyeoff : Icon.eye;
-  const label = "Spoiler protection " + (on ? "on" : "off");
+  const label = "Privacy mode " + (on ? "on" : "off");
   if (compact) {
     return (
-      <button type="button" className="spoiler-tog compact" onClick={()=>setSpoiler(!on)}
-        aria-pressed={on} aria-label={label} title={on ? "Scores hidden" : "Hide scores"}
-        style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-        <Ic style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+      <button type="button" className={"spoiler-tog compact" + (on ? " on" : "")} onClick={()=>setSpoiler(!on)}
+        aria-pressed={on} aria-label={label} title={label}
+        style={{width:30,height:30,borderRadius:9,background: on ? "var(--accent)" : "rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+        <Ic style={{width:15,height:15,stroke: on ? "#fff" : "#9fb6d6"}}/>
       </button>
     );
   }
   return (
-    <button type="button" className={"sb-item spoiler-tog" + (on ? " on" : "")} onClick={()=>setSpoiler(!on)}
+    <button type="button" className={"privtog" + (on ? " on" : "")} onClick={()=>setSpoiler(!on)}
       aria-pressed={on} aria-label={label}>
-      <Ic/><span>{on ? "Scores hidden" : "Hide scores"}</span>
+      <Ic/>
+      <span className="pt-label">Privacy mode</span>
+      <span className="pt-state">{on ? "On" : "Off"}</span>
     </button>
   );
 }
@@ -432,8 +434,8 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
         </nav>
       </>}
       <div className="sb-foot">
-        <IdentityControl dark/>
         <SpoilerToggle/>
+        <IdentityControl dark/>
         {onSweeps && sweeps.length > 1 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>

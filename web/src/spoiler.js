@@ -10,9 +10,10 @@ function notify() { listeners.forEach((fn) => fn()) }
 
 // In-memory mirror so the toggle still works in-session when localStorage is
 // unavailable (private mode). localStorage is the source of truth when readable.
-let mem = false
+let mem = true
 function read() {
-  try { return localStorage.getItem(KEY) === '1' } catch { return mem }
+  // default ON: only an explicit '0' (the user turned it off) disables privacy mode
+  try { return localStorage.getItem(KEY) !== '0' } catch { return mem }
 }
 
 // Revealed fixture ids — in-memory only, so they reset on reload (the core promise).

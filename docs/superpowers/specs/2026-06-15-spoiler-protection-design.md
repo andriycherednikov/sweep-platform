@@ -178,3 +178,21 @@ hero cover only triggers when the next/featured match is live and unrevealed.
 - Per-sweep (vs per-device) preference, or syncing the preference across devices.
 - Covering upcoming matches (they have no score).
 - Persisting revealed matches across reloads, or replaying suppressed popups.
+
+## Amendments (post-merge, per user feedback)
+
+These supersede the original decisions above where they conflict:
+
+- **Renamed to "Privacy mode".** The toggle reads "Privacy mode" with an On/Off
+  state. Sidebar toggle is a dedicated `.privtog` control (no longer `.sb-item`,
+  which collided with the active-nav accent block) and sits **above** the identity
+  selector. The mobile compact header button **highlights in accent when on**.
+- **Default is now ON** (`read()` returns `localStorage.getItem(KEY) !== '0'`;
+  in-memory mirror defaults `true`). Users opt out; absence of the key ⇒ on.
+- **Goal scorers are now hidden too.** In the Home "Latest scores" rows, the
+  `res-extra` scorer-name line is suppressed when `spoilerHidden(f)` (revealing the
+  match shows them again). Card tallies and W/D/L cues remain (not "goals"); the
+  MatchSheet timeline is not yet gated — candidate follow-ups.
+- Test files that render score components reset `setSpoiler(false)` in `beforeEach`
+  so non-privacy tests run with the mode off; privacy tests opt in with
+  `setSpoiler(true)`.
