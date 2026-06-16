@@ -12,8 +12,8 @@ describe('vite-plugin-pwa options', () => {
     expect(pwaOptions.manifest).toBe(false)
   })
 
-  test('uses the next-launch update lifecycle (prompt, never auto-reload)', () => {
-    expect(pwaOptions.registerType).toBe('prompt')
+  test('uses the auto-update lifecycle so deploys propagate without closing tabs', () => {
+    expect(pwaOptions.registerType).toBe('autoUpdate')
   })
 
   test('precaches the app shell asset types', () => {

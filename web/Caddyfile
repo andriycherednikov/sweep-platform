@@ -9,6 +9,16 @@
 
 	handle {
 		root * /usr/share/caddy
+
+		# Content-hashed bundles never change for a given URL → cache forever.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+
+		# The shell + service worker MUST always revalidate, so a deploy is
+		# discovered immediately instead of being served from the HTTP cache.
+		@shell not path /assets/*
+		header @shell Cache-Control "no-cache"
+
 		try_files {path} /index.html
 		file_server
 	}
