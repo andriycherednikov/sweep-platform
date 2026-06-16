@@ -7,12 +7,14 @@
   body{ background:#dde0e4; display:block; align-items:stretch; justify-content:flex-start; }
   #root{ display:block; width:100%; min-height:100vh; }
 
-  /* Admin Sweep: cap the board so it doesn't stretch edge-to-edge on wide screens.
-     People column (narrow) | team pot board (wider, two-up). */
-  .deskscreen .sweep-controls{ max-width:1180px; }
-  .deskscreen .sweepgrid{ max-width:1180px; grid-template-columns:minmax(300px,0.85fr) minmax(0,1.6fr); gap:28px; align-items:start; }
-  .deskscreen .sweep-pool{ grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 12px; }
-  .deskscreen .sweep-actions{ max-width:560px; }
+  /* Admin Sweep: full-width board. Controls on one line (label · stepper · action),
+     team pot board auto-fills as many columns as fit. */
+  .deskscreen .sweep-controls{ flex-direction:row; align-items:center; gap:22px; }
+  .deskscreen .sweep-n{ flex:1 1 auto; }
+  .deskscreen .sweep-actions{ flex:0 0 auto; }
+  .deskscreen .sweep-actions .cta{ flex:0 0 auto; min-width:240px; }
+  .deskscreen .sweepgrid{ grid-template-columns:minmax(300px,0.8fr) minmax(0,1.7fr); gap:28px; align-items:start; }
+  .deskscreen .sweep-pool{ grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:8px 12px; }
   .device{ width:100%; height:100vh; max-height:none; border-radius:0; padding:0; box-shadow:none; background:transparent; }
   #appmount{ height:100vh; }
 
