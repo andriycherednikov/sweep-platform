@@ -80,3 +80,20 @@ test('POST /api/bet allows multiple independent bets on the same match', async (
   expect(wallet.bets.open).toHaveLength(2)
   expect(wallet.balance).toBe(before - 100)
 })
+
+test('two concurrent full-balance bets cannot overdraw — exactly one wins', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  const before = await balanceOfPerson(p.id) // seed the grant; whole balance
+  // both stake the entire balance at once — only one can be funded
+  const [a, b] = await Promise.all([
+    app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: before } }),
+    app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'AWAY', stake: before } }),
+  ])
+  const codes = [a.statusCode, b.statusCode].sort()
+  expect(codes).toEqual([200, 400])
+  const loser = a.statusCode === 400 ? a : b
+  expect(loser.json()).toEqual({ error: 'insufficient_funds' })
+  const wallet = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
+  expect(wallet.balance).toBe(0)          // never negative
+  expect(wallet.bets.open).toHaveLength(1) // only the funded bet landed
+})

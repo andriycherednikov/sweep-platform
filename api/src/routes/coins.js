@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { fixture, person, coinLedger, bet } from '../db/schema.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { walletFor, leaderboard, ensureGrants, balanceOf, serializeBet } from '../coins/ledger.js'
+import { walletFor, leaderboard, ensureGrants, serializeBet } from '../coins/ledger.js'
 
 const member = requireSweep(['member', 'admin'])
 
@@ -35,22 +35,31 @@ export async function coinsRoutes(app) {
     if (selection === 'DRAW' && f.stage !== 'group') return reply.code(400).send({ error: 'invalid_selection' })
     const oddsCol = selection === 'HOME' ? f.oddsHome : selection === 'AWAY' ? f.oddsAway : f.oddsDraw
     if (oddsCol == null) return reply.code(400).send({ error: 'no_odds' })
-
-    await ensureGrants(app.db, sweepId, personId)
-    const balance = await balanceOf(app.db, sweepId, personId)
-    if (stake > balance) return reply.code(400).send({ error: 'insufficient_funds' })
-
     const odds = Number(oddsCol)
+    if (!Number.isFinite(odds) || odds <= 0) return reply.code(400).send({ error: 'invalid_odds' })
+
+    // grants are idempotent and best run outside the lock so the in-tx balance includes them
+    await ensureGrants(app.db, sweepId, personId)
+
     const potentialPayout = Math.round(stake * odds)
     const id = randomUUID()
-    await app.db.transaction(async (tx) => {
+    // Serialize this person's bets so the balance check + stake deduction are atomic — a
+    // transaction-scoped advisory lock means two concurrent bets can't both overdraw.
+    const result = await app.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${sweepId}), hashtext(${personId}))`)
+      const [b] = await tx.select({ total: sql`coalesce(sum(${coinLedger.amount}), 0)` })
+        .from(coinLedger).where(and(eq(coinLedger.sweepId, sweepId), eq(coinLedger.personId, personId)))
+      const balance = Number(b.total)
+      if (stake > balance) return { error: 'insufficient_funds' }
       await tx.insert(coinLedger).values({ sweepId, personId, type: 'stake', amount: -stake, refId: id })
       await tx.insert(bet).values({ id, sweepId, personId, fixtureId, selection, stake,
         oddsDecimal: String(odds), book: f.oddsBook, potentialPayout, status: 'open' })
+      return { balance: balance - stake }
     })
+    if (result.error) return reply.code(400).send({ error: result.error })
 
     const [row] = await app.db.select().from(bet).where(eq(bet.id, id))
     await app.publish({ type: 'bet', sweepId, personId, fixtureId })
-    return { bet: serializeBet(row), balance: balance - stake }
+    return { bet: serializeBet(row), balance: result.balance }
   })
 }

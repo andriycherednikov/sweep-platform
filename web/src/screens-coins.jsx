@@ -19,6 +19,7 @@ function selectionLabel(selection, f) {
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
 function BetSheet({ f, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
+  const [submitting, setSubmitting] = useState(false)
   const { wallet } = useCoins()
   const balance = wallet.balance
   const stakeNum = parseInt(stake, 10)
@@ -26,9 +27,10 @@ function BetSheet({ f, selection, odds, onClose }) {
   const payout = (stakeNum >= 1 && odds) ? Math.round(stakeNum * odds) : 0
 
   async function submit() {
-    if (!valid) return
-    await placeBet(f.id, selection, stakeNum)
-    onClose()
+    if (!valid || submitting) return
+    setSubmitting(true)
+    try { await placeBet(f.id, selection, stakeNum); onClose() }
+    finally { setSubmitting(false) }
   }
 
   const t1 = S.team(f.t1)
@@ -63,6 +65,7 @@ function BetSheet({ f, selection, odds, onClose }) {
             <input
               type="number"
               min="1"
+              step="1"
               max={balance}
               value={stake}
               onChange={e => setStake(e.target.value)}
@@ -79,11 +82,11 @@ function BetSheet({ f, selection, odds, onClose }) {
 
           <button
             className="cta"
-            style={{ marginTop: 18, opacity: valid ? 1 : 0.5 }}
+            style={{ marginTop: 18, opacity: (valid && !submitting) ? 1 : 0.5 }}
             onClick={submit}
-            disabled={!valid}
+            disabled={!valid || submitting}
           >
-            <Icon.coin /> Place bet
+            <Icon.coin /> {submitting ? 'Placing…' : 'Place bet'}
           </button>
         </div>
       </div>
