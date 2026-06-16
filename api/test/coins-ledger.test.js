@@ -41,3 +41,14 @@ test('balanceOf is zero for a person with no ledger rows', async () => {
   const p = await aPerson()
   expect(await balanceOf(db, 'default', p.id)).toBe(0)
 })
+
+// Guard: with no fixtures, min(kickoff) is null → seasonAnchor must NOT become the Unix epoch
+// (which would make currentWeekIndex ~2900 and ensureGrants loop thousands of times).
+test('seasonAnchor is null and ensureGrants is a no-op when there are no fixtures', async () => {
+  const emptyDb = {
+    select: () => ({ from: async () => [{ min: null }] }),
+    insert: () => { throw new Error('ensureGrants must not insert without a season anchor') },
+  }
+  expect(await seasonAnchor(emptyDb)).toBeNull()
+  await expect(ensureGrants(emptyDb, 'default', 'pn_x', new Date())).resolves.toBeUndefined()
+})

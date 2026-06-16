@@ -6,6 +6,7 @@ import { trackEvent } from './lib/analytics.js'
 
 const listeners = new Set()
 function notify() { listeners.forEach((fn) => fn()) }
+let pendingSeq = 0  // unique-ifies optimistic bet ids so rapid placeBets never collide
 
 let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] } }
 let board = []  // [{ personId, balance }]
@@ -37,19 +38,23 @@ export async function placeBet(fixtureId, selection, stake) {
   const me = getMe()
   if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return }
-  const prev = wallet
   const f = S.fixture(fixtureId)
   const odds = f?.odds ? (selection === 'HOME' ? f.odds.home : selection === 'AWAY' ? f.odds.away : f.odds.draw) : null
-  const pending = { id: `pending_${Date.now()}`, fixtureId, selection, stake, odds, potentialPayout: odds ? Math.round(stake * odds) : 0, status: 'open' }
+  const pending = { id: `pending_${Date.now()}_${pendingSeq++}`, fixtureId, selection, stake, odds, potentialPayout: odds ? Math.round(stake * odds) : 0, status: 'open' }
   wallet = { ...wallet, balance: wallet.balance - stake, bets: { ...wallet.bets, open: [pending, ...wallet.bets.open] } }
   notify()
   trackEvent('bet_placed', { match_id: fixtureId, selection, stake })
   try {
     const res = await postBet({ fixtureId, personId: me.id, selection, stake })
+    // swap the pending row for the real one; the SSE 'bet' event reconciles the
+    // authoritative balance/bets shortly after, so we don't fight concurrent placeBets here.
     wallet = { ...wallet, balance: res.balance, bets: { ...wallet.bets, open: wallet.bets.open.map((b) => b.id === pending.id ? res.bet : b) } }
     notify()
   } catch {
-    wallet = prev; notify(); toast("Couldn't place bet — try again")
+    // targeted rollback on the LIVE wallet (not a stale snapshot): drop just this pending bet
+    // and credit its stake back, so a failed bet can't clobber a concurrent one's update.
+    wallet = { ...wallet, balance: wallet.balance + stake, bets: { ...wallet.bets, open: wallet.bets.open.filter((b) => b.id !== pending.id) } }
+    notify(); toast("Couldn't place bet — try again")
   }
 }
 

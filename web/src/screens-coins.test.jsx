@@ -7,7 +7,7 @@ import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
-  S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', stage: 'group', status: 'upcoming', ko: new Date(Date.now()+3600e3), odds: { home: 2, draw: 3.5, away: 4, book: 'Pinnacle' } }]
+  S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', stage: 'group', status: 'upcoming', ko: new Date('2026-07-01T18:00:00Z'), odds: { home: 2, draw: 3.5, away: 4, book: 'Pinnacle' } }]
   S.fixture = (id) => S.fixtures.find((f) => f.id === id)
   S.team = (c) => ({ code: c, name: c.toUpperCase(), color: '#123', flagCode: c })
   setMe('pn_a')
