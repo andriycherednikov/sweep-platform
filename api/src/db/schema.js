@@ -75,6 +75,9 @@ export const fixture = pgTable('fixture', {
   oddsAway: numeric('odds_away'),
   oddsBook: text('odds_book'),
   winnerCode: text('winner_code'), // winning team code or 'DRAW', set when final
+  markets: jsonb('markets'),
+  htScore1: integer('ht_score1'),
+  htScore2: integer('ht_score2'),
   lineups: jsonb('lineups'),
   events: jsonb('events'),
   stage: text('stage').notNull().default('group'),
@@ -148,6 +151,8 @@ export const bet = pgTable('bet', {
   personId: text('person_id').notNull(),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),
   selection: text('selection').notNull(), // 'HOME' | 'DRAW' | 'AWAY'
+  market: text('market').notNull().default('1x2'),
+  line: numeric('line'),
   stake: integer('stake').notNull(),
   oddsDecimal: numeric('odds_decimal').notNull(),
   book: text('book'),
