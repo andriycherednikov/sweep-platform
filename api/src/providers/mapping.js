@@ -120,6 +120,74 @@ export function mapOdds(rawResponse) {
   return null
 }
 
+const PREF_CARD_LINES = [3.5, 4.5, 2.5]
+
+function pickBook(bookmakers) {
+  const ranked = [...bookmakers].sort((x, y) => {
+    const rx = BOOK_RANK.indexOf(x.name), ry = BOOK_RANK.indexOf(y.name)
+    return (rx === -1 ? Infinity : rx) - (ry === -1 ? Infinity : ry)
+  })
+  return ranked[0] ?? null
+}
+const findBet = (bk, name) => (bk.bets ?? []).find((b) => b.name === name)
+const oddOf = (bet, value) => {
+  const o = Number(bet?.values?.find((v) => v.value === value)?.odd)
+  return Number.isFinite(o) && o > 1 ? o : null
+}
+const threeWay = (bet, label) => {
+  const h = oddOf(bet, 'Home'), d = oddOf(bet, 'Draw'), a = oddOf(bet, 'Away')
+  if (!(h && d && a)) return null
+  return { label, selections: [
+    { key: 'HOME', label: 'Home', odds: h }, { key: 'DRAW', label: 'Draw', odds: d }, { key: 'AWAY', label: 'Away', odds: a } ] }
+}
+
+/**
+ * /odds response → { markets, book, prob:{a,d,b} } or null. All markets come from one
+ * bookmaker (BOOK_RANK order, else first present). A market the book doesn't fully carry
+ * is omitted. `prob` is the implied 1X2 win % (for the ProbBar). Returns null if no markets.
+ */
+export function mapMarkets(rawResponse) {
+  const bk = pickBook(rawResponse?.response?.[0]?.bookmakers ?? [])
+  if (!bk) return null
+  const markets = {}
+  let prob = null
+
+  const mw = threeWay(findBet(bk, 'Match Winner'), 'Match Winner')
+  if (mw) {
+    markets['1x2'] = { ...mw, book: bk.name }
+    const odds = mw.selections.map((s) => s.odds)
+    const implied = odds.map((o) => 1 / o)
+    const sum = implied.reduce((s, n) => s + n, 0)
+    const [a, d, b] = roundTo100(implied.map((p) => p / sum))
+    prob = { a, d, b }
+  }
+  const fh = threeWay(findBet(bk, 'First Half Winner'), 'First Half Result')
+  if (fh) markets['fh1x2'] = { ...fh, book: bk.name }
+
+  const gou = findBet(bk, 'Goals Over/Under')
+  const go = oddOf(gou, 'Over 2.5'), gu = oddOf(gou, 'Under 2.5')
+  if (go && gu) markets['ou25'] = { label: 'Over/Under 2.5', line: 2.5, book: bk.name,
+    selections: [{ key: 'OVER', label: 'Over 2.5', odds: go }, { key: 'UNDER', label: 'Under 2.5', odds: gu }] }
+
+  const cou = findBet(bk, 'Cards Over/Under')
+  if (cou) for (const line of PREF_CARD_LINES) {
+    const co = oddOf(cou, `Over ${line}`), cu = oddOf(cou, `Under ${line}`)
+    if (co && cu) { markets['cards'] = { label: 'Cards Over/Under', line, book: bk.name,
+      selections: [{ key: 'OVER', label: `Over ${line}`, odds: co }, { key: 'UNDER', label: `Under ${line}`, odds: cu }] }; break }
+  }
+
+  const es = findBet(bk, 'Exact Score')
+  if (es) {
+    const sels = (es.values ?? [])
+      .map((v) => ({ key: v.value, label: String(v.value).replace(':', '-'), odds: Number(v.odd) }))
+      .filter((s) => /^\d+:\d+$/.test(s.key) && Number.isFinite(s.odds) && s.odds > 1)
+    if (sels.length) markets['cs'] = { label: 'Correct Score', book: bk.name, selections: sels }
+  }
+
+  if (Object.keys(markets).length === 0) return null
+  return { markets, book: bk.name, prob }
+}
+
 export function mapTeam(raw) {
   return { providerTeamId: raw.team.id, name: raw.team.name, code: raw.team.code ?? null, country: raw.team.country ?? null }
 }

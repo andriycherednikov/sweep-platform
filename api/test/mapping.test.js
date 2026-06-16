@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapLineups, mapSquad, mapEvents } from '../src/providers/mapping.js'
+import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapLineups, mapSquad, mapEvents, mapMarkets } from '../src/providers/mapping.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 
@@ -200,4 +200,34 @@ test('mapFixture maps the home/away winner booleans to a winnerSide', () => {
 test('mapFixture reports a draw when neither side won a final, null otherwise', () => {
   expect(mapFixture(rawFix({ short: 'FT', homeWin: false, awayWin: false, gh: 1, ga: 1 })).winnerSide).toBe('draw')
   expect(mapFixture(rawFix({ short: 'NS' })).winnerSide).toBeNull()
+})
+
+// mapMarkets tests
+const oddsResp = (bookmakers) => ({ response: [{ bookmakers }] })
+const ov = (value, odd) => ({ value, odd: String(odd) })
+const pinnacleBook = {
+  name: 'Pinnacle', bets: [
+    { name: 'Match Winner', values: [ov('Home', 2.0), ov('Draw', 3.5), ov('Away', 4.0)] },
+    { name: 'First Half Winner', values: [ov('Home', 2.6), ov('Draw', 2.1), ov('Away', 5.5)] },
+    { name: 'Goals Over/Under', values: [ov('Over 1.5', 1.4), ov('Under 1.5', 3.0), ov('Over 2.5', 2.25), ov('Under 2.5', 1.7), ov('Over 3.5', 4.0), ov('Under 3.5', 1.25)] },
+    { name: 'Cards Over/Under', values: [ov('Over 2.5', 1.3), ov('Under 2.5', 3.4), ov('Over 3.5', 1.6), ov('Under 3.5', 2.3)] },
+    { name: 'Exact Score', values: [ov('1:0', 5.0), ov('2:1', 8.5), ov('1:1', 8.5), ov('bad', 1.0)] },
+  ],
+}
+
+test('mapMarkets builds all five markets from the best-ranked book', () => {
+  const r = mapMarkets(oddsResp([{ name: 'SomeBook', bets: [] }, pinnacleBook]))
+  expect(r.book).toBe('Pinnacle')
+  expect(Object.keys(r.markets).sort()).toEqual(['1x2', 'cards', 'cs', 'fh1x2', 'ou25'])
+  expect(r.markets['1x2'].selections.map(s => s.key)).toEqual(['HOME', 'DRAW', 'AWAY'])
+  expect(r.markets['ou25']).toMatchObject({ line: 2.5 })
+  expect(r.markets['ou25'].selections.find(s => s.key === 'OVER').odds).toBe(2.25)
+  expect(r.markets['cards'].line).toBe(3.5)
+  expect(r.markets['cs'].selections.map(s => s.key)).toEqual(['1:0', '2:1', '1:1'])
+  expect(r.prob.a + r.prob.d + r.prob.b).toBe(100)
+})
+
+test('mapMarkets returns null when no usable book/markets', () => {
+  expect(mapMarkets(oddsResp([]))).toBeNull()
+  expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toBeNull()
 })
