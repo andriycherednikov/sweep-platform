@@ -1,5 +1,5 @@
 import { notInArray } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog, watch, support } from '../db/schema.js'
+import { fixture, standing, ownership, syncLog, watch, support, bet } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
@@ -81,6 +81,7 @@ export async function syncBaseline(db, provider, { season }) {
     if (keep.length) {
       await db.delete(watch).where(notInArray(watch.fixtureId, keep))
       await db.delete(support).where(notInArray(support.fixtureId, keep))
+      await db.delete(bet).where(notInArray(bet.fixtureId, keep))
       await db.delete(fixture).where(notInArray(fixture.id, keep))
     }
 

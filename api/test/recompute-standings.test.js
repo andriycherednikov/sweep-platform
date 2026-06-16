@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { team, fixture, standing, support, watch } from '../src/db/schema.js'
+import { team, fixture, standing, support, watch, bet } from '../src/db/schema.js'
 import { seed } from '../src/seed/seed.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 
@@ -12,7 +12,7 @@ let A, B, C
 beforeAll(async () => {
   const teams = await db.select().from(team).limit(3)
   ;[A, B, C] = teams.map((t) => t.code)
-  await db.delete(support); await db.delete(watch); await db.delete(standing); await db.delete(fixture)
+  await db.delete(support); await db.delete(watch); await db.delete(bet); await db.delete(standing); await db.delete(fixture)
   const base = { matchday: 1, kickoffUtc: new Date('2026-06-13T12:00:00Z'), venue: 'V', city: 'C', status: 'final', stage: 'group' }
   await db.insert(fixture).values([
     { id: 'r1', group: 'A', t1Code: A, t2Code: B, score1: 2, score2: 0, ...base },
@@ -20,7 +20,7 @@ beforeAll(async () => {
     { id: 'r3', group: 'A', t1Code: B, t2Code: C, score1: 3, score2: 1, ...base },
   ])
 })
-afterAll(async () => { await db.delete(fixture); await db.delete(standing); await seed(db); await pool.end() })
+afterAll(async () => { await db.delete(bet); await db.delete(fixture); await db.delete(standing); await seed(db); await pool.end() })
 
 test('recomputeStandings aggregates W/D/L/GF/GA/PTS from final group results', async () => {
   await recomputeStandings(db)

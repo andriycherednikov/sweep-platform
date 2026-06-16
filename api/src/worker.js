@@ -6,6 +6,7 @@ import { pollLive, pollEvents, pollLineups, fixturesToPoll, isLineupWindow } fro
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
+import { settleBets } from './coins/settle.js'
 import { inArray } from 'drizzle-orm'
 import { fixture } from './db/schema.js'
 
@@ -56,6 +57,7 @@ setInterval(async () => {
       const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
       if (newlyFinal.length) {
         await recomputeStandings(db)
+        for (const r of newlyFinal) await settleBets(db, r.id, (e) => publish(db, e))
         await publish(db, { type: 'sync' })
         console.log(`[standings] recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
         scheduleFinalReconcile()
