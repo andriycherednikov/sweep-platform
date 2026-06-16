@@ -231,3 +231,18 @@ test('mapMarkets returns null when no usable book/markets', () => {
   expect(mapMarkets(oddsResp([]))).toBeNull()
   expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toBeNull()
 })
+
+test('mapFixture captures the half-time score', () => {
+  const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
+    league: { round: 'Group Stage - 1' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },
+    goals: { home: 2, away: 1 }, score: { halftime: { home: 1, away: 0 } } }
+  const f = mapFixture(raw)
+  expect(f.htScore1).toBe(1)
+  expect(f.htScore2).toBe(0)
+})
+
+test('mapFixture half-time score is null when absent', () => {
+  const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'NS', elapsed: null }, venue: {} },
+    league: { round: 'Group Stage - 1' }, teams: { home: { id: 1 }, away: { id: 2 } }, goals: {} }
+  expect(mapFixture(raw).htScore1).toBeNull()
+})

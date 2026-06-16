@@ -46,6 +46,8 @@ export function mapFixture(raw) {
     winnerSide,
     score1: raw.goals?.home ?? null,
     score2: raw.goals?.away ?? null,
+    htScore1: raw.score?.halftime?.home ?? null,
+    htScore2: raw.score?.halftime?.away ?? null,
     minute: status === 'live' ? (raw.fixture?.status?.elapsed ?? null) : null,
   }
 }
