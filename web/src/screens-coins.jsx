@@ -105,9 +105,9 @@ export function WalletHeader({ onBack }) {
   return (
     <div className="coin-wallet-header">
       <div className="coin-wallet-inner">
-        {onBack && (
-          <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
-        )}
+        {onBack
+          ? <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
+          : <span className="coin-back coin-back-ghost" aria-hidden="true" />}
         {me ? (
           <div className="coin-balance-row">
             <Icon.coin className="coin-icon" />

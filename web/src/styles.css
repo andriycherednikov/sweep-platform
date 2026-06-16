@@ -859,7 +859,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-icon{width:32px; height:32px; stroke:var(--gold); flex-shrink:0;}
 .coin-balance{font-family:'Barlow Condensed'; font-weight:800; font-size:40px; letter-spacing:.5px; color:var(--gold); line-height:1;}
 .coin-label{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:1px; color:rgba(255,255,255,.6); text-transform:uppercase; align-self:flex-end; padding-bottom:4px;}
-.coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; position:relative; z-index:1; letter-spacing:.3px;}
+.coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; margin-left:46px; position:relative; z-index:1; letter-spacing:.3px;}
 .coin-no-id{position:relative; z-index:1;}
 .coin-no-id p{font-size:13px; color:rgba(255,255,255,.7); margin-bottom:10px;}
 
@@ -930,6 +930,8 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-back{width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:grid; place-items:center; flex-shrink:0; cursor:pointer; transition:background .14s;}
 .coin-back:hover{background:rgba(255,255,255,.22);}
 .coin-back svg{width:18px; height:18px; stroke:#fff;}
+/* reserves the back-button slot on the list so the balance never shifts between views */
+.coin-back-ghost{visibility:hidden; background:transparent; cursor:default;}
 .coin-wallet-inner .coin-no-id{flex:1;}
 
 /* ---- bet-detail: game heading bar under the wallet header ---- */
