@@ -143,7 +143,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       </>}
 
       {accurate.length>0 && <>
-        <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
+        <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people",{view:"predictions"})}>People →</span></div>
         <div className="ranklist">{accurate.map((r,i)=>(
           <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
             <span className="rk">{i+1}</span>

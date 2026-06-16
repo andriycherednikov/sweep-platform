@@ -21,10 +21,10 @@ import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
 
 /* ---------------- PEOPLE ---------------- */
-export function PeopleScreen({ openPerson }) {
+export function PeopleScreen({ openPerson, initialView = "wins" }) {
   useSocial(); // re-render as picks/support arrive so prediction counts stay live
   const [q, setQ] = useState("");
-  const [view, setView] = useState("wins"); // 'wins' | 'predictions'
+  const [view, setView] = useState(initialView); // 'wins' | 'predictions'
   const ql = q.trim().toLowerCase();
   // per-person stat for the active view: { value, label } (value 0 → no pill)
   const statOf = (m) => view === "predictions"

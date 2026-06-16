@@ -97,7 +97,13 @@ export default function App() {
 
   const { tab, overlay, modal, identity } = view;
 
-  const go = (name) => { if (name === "upload") { navigate({ modal: { type: "upload" } }); return; } navigate({ tab: name, overlay: null }); };
+  // which stat toggle the People screen opens on; set per-navigation, defaults to wins
+  const peopleViewRef = useRef("wins");
+  const go = (name, opts) => {
+    if (name === "upload") { navigate({ modal: { type: "upload" } }); return; }
+    if (name === "people") peopleViewRef.current = opts?.view || "wins";
+    navigate({ tab: name, overlay: null });
+  };
   // navigating to a person/team also closes any open modal in one history push
   // (calling onClose()=history.back() then navigate() races and clobbers the nav)
   const openPerson = (p) => navigate({ overlay: { type: "person", id: p.id }, modal: null });
@@ -124,7 +130,7 @@ export default function App() {
   let base = null;
   if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
   else if (tab==="schedule")  base = <ScheduleScreen openMatch={openMatch} openPerson={openPerson}/>;
-  else if (tab==="people")    base = <PeopleScreen openPerson={openPerson}/>;
+  else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
 

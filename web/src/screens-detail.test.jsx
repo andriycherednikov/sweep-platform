@@ -626,6 +626,14 @@ test('PeopleScreen Predictions view shows correct-call counts and re-sorts by th
   expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
 })
 
+test('PeopleScreen opens on Predictions when initialView=predictions', () => {
+  peopleSweep()
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} initialView="predictions" />)
+  expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
+  expect(statFor(container, 'Bob Brown')).toBe('3')
+  expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
+})
+
 test('PeopleScreen keeps the active view while searching', () => {
   peopleSweep()
   const { container, getByText, getByPlaceholderText } = render(<PeopleScreen openPerson={noop} />)
