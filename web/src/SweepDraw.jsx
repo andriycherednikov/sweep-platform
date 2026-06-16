@@ -156,35 +156,33 @@ export function SweepDraw({ onToast, queryClient }) {
       <div className="wrap">
         <div className="sweep-controls">
           <div className="sweep-n">
-            <div>
-              <span className="alloc-lbl">Teams per person</span>
-              <p className="sweep-summary">
-                {summary.totalAdd === 0
-                  ? `Everyone already has ${n} team${n === 1 ? '' : 's'}.`
-                  : `${live ? 'Drawing' : 'Adds'} ${summary.totalAdd} team${summary.totalAdd === 1 ? '' : 's'} across ${summary.getting} ${summary.getting === 1 ? 'person' : 'people'}` + (summary.already ? ` · ${summary.already} already at ${n}` : '')}
-              </p>
-            </div>
+            <span className="alloc-lbl">Teams per person</span>
+            <p className="sweep-summary">
+              {summary.totalAdd === 0
+                ? `Everyone already has ${n} team${n === 1 ? '' : 's'}.`
+                : `${live ? 'Drawing' : 'Adds'} ${summary.totalAdd} team${summary.totalAdd === 1 ? '' : 's'} across ${summary.getting} ${summary.getting === 1 ? 'person' : 'people'}` + (summary.already ? ` · ${summary.already} already at ${n}` : '')}
+            </p>
+          </div>
+          <div className="sweep-toolbar">
+            {phase === 'drawn' && (
+              <button className="allocbtn sweep-reroll" onClick={runDraw}><Icon.swap /> Re-roll</button>
+            )}
             <div className="sweep-stepper">
               <button type="button" className="allocbtn" aria-label="Fewer teams" disabled={n <= 1 || lockN} onClick={() => changeN(-1)}><span aria-hidden="true">−</span></button>
               <b className="sweep-n-val">{n}</b>
               <button type="button" className="allocbtn" aria-label="More teams" disabled={n >= maxN || lockN} onClick={() => changeN(1)}><Icon.plus /></button>
             </div>
-          </div>
-          <div className="sweep-actions">
             {phase === 'idle' && (
-              <button className="cta" disabled={summary.totalAdd === 0} onClick={runDraw}><Icon.ball /> Run sweep</button>
+              <button className="cta sweep-run" disabled={summary.totalAdd === 0} onClick={runDraw}><Icon.ball /> Run sweep</button>
             )}
             {phase === 'revealing' && (
-              <button className="cta sweep-skip" onClick={skip}>Skip animation</button>
+              <button className="cta sweep-run sweep-skip" onClick={skip}>Skip animation</button>
             )}
             {phase === 'drawn' && (
-              <>
-                <button className="allocbtn sweep-reroll" onClick={runDraw}><Icon.swap /> Re-roll</button>
-                <button className="cta sweep-confirm" onClick={confirm}><Icon.check /> Confirm</button>
-              </>
+              <button className="cta sweep-run sweep-confirm" onClick={confirm}><Icon.check /> Confirm</button>
             )}
             {phase === 'committing' && (
-              <button className="cta" disabled><Icon.spinner /> Saving…</button>
+              <button className="cta sweep-run" disabled><Icon.spinner /> Saving…</button>
             )}
           </div>
         </div>
