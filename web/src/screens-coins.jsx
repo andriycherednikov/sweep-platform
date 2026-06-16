@@ -97,6 +97,37 @@ function MyBets({ bets }) {
   )
 }
 
+/* ---- Shared wallet header (coins balance + optional back button) ---- */
+export function WalletHeader({ onBack }) {
+  useCoins() // re-render on balance changes
+  const me = getMe()
+  const wallet = myWallet()
+  return (
+    <div className="coin-wallet-header">
+      <div className="coin-wallet-inner">
+        {onBack && (
+          <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
+        )}
+        {me ? (
+          <div className="coin-balance-row">
+            <Icon.coin className="coin-icon" />
+            <span className="coin-balance">{wallet.balance}</span>
+            <span className="coin-label">coins</span>
+          </div>
+        ) : (
+          <div className="coin-no-id">
+            <p>Pick who you are to track your coins and place bets.</p>
+            <button className="cta" style={{ marginTop: 8 }} onClick={() => { if (window.__sweepPickMe) window.__sweepPickMe() }}>
+              Choose your profile
+            </button>
+          </div>
+        )}
+      </div>
+      {me && <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} coins every week`}</div>}
+    </div>
+  )
+}
+
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
 export function BetSheet({ f, market, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
@@ -203,28 +234,9 @@ export function CoinsScreen({ go, openBet }) {
   }
 
   return (
-    <div className="screen screen-anim" data-testid="coins-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="screen screen-anim coins-page" data-testid="coins-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      {/* Wallet header */}
-      <div className="coin-wallet-header">
-        {me ? (
-          <>
-            <div className="coin-balance-row">
-              <Icon.coin className="coin-icon" />
-              <span className="coin-balance">{wallet.balance}</span>
-              <span className="coin-label">coins</span>
-            </div>
-            <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} coins every week`}</div>
-          </>
-        ) : (
-          <div className="coin-no-id">
-            <p>Pick who you are to track your coins and place bets.</p>
-            <button className="cta" style={{ marginTop: 10 }} onClick={() => { if (window.__sweepPickMe) window.__sweepPickMe() }}>
-              Choose your profile
-            </button>
-          </div>
-        )}
-      </div>
+      <WalletHeader />
 
       {/* Tab toggle */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
@@ -262,6 +274,7 @@ export function CoinsScreen({ go, openBet }) {
                         <span className="ln"></span>
                         <span className="ct">{fs.length} {fs.length > 1 ? 'matches' : 'match'}</span>
                       </div>
+                      <div className="coin-bet-grid">
                       {fs.map(f => {
                         const t1 = S.team(f.t1)
                         const t2 = S.team(f.t2)
@@ -290,9 +303,9 @@ export function CoinsScreen({ go, openBet }) {
                             )}
                             <div className="coin-odds-row">
                               {mkt.selections.map(sel => {
-                                let label
-                                if (sel.key === 'HOME') label = t1?.name || f.t1
-                                else if (sel.key === 'AWAY') label = t2?.name || f.t2
+                                let label, flagCode = null
+                                if (sel.key === 'HOME') { label = t1?.name || f.t1; flagCode = f.t1 }
+                                else if (sel.key === 'AWAY') { label = t2?.name || f.t2; flagCode = f.t2 }
                                 else label = 'Draw'
                                 return (
                                   <button
@@ -301,7 +314,7 @@ export function CoinsScreen({ go, openBet }) {
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
                                     onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
                                   >
-                                    <span className="coin-odds-side">{label}</span>
+                                    <span className="coin-odds-side">{flagCode && <Flag code={flagCode} w={17} h={12} cls="coin-sel-flag" />}<span className="nm">{label}</span></span>
                                     <span className="coin-odds-val">{sel.odds}</span>
                                   </button>
                                 )
@@ -314,6 +327,7 @@ export function CoinsScreen({ go, openBet }) {
                           </div>
                         )
                       })}
+                      </div>
                     </div>
                   )
                 })

@@ -865,17 +865,27 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* match betting row */
 .coin-match-row{padding:12px 14px; margin-bottom:12px;}
-.coin-match-teams{display:flex; align-items:center; gap:6px; margin-bottom:6px;}
-.coin-team{flex:1; min-width:0;}
-.coin-team-r{text-align:right;}
-.coin-team-name{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
+.coin-match-teams{display:flex; align-items:center; gap:6px; margin-bottom:8px;}
+.coin-team{flex:1; min-width:0; display:flex; align-items:center; gap:7px;}
+.coin-team .flag{width:22px; height:15px; border-radius:3px; box-shadow:0 1px 2px rgba(11,31,58,.2); flex-shrink:0;}
+.coin-team-r{justify-content:flex-end;}
+.coin-team-name{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+
+/* match list + market lists become multi-column grids on desktop (Schedule-style) */
+.coin-bet-grid{display:grid; grid-template-columns:1fr; gap:12px; align-items:start;}
+.coin-bet-grid .coin-match-row{margin-bottom:0;}
+.coin-mkt-list{display:grid; grid-template-columns:1fr; gap:12px; align-items:start;}
+.coin-mkt-list .coin-mkt{margin-bottom:0 !important;}
+.coin-mkt-list .coin-mkt.cs{grid-column:1 / -1;}
 .coin-vs{font-size:11px; color:var(--muted2); font-weight:700; flex-shrink:0;}
 .coin-book{font-size:10.5px; color:var(--muted2); font-weight:700; letter-spacing:.5px; margin-bottom:8px; text-transform:uppercase;}
 .coin-odds-row{display:flex; gap:7px;}
 .coin-odds-btn{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 6px; border-radius:11px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s;}
 .coin-odds-btn:hover{border-color:var(--gold); background:#fffdf4;}
 .coin-odds-btn:active{transform:scale(.97);}
-.coin-odds-side{font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+.coin-odds-side{display:flex; align-items:center; justify-content:center; gap:5px; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; max-width:100%;}
+.coin-odds-side .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
+.coin-sel-flag{width:17px; height:12px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
 .coin-odds-val{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1.05;}
 
 /* bet sheet internals */
@@ -910,18 +920,20 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-match-row:hover .coin-row-foot{color:var(--navy);}
 .coin-match-row:hover .coin-row-foot svg{stroke:var(--accent);}
 
-/* ---- bet-detail overlay: self-contained navy match banner (mobile + desktop) ---- */
-.coin-bd-banner{position:relative; background:linear-gradient(135deg,var(--navy2),var(--navy)); border-radius:16px; padding:18px 16px 15px; margin-bottom:14px; overflow:hidden; box-shadow:var(--shadow);}
-.coin-bd-banner::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
-.coin-bd-back{position:absolute; top:12px; left:12px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,.12); display:grid; place-items:center; z-index:2; cursor:pointer;}
-.coin-bd-back:hover{background:rgba(255,255,255,.2);}
-.coin-bd-back svg{width:17px; height:17px; stroke:#fff;}
-.coin-bd-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px 12px; position:relative; z-index:1;
-  font-family:'Barlow Condensed'; font-weight:800; font-size:22px; letter-spacing:.4px; color:#fff; text-align:center;}
-.coin-bd-head .flag{width:34px; height:24px; border-radius:3px; box-shadow:0 1px 4px rgba(0,0,0,.35); flex-shrink:0;}
-.coin-bd-team{display:flex; align-items:center; gap:9px;}
-.coin-bd-vs{font-family:'Barlow'; font-weight:700; font-size:11px; color:rgba(255,255,255,.42); text-transform:uppercase; letter-spacing:1.5px;}
-.coin-bd-ko{text-align:center; margin-top:8px; position:relative; z-index:1; font-family:'Barlow Semi Condensed'; font-size:12px; font-weight:600; color:rgba(255,255,255,.62); letter-spacing:.4px;}
+/* ---- shared wallet header: optional back button + balance ---- */
+.coin-wallet-inner{display:flex; align-items:center; gap:12px; position:relative; z-index:1;}
+.coin-back{width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:grid; place-items:center; flex-shrink:0; cursor:pointer; transition:background .14s;}
+.coin-back:hover{background:rgba(255,255,255,.22);}
+.coin-back svg{width:18px; height:18px; stroke:#fff;}
+.coin-wallet-inner .coin-no-id{flex:1;}
+
+/* ---- bet-detail: game heading bar under the wallet header ---- */
+.coin-match-title{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 12px; padding:14px 8px 12px; margin-bottom:6px; border-bottom:1px solid var(--line);
+  font-family:'Barlow Condensed'; font-weight:800; font-size:21px; letter-spacing:.4px; color:var(--navy); text-align:center;}
+.coin-match-title .flag{width:30px; height:21px; border-radius:3px; box-shadow:0 1px 3px rgba(11,31,58,.22); flex-shrink:0;}
+.coin-mt-team{display:flex; align-items:center; gap:8px;}
+.coin-mt-vs{font-family:'Barlow'; font-weight:700; font-size:11px; color:var(--muted2); text-transform:uppercase; letter-spacing:1.5px;}
+.coin-mt-ko{width:100%; text-align:center; font-family:'Barlow Semi Condensed'; font-size:11.5px; font-weight:600; color:var(--muted); letter-spacing:.3px; margin-top:-2px;}
 
 /* ---- bet-detail overlay: market cards ---- */
 .coin-mkt{padding:13px 14px 15px;}
@@ -933,7 +945,8 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-sel{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s, transform .1s;}
 .coin-mkt-sel:hover{border-color:var(--gold); background:#fffdf4;}
 .coin-mkt-sel:active{transform:scale(.96);}
-.coin-mkt-lbl{font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+.coin-mkt-lbl{display:flex; align-items:center; justify-content:center; gap:5px; font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; text-align:center; max-width:100%;}
+.coin-mkt-lbl .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
 .coin-mkt-odds{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1;}
 .coin-mkt-grid.cs .coin-mkt-sel{padding:8px 4px; gap:2px;}
 .coin-mkt-grid.cs .coin-mkt-lbl{font-family:'Barlow Condensed'; font-size:15px; font-weight:800; color:var(--navy); text-transform:none; letter-spacing:0;}
