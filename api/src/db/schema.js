@@ -1,4 +1,4 @@
-import { pgTable, text, integer, primaryKey, timestamp, boolean, jsonb, serial, index, unique, foreignKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, numeric, primaryKey, timestamp, boolean, jsonb, serial, index, unique, foreignKey } from 'drizzle-orm/pg-core'
 
 export const sweep = pgTable('sweep', {
   id: text('id').primaryKey(),
@@ -70,6 +70,11 @@ export const fixture = pgTable('fixture', {
   probA: integer('prob_a'),
   probD: integer('prob_d'),
   probB: integer('prob_b'),
+  oddsHome: numeric('odds_home'),
+  oddsDraw: numeric('odds_draw'),
+  oddsAway: numeric('odds_away'),
+  oddsBook: text('odds_book'),
+  winnerCode: text('winner_code'), // winning team code or 'DRAW', set when final
   lineups: jsonb('lineups'),
   events: jsonb('events'),
   stage: text('stage').notNull().default('group'),

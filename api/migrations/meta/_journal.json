@@ -78,6 +78,13 @@
       "when": 1781512897046,
       "tag": "0010_kind_secret_warriors",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1781587399149,
+      "tag": "0011_naive_shocker",
+      "breakpoints": true
     }
   ]
 }
