@@ -47,7 +47,7 @@ test('mapPrediction turns percent strings into integers, or null', () => {
 test('mapOdds: first complete Match Winner market → implied probs summing to 100 (decoy bets ignored)', () => {
   const r = mapOdds(load('odds'))
   // 1/1.80, 1/3.60, 1/4.50 normalized, largest-remainder rounded
-  expect(r).toEqual({ a: 53, d: 26, b: 21 })
+  expect(r).toMatchObject({ a: 53, d: 26, b: 21 })
   expect(r.a + r.d + r.b).toBe(100)
 })
 
@@ -152,4 +152,35 @@ test('mapEvents produces a stable id from elapsed/extra/team/player/type/detail'
   const b = mapEvents(raw, XW)[0].id
   expect(a).toBe(b)
   expect(a).toBe('45|2|hr|Modric|goal|Normal Goal')
+})
+
+const oddsResponse = (bookmakers) => ({ response: [{ bookmakers }] })
+const mw = (home, draw, away) => ({ name: 'Match Winner', values: [
+  { value: 'Home', odd: String(home) }, { value: 'Draw', odd: String(draw) }, { value: 'Away', odd: String(away) },
+] })
+
+test('mapOdds prefers Pinnacle even when another book appears first', () => {
+  const r = mapOdds(oddsResponse([
+    { id: 8, name: 'Bet365', bets: [mw(2.0, 3.4, 4.0)] },
+    { id: 4, name: 'Pinnacle', bets: [mw(2.1, 3.3, 3.8)] },
+  ]))
+  expect(r.book).toBe('Pinnacle')
+  expect(r.odds).toEqual({ home: 2.1, draw: 3.3, away: 3.8 })
+  expect(r.a + r.d + r.b).toBe(100)
+})
+
+test('mapOdds falls back to Bet365, then to the first complete 1X2 book', () => {
+  const noPin = mapOdds(oddsResponse([
+    { id: 99, name: 'SomeBook', bets: [mw(1.9, 3.5, 4.2)] },
+    { id: 8, name: 'Bet365', bets: [mw(2.0, 3.4, 4.0)] },
+  ]))
+  expect(noPin.book).toBe('Bet365')
+  const neither = mapOdds(oddsResponse([{ id: 99, name: 'SomeBook', bets: [mw(1.9, 3.5, 4.2)] }]))
+  expect(neither.book).toBe('SomeBook')
+  expect(neither.odds.home).toBe(1.9)
+})
+
+test('mapOdds skips books with an incomplete Match Winner market and returns null when none usable', () => {
+  expect(mapOdds(oddsResponse([{ id: 4, name: 'Pinnacle', bets: [{ name: 'Match Winner', values: [{ value: 'Home', odd: '2.0' }] }] }]))).toBeNull()
+  expect(mapOdds(oddsResponse([]))).toBeNull()
 })
