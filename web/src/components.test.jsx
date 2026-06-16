@@ -152,6 +152,14 @@ test('useCountdown re-syncs its target when the next match changes (offset jumps
   vi.useRealTimers()
 })
 
+test('useCountdown counts into negative time when kickoff has passed (grace window)', () => {
+  vi.useFakeTimers()
+  const { result } = renderHook(({ off }) => useCountdown(off), { initialProps: { off: -323 } })
+  expect(result.current.hms).toBe('-00:05:23') // 5m23s past kickoff
+  expect(result.current.s).toBe(-323)
+  vi.useRealTimers()
+})
+
 test('SquadList groups players by position and renders a photo or a number badge', () => {
   const { container, getByText } = render(<SquadList players={[
     { name: 'Keeper', number: 1, pos: 'Goalkeeper', photo: 'https://x/1.png' },

@@ -48,13 +48,17 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   // kickoff that's still in the future. derived from Date.now() each render (the countdown
   // re-renders every second) so when a match kicks off, the hero rolls to the next one's
   // countdown instead of sitting at 00:00:00 until a refresh. falls back to nextMatch.
+  // GRACE: a match whose advertised kickoff just passed stays the hero (counting into
+  // negative time) for KICKOFF_GRACE_SEC, so a slightly-late start doesn't prematurely roll
+  // to the next match before the worker flips its status to "live".
+  const KICKOFF_GRACE_SEC = 20 * 60;
   const next = S.liveMatch
-    || S.fixtures.find(f => f.status === "upcoming" && f.ko.getTime() > Date.now())
+    || S.fixtures.find(f => f.status === "upcoming" && (f.ko.getTime() - Date.now()) / 1000 > -KICKOFF_GRACE_SEC)
     || S.nextMatch;
   const live = next.status === "live";
   const t1 = S.team(next.t1), t2 = S.team(next.t2);
   const o = S.ownersForFixture(next);
-  const cd = useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
+  const cd = useCountdown(Math.max(-KICKOFF_GRACE_SEC, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
 
   useSocial(); // re-render on identity / watch / support changes
   useSpoiler();
@@ -160,7 +164,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
           <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : "Next match"}</span>
-          <span className="hero-when">{live ? "In play" : "Kicks off in"}</span>
+          <span className="hero-when">{live ? "In play" : cd.s < 0 ? "Kicking off" : "Kicks off in"}</span>
         </div>
         <div className="match-line">
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t1);}}>
