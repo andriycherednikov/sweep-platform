@@ -651,3 +651,30 @@ test('PeopleScreen keeps the active view while searching', () => {
   expect(statFor(container, 'Bob Brown')).toBe('3') // still the predictions count
   expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
 })
+
+// ---------------- PeopleScreen — Coins stat toggle ----------------
+import { setWalletData } from './coins.js'
+
+// Designed so wins order differs from coins order:
+// wins → Alice(3), Bob(1), Carol(0); coins → Bob(1500), Alice(900), Carol(0)
+test('PeopleScreen Coins toggle ranks people by coin balance descending', () => {
+  peopleSweep()
+  setWalletData({
+    balance: 0,
+    weeklyGrant: 1000,
+    bets: { open: [], settled: [] },
+    leaderboard: [
+      { personId: 'bob', balance: 1500 },
+      { personId: 'alice', balance: 900 },
+    ],
+  })
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
+  act(() => { fireEvent.click(getByText('Coins')) })
+  // Bob has more coins → should appear first
+  expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
+  // balances are shown as pills
+  expect(statFor(container, 'Bob Brown')).toBe('1500')
+  expect(statFor(container, 'Alice Anders')).toBe('900')
+  expect(statFor(container, 'Carol Clark')).toBeNull() // 0 balance → no pill
+  expect(getByText(/sorted by coin balance/i)).toBeInTheDocument()
+})

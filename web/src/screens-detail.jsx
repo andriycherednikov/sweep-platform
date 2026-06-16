@@ -14,6 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
+import { balanceByPerson } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -24,20 +25,30 @@ import { SweepDraw } from "./SweepDraw.jsx";
 export function PeopleScreen({ openPerson, initialView = "wins" }) {
   useSocial(); // re-render as picks/support arrive so prediction counts stay live
   const [q, setQ] = useState("");
-  const [view, setView] = useState(initialView); // 'wins' | 'predictions'
+  const [view, setView] = useState(initialView); // 'wins' | 'predictions' | 'coins'
   const ql = q.trim().toLowerCase();
+  const balances = balanceByPerson();
   // per-person stat for the active view: { value, label } (value 0 → no pill)
-  const statOf = (m) => view === "predictions"
-    ? { value: predictionAccuracy(m.person.id).correct, label: "correct" }
-    : { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
+  const statOf = (m) => {
+    if (view === "predictions") return { value: predictionAccuracy(m.person.id).correct, label: "correct" };
+    if (view === "coins") return { value: balances[m.person.id] ?? 0, label: "coins" };
+    return { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
+  };
   let list = ql
     ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.money;
   if (view === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
+  else if (view === "coins") // re-sort by coin balance descending
+    list = list.slice().sort((a,b) => (balances[b.person.id] ?? 0) - (balances[a.person.id] ?? 0));
+  const subLabel = view === "predictions"
+    ? " in the sweep · sorted by correct predictions"
+    : view === "coins"
+    ? " in the sweep · sorted by coin balance"
+    : " in the sweep · sorted by team wins";
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="People" sub={S.people.length + (view==="predictions" ? " in the sweep · sorted by correct predictions" : " in the sweep · sorted by team wins")} tall />
+      <PageHeader title="People" sub={S.people.length + subLabel} tall />
       <div className="scroll pad screen-anim" style={{paddingTop:14}}>
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
@@ -45,6 +56,7 @@ export function PeopleScreen({ openPerson, initialView = "wins" }) {
             <div className="statseg" style={{marginTop:10}}>
               <button className={"statseg-opt"+(view==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
               <button className={"statseg-opt"+(view==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
+              <button className={"statseg-opt"+(view==="coins"?" on":"")} onClick={()=>setView("coins")}>Coins</button>
             </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
