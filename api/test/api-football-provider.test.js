@@ -44,7 +44,7 @@ test('fetchOdds maps a Match Winner market to implied probs', async () => {
   expect(calledUrl.searchParams.get('fixture')).toBe('9002')
   // must NOT send league — /odds rejects league without season, silently yielding 0 results
   expect(calledUrl.searchParams.get('league')).toBeNull()
-  expect(r).toEqual({ a: 53, d: 26, b: 21 })
+  expect(r).toMatchObject({ a: 53, d: 26, b: 21, odds: { home: 1.8, draw: 3.6, away: 4.5 }, book: 'B' })
 })
 
 test('fetchFixturesByIds queries ?ids=a-b and maps regardless of status', async () => {
