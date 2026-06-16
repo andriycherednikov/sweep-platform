@@ -67,6 +67,19 @@ const renderSheet = (f) => render(
 
 beforeEach(() => { localStorage.clear(); setMe(null); vi.clearAllMocks(); setSpoiler(false) })
 
+test('MatchSheet hides the match-events timeline under privacy mode, shows it on reveal', () => {
+  const events = [{ id: 'g1', type: 'goal', teamCode: 'hr', player: 'L. Modric', minute: 41, detail: 'Normal Goal' }]
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 0] })
+  setSpoiler(true)
+  const { queryByText, getByLabelText } = renderSheet(f)
+  expect(queryByText(/Match events/i)).toBeNull()   // timeline header hidden
+  expect(queryByText('L. Modric')).toBeNull()        // scorer hidden
+  act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
+  expect(queryByText(/Match events/i)).toBeTruthy()  // revealed with the score
+  expect(queryByText('L. Modric')).toBeTruthy()
+  setSpoiler(false)
+})
+
 test('MatchSheet shows the watch CTA + who\'s-watching for an upcoming game', () => {
   const { getByText } = renderSheet(sheetFixture(null, {}, [], { status: 'upcoming' }))
   expect(getByText(/I'll be watching/i)).toBeTruthy()
