@@ -54,7 +54,7 @@ export async function leaderboard(db, sweepId, now = new Date()) {
 }
 
 export function serializeBet(b) {
-  return { id: b.id, fixtureId: b.fixtureId, selection: b.selection, stake: b.stake,
-    odds: Number(b.oddsDecimal), book: b.book, potentialPayout: b.potentialPayout,
-    status: b.status, placedAt: b.placedAt, settledAt: b.settledAt }
+  return { id: b.id, fixtureId: b.fixtureId, market: b.market, selection: b.selection,
+    line: b.line == null ? null : Number(b.line), stake: b.stake, odds: Number(b.oddsDecimal),
+    book: b.book, potentialPayout: b.potentialPayout, status: b.status, placedAt: b.placedAt, settledAt: b.settledAt }
 }

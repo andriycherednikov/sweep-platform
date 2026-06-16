@@ -6,12 +6,12 @@ import { walletFor, leaderboard, ensureGrants, serializeBet } from '../coins/led
 
 const member = requireSweep(['member', 'admin'])
 
-const SELECTIONS = ['HOME', 'DRAW', 'AWAY']
+const MARKETS = ['1x2', 'ou25', 'cards', 'fh1x2', 'cs']
 const betBody = {
   type: 'object', required: ['fixtureId', 'personId', 'selection', 'stake'], additionalProperties: false,
   properties: {
     fixtureId: { type: 'string' }, personId: { type: 'string' },
-    selection: { type: 'string', enum: SELECTIONS }, stake: { type: 'integer', minimum: 1 },
+    market: { type: 'string', enum: MARKETS }, selection: { type: 'string' }, stake: { type: 'integer', minimum: 1 },
   },
 }
 
@@ -33,6 +33,7 @@ export async function coinsRoutes(app) {
   app.post('/api/bet', { preHandler: member, schema: { body: betBody } }, async (req, reply) => {
     const sweepId = req.sweep.id
     const { fixtureId, personId, selection, stake } = req.body
+    const market = req.body.market ?? '1x2'
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
@@ -41,10 +42,12 @@ export async function coinsRoutes(app) {
     // group stage only for now: knockout odds are the 90-min 1X2 market, which would
     // mis-settle against our final (incl. ET/penalties) winnerCode.
     if (f.stage !== 'group') return reply.code(400).send({ error: 'not_group_stage' })
-    const oddsCol = selection === 'HOME' ? f.oddsHome : selection === 'AWAY' ? f.oddsAway : f.oddsDraw
-    if (oddsCol == null) return reply.code(400).send({ error: 'no_odds' })
-    const odds = Number(oddsCol)
+    const mk = f.markets?.[market]
+    const sel = mk?.selections?.find((s) => s.key === selection)
+    if (!sel) return reply.code(400).send({ error: 'no_odds' })
+    const odds = Number(sel.odds)
     if (!Number.isFinite(odds) || odds <= 1) return reply.code(400).send({ error: 'invalid_odds' })
+    const line = mk.line ?? null
 
     // grants are idempotent and best run outside the lock so the in-tx balance includes them
     await ensureGrants(app.db, sweepId, personId)
@@ -60,8 +63,9 @@ export async function coinsRoutes(app) {
       const balance = Number(b.total)
       if (stake > balance) return { error: 'insufficient_funds' }
       await tx.insert(coinLedger).values({ sweepId, personId, type: 'stake', amount: -stake, refId: id })
-      await tx.insert(bet).values({ id, sweepId, personId, fixtureId, selection, stake,
-        oddsDecimal: String(odds), book: f.oddsBook, potentialPayout, status: 'open' })
+      await tx.insert(bet).values({ id, sweepId, personId, fixtureId, market, selection, stake,
+        oddsDecimal: String(odds), book: mk.book ?? null, line: line == null ? null : String(line),
+        potentialPayout, status: 'open' })
       return { balance: balance - stake }
     })
     if (result.error) return reply.code(400).send({ error: result.error })

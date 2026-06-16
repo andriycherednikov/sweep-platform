@@ -39,8 +39,14 @@ test('GET /api/coins with an unknown personId returns an empty wallet, not a DB 
 
 async function bettableFixture() {
   const [f] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'upcoming', stage: 'group',
-    oddsHome: '2.00', oddsDraw: '3.50', oddsAway: '4.00', oddsBook: 'Pinnacle' }).where(eq(fixture.id, f.id))
+  const markets = {
+    '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [
+      { key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] },
+    ou25: { label: 'Over/Under 2.5', line: 2.5, book: 'Pinnacle', selections: [
+      { key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
+  }
+  await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets,
+    oddsHome: null, oddsDraw: null, oddsAway: null, oddsBook: null }).where(eq(fixture.id, f.id))
   return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
 }
 const balanceOfPerson = async (id) => (await app.inject({ method: 'GET', url: `/api/coins?personId=${id}` })).json().balance
@@ -52,8 +58,31 @@ test('POST /api/bet deducts the stake, locks the odds, and returns the new balan
   expect(res.statusCode).toBe(200)
   const body = res.json()
   expect(body.balance).toBe(before - 100)
-  expect(body.bet).toMatchObject({ selection: 'HOME', stake: 100, odds: 2, potentialPayout: 200, status: 'open' })
+  expect(body.bet).toMatchObject({ market: '1x2', selection: 'HOME', stake: 100, odds: 2, potentialPayout: 200, status: 'open' })
   expect(published.some((e) => e.type === 'bet')).toBe(true)
+})
+
+test('POST /api/bet places a 1x2 bet (default market) and locks odds', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  const before = await balanceOfPerson(p.id)
+  const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 100 } })
+  expect(res.statusCode).toBe(200)
+  expect(res.json().bet).toMatchObject({ market: '1x2', selection: 'HOME', stake: 100, odds: 2, potentialPayout: 200 })
+  expect(res.json().balance).toBe(before - 100)
+})
+
+test('POST /api/bet places an over/under bet with its line', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id)
+  const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, market: 'ou25', selection: 'OVER', stake: 50 } })
+  expect(res.statusCode).toBe(200)
+  expect(res.json().bet).toMatchObject({ market: 'ou25', selection: 'OVER', odds: 1.9, line: 2.5 })
+})
+
+test('POST /api/bet rejects an unknown market or selection', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, market: 'cards', selection: 'OVER', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
+  expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, market: '1x2', selection: 'ZZZ', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
 })
 
 test('POST /api/bet rejects a stake above the balance', async () => {
@@ -79,7 +108,7 @@ test('POST /api/bet rejects all selections on knockout fixtures (group-stage onl
     expect(res.statusCode).toBe(400)
     expect(res.json()).toEqual({ error: 'not_group_stage' })
   }
-  await db.update(fixture).set({ stage: 'group', oddsHome: null, oddsDraw: null, oddsAway: null }).where(eq(fixture.id, f.id))
+  await db.update(fixture).set({ stage: 'group', markets: null }).where(eq(fixture.id, f.id))
   expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
 })
 
