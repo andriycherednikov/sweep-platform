@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm'
-import { fixture, coinLedger } from '../db/schema.js'
+import { fixture, person, coinLedger, bet } from '../db/schema.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
 
 /** Tournament start = earliest fixture kickoff. */
@@ -29,4 +29,31 @@ export async function balanceOf(db, sweepId, personId) {
   const [row] = await db.select({ total: sql`coalesce(sum(${coinLedger.amount}), 0)` })
     .from(coinLedger).where(and(eq(coinLedger.sweepId, sweepId), eq(coinLedger.personId, personId)))
   return Number(row.total)
+}
+
+/** Grant-then-read a person's wallet: balance + their open/settled bets. */
+export async function walletFor(db, sweepId, personId, now = new Date()) {
+  await ensureGrants(db, sweepId, personId, now)
+  const balance = await balanceOf(db, sweepId, personId)
+  const rows = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId)))
+  const open = [], settled = []
+  for (const b of rows) (b.status === 'open' ? open : settled).push(serializeBet(b))
+  return { balance, weeklyGrant: WEEKLY_COINS, bets: { open, settled } }
+}
+
+/** Every person's current balance, ranked high → low (ensures all members are granted first). */
+export async function leaderboard(db, sweepId, now = new Date()) {
+  const people = await db.select().from(person).where(eq(person.sweepId, sweepId))
+  const out = []
+  for (const p of people) {
+    await ensureGrants(db, sweepId, p.id, now)
+    out.push({ personId: p.id, balance: await balanceOf(db, sweepId, p.id) })
+  }
+  return out.sort((a, b) => b.balance - a.balance)
+}
+
+export function serializeBet(b) {
+  return { id: b.id, fixtureId: b.fixtureId, selection: b.selection, stake: b.stake,
+    odds: Number(b.oddsDecimal), book: b.book, potentialPayout: b.potentialPayout,
+    status: b.status, placedAt: b.placedAt, settledAt: b.settledAt }
 }
