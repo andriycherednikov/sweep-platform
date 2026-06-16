@@ -554,3 +554,92 @@ test('MatchSheet covers a final score under spoiler mode, reveals on tap', () =>
   expect(queryByText('5–1')).toBeTruthy()
   setSpoiler(false)
 })
+
+// ---------------- PeopleScreen — Wins ⇄ Predictions stat toggle ----------------
+import { PeopleScreen } from './screens-detail.jsx'
+
+// Wins come from standings win counts; correct predictions from support picks on finals.
+// Designed so the two orderings differ: wins → Alice(3), Bob(1); predictions → Bob(3), Alice(1).
+function peopleSweep() {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'a', name: 'Atlas', group: 'L', pool: 'P', color: '#111', strength: 90 },
+        { code: 'b', name: 'Bravo', group: 'L', pool: 'P', color: '#222', strength: 80 },
+        { code: 'c', name: 'Cobra', group: 'L', pool: 'P', color: '#333', strength: 70 },
+        { code: 'd', name: 'Delta', group: 'L', pool: 'P', color: '#444', strength: 60 },
+      ],
+      people: [
+        { id: 'alice', name: 'Alice Anders', short: 'Alice' },
+        { id: 'bob', name: 'Bob Brown', short: 'Bob' },
+        { id: 'carol', name: 'Carol Clark', short: 'Carol' },
+      ],
+      ownership: { alice: ['a'], bob: ['b'], carol: ['c'] },
+      scoring: null,
+    },
+    fixtures: [
+      { id: 'm1', group: 'L', matchday: 1, t1: 'a', t2: 'b', ko: '2026-06-13T09:00:00Z', venue: 'V', city: 'C', status: 'final', score: [2, 0], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+      { id: 'm2', group: 'L', matchday: 1, t1: 'b', t2: 'c', ko: '2026-06-14T09:00:00Z', venue: 'V', city: 'C', status: 'final', score: [3, 0], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+      { id: 'm4', group: 'L', matchday: 1, t1: 'a', t2: 'd', ko: '2026-06-16T09:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 0], minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'group' },
+    ],
+    standings: { L: [
+      { code: 'a', name: 'Atlas', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 1, pts: 9 },
+      { code: 'b', name: 'Bravo', played: 3, win: 1, draw: 0, loss: 2, gf: 3, ga: 4, pts: 3 },
+      { code: 'c', name: 'Cobra', played: 3, win: 0, draw: 0, loss: 3, gf: 0, ga: 6, pts: 0 },
+      { code: 'd', name: 'Delta', played: 3, win: 0, draw: 0, loss: 3, gf: 1, ga: 5, pts: 0 },
+    ] },
+    photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {
+    m1: { alice: 'a', bob: 'a', carol: 'b' }, // winner a → alice ✓, bob ✓, carol ✗
+    m2: { bob: 'b', alice: 'c' },             // winner b → bob ✓, alice ✗
+    m4: { bob: 'a' },                          // winner a → bob ✓
+  } })
+}
+// → correct calls: Bob 3, Alice 1, Carol 0
+
+const rowNames = (c) => [...c.querySelectorAll('.prow .pi b')].map((n) => n.textContent)
+const statFor = (c, name) => {
+  const row = [...c.querySelectorAll('.prow')].find((r) => r.querySelector('.pi b')?.textContent === name)
+  return row?.querySelector('.pp')?.textContent ?? null
+}
+
+test('PeopleScreen defaults to the Wins view (team wins, sorted by wins)', () => {
+  peopleSweep()
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
+  expect(rowNames(container)).toEqual(['Alice Anders', 'Bob Brown', 'Carol Clark'])
+  expect(statFor(container, 'Alice Anders')).toBe('3')
+  expect(statFor(container, 'Bob Brown')).toBe('1')
+  expect(statFor(container, 'Carol Clark')).toBeNull() // 0 wins → no pill
+  expect(getByText(/sorted by team wins/i)).toBeInTheDocument()
+})
+
+test('PeopleScreen Predictions view shows correct-call counts and re-sorts by them', () => {
+  peopleSweep()
+  const { container, getByText, getAllByText } = render(<PeopleScreen openPerson={noop} />)
+  act(() => { fireEvent.click(getByText('Predictions')) })
+  expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
+  expect(statFor(container, 'Bob Brown')).toBe('3')
+  expect(statFor(container, 'Alice Anders')).toBe('1')
+  expect(statFor(container, 'Carol Clark')).toBeNull() // 0 correct → no pill
+  expect(getAllByText('correct').length).toBeGreaterThan(0)
+  expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
+})
+
+test('PeopleScreen opens on Predictions when initialView=predictions', () => {
+  peopleSweep()
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} initialView="predictions" />)
+  expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
+  expect(statFor(container, 'Bob Brown')).toBe('3')
+  expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
+})
+
+test('PeopleScreen keeps the active view while searching', () => {
+  peopleSweep()
+  const { container, getByText, getByPlaceholderText } = render(<PeopleScreen openPerson={noop} />)
+  act(() => { fireEvent.click(getByText('Predictions')) })
+  act(() => { fireEvent.change(getByPlaceholderText(/search by name/i), { target: { value: 'bob' } }) })
+  expect(rowNames(container)).toEqual(['Bob Brown'])
+  expect(statFor(container, 'Bob Brown')).toBe('3') // still the predictions count
+  expect(getByText(/sorted by correct predictions/i)).toBeInTheDocument()
+})
