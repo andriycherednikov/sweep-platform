@@ -16,6 +16,87 @@ function selectionLabel(selection, f) {
   return selection
 }
 
+const MARKET_LABELS = {
+  '1x2': 'Match Winner',
+  fh1x2: 'First Half',
+  ou25: 'Over/Under 2.5',
+  cards: 'Cards O/U',
+  cs: 'Correct Score',
+}
+
+function betSelectionLabel(b) {
+  const f = S.fixture(b.fixtureId)
+  if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
+    if (b.selection === 'HOME') return S.team(f.t1)?.name || 'Home'
+    if (b.selection === 'AWAY') return S.team(f.t2)?.name || 'Away'
+    if (b.selection === 'DRAW') return 'Draw'
+  }
+  if (b.market === 'ou25' || b.market === 'cards')
+    return b.selection === 'OVER' ? `Over ${b.line ?? ''}`.trim() : `Under ${b.line ?? ''}`.trim()
+  if (b.market === 'cs') return String(b.selection).replace(':', '-')
+  return b.selection
+}
+
+function MyBets({ bets }) {
+  const [filter, setFilter] = useState('all')
+  const { open, settled } = bets
+
+  const list = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
+
+  const emptyMsg =
+    filter === 'open' ? 'No open bets.' :
+    filter === 'settled' ? 'No settled bets.' :
+    'No bets yet.'
+
+  return (
+    <div>
+      {/* Filter row */}
+      <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr 1fr', marginBottom: 14 }}>
+        {['all', 'open', 'settled'].map(f => (
+          <button
+            key={f}
+            className={'statseg-opt' + (filter === f ? ' on' : '')}
+            onClick={() => setFilter(f)}
+          >
+            {f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {list.length === 0 ? (
+        <div style={{ color: 'var(--muted2)', fontSize: 13, padding: '10px 2px' }}>{emptyMsg}</div>
+      ) : (
+        list.map(b => {
+          const f = S.fixture(b.fixtureId)
+          const matchName = f
+            ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}`
+            : b.fixtureId
+          const selLabel = betSelectionLabel(b)
+          const mktLabel = MARKET_LABELS[b.market] || b.market
+          const isWon = b.status === 'won'
+          const isLost = b.status === 'lost'
+          const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+          return (
+            <div key={b.id} className="coin-bet-row">
+              <div className="coin-bet-info">
+                <div className="coin-bet-match-name">{matchName}</div>
+                <div className="coin-bet-sel">{mktLabel} — {selLabel}</div>
+                <div className="coin-bet-stake">{b.stake} coins @ {b.odds}</div>
+              </div>
+              <div className="coin-bet-nums">
+                <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
+                {(b.status === 'open' || isWon) && (
+                  <span className="coin-bet-payout">To win {b.potentialPayout}</span>
+                )}
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+}
+
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
 export function BetSheet({ f, market, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
@@ -238,21 +319,8 @@ export function CoinsScreen({ go, openBet }) {
 
           {/* My bets tab */}
           {tab === 'bets' && (
-            <div className="block" style={{ padding: '16px 14px' }}>
-              <div style={{ fontFamily: "'Barlow Semi Condensed'", fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Your bets</div>
-              <div style={{ display: 'flex', gap: 16 }}>
-                <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                  <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 18 }}>{wallet.bets.open.length}</span>
-                  {' '}open
-                </div>
-                <div style={{ color: 'var(--muted)', fontSize: 13 }}>
-                  <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 18 }}>{wallet.bets.settled.length}</span>
-                  {' '}settled
-                </div>
-              </div>
-              {wallet.bets.open.length === 0 && wallet.bets.settled.length === 0 && (
-                <div style={{ marginTop: 12, color: 'var(--muted2)', fontSize: 13 }}>No bets placed yet.</div>
-              )}
+            <div className="block" style={{ padding: '14px 14px' }}>
+              <MyBets bets={wallet.bets} />
             </div>
           )}
 

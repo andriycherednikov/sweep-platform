@@ -31,3 +31,17 @@ test('tapping the row opens the bet detail', () => {
   fireEvent.click(screen.getByTestId('bet-row-f1'))
   expect(openBet).toHaveBeenCalledWith('f1')
 })
+
+test('My bets lists open and settled bets and filters', () => {
+  setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
+    open: [{ id: 'b1', fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 100, odds: 1.9, potentialPayout: 190, status: 'open' }],
+    settled: [{ id: 'b2', fixtureId: 'f1', market: '1x2', selection: 'HOME', stake: 50, odds: 2, potentialPayout: 100, status: 'won' }] } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
+  // 'All' (default) shows both
+  expect(screen.getByText(/Over\/Under 2\.5|OVER/i)).toBeInTheDocument()
+  expect(screen.getByText(/won/i)).toBeInTheDocument()
+  // filter to Open only
+  fireEvent.click(screen.getByRole('button', { name: /^open$/i }))
+  expect(screen.queryByText(/won/i)).not.toBeInTheDocument()
+})
