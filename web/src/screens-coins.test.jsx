@@ -19,7 +19,7 @@ beforeEach(() => {
 
 test('place-a-bet shows a day header, flags, and inline 1X2 odds', () => {
   const { container } = render(<CoinsScreen go={() => {}} openBet={() => {}} />)
-  expect(screen.getByText('Pinnacle')).toBeInTheDocument()
+  expect(screen.getByText('Today')).toBeInTheDocument()
   // Flag renders <img class="flag ..."> with alt="" (decorative); query via DOM
   expect(container.querySelectorAll('img.flag').length).toBeGreaterThan(0)
   expect(screen.getByText('2')).toBeInTheDocument()

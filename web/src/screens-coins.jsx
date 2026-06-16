@@ -298,9 +298,6 @@ export function CoinsScreen({ go, openBet }) {
                                 <Flag code={f.t2} w={24} h={16} />
                               </div>
                             </div>
-                            {mkt.book && (
-                              <div className="coin-book">{mkt.book}</div>
-                            )}
                             <div className="coin-odds-row">
                               {mkt.selections.map(sel => {
                                 let label, flagCode = null
@@ -314,7 +311,8 @@ export function CoinsScreen({ go, openBet }) {
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
                                     onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
                                   >
-                                    <span className="coin-odds-side">{flagCode && <Flag code={flagCode} w={17} h={12} cls="coin-sel-flag" />}<span className="nm">{label}</span></span>
+                                    {flagCode && <img className="coin-sel-bg" src={S.flag(flagCode, 160)} alt="" />}
+                                    <span className="coin-odds-side"><span className="nm">{label}</span></span>
                                     <span className="coin-odds-val">{sel.odds}</span>
                                   </button>
                                 )

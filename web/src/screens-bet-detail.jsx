@@ -54,7 +54,6 @@ export function BetDetail({ fixtureId, onBack }) {
               <div className={'block coin-mkt' + (isCS ? ' cs' : '')} key={k}>
                 <div className="coin-mkt-head">
                   <span className="blocktitle">{mk.label}</span>
-                  {mk.book && <span className="coin-book">{mk.book}</span>}
                 </div>
                 <div
                   className={'coin-mkt-grid' + (isCS ? ' cs' : '')}
@@ -69,7 +68,8 @@ export function BetDetail({ fixtureId, onBack }) {
                         data-testid="mkt-sel"
                         onClick={() => setSheet({ market: k, selection: s.key, odds: s.odds })}
                       >
-                        <span className="coin-mkt-lbl">{fc && <Flag code={fc} w={16} h={11} cls="coin-sel-flag" />}<span className="nm">{selLabel(k, s, f)}</span></span>
+                        {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
+                        <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>
                         <span className="coin-mkt-odds">{s.odds}</span>
                       </button>
                     )

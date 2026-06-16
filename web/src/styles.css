@@ -880,12 +880,17 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-vs{font-size:11px; color:var(--muted2); font-weight:700; flex-shrink:0;}
 .coin-book{font-size:10.5px; color:var(--muted2); font-weight:700; letter-spacing:.5px; margin-bottom:8px; text-transform:uppercase;}
 .coin-odds-row{display:flex; gap:7px;}
-.coin-odds-btn{flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 6px; border-radius:11px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s;}
+.coin-odds-btn{position:relative; overflow:hidden; flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; gap:3px; padding:9px 6px; border-radius:11px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s;}
 .coin-odds-btn:hover{border-color:var(--gold); background:#fffdf4;}
 .coin-odds-btn:active{transform:scale(.97);}
 .coin-odds-side{display:flex; align-items:center; justify-content:center; gap:5px; font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; max-width:100%;}
 .coin-odds-side .nm{white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0;}
-.coin-sel-flag{width:17px; height:12px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
+
+/* a team selection's flag as a large faded watermark filling the left ~half of the tile */
+.coin-sel-bg{position:absolute; left:0; top:0; height:100%; width:62%; object-fit:cover; opacity:.22; pointer-events:none; z-index:0;
+  -webkit-mask-image:linear-gradient(to right, #000 0%, rgba(0,0,0,.55) 48%, transparent 100%);
+  mask-image:linear-gradient(to right, #000 0%, rgba(0,0,0,.55) 48%, transparent 100%);}
+.coin-odds-btn > span, .coin-mkt-sel > span{position:relative; z-index:1;}
 .coin-odds-val{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1.05;}
 
 /* bet sheet internals */
@@ -942,7 +947,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-head .coin-book{margin:0;}
 .coin-mkt-grid{display:grid; gap:8px;}
 .coin-mkt-grid.cs{grid-template-columns:repeat(auto-fill, minmax(70px, 1fr));}
-.coin-mkt-sel{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s, transform .1s;}
+.coin-mkt-sel{position:relative; overflow:hidden; display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s, transform .1s;}
 .coin-mkt-sel:hover{border-color:var(--gold); background:#fffdf4;}
 .coin-mkt-sel:active{transform:scale(.96);}
 .coin-mkt-lbl{display:flex; align-items:center; justify-content:center; gap:5px; font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; text-align:center; max-width:100%;}
