@@ -519,6 +519,7 @@ function MatchTimeline({ f }) {
   const [open, setOpen] = useState(true);
   const events = (f.events || []).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
   if (events.length === 0) return null;
+  if (spoilerHidden(f)) return null; // privacy mode: don't reveal goals/cards until the score is revealed
   const t1 = f.t1, t2 = f.t2;
   const tag = (e) => /penalty/i.test(e.detail || "") ? " (P)" : /own goal/i.test(e.detail || "") ? " (OG)" : "";
   const detail = (e, end) => (
