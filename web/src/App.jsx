@@ -19,10 +19,11 @@ import {
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
 } from "./screens-detail.jsx";
 import { SuperConsole } from "./screens-super.jsx";
+import { CoinsScreen } from "./screens-coins.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
-const TABS = ["schedule", "people", "teams", "standings"];
+const TABS = ["schedule", "people", "teams", "standings", "coins"];
 
 /* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
 export function urlFor(v) {
@@ -38,7 +39,7 @@ export function urlFor(v) {
   if (v.overlay?.type === "super") return "/super";
   return v.tab === "home" ? "/" : `/${v.tab}`;
 }
-function readView(path) {
+export function readView(path) {
   const seg = path.split("/").filter(Boolean);
   const base = { tab: "home", overlay: null, modal: null, identity: false };
   if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
@@ -133,6 +134,7 @@ export default function App() {
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
+  else if (tab==="coins")    base = <CoinsScreen go={go} openMatch={(id) => navigate({ modal: { type: "match", id } })}/>;
 
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;

@@ -31,7 +31,7 @@ vi.mock('./admin.js', () => ({
   useAdminBadge: vi.fn(() => ({ isAdmin: false, pending: 0 })),
 }))
 
-import App, { urlFor } from './App.jsx'
+import App, { urlFor, readView } from './App.jsx'
 import * as client from './api/client.js'
 import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
@@ -138,4 +138,9 @@ test('the super pageview path sent to analytics excludes the token', async () =>
     expect(call[0]).not.toContain('sekret')
   }
   expect(trackPageview).toHaveBeenCalledWith('/super')
+})
+
+test('readView maps /coins to the coins tab and urlFor round-trips', () => {
+  expect(readView('/coins')).toMatchObject({ tab: 'coins' })
+  expect(urlFor({ tab: 'coins' })).toBe('/coins')
 })

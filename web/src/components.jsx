@@ -43,7 +43,8 @@ export const Icon = {
   eyefill: (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3" fill="#fff"/></svg>,
   thumb:   (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M2 9.5h3.5V21H2zM21.6 9.2A2 2 0 0020 8.4h-5.1l.77-3.7.02-.32a1.5 1.5 0 00-.44-1.06L14.4 2.5 8.2 8.7a2 2 0 00-.6 1.4V19a2 2 0 002 2h7.3a2 2 0 001.86-1.27l2.27-6.3a2 2 0 00.07-.5V11a2 2 0 00-.5-1.8z"/></svg>,
   star:    (p)=> <svg viewBox="0 0 24 24" fill="currentColor" {...p}><path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.8 5.9 21.2l1.4-6.8L2.2 9.8l6.9-.7z"/></svg>,
-  spinner: (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" {...p}><path d="M12 3a9 9 0 1 0 9 9"/></svg>
+  spinner: (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" {...p}><path d="M12 3a9 9 0 1 0 9 9"/></svg>,
+  coin:    (p)=> <svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
 };
 
 export function WatchBtn({ id, compact }){
@@ -378,7 +379,8 @@ export function PageHeader({ title, sub, onBack, right, tall }) {
 /* bottom nav */
 const TABS = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],
-  ["people","People",Icon.people],["teams","Teams",Icon.ball],["standings","Table",Icon.bars]
+  ["people","People",Icon.people],["teams","Teams",Icon.ball],["standings","Table",Icon.bars],
+  ["coins","Coins",Icon.coin]
 ];
 export function BottomNav({ tab, go }) {
   return (
@@ -429,7 +431,8 @@ export function useIsDesktop() {
 
 const SB_NAV = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],["people","People",Icon.people],
-  ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt]
+  ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt],
+  ["coins","Coins",Icon.coin]
 ];
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
