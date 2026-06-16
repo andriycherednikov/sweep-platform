@@ -184,3 +184,20 @@ test('mapOdds skips books with an incomplete Match Winner market and returns nul
   expect(mapOdds(oddsResponse([{ id: 4, name: 'Pinnacle', bets: [{ name: 'Match Winner', values: [{ value: 'Home', odd: '2.0' }] }] }]))).toBeNull()
   expect(mapOdds(oddsResponse([]))).toBeNull()
 })
+
+const rawFix = (over = {}) => ({
+  fixture: { id: 42, date: '2026-06-20T18:00:00Z', status: { short: over.short ?? 'NS', elapsed: null }, venue: {} },
+  league: { round: 'Group Stage - 1' },
+  teams: { home: { id: 1, winner: over.homeWin ?? null }, away: { id: 2, winner: over.awayWin ?? null } },
+  goals: { home: over.gh ?? null, away: over.ga ?? null },
+})
+
+test('mapFixture maps the home/away winner booleans to a winnerSide', () => {
+  expect(mapFixture(rawFix({ short: 'FT', homeWin: true, awayWin: false, gh: 2, ga: 1 })).winnerSide).toBe('home')
+  expect(mapFixture(rawFix({ short: 'PEN', homeWin: false, awayWin: true, gh: 1, ga: 1 })).winnerSide).toBe('away')
+})
+
+test('mapFixture reports a draw when neither side won a final, null otherwise', () => {
+  expect(mapFixture(rawFix({ short: 'FT', homeWin: false, awayWin: false, gh: 1, ga: 1 })).winnerSide).toBe('draw')
+  expect(mapFixture(rawFix({ short: 'NS' })).winnerSide).toBeNull()
+})

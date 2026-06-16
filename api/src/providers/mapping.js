@@ -32,6 +32,8 @@ export function parseGroupLabel(label) {
 export function mapFixture(raw) {
   const { group, matchday, stage } = parseRound(raw.league?.round)
   const status = mapStatus(raw.fixture?.status?.short)
+  const hw = raw.teams?.home?.winner, aw = raw.teams?.away?.winner
+  const winnerSide = status !== 'final' ? null : hw === true ? 'home' : aw === true ? 'away' : 'draw'
   return {
     id: String(raw.fixture.id),
     group, matchday, stage,
@@ -41,6 +43,7 @@ export function mapFixture(raw) {
     venue: raw.fixture.venue?.name ?? '',
     city: raw.fixture.venue?.city ?? '',
     status,
+    winnerSide,
     score1: raw.goals?.home ?? null,
     score2: raw.goals?.away ?? null,
     minute: status === 'live' ? (raw.fixture?.status?.elapsed ?? null) : null,
