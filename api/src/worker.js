@@ -57,7 +57,12 @@ setInterval(async () => {
       const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
       if (newlyFinal.length) {
         await recomputeStandings(db)
-        for (const r of newlyFinal) await settleBets(db, r.id, (e) => publish(db, e))
+        // settle each fixture independently — one bad fixture must not block the others
+        // (they're already 'final', so a skipped settlement would never be retried)
+        for (const r of newlyFinal) {
+          try { await settleBets(db, r.id, (e) => publish(db, e)) }
+          catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
+        }
         await publish(db, { type: 'sync' })
         console.log(`[standings] recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
         scheduleFinalReconcile()

@@ -28,6 +28,15 @@ test('GET /api/coins?personId= returns that person balance after their grant', a
   expect(body.balance).toBeGreaterThanOrEqual(1000)
 })
 
+test('GET /api/coins with an unknown personId returns an empty wallet, not a DB error', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/coins?personId=does_not_exist' })
+  expect(res.statusCode).toBe(200)
+  const body = res.json()
+  expect(body.balance).toBe(0)
+  expect(body.bets).toEqual({ open: [], settled: [] })
+  expect(Array.isArray(body.leaderboard)).toBe(true)
+})
+
 async function bettableFixture() {
   const [f] = await db.select().from(fixture).limit(1)
   await db.update(fixture).set({ status: 'upcoming', stage: 'group',
