@@ -133,12 +133,26 @@ function probFor(a, b) {
   return { a: pA, d: pD, b: pB };
 }
 
-// Dev-only decimal Match-Winner odds derived from the implied percents (~fair, >1), so the
-// Coins betting screen is usable locally without the worker/API-Football. A ~5% overround
-// keeps them looking like a real book. In prod these come from the worker (Pinnacle-first).
-function oddsFor(prob) {
-  var dec = function (pct) { return Math.round((100 / (Math.max(pct, 1) * 1.05)) * 100) / 100; };
-  return { home: dec(prob.a), draw: dec(prob.d), away: dec(prob.b), book: "Pinnacle" };
+// Dev-only multi-market odds derived from implied percents, so the Coins betting screen is
+// usable locally without the worker/API-Football. A ~5% overround keeps them looking like
+// a real book. In prod these come from the worker (Pinnacle-first).
+function decFor(pct) { return Math.round((100 / (Math.max(pct, 1) * 1.05)) * 100) / 100; }
+function marketsFor(prob) {
+  var book = "Pinnacle";
+  return {
+    "1x2":   { label: "Match Winner", book: book, selections: [
+      { key: "HOME", label: "Home", odds: decFor(prob.a) }, { key: "DRAW", label: "Draw", odds: decFor(prob.d) }, { key: "AWAY", label: "Away", odds: decFor(prob.b) } ] },
+    "fh1x2": { label: "First Half Result", book: book, selections: [
+      { key: "HOME", label: "Home", odds: Math.round((decFor(prob.a) + 0.4) * 100) / 100 }, { key: "DRAW", label: "Draw", odds: 2.1 }, { key: "AWAY", label: "Away", odds: Math.round((decFor(prob.b) + 0.4) * 100) / 100 } ] },
+    "ou25":  { label: "Over/Under 2.5", line: 2.5, book: book, selections: [
+      { key: "OVER", label: "Over 2.5", odds: 2.0 }, { key: "UNDER", label: "Under 2.5", odds: 1.85 } ] },
+    "cards": { label: "Cards Over/Under", line: 3.5, book: book, selections: [
+      { key: "OVER", label: "Over 3.5", odds: 1.9 }, { key: "UNDER", label: "Under 3.5", odds: 1.9 } ] },
+    "cs":    { label: "Correct Score", book: book, selections: [
+      { key: "1:0", label: "1-0", odds: 7 }, { key: "2:0", label: "2-0", odds: 9 }, { key: "2:1", label: "2-1", odds: 8 },
+      { key: "1:1", label: "1-1", odds: 7.5 }, { key: "0:0", label: "0-0", odds: 11 }, { key: "0:1", label: "0-1", odds: 12 },
+      { key: "1:2", label: "1-2", odds: 14 }, { key: "0:2", label: "0-2", odds: 21 } ] },
+  };
 }
 
 let fid = 0;
@@ -150,13 +164,14 @@ Object.keys(GROUPS).forEach(function (g) {
       var a = codes[pair[0]], b = codes[pair[1]];
       var ko = new Date(mdDate(g, mdIdx) + "T" + SLOTS[slot] + ":00Z");
       var venue = VENUES[(fid * 7) % VENUES.length];
+      var prob = probFor(a, b);
       var f = {
         id: "m" + (fid++),
         group: g, matchday: mdIdx + 1,
         t1: a, t2: b,
         ko: ko, venue: venue[0], city: venue[1],
         status: "upcoming", score: null, minute: null,
-        prob: probFor(a, b), odds: oddsFor(probFor(a, b))
+        prob: prob, markets: marketsFor(prob)
       };
       fixtures.push(f);
     });
@@ -179,11 +194,11 @@ var laterMatch = find("H", "es", "ma");   // Spain v Morocco — upcoming tonigh
 
 fixtures.forEach(function (f) {
   var today = f.ko >= DAY_START && f.ko < DAY_END;
-  if (f === liveMatch)       { f.ko = new Date("2026-06-13T06:30:00Z"); f.status = "live"; f.minute = 63; f.score = [2, 0]; return; }
+  if (f === liveMatch)       { f.ko = new Date("2026-06-13T06:30:00Z"); f.status = "live"; f.minute = 63; f.score = [2, 0]; f.ht = [Math.min(f.score[0], 1), Math.min(f.score[1], 1)]; return; }
   if (f === derbyMatch)      { f.ko = new Date("2026-06-13T09:00:00Z"); f.status = "upcoming"; return; }
   if (f === laterMatch)      { f.ko = new Date("2026-06-13T11:30:00Z"); f.status = "upcoming"; return; }
-  if (f.ko < DAY_START)      { f.status = "final"; f.score = scoreFor(f.t1, f.t2, rand); return; }
-  if (today && f.ko.getUTCHours() < 6) { f.status = "final"; f.score = scoreFor(f.t1, f.t2, rand); return; }
+  if (f.ko < DAY_START)      { f.status = "final"; f.score = scoreFor(f.t1, f.t2, rand); f.ht = [Math.min(f.score[0], 1), Math.min(f.score[1], 1)]; return; }
+  if (today && f.ko.getUTCHours() < 6) { f.status = "final"; f.score = scoreFor(f.t1, f.t2, rand); f.ht = [Math.min(f.score[0], 1), Math.min(f.score[1], 1)]; return; }
   f.status = "upcoming";
 });
 
