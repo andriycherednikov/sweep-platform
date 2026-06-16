@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { useCoins, myWallet, placeBet } from './coins.js'
-import { Icon } from './components.jsx'
+import { Icon, Flag } from './components.jsx'
 
 /* ---- helpers ---- */
 function selectionLabel(selection, f) {
@@ -17,7 +17,7 @@ function selectionLabel(selection, f) {
 }
 
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
-function BetSheet({ f, selection, odds, onClose }) {
+function BetSheet({ f, market, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { wallet } = useCoins()
@@ -29,7 +29,7 @@ function BetSheet({ f, selection, odds, onClose }) {
   async function submit() {
     if (!valid || submitting) return
     setSubmitting(true)
-    try { await placeBet(f.id, selection, stakeNum); onClose() }
+    try { await placeBet(f.id, market, selection, stakeNum); onClose() }
     finally { setSubmitting(false) }
   }
 
@@ -95,22 +95,30 @@ function BetSheet({ f, selection, odds, onClose }) {
 }
 
 /* ---- Main screen ---- */
-export function CoinsScreen({ go, openMatch }) {
+export function CoinsScreen({ go, openBet }) {
   useCoins() // re-render on store changes
   const me = getMe()
   const wallet = myWallet()
 
-  const [betSheet, setBetSheet] = useState(null) // { f, selection, odds } | null
+  const [tab, setTab] = useState('place')
+  const [betSheet, setBetSheet] = useState(null) // { f, market, selection, odds } | null
 
-  // Upcoming bettable matches, sorted by kickoff. Group stage only for now — knockout
-  // odds are the 90-min 1X2 market, which would mis-settle against our final winnerCode.
+  // Upcoming bettable matches, group stage with 1x2 market. Fixtures arrive chronological.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && f.odds && f.stage === 'group')
-    .sort((a, b) => a.ko - b.ko)
+    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'] && f.stage === 'group')
 
-  function openBet(f, selection, odds) {
+  // Group by dayKey (same pattern as ScheduleScreen in screens-main.jsx)
+  const days = []
+  const byDay = {}
+  bettable.forEach(f => {
+    if (!byDay[f.dayKey]) { byDay[f.dayKey] = []; days.push(f.dayKey) }
+    byDay[f.dayKey].push(f)
+  })
+
+  function openInlineBet(e, f, market, selKey, odds) {
+    e.stopPropagation()
     if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
-    setBetSheet({ f, selection, odds })
+    setBetSheet({ f, market, selection: selKey, odds })
   }
 
   return (
@@ -137,128 +145,116 @@ export function CoinsScreen({ go, openMatch }) {
         )}
       </div>
 
+      {/* Tab toggle */}
+      <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
+        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <button
+            className={'statseg-opt' + (tab === 'place' ? ' on' : '')}
+            onClick={() => setTab('place')}
+          >Place a bet</button>
+          <button
+            className={'statseg-opt' + (tab === 'bets' ? ' on' : '')}
+            onClick={() => setTab('bets')}
+          >My bets</button>
+        </div>
+      </div>
+
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{ marginTop: 14 }}>
 
-          {/* Place a bet */}
-          <div className="sec-h"><h2>Place a bet</h2></div>
-          {bettable.length === 0 ? (
-            <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>
-              No bettable matches right now.
-            </div>
-          ) : (
-            bettable.map(f => {
-              const t1 = S.team(f.t1)
-              const t2 = S.team(f.t2)
-              const isGroup = f.stage === 'group'
-              return (
-                <div key={f.id} className="block coin-match-row">
-                  <div className="coin-match-teams">
-                    <div className="coin-team">
-                      <span className="coin-team-name">{t1?.name || f.t1}</span>
-                    </div>
-                    <span className="coin-vs">v</span>
-                    <div className="coin-team coin-team-r">
-                      <span className="coin-team-name">{t2?.name || f.t2}</span>
-                    </div>
-                  </div>
-                  {f.odds.book && (
-                    <div className="coin-book">{f.odds.book}</div>
-                  )}
-                  <div className="coin-odds-row">
-                    <button
-                      className="coin-odds-btn"
-                      aria-label={`home odds ${f.odds.home}`}
-                      onClick={() => openBet(f, 'HOME', f.odds.home)}
-                    >
-                      <span className="coin-odds-side">{t1?.name || f.t1}</span>
-                      <span className="coin-odds-val">{f.odds.home}</span>
-                    </button>
-                    {isGroup && (
-                      <button
-                        className="coin-odds-btn"
-                        aria-label={`draw odds ${f.odds.draw}`}
-                        onClick={() => openBet(f, 'DRAW', f.odds.draw)}
-                      >
-                        <span className="coin-odds-side">Draw</span>
-                        <span className="coin-odds-val">{f.odds.draw}</span>
-                      </button>
-                    )}
-                    <button
-                      className="coin-odds-btn"
-                      aria-label={`away odds ${f.odds.away}`}
-                      onClick={() => openBet(f, 'AWAY', f.odds.away)}
-                    >
-                      <span className="coin-odds-side">{t2?.name || f.t2}</span>
-                      <span className="coin-odds-val">{f.odds.away}</span>
-                    </button>
-                  </div>
+          {/* Place a bet tab */}
+          {tab === 'place' && (
+            <>
+              {days.length === 0 ? (
+                <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>
+                  No bettable matches right now.
                 </div>
-              )
-            })
+              ) : (
+                days.map(dk => {
+                  const fs = byDay[dk]
+                  const d = fs[0]
+                  const isToday = dk === S.todayKey
+                  return (
+                    <div key={dk}>
+                      <div className={'daydiv' + (isToday ? ' today' : '')}>
+                        <span className="d">{isToday ? 'Today' : d.dayLabel}</span>
+                        <span className="ln"></span>
+                        <span className="ct">{fs.length} {fs.length > 1 ? 'matches' : 'match'}</span>
+                      </div>
+                      {fs.map(f => {
+                        const t1 = S.team(f.t1)
+                        const t2 = S.team(f.t2)
+                        const mkt = f.markets['1x2']
+                        return (
+                          <div
+                            key={f.id}
+                            className="block coin-match-row"
+                            data-testid={`bet-row-${f.id}`}
+                            onClick={() => openBet(f.id)}
+                            style={{ cursor: 'pointer' }}
+                          >
+                            <div className="coin-match-teams">
+                              <div className="coin-team">
+                                <Flag code={f.t1} w={24} h={16} />
+                                <span className="coin-team-name">{t1?.name || f.t1}</span>
+                              </div>
+                              <span className="coin-vs">v</span>
+                              <div className="coin-team coin-team-r">
+                                <span className="coin-team-name">{t2?.name || f.t2}</span>
+                                <Flag code={f.t2} w={24} h={16} />
+                              </div>
+                            </div>
+                            {mkt.book && (
+                              <div className="coin-book">{mkt.book}</div>
+                            )}
+                            <div className="coin-odds-row">
+                              {mkt.selections.map(sel => {
+                                let label
+                                if (sel.key === 'HOME') label = t1?.name || f.t1
+                                else if (sel.key === 'AWAY') label = t2?.name || f.t2
+                                else label = 'Draw'
+                                return (
+                                  <button
+                                    key={sel.key}
+                                    className="coin-odds-btn"
+                                    aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
+                                    onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
+                                  >
+                                    <span className="coin-odds-side">{label}</span>
+                                    <span className="coin-odds-val">{sel.odds}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                })
+              )}
+            </>
           )}
 
-          {/* Open bets */}
-          <div className="sec-h"><h2>Open bets</h2></div>
-          <div className="block">
-            {wallet.bets.open.length === 0 ? (
-              <div style={{ padding: '12px 0', color: 'var(--muted2)', fontSize: 13, fontWeight: 600 }}>No open bets yet.</div>
-            ) : (
-              wallet.bets.open.map(bet => {
-                const f = S.fixture(bet.fixtureId)
-                const label = selectionLabel(bet.selection, f)
-                return (
-                  <div key={bet.id} className="coin-bet-row">
-                    <div className="coin-bet-info">
-                      <span className="coin-bet-sel">{label}</span>
-                      {f && (
-                        <span className="coin-bet-match-name">
-                          {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                        </span>
-                      )}
-                    </div>
-                    <div className="coin-bet-nums">
-                      <span className="coin-bet-stake">{bet.stake} @ {bet.odds}</span>
-                      <span className="coin-bet-payout">To win {bet.potentialPayout}</span>
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </div>
-
-          {/* Settled bets */}
-          <div className="sec-h"><h2>Settled</h2></div>
-          <div className="block">
-            {wallet.bets.settled.length === 0 ? (
-              <div style={{ padding: '12px 0', color: 'var(--muted2)', fontSize: 13, fontWeight: 600 }}>No settled bets yet.</div>
-            ) : (
-              wallet.bets.settled.map(bet => {
-                const f = S.fixture(bet.fixtureId)
-                const label = selectionLabel(bet.selection, f)
-                const won = bet.status === 'won'
-                return (
-                  <div key={bet.id} className="coin-bet-row">
-                    <div className="coin-bet-info">
-                      <span className="coin-bet-sel">{label}</span>
-                      {f && (
-                        <span className="coin-bet-match-name">
-                          {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                        </span>
-                      )}
-                    </div>
-                    <div className="coin-bet-nums">
-                      <span className="coin-bet-stake">{bet.stake} @ {bet.odds}</span>
-                      {won && <span className="coin-bet-payout">Won {bet.payout || bet.potentialPayout}</span>}
-                    </div>
-                    <span className={'pill coin-status-pill ' + (won ? 'coin-won' : 'coin-lost')}>
-                      {won ? 'Won' : 'Lost'}
-                    </span>
-                  </div>
-                )
-              })
-            )}
-          </div>
+          {/* My bets tab */}
+          {tab === 'bets' && (
+            <div className="block" style={{ padding: '16px 14px' }}>
+              <div style={{ fontFamily: "'Barlow Semi Condensed'", fontWeight: 700, fontSize: 15, marginBottom: 10 }}>Your bets</div>
+              <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 18 }}>{wallet.bets.open.length}</span>
+                  {' '}open
+                </div>
+                <div style={{ color: 'var(--muted)', fontSize: 13 }}>
+                  <span style={{ fontWeight: 700, color: 'var(--fg)', fontSize: 18 }}>{wallet.bets.settled.length}</span>
+                  {' '}settled
+                </div>
+              </div>
+              {wallet.bets.open.length === 0 && wallet.bets.settled.length === 0 && (
+                <div style={{ marginTop: 12, color: 'var(--muted2)', fontSize: 13 }}>No bets placed yet.</div>
+              )}
+            </div>
+          )}
 
         </div>
       </div>
@@ -267,6 +263,7 @@ export function CoinsScreen({ go, openMatch }) {
       {betSheet && (
         <BetSheet
           f={betSheet.f}
+          market={betSheet.market}
           selection={betSheet.selection}
           odds={betSheet.odds}
           onClose={() => setBetSheet(null)}

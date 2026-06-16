@@ -1,4 +1,4 @@
-import { expect, test, beforeEach } from 'vitest'
+import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CoinsScreen } from './screens-coins.jsx'
 import { setWalletData } from './coins.js'
@@ -7,21 +7,27 @@ import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
-  S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', stage: 'group', status: 'upcoming', ko: new Date('2026-07-01T18:00:00Z'), odds: { home: 2, draw: 3.5, away: 4, book: 'Pinnacle' } }]
-  S.fixture = (id) => S.fixtures.find((f) => f.id === id)
+  S.flag = (c) => `/flags/${c}.png`
   S.team = (c) => ({ code: c, name: c.toUpperCase(), color: '#123', flagCode: c })
+  S.todayKey = '2026-07-01'
+  const mk = { '1x2': { book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] } }
+  S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', stage: 'group', status: 'upcoming', ko: new Date('2026-07-01T18:00:00Z'), dayKey: '2026-07-01', dayLabel: 'Tue 1 Jul', markets: mk }]
+  S.fixture = (id) => S.fixtures.find((f) => f.id === id)
   setMe('pn_a')
   setWalletData({ balance: 1000, weeklyGrant: 1000, bets: { open: [], settled: [] }, leaderboard: [{ personId: 'pn_a', balance: 1000 }] })
 })
 
-test('shows the wallet balance and a bettable match with odds', () => {
-  render(<CoinsScreen go={() => {}} openMatch={() => {}} />)
-  expect(screen.getByText(/1000/)).toBeInTheDocument()
+test('place-a-bet shows a day header, flags, and inline 1X2 odds', () => {
+  const { container } = render(<CoinsScreen go={() => {}} openBet={() => {}} />)
   expect(screen.getByText('Pinnacle')).toBeInTheDocument()
+  // Flag renders <img class="flag ..."> with alt="" (decorative); query via DOM
+  expect(container.querySelectorAll('img.flag').length).toBeGreaterThan(0)
+  expect(screen.getByText('2')).toBeInTheDocument()
 })
 
-test('tapping an odds button opens the bet sheet with a stake input', () => {
-  render(<CoinsScreen go={() => {}} openMatch={() => {}} />)
-  fireEvent.click(screen.getByRole('button', { name: /home odds 2/i }))
-  expect(screen.getByRole('spinbutton')).toBeInTheDocument()
+test('tapping the row opens the bet detail', () => {
+  const openBet = vi.fn()
+  render(<CoinsScreen go={() => {}} openBet={openBet} />)
+  fireEvent.click(screen.getByTestId('bet-row-f1'))
+  expect(openBet).toHaveBeenCalledWith('f1')
 })

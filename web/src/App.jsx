@@ -115,6 +115,7 @@ export default function App() {
   const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
+  const openBet    = (id) => navigate({ overlay: { type: "betdetail", id } });
   // intentional future entry point (sidebar/landing); no UI trigger wired this slice
   const openSuper  = () => navigate({ overlay: { type: "super" } });
   // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
@@ -134,7 +135,7 @@ export default function App() {
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
-  else if (tab==="coins")    base = <CoinsScreen go={go} openMatch={openMatch}/>;
+  else if (tab==="coins")    base = <CoinsScreen go={go} openBet={openBet}/>;
 
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
