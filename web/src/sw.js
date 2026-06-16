@@ -2,9 +2,10 @@
    Responsibilities: precache the content-hashed app shell, apply runtime caching
    per SW_ROUTES, and serve the precached shell for SPA navigations.
 
-   Lifecycle: we deliberately do NOT call self.skipWaiting() or clientsClaim().
-   A new SW installs in the background, waits, and activates on the next cold
-   launch — the chosen silent-next-launch update behaviour.
+   Lifecycle (autoUpdate): a freshly-deployed SW skips waiting and claims open
+   clients as soon as it installs, then the page reloads onto the latest build
+   (vite-plugin-pwa registerType 'autoUpdate' + src/lib/registerSW.js). This stops
+   users getting stuck on a stale precached bundle until they close every tab.
 
    FUTURE (match-reminders web-push spec): the 'push' and 'notificationclick'
    handlers are appended below the marker — this is the single SW for scope '/'. */
@@ -13,6 +14,11 @@ import { registerRoute, NavigationRoute } from 'workbox-routing'
 import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 import { ExpirationPlugin } from 'workbox-expiration'
 import { SW_ROUTES } from './sw-routes.js'
+
+// Activate a new deploy's SW immediately and take over open tabs, so the new
+// precache manifest is served without waiting for every tab to close.
+self.addEventListener('install', () => self.skipWaiting())
+self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()))
 
 // Precache the app shell (filenames are content-hashed by Vite).
 precacheAndRoute(self.__WB_MANIFEST)
