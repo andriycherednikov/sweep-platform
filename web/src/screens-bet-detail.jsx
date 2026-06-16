@@ -31,20 +31,17 @@ export function BetDetail({ fixtureId, onBack }) {
 
   return (
     <div data-testid="bet-detail" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <header className="top">
-        <button className="backbtn" onClick={onBack}><Icon.back /></button>
-        <div className="coin-bd-head">
-          <Flag code={f.t1} w={28} h={19} />
-          <span>{S.team(f.t1)?.name || f.t1}</span>
-          <span className="coin-bet-vs">v</span>
-          <span>{S.team(f.t2)?.name || f.t2}</span>
-          <Flag code={f.t2} w={28} h={19} />
-        </div>
-        <div className="coin-bd-ko">{f.dateTimeLabel}</div>
-      </header>
-
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{ marginTop: 14 }}>
+          <div className="coin-bd-banner">
+            <button className="coin-bd-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
+            <div className="coin-bd-head">
+              <span className="coin-bd-team"><Flag code={f.t1} w={34} h={24} />{S.team(f.t1)?.name || f.t1}</span>
+              <span className="coin-bd-vs">v</span>
+              <span className="coin-bd-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={34} h={24} /></span>
+            </div>
+            <div className="coin-bd-ko">{f.dateTimeLabel}</div>
+          </div>
           {keys.map((k) => {
             const mk = markets[k]
             let sels = mk.selections
@@ -54,10 +51,15 @@ export function BetDetail({ fixtureId, onBack }) {
               if (!csOpen) sels = sels.slice(0, CS_VISIBLE)
             }
             return (
-              <div className="block" key={k} style={{ marginBottom: 12 }}>
-                <div className="blocktitle">{mk.label}</div>
-                {mk.book && <div className="coin-book">{mk.book}</div>}
-                <div className="coin-mkt-grid">
+              <div className="block coin-mkt" key={k} style={{ marginBottom: 12 }}>
+                <div className="coin-mkt-head">
+                  <span className="blocktitle">{mk.label}</span>
+                  {mk.book && <span className="coin-book">{mk.book}</span>}
+                </div>
+                <div
+                  className={'coin-mkt-grid' + (isCS ? ' cs' : '')}
+                  style={isCS ? undefined : { gridTemplateColumns: `repeat(${sels.length}, 1fr)` }}
+                >
                   {sels.map((s) => (
                     <button
                       key={s.key}

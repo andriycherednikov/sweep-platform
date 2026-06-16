@@ -307,6 +307,10 @@ export function CoinsScreen({ go, openBet }) {
                                 )
                               })}
                             </div>
+                            <div className="coin-row-foot">
+                              {(() => { const n = Object.keys(f.markets).length - 1; return n > 0 ? `+${n} more market${n > 1 ? 's' : ''}` : 'More bets' })()}
+                              <Icon.chev />
+                            </div>
                           </div>
                         )
                       })}

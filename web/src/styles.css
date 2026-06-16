@@ -900,3 +900,43 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-status-pill{flex-shrink:0;}
 .coin-won{background:#e7f6ee; color:var(--live);}
 .coin-lost{background:#fbecea; color:var(--accent);}
+
+/* place-a-bet row: clickable affordance + "more markets" footer */
+.coin-match-row{transition:border-color .15s, box-shadow .15s, transform .1s;}
+.coin-match-row:hover{border-color:var(--gold); box-shadow:0 6px 18px -12px rgba(11,31,58,.5);}
+.coin-match-row:active{transform:scale(.995);}
+.coin-row-foot{display:flex; align-items:center; justify-content:center; gap:5px; margin-top:10px; padding-top:9px; border-top:1px solid var(--line2); font-family:'Barlow Semi Condensed'; font-size:11px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--muted2);}
+.coin-row-foot svg{width:13px; height:13px; stroke:var(--accent); flex-shrink:0;}
+.coin-match-row:hover .coin-row-foot{color:var(--navy);}
+.coin-match-row:hover .coin-row-foot svg{stroke:var(--accent);}
+
+/* ---- bet-detail overlay: self-contained navy match banner (mobile + desktop) ---- */
+.coin-bd-banner{position:relative; background:linear-gradient(135deg,var(--navy2),var(--navy)); border-radius:16px; padding:18px 16px 15px; margin-bottom:14px; overflow:hidden; box-shadow:var(--shadow);}
+.coin-bd-banner::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
+.coin-bd-back{position:absolute; top:12px; left:12px; width:32px; height:32px; border-radius:9px; background:rgba(255,255,255,.12); display:grid; place-items:center; z-index:2; cursor:pointer;}
+.coin-bd-back:hover{background:rgba(255,255,255,.2);}
+.coin-bd-back svg{width:17px; height:17px; stroke:#fff;}
+.coin-bd-head{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:10px 12px; position:relative; z-index:1;
+  font-family:'Barlow Condensed'; font-weight:800; font-size:22px; letter-spacing:.4px; color:#fff; text-align:center;}
+.coin-bd-head .flag{width:34px; height:24px; border-radius:3px; box-shadow:0 1px 4px rgba(0,0,0,.35); flex-shrink:0;}
+.coin-bd-team{display:flex; align-items:center; gap:9px;}
+.coin-bd-vs{font-family:'Barlow'; font-weight:700; font-size:11px; color:rgba(255,255,255,.42); text-transform:uppercase; letter-spacing:1.5px;}
+.coin-bd-ko{text-align:center; margin-top:8px; position:relative; z-index:1; font-family:'Barlow Semi Condensed'; font-size:12px; font-weight:600; color:rgba(255,255,255,.62); letter-spacing:.4px;}
+
+/* ---- bet-detail overlay: market cards ---- */
+.coin-mkt{padding:13px 14px 15px;}
+.coin-mkt-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:11px;}
+.coin-mkt-head .blocktitle{margin:0;}
+.coin-mkt-head .coin-book{margin:0;}
+.coin-mkt-grid{display:grid; gap:8px;}
+.coin-mkt-grid.cs{grid-template-columns:repeat(auto-fill, minmax(70px, 1fr));}
+.coin-mkt-sel{display:flex; flex-direction:column; align-items:center; gap:4px; padding:10px 6px; border-radius:12px; border:1.5px solid var(--line); background:var(--card); cursor:pointer; transition:border-color .14s, background .14s, transform .1s;}
+.coin-mkt-sel:hover{border-color:var(--gold); background:#fffdf4;}
+.coin-mkt-sel:active{transform:scale(.96);}
+.coin-mkt-lbl{font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%;}
+.coin-mkt-odds{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; color:var(--navy); line-height:1;}
+.coin-mkt-grid.cs .coin-mkt-sel{padding:8px 4px; gap:2px;}
+.coin-mkt-grid.cs .coin-mkt-lbl{font-family:'Barlow Condensed'; font-size:15px; font-weight:800; color:var(--navy); text-transform:none; letter-spacing:0;}
+.coin-mkt-grid.cs .coin-mkt-odds{font-size:14px; color:var(--gold);}
+.coin-more{margin-top:11px; width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--muted); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:border-color .14s, color .14s;}
+.coin-more:hover{border-color:var(--gold); color:var(--navy);}
