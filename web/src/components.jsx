@@ -399,15 +399,19 @@ export function useCountdown(offsetSec) {
   // passes and the hero rolls to the next one, the clock follows instead of freezing at 0.
   const [, setNow] = useState(Date.now());
   useEffect(()=>{ const t=setInterval(()=>setNow(Date.now()),1000); return ()=>clearInterval(t); },[]);
-  const s = Math.max(0, Math.floor(offsetSec));
+  // a negative offset means kickoff has passed but the match is still the hero (sync grace
+  // window) — count UP into negative time instead of freezing at 00:00:00.
+  const raw = Math.floor(offsetSec);
+  const sign = raw < 0 ? "-" : "";
+  const s = Math.abs(raw);
   const pad=n=>String(n).padStart(2,"0");
   const totalH=Math.floor(s/3600), m=Math.floor((s%3600)/60), x=s%60;
   const d=Math.floor(s/86400), h=Math.floor((s%86400)/3600);
-  const hms = pad(totalH)+":"+pad(m)+":"+pad(x);
+  const hms = sign+pad(totalH)+":"+pad(m)+":"+pad(x);
   // when more than a day out, show days so it doesn't read e.g. "96:00:00"
-  const display = d>0 ? d+"d "+pad(h)+":"+pad(m)+":"+pad(x) : hms;
+  const display = d>0 ? sign+d+"d "+pad(h)+":"+pad(m)+":"+pad(x) : hms;
   const unit = d>0 ? "DAYS · HRS · MIN · SEC" : "HRS · MIN · SEC";
-  return { hms, hm: pad(totalH)+":"+pad(m), display, unit, d, h: totalH, m, x, s };
+  return { hms, hm: sign+pad(totalH)+":"+pad(m), display, unit, d, h: totalH, m, x, s: raw };
 }
 
 /* desktop: responsive hook + sidebar */
