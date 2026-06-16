@@ -22,23 +22,36 @@ import { SweepDraw } from "./SweepDraw.jsx";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
+  useSocial(); // re-render as picks/support arrive so prediction counts stay live
   const [q, setQ] = useState("");
+  const [view, setView] = useState("wins"); // 'wins' | 'predictions'
   const ql = q.trim().toLowerCase();
-  const list = ql
+  // per-person stat for the active view: { value, label } (value 0 → no pill)
+  const statOf = (m) => view === "predictions"
+    ? { value: predictionAccuracy(m.person.id).correct, label: "correct" }
+    : { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
+  let list = ql
     ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.money;
+  if (view === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
+    list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="People" sub={S.people.length + " in the sweep · sorted by team wins"} tall />
+      <PageHeader title="People" sub={S.people.length + (view==="predictions" ? " in the sweep · sorted by correct predictions" : " in the sweep · sorted by team wins")} tall />
       <div className="scroll pad screen-anim" style={{paddingTop:14}}>
         <div className="wrap">
-          <div style={{maxWidth:440,margin:"2px 0 14px"}}>
+          <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
+            <div className="statseg" style={{marginTop:10}}>
+              <button className={"statseg-opt"+(view==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
+              <button className={"statseg-opt"+(view==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
+            </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
           <div className="plist">
             {list.map(m=>{
               const p = m.person;
+              const stat = statOf(m);
               return (
                 <div className="prow" key={p.id} onClick={()=>openPerson(p)}>
                   <PersonAvatar p={p} cls="pav"/>
@@ -46,10 +59,10 @@ export function PeopleScreen({ openPerson }) {
                     <b>{p.name}</b>
                     <PersonTeams codes={p.teams} />
                   </div>
-                  {m.wins > 0 && (
+                  {stat.value > 0 && (
                     <div className="stat">
-                      <div className="pp">{m.wins}</div>
-                      <small style={{color:"var(--muted2)"}}>{m.wins===1?"win":"wins"}</small>
+                      <div className="pp">{stat.value}</div>
+                      <small style={{color:"var(--muted2)"}}>{stat.label}</small>
                     </div>
                   )}
                   <Icon.chev className="chev"/>
