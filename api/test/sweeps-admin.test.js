@@ -224,3 +224,32 @@ test('bulk delete removes only the listed pairs, scoped to the sweep', async () 
   const people = (await app.inject({ method: 'GET', url: '/api/people', headers: h })).json()
   expect(people.find((x) => x.id === p.id).teams).toEqual(['ar'])
 })
+
+test('bulk ownership writes publish a sync event for the sweep (so other devices refresh)', async () => {
+  const su = await superCookie()
+  const { cookie, id: sweepId } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' } })).json()
+  // A second app over the SAME db + secret so the cookie/sweep resolve, but with a publish spy.
+  const events = []
+  const spy = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz', publish: (e) => events.push(e) })
+  await spy.ready()
+  try {
+    // successful insert → publishes { type:'sync', sweepId }
+    const ins = await spy.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }] } })
+    expect(ins.statusCode).toBe(201)
+    expect(events).toContainEqual({ type: 'sync', sweepId })
+
+    // a rejected (unknown_person) call publishes nothing
+    events.length = 0
+    expect((await spy.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: 'pn_nope', teamCode: 'fr' }] } })).statusCode).toBe(400)
+    expect(events).toEqual([])
+
+    // bulk delete also publishes a sync
+    const del = await spy.inject({ method: 'DELETE', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }] } })
+    expect(del.statusCode).toBe(200)
+    expect(events).toContainEqual({ type: 'sync', sweepId })
+  } finally {
+    await spy.close()
+  }
+})
