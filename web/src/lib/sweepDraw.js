@@ -71,9 +71,13 @@ export function planSweep(people, teamList, { teamsPerPerson, seed }) {
     // Steer toward balance: a person below the mean power takes a strong team to
     // catch up; one already at/above the mean (e.g. they pre-own the giants) takes
     // a weak one. Random within the top/bottom-K keeps each re-roll different.
+    // BUT when this pick is forced to double an already-owned team (slots exceed
+    // teams), always take a weak one — co-ownership should fall on the minnows,
+    // never the giants.
     const mean = state.reduce((s, p) => s + p.total, 0) / state.length
+    const doubling = minCount >= 1
     const k = Math.min(TOP_K, bucket.length)
-    const pick = person.total <= mean
+    const pick = (!doubling && person.total <= mean)
       ? bucket[Math.floor(rng() * k)]
       : bucket[bucket.length - 1 - Math.floor(rng() * k)]
 

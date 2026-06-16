@@ -82,6 +82,25 @@ test('balances total team strength across people (no one hoards the giants)', ()
   expect(worst).toBeLessThanOrEqual(80)
 })
 
+test('when slots exceed teams, the co-owned (doubled) teams are weak ones, never the giants', () => {
+  const tl = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10].map((s, i) => ({ code: 't' + i, strength: s }))
+  const strength = (c) => tl.find((t) => t.code === c).strength
+  // 10 teams, 3 people, N=4 → 12 slots → exactly 2 teams must be doubled.
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const { added } = planSweep(people3(), tl, { teamsPerPerson: 4, seed })
+    const count = {}
+    for (const r of added) count[r.teamCode] = (count[r.teamCode] || 0) + 1
+    const doubled = Object.keys(count).filter((c) => count[c] === 2)
+    expect(doubled.length).toBe(2)
+    // a doubled team must come from the weaker half — the strongest teams stay single-owned
+    for (const c of doubled) expect(strength(c)).toBeLessThanOrEqual(50)
+  }
+})
+
+function people3() {
+  return [{ id: 'a', teams: [] }, { id: 'b', teams: [] }, { id: 'c', teams: [] }]
+}
+
 test('accounts for existing teams when balancing the top-up', () => {
   const tl = [100, 90, 80, 70, 60, 50, 40, 30].map((s, i) => ({ code: 't' + i, strength: s }))
   // 'a' already holds the two strongest; the top-up should steer power to b and c.
