@@ -44,7 +44,7 @@ group result).
 
 ### `fixture` (modify)
 - **Add `markets` jsonb** — normalized, the source of truth for offered prices:
-  ```
+  ```json
   {
     "1x2":   { "label": "Match Winner",      "book": "Pinnacle", "selections": [
                  {"key":"HOME","label":"Croatia","odds":2.32},

@@ -82,11 +82,10 @@ test('mapMarkets builds all five markets from the best-ranked book', () => {
 
 test('mapMarkets returns null when no usable book/markets', () => {
   expect(mapMarkets(oddsResp([]))).toBeNull()
-  expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toMatchObject({ book: 'X' }) // 1x2 incomplete → dropped, but no markets → null? see note
+  // an incomplete Match Winner (single value) yields no markets → null (empty markets ⇒ null)
+  expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toBeNull()
 })
 ```
-
-> Note: in the second assertion, an incomplete Match Winner yields no markets; adjust the expectation to `toBeNull()` if your implementation returns null when `markets` is empty (it should). Keep whichever matches the spec: **empty markets ⇒ return null**. Fix the test to `expect(...).toBeNull()`.
 
 - [ ] **Step 2: Run to confirm fail**
 
@@ -634,7 +633,7 @@ git commit -m "feat(api): seed multi-market odds + half-time score (dev)"
 
 **Files:** Modify `api/src/db/schema.js`; new migration.
 
-- [ ] **Step 1: Confirm no references** — `grep -rn "oddsHome\|oddsDraw\|oddsAway\|oddsBook\|odds_home\|odds_draw\|odds_away\|odds_book" api/src` → expect **no matches** (all replaced by `markets`). If any remain, fix them first.
+- [ ] **Step 1: Confirm no references** — grep the whole repo (not just `api/src` — also catch tests/seed/snapshots): `grep -rn "oddsHome\|oddsDraw\|oddsAway\|oddsBook\|odds_home\|odds_draw\|odds_away\|odds_book" api/src api/test` → expect **no runtime matches** (all replaced by `markets`; clean any stale test references). If any remain in source, fix them first.
 - [ ] **Step 2: Remove the four columns** from the `fixture` table in `api/src/db/schema.js` (`oddsHome`, `oddsDraw`, `oddsAway`, `oddsBook`).
 - [ ] **Step 3: Generate + apply** — `npm run db:generate -w api` (inspect: only DROPs the four columns). Then `npm run db:migrate -w api`.
 - [ ] **Step 4: Full suite** — `npm run test` → all green.
