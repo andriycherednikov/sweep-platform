@@ -34,18 +34,21 @@ export function coinsLeaderboard(limit = Infinity) {
 export function leaderboardByBalance() { return board }
 
 /** Optimistically debit the balance + add an open bet; reconcile/rollback against the server. */
-export async function placeBet(fixtureId, selection, stake) {
+export async function placeBet(fixtureId, market, selection, stake) {
   const me = getMe()
   if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return }
   const f = S.fixture(fixtureId)
-  const odds = f?.odds ? (selection === 'HOME' ? f.odds.home : selection === 'AWAY' ? f.odds.away : f.odds.draw) : null
-  const pending = { id: `pending_${Date.now()}_${pendingSeq++}`, fixtureId, selection, stake, odds, potentialPayout: odds ? Math.round(stake * odds) : 0, status: 'open' }
+  const mk = f?.markets?.[market]
+  const sel = mk?.selections?.find((s) => s.key === selection)
+  const odds = sel ? sel.odds : null
+  const pending = { id: `pending_${Date.now()}_${pendingSeq++}`, fixtureId, market, selection, stake, odds,
+    line: mk?.line ?? null, potentialPayout: odds ? Math.round(stake * odds) : 0, status: 'open' }
   wallet = { ...wallet, balance: wallet.balance - stake, bets: { ...wallet.bets, open: [pending, ...wallet.bets.open] } }
   notify()
-  trackEvent('bet_placed', { match_id: fixtureId, selection, stake })
+  trackEvent('bet_placed', { match_id: fixtureId, market, selection, stake })
   try {
-    const res = await postBet({ fixtureId, personId: me.id, selection, stake })
+    const res = await postBet({ fixtureId, personId: me.id, market, selection, stake })
     // swap the pending row for the real one; the SSE 'bet' event reconciles the
     // authoritative balance/bets shortly after, so we don't fight concurrent placeBets here.
     wallet = { ...wallet, balance: res.balance, bets: { ...wallet.bets, open: wallet.bets.open.map((b) => b.id === pending.id ? res.bet : b) } }

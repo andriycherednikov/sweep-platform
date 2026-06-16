@@ -336,15 +336,15 @@ test('fetchWallet GETs /api/coins with personId query and credentials', async ()
   expect(calls[0].opts.credentials).toBe('include')
 })
 
-test('postBet POSTs the bet body to /api/bet with credentials', async () => {
+test('postBet posts market + selection to /api/bet', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
     calls.push({ url, opts })
     return { ok: true, status: 200, json: async () => ({ ok: true }) }
   }))
-  await postBet({ fixtureId: 'f1', personId: 'pn_x', selection: 'HOME', stake: 100 })
+  await postBet({ fixtureId: 'f1', personId: 'pn_x', market: 'ou25', selection: 'OVER', stake: 50 })
   expect(calls[0].url).toMatch(/\/api\/bet$/)
   expect(calls[0].opts.method).toBe('POST')
   expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', personId: 'pn_x', selection: 'HOME', stake: 100 })
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', personId: 'pn_x', market: 'ou25', selection: 'OVER', stake: 50 })
 })
