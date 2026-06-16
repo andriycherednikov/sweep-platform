@@ -20,6 +20,7 @@ import {
 } from "./screens-detail.jsx";
 import { SuperConsole } from "./screens-super.jsx";
 import { CoinsScreen } from "./screens-coins.jsx";
+import { BetDetail } from "./screens-bet-detail.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
@@ -143,6 +144,7 @@ export default function App() {
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
+  else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack}/>;
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;

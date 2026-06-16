@@ -17,7 +17,7 @@ function selectionLabel(selection, f) {
 }
 
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
-function BetSheet({ f, market, selection, odds, onClose }) {
+export function BetSheet({ f, market, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { wallet } = useCoins()
