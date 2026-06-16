@@ -140,6 +140,15 @@ TDD per task (Vitest + `@testcontainers/postgresql`, Docker required):
   re-run; SSE published per sweep.
 - Web build clean.
 
+## Known limitations
+
+- **Balance check is best-effort under concurrency.** `POST /api/bet` reads the balance,
+  then writes the stake + bet in a transaction — but the read is outside that transaction
+  and takes no row lock. Two simultaneous bets by the same person could both pass the check
+  and overdraw. Acceptable for play money at this scale (~45 friends, occasional bets); the
+  ledger stays fully auditable. If ever needed, harden by recomputing `SUM(amount) - stake
+  >= 0` inside the transaction with a row/advisory lock on the person.
+
 ## Out of scope (now)
 
 Knockout "to qualify" betting (schema/UI leave room), in-play/live odds refresh, cash-out,
