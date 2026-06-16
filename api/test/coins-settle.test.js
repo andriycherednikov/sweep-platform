@@ -47,3 +47,36 @@ test('settleBets pays winners, busts losers, and is idempotent', async () => {
   expect(again).toEqual([])
   expect(await balanceOf(db, 'default', p.id)).toBe(startBal - 200 + 200)
 })
+
+import { resolveBet } from '../src/coins/settle.js'
+
+const fx = (over = {}) => ({ t1Code: 'arg', t2Code: 'bra', winnerCode: null, score1: null, score2: null,
+  htScore1: null, htScore2: null, events: [], ...over })
+
+test('resolveBet 1x2 from final result', () => {
+  expect(resolveBet('1x2', 'HOME', null, fx({ score1: 2, score2: 0 }))).toBe('won')
+  expect(resolveBet('1x2', 'DRAW', null, fx({ score1: 1, score2: 1 }))).toBe('won')
+  expect(resolveBet('1x2', 'AWAY', null, fx({ score1: 1, score2: 1 }))).toBe('lost')
+})
+
+test('resolveBet ou25 from total goals', () => {
+  expect(resolveBet('ou25', 'OVER', 2.5, fx({ score1: 2, score2: 1 }))).toBe('won')
+  expect(resolveBet('ou25', 'UNDER', 2.5, fx({ score1: 1, score2: 1 }))).toBe('won')
+})
+
+test('resolveBet cards from card-event count vs line', () => {
+  const events = [{ type: 'card' }, { type: 'card' }, { type: 'card' }, { type: 'card' }, { type: 'goal' }]
+  expect(resolveBet('cards', 'OVER', 3.5, fx({ events }))).toBe('won')
+  expect(resolveBet('cards', 'UNDER', 3.5, fx({ events }))).toBe('lost')
+})
+
+test('resolveBet fh1x2 from half-time score (or goal-events fallback)', () => {
+  expect(resolveBet('fh1x2', 'HOME', null, fx({ htScore1: 1, htScore2: 0 }))).toBe('won')
+  expect(resolveBet('fh1x2', 'HOME', null, fx({ events: [{ type: 'goal', teamCode: 'arg', minute: 20 }] }))).toBe('won')
+  expect(resolveBet('fh1x2', 'HOME', null, { ...fx(), events: null })).toBeNull()
+})
+
+test('resolveBet cs exact final score', () => {
+  expect(resolveBet('cs', '2:1', null, fx({ score1: 2, score2: 1 }))).toBe('won')
+  expect(resolveBet('cs', '2:1', null, fx({ score1: 1, score2: 1 }))).toBe('lost')
+})
