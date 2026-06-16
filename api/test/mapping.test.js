@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapLineups, mapSquad, mapEvents, mapMarkets } from '../src/providers/mapping.js'
+import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapLineups, mapSquad, mapEvents, mapMarkets } from '../src/providers/mapping.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 
@@ -44,27 +44,6 @@ test('mapPrediction turns percent strings into integers, or null', () => {
   expect(mapPrediction(null)).toBeNull()
 })
 
-test('mapOdds: first complete Match Winner market → implied probs summing to 100 (decoy bets ignored)', () => {
-  const r = mapOdds(load('odds'))
-  // 1/1.80, 1/3.60, 1/4.50 normalized, largest-remainder rounded
-  expect(r).toMatchObject({ a: 53, d: 26, b: 21 })
-  expect(r.a + r.d + r.b).toBe(100)
-})
-
-test('mapOdds: null on no bookmaker, no Match Winner market, or missing/degenerate odds', () => {
-  expect(mapOdds({ response: [] })).toBeNull()
-  expect(mapOdds(null)).toBeNull()
-  // bookmaker without a Match Winner bet
-  expect(mapOdds({ response: [{ bookmakers: [{ bets: [{ name: 'Goals Over/Under', values: [] }] }] }] })).toBeNull()
-  // a missing odd value
-  expect(mapOdds({ response: [{ bookmakers: [{ bets: [{ name: 'Match Winner', values: [
-    { value: 'Home', odd: '2.00' }, { value: 'Draw', odd: '3.00' },
-  ] }] }] }] })).toBeNull()
-  // an odd <= 1 (impossible/garbage)
-  expect(mapOdds({ response: [{ bookmakers: [{ bets: [{ name: 'Match Winner', values: [
-    { value: 'Home', odd: '1.00' }, { value: 'Draw', odd: '3.00' }, { value: 'Away', odd: '4.00' },
-  ] }] }] }] })).toBeNull()
-})
 
 test('mapLineups: resolves provider team ids → codes, keeps formation + 11 starters', () => {
   const cw = new Map([[3001, 'hr'], [3002, 'be']])
@@ -159,31 +138,6 @@ const mw = (home, draw, away) => ({ name: 'Match Winner', values: [
   { value: 'Home', odd: String(home) }, { value: 'Draw', odd: String(draw) }, { value: 'Away', odd: String(away) },
 ] })
 
-test('mapOdds prefers Pinnacle even when another book appears first', () => {
-  const r = mapOdds(oddsResponse([
-    { id: 8, name: 'Bet365', bets: [mw(2.0, 3.4, 4.0)] },
-    { id: 4, name: 'Pinnacle', bets: [mw(2.1, 3.3, 3.8)] },
-  ]))
-  expect(r.book).toBe('Pinnacle')
-  expect(r.odds).toEqual({ home: 2.1, draw: 3.3, away: 3.8 })
-  expect(r.a + r.d + r.b).toBe(100)
-})
-
-test('mapOdds falls back to Bet365, then to the first complete 1X2 book', () => {
-  const noPin = mapOdds(oddsResponse([
-    { id: 99, name: 'SomeBook', bets: [mw(1.9, 3.5, 4.2)] },
-    { id: 8, name: 'Bet365', bets: [mw(2.0, 3.4, 4.0)] },
-  ]))
-  expect(noPin.book).toBe('Bet365')
-  const neither = mapOdds(oddsResponse([{ id: 99, name: 'SomeBook', bets: [mw(1.9, 3.5, 4.2)] }]))
-  expect(neither.book).toBe('SomeBook')
-  expect(neither.odds.home).toBe(1.9)
-})
-
-test('mapOdds skips books with an incomplete Match Winner market and returns null when none usable', () => {
-  expect(mapOdds(oddsResponse([{ id: 4, name: 'Pinnacle', bets: [{ name: 'Match Winner', values: [{ value: 'Home', odd: '2.0' }] }] }]))).toBeNull()
-  expect(mapOdds(oddsResponse([]))).toBeNull()
-})
 
 const rawFix = (over = {}) => ({
   fixture: { id: 42, date: '2026-06-20T18:00:00Z', status: { short: over.short ?? 'NS', elapsed: null }, venue: {} },

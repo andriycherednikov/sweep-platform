@@ -1,4 +1,4 @@
-import { mapFixture, mapStanding, mapPrediction, mapTeam, mapOdds, mapSquad } from './mapping.js'
+import { mapFixture, mapStanding, mapPrediction, mapTeam, mapMarkets, mapSquad } from './mapping.js'
 
 const BASE = 'https://v3.football.api-sports.io'
 const LEAGUE = 1
@@ -58,7 +58,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       // by fixture only — /odds rejects `league` unless `season` is also given,
       // which would silently yield 0 results and fall back to /predictions placeholders
       const j = await get('/odds', { fixture: fixtureId })
-      return mapOdds(j)
+      return mapMarkets(j)
     },
     async fetchTeams(season) {
       const j = await get('/teams', { league: LEAGUE, season })

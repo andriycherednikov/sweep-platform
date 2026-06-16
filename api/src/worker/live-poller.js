@@ -87,7 +87,7 @@ export async function pollLive(db, provider, ids, publish = () => {}) {
       if (!cur) continue
       if (cur.status === f.status && cur.score1 === f.score1 && cur.score2 === f.score2 && cur.minute === f.minute) continue
       await db.update(fixture)
-        .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, updatedAt: new Date() })
+        .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, htScore1: f.htScore1, htScore2: f.htScore2, updatedAt: new Date() })
         .where(eq(fixture.id, f.id))
       updated++
       publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute })

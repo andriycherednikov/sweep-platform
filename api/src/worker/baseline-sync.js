@@ -35,30 +35,31 @@ export async function syncBaseline(db, provider, { season }) {
     }))
     const flags = computeFlags(fixtures, ownershipRows)
 
-    // win probabilities: prefer bookmaker odds, fall back to /predictions.
+    // win probabilities: prefer bookmaker markets (prob from 1x2), fall back to /predictions.
     // best-effort per fixture (missing → leave prob null, never throw).
     const probById = new Map()
+    const mById = new Map()
     for (const f of fixtures) {
-      let p = null
-      try { p = await provider.fetchOdds(f.id) } catch { /* best-effort */ }
-      if (!p) { try { p = await provider.fetchPredictions(f.id) } catch { /* best-effort */ } }
-      if (p) probById.set(f.id, p)
+      let m = null
+      try { m = await provider.fetchOdds(f.id) } catch { /* best-effort */ }
+      let prob = m?.prob ?? null
+      if (!prob) { try { prob = await provider.fetchPredictions(f.id) } catch { /* best-effort */ } }
+      if (m) mById.set(f.id, m)
+      if (prob) probById.set(f.id, prob)
     }
 
     for (const f of fixtures) {
       const fl = flags.get(f.id)
       const prob = probById.get(f.id)
       const winnerCode = f.winnerSide === 'home' ? f.t1Code : f.winnerSide === 'away' ? f.t2Code : f.winnerSide === 'draw' ? 'DRAW' : null
-      const hasOdds = prob?.odds && prob.odds.home != null && prob.odds.draw != null && prob.odds.away != null
-      const oddsSet = hasOdds
-        ? { oddsHome: String(prob.odds.home), oddsDraw: String(prob.odds.draw), oddsAway: String(prob.odds.away), oddsBook: prob.book }
-        : {}
+      const m = mById.get(f.id)
+      const marketsSet = m?.markets ? { markets: m.markets } : {}
       await db.insert(fixture).values({
         id: f.id, group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
         kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
         score1: f.score1, score2: f.score2, minute: f.minute,
         probA: prob?.a ?? null, probD: prob?.d ?? null, probB: prob?.b ?? null,
-        ...oddsSet, winnerCode,
+        ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
         stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
       }).onConflictDoUpdate({
         target: fixture.id,
@@ -68,8 +69,8 @@ export async function syncBaseline(db, provider, { season }) {
           score1: f.score1, score2: f.score2, minute: f.minute,
           // predictions are best-effort: only overwrite when we got fresh numbers
           ...(prob ? { probA: prob.a, probD: prob.d, probB: prob.b } : {}),
-          // odds only overwrite when freshly fetched (oddsSet empty otherwise → preserves prior)
-          ...oddsSet, winnerCode,
+          // markets only overwrite when freshly fetched (marketsSet empty otherwise → preserves prior)
+          ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
           stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
         },
       })

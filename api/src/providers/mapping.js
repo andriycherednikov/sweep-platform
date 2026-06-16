@@ -90,37 +90,6 @@ function roundTo100(parts) {
 // Preferred bookmakers, most-credible first; any book with a complete 1X2 market is the last resort.
 const BOOK_RANK = ['Pinnacle', 'Bet365']
 
-/**
- * /odds response → { a, d, b (implied win %s), odds:{home,draw,away} (decimal), book } or null.
- * Picks the most credible bookmaker carrying a complete "Match Winner" (1X2) market
- * (BOOK_RANK order, else feed order), converts decimals to margin-stripped implied
- * probabilities, and rounds to ints summing to exactly 100.
- */
-export function mapOdds(rawResponse) {
-  const bookmakers = rawResponse?.response?.[0]?.bookmakers ?? []
-  const complete = (bk) => {
-    const bet = (bk.bets ?? []).find((b) => b.name === 'Match Winner')
-    if (!bet) return null
-    const pick = (label) => bet.values?.find((v) => v.value === label)?.odd
-    const odds = [pick('Home'), pick('Draw'), pick('Away')].map(Number)
-    if (odds.some((o) => !Number.isFinite(o) || o <= 1)) return null
-    return odds
-  }
-  const ranked = [...bookmakers].sort((x, y) => {
-    const rx = BOOK_RANK.indexOf(x.name), ry = BOOK_RANK.indexOf(y.name)
-    return (rx === -1 ? Infinity : rx) - (ry === -1 ? Infinity : ry)
-  })
-  for (const bk of ranked) {
-    const odds = complete(bk)
-    if (!odds) continue
-    const [home, draw, away] = odds
-    const implied = odds.map((o) => 1 / o)
-    const sum = implied.reduce((s, n) => s + n, 0)
-    const [a, d, b] = roundTo100(implied.map((p) => p / sum))
-    return { a, d, b, odds: { home, draw, away }, book: bk.name }
-  }
-  return null
-}
 
 const PREF_CARD_LINES = [3.5, 4.5, 2.5]
 

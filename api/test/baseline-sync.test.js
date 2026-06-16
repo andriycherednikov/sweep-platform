@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing, syncLog, watch, support } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
-import { mapOdds, mapPrediction } from '../src/providers/mapping.js'
+import { mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -66,14 +66,19 @@ test('prefers bookmaker odds, falls back to predictions when odds are absent', a
   const calls = { preds: [] }
   const oddsProvider = {
     ...provider,
-    async fetchOdds(fixtureId) { return fixtureId === '9002' ? mapOdds(load('odds')) : null },
+    async fetchOdds(fixtureId) {
+      if (fixtureId !== '9002') return null
+      return { markets: { '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [
+        { key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 },
+      ] } }, book: 'Pinnacle', prob: { a: 50, d: 25, b: 25 } }
+    },
     async fetchPredictions(fixtureId) { calls.preds.push(fixtureId); return mapPrediction(load('predictions')) },
   }
   await syncBaseline(db, oddsProvider, { season: 2026 })
   const fx = await db.select().from(fixture)
   const f1 = fx.find((f) => f.id === '9001')
   const f2 = fx.find((f) => f.id === '9002')
-  expect(f2).toMatchObject({ probA: 53, probD: 26, probB: 21 })   // odds-derived
+  expect(f2).toMatchObject({ probA: 50, probD: 25, probB: 25 })   // odds-derived
   expect(f2.probA + f2.probD + f2.probB).toBe(100)
   expect(f1.probA).toBe(55)                                       // no odds → predictions fallback
   expect(calls.preds).not.toContain('9002')                      // odds won → predictions skipped
@@ -88,7 +93,7 @@ test('a failed odds+predictions fetch does not wipe prior prob', async () => {
   }
   await syncBaseline(db, boomProbs, { season: 2026 })
   const f2 = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
-  expect(f2.probA).toBe(53)                                       // last-good odds untouched
+  expect(f2.probA).toBe(50)                                       // last-good odds untouched
 })
 
 test('a provider failure leaves last-good data and logs an error row', async () => {
@@ -100,26 +105,28 @@ test('a provider failure leaves last-good data and logs an error row', async () 
   expect(logs.at(-1).error).toMatch(/503/)
 })
 
-test('persists decimal odds and winnerCode when fixture is final', async () => {
-  // Arrange: override fetchFixtures to inject winnerSide:'home' into fixture 9001 (Croatia won)
-  // and fetchOdds to return Pinnacle odds for 9001.
+test('persists markets + htScore and winnerCode when fixture is final', async () => {
+  // Arrange: override fetchFixtures to inject winnerSide:'home' + htScore into fixture 9001 (Croatia won)
+  // and fetchOdds to return Pinnacle markets for 9001.
   const pinnacleOddsProvider = {
     ...provider,
     async fetchFixtures(season) {
       const base = await provider.fetchFixtures(season)
-      return base.map((f) => f.id === '9001' ? { ...f, winnerSide: 'home' } : f)
+      return base.map((f) => f.id === '9001' ? { ...f, winnerSide: 'home', htScore1: 1, htScore2: 0 } : f)
     },
     async fetchOdds(fixtureId) {
       if (fixtureId === '9001') {
-        return { a: 50, d: 25, b: 25, odds: { home: 2, draw: 3.5, away: 4 }, book: 'Pinnacle' }
+        return { markets: { '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [
+          { key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 },
+        ] } }, book: 'Pinnacle', prob: { a: 50, d: 25, b: 25 } }
       }
       return null
     },
   }
   await syncBaseline(db, pinnacleOddsProvider, { season: 2026 })
   const [f] = await db.select().from(fixture).where(eq(fixture.id, '9001'))
-  expect(Number(f.oddsHome)).toBe(2)
-  expect(Number(f.oddsAway)).toBe(4)
-  expect(f.oddsBook).toBe('Pinnacle')
+  expect(f.markets['1x2'].selections[0].odds).toBe(2)
+  expect(f.probA).toBe(50)
+  expect(f.htScore1).toBe(1)
   expect(f.winnerCode).toBe(f.t1Code) // winnerSide 'home' → t1Code ('hr')
 })
