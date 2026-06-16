@@ -17,18 +17,21 @@ test('serializeFixture coerces null events to an empty array', () => {
   expect(serializeFixture({ ...base, events: null }).events).toEqual([])
 })
 
-test('serializeFixture exposes decimal odds + book', () => {
+test('serializeFixture exposes markets and half-time score', () => {
+  const markets = { '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 2 }] } }
   const out = serializeFixture({ id: '1', group: 'A', matchday: 1, t1Code: 'arg', t2Code: 'bra',
-    kickoffUtc: new Date(), venue: '', city: '', status: 'upcoming', score1: null, score2: null, minute: null,
-    probA: 50, probD: 25, probB: 25, oddsHome: '2.10', oddsDraw: '3.30', oddsAway: '3.80', oddsBook: 'Pinnacle',
+    kickoffUtc: new Date(), venue: '', city: '', status: 'final', score1: 2, score2: 1, minute: null,
+    probA: 50, probD: 25, probB: 25, markets, htScore1: 1, htScore2: 0,
     stage: 'group', derby: false, doubleOwner: false })
-  expect(out.odds).toEqual({ home: 2.1, draw: 3.3, away: 3.8, book: 'Pinnacle' })
+  expect(out.markets).toEqual(markets)
+  expect(out.htScore).toEqual([1, 0])
 })
 
-test('serializeFixture odds is null when no odds were captured', () => {
+test('serializeFixture markets null + htScore null when absent', () => {
   const out = serializeFixture({ id: '1', group: 'A', matchday: 1, t1Code: 'arg', t2Code: 'bra',
     kickoffUtc: new Date(), venue: '', city: '', status: 'upcoming', score1: null, score2: null, minute: null,
-    probA: null, probD: null, probB: null, oddsHome: null, oddsDraw: null, oddsAway: null, oddsBook: null,
+    probA: null, probD: null, probB: null, markets: null, htScore1: null, htScore2: null,
     stage: 'group', derby: false, doubleOwner: false })
-  expect(out.odds).toBeNull()
+  expect(out.markets).toBeNull()
+  expect(out.htScore).toBeNull()
 })
