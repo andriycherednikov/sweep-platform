@@ -769,28 +769,41 @@ const betBody = {
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
     if (f.status !== 'upcoming') return reply.code(400).send({ error: 'betting_closed' })
-    if (selection === 'DRAW' && f.stage !== 'group') return reply.code(400).send({ error: 'invalid_selection' })
+    // group stage only for now: knockout odds are the 90-min 1X2 market, which would
+    // mis-settle against our final (incl. ET/penalties) winnerCode.
+    if (f.stage !== 'group') return reply.code(400).send({ error: 'not_group_stage' })
     const oddsCol = selection === 'HOME' ? f.oddsHome : selection === 'AWAY' ? f.oddsAway : f.oddsDraw
     if (oddsCol == null) return reply.code(400).send({ error: 'no_odds' })
-
-    await ensureGrants(app.db, sweepId, personId)
-    const balance = await balanceOf(app.db, sweepId, personId)
-    if (stake > balance) return reply.code(400).send({ error: 'insufficient_funds' })
-
     const odds = Number(oddsCol)
+    if (!Number.isFinite(odds) || odds <= 1) return reply.code(400).send({ error: 'invalid_odds' })
+
+    await ensureGrants(app.db, sweepId, personId) // idempotent; outside the lock so the in-tx balance includes grants
+
     const potentialPayout = Math.round(stake * odds)
     const id = randomUUID()
-    await app.db.transaction(async (tx) => {
+    // Balance check + stake deduction are atomic under a per-(sweep,person) advisory lock,
+    // so two concurrent bets can't both pass the check and overdraw.
+    const result = await app.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${sweepId}), hashtext(${personId}))`)
+      const [b] = await tx.select({ total: sql`coalesce(sum(${coinLedger.amount}), 0)` })
+        .from(coinLedger).where(and(eq(coinLedger.sweepId, sweepId), eq(coinLedger.personId, personId)))
+      const balance = Number(b.total)
+      if (stake > balance) return { error: 'insufficient_funds' }
       await tx.insert(coinLedger).values({ sweepId, personId, type: 'stake', amount: -stake, refId: id })
       await tx.insert(bet).values({ id, sweepId, personId, fixtureId, selection, stake,
         oddsDecimal: String(odds), book: f.oddsBook, potentialPayout, status: 'open' })
+      return { balance: balance - stake }
     })
+    if (result.error) return reply.code(400).send({ error: result.error })
 
     const [row] = await app.db.select().from(bet).where(eq(bet.id, id))
     await app.publish({ type: 'bet', sweepId, personId, fixtureId })
-    return { bet: serializeBet(row), balance: balance - stake }
+    return { bet: serializeBet(row), balance: result.balance }
   })
 ```
+
+> Note: this snippet reflects the hardened final implementation (advisory-locked balance
+> check, group-stage-only, `invalid_odds` guard). `sql` is imported from `drizzle-orm`.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 

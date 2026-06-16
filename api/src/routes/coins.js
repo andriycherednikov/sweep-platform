@@ -44,7 +44,7 @@ export async function coinsRoutes(app) {
     const oddsCol = selection === 'HOME' ? f.oddsHome : selection === 'AWAY' ? f.oddsAway : f.oddsDraw
     if (oddsCol == null) return reply.code(400).send({ error: 'no_odds' })
     const odds = Number(oddsCol)
-    if (!Number.isFinite(odds) || odds <= 0) return reply.code(400).send({ error: 'invalid_odds' })
+    if (!Number.isFinite(odds) || odds <= 1) return reply.code(400).send({ error: 'invalid_odds' })
 
     // grants are idempotent and best run outside the lock so the in-tx balance includes them
     await ensureGrants(app.db, sweepId, personId)

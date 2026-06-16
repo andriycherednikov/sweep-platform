@@ -1,5 +1,5 @@
-import { notInArray } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog, watch, support, bet } from '../db/schema.js'
+import { notInArray, inArray } from 'drizzle-orm'
+import { fixture, standing, ownership, syncLog, watch, support, bet, coinLedger } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
@@ -49,7 +49,8 @@ export async function syncBaseline(db, provider, { season }) {
       const fl = flags.get(f.id)
       const prob = probById.get(f.id)
       const winnerCode = f.winnerSide === 'home' ? f.t1Code : f.winnerSide === 'away' ? f.t2Code : f.winnerSide === 'draw' ? 'DRAW' : null
-      const oddsSet = prob?.odds
+      const hasOdds = prob?.odds && prob.odds.home != null && prob.odds.draw != null && prob.odds.away != null
+      const oddsSet = hasOdds
         ? { oddsHome: String(prob.odds.home), oddsDraw: String(prob.odds.draw), oddsAway: String(prob.odds.away), oddsBook: prob.book }
         : {}
       await db.insert(fixture).values({
@@ -81,6 +82,10 @@ export async function syncBaseline(db, provider, { season }) {
     if (keep.length) {
       await db.delete(watch).where(notInArray(watch.fixtureId, keep))
       await db.delete(support).where(notInArray(support.fixtureId, keep))
+      // a bet's stake/payout ledger rows use refId = bet.id; drop them with the bet so a
+      // pruned fixture doesn't leave the person's balance debited for a bet that's gone.
+      const prunedBets = await db.select({ id: bet.id }).from(bet).where(notInArray(bet.fixtureId, keep))
+      if (prunedBets.length) await db.delete(coinLedger).where(inArray(coinLedger.refId, prunedBets.map((b) => b.id)))
       await db.delete(bet).where(notInArray(bet.fixtureId, keep))
       await db.delete(fixture).where(notInArray(fixture.id, keep))
     }
