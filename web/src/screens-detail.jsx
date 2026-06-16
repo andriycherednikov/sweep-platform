@@ -620,7 +620,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
 
           <MatchTimeline f={f} />
 
-          {!showScore && f.hasOdds && (
+          {f.hasOdds && (
             <>
               <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Official prediction</div>
               <div className="block" style={{padding:"15px 16px",marginBottom:16}}>

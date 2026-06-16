@@ -92,6 +92,14 @@ test('MatchSheet hides the watch CTA + who\'s-watching once a game is final', ()
   expect(queryByText(/Who's watching/i)).toBeNull()
 })
 
+test('MatchSheet shows the Official prediction through live and final, not just pre-match', () => {
+  // queries scoped to each render's own container (testing-library renders share document.body)
+  const hasPred = (f) => renderSheet(f).container.textContent.includes('Official prediction')
+  expect(hasPred(sheetFixture(null, {}, [], { status: 'upcoming' }))).toBe(true)            // baseline
+  expect(hasPred(sheetFixture(null, {}, [], { status: 'live', score: [1, 0] }))).toBe(true) // was hidden by !showScore
+  expect(hasPred(sheetFixture(null, {}, [], { status: 'final', score: [2, 1] }))).toBe(true)
+})
+
 test('MatchSheet shows a Starting XI block with formations and players', () => {
   const { getByText } = renderSheet(sheetFixture(LINEUPS))
   expect(getByText('Starting XI')).toBeTruthy()
