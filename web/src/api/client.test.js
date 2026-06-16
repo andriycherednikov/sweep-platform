@@ -1,5 +1,5 @@
 import { expect, test, vi, beforeEach } from 'vitest'
-import { fetchBootstrap, fetchFixtures, fetchStandings, fetchPhotos, fetchSyncStatus, fetchAll } from './client.js'
+import { fetchBootstrap, fetchFixtures, fetchStandings, fetchPhotos, fetchSyncStatus, fetchAll, fetchWallet, postBet } from './client.js'
 
 beforeEach(() => { vi.restoreAllMocks() })
 
@@ -322,4 +322,29 @@ test('patchSweep PATCHes the fields with credentials', async () => {
   expect(calls[0].opts.method).toBe('PATCH')
   expect(calls[0].opts.credentials).toBe('include')
   expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Renamed' })
+})
+
+test('fetchWallet GETs /api/coins with personId query and credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ balance: 1000, leaderboard: [] }) }
+  }))
+  const res = await fetchWallet('pn_x')
+  expect(res).toEqual({ balance: 1000, leaderboard: [] })
+  expect(calls[0].url).toMatch(/\/api\/coins\?personId=pn_x$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
+test('postBet POSTs the bet body to /api/bet with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ ok: true }) }
+  }))
+  await postBet({ fixtureId: 'f1', personId: 'pn_x', selection: 'HOME', stake: 100 })
+  expect(calls[0].url).toMatch(/\/api\/bet$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', personId: 'pn_x', selection: 'HOME', stake: 100 })
 })

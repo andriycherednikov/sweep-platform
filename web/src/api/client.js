@@ -33,6 +33,9 @@ export const fetchSocial = () => get('/api/social')
 export const postWatch = (fixtureId, personId) => post('/api/watch', { fixtureId, personId })
 export const postSupport = (fixtureId, personId, teamCode) => post('/api/support', { fixtureId, personId, teamCode })
 
+export const fetchWallet = (personId) => get(`/api/coins?personId=${encodeURIComponent(personId)}`)
+export const postBet = ({ fixtureId, personId, selection, stake }) => post('/api/bet', { fixtureId, personId, selection, stake })
+
 async function getCreds(path) {
   const res = await fetch(path, { credentials: 'include' })
   if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
