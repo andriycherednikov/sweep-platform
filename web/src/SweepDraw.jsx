@@ -160,7 +160,7 @@ export function SweepDraw({ onToast, queryClient }) {
             <p className="sweep-summary">
               {summary.totalAdd === 0
                 ? `Everyone already has ${n} team${n === 1 ? '' : 's'}.`
-                : `${live ? 'Drawing' : 'Adds'} ${summary.totalAdd} team${summary.totalAdd === 1 ? '' : 's'} across ${summary.getting} ${summary.getting === 1 ? 'person' : 'people'}` + (summary.already ? ` · ${summary.already} already at ${n}` : '')}
+                : `${live ? 'Drawing' : 'Adds'} ${summary.totalAdd} team${summary.totalAdd === 1 ? '' : 's'} across ${summary.getting} ${summary.getting === 1 ? 'person' : 'people'} · balanced by team strength` + (summary.already ? ` · ${summary.already} already at ${n}` : '')}
             </p>
           </div>
           <div className="sweep-toolbar">

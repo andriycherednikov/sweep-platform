@@ -66,3 +66,29 @@ test('handles empty / missing inputs without throwing', () => {
   expect(planSweep([], teams(4), { teamsPerPerson: 2, seed: 1 }).added).toEqual([])
   expect(planSweep([{ id: 'a', teams: [] }], [], { teamsPerPerson: 2, seed: 1 }).byPerson.a).toEqual([])
 })
+
+test('balances total team strength across people (no one hoards the giants)', () => {
+  const tl = [120, 110, 100, 90, 80, 70, 60, 50, 40, 30, 20, 10].map((s, i) => ({ code: 't' + i, strength: s }))
+  const people = [{ id: 'a', teams: [] }, { id: 'b', teams: [] }, { id: 'c', teams: [] }]
+  const strength = (c) => tl.find((t) => t.code === c).strength
+  // 12 teams, 3 people, N=4 → each gets 4 distinct teams. Perfect balance = 780/3 = 260.
+  // A naive random draw could land 330 (120+110+100) vs 60 (10+20+30) → spread 270.
+  let worst = 0
+  for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
+    const { byPerson } = planSweep(people, tl, { teamsPerPerson: 4, seed })
+    const sums = people.map((p) => byPerson[p.id].reduce((s, c) => s + strength(c), 0))
+    worst = Math.max(worst, Math.max(...sums) - Math.min(...sums))
+  }
+  expect(worst).toBeLessThanOrEqual(80)
+})
+
+test('accounts for existing teams when balancing the top-up', () => {
+  const tl = [100, 90, 80, 70, 60, 50, 40, 30].map((s, i) => ({ code: 't' + i, strength: s }))
+  // 'a' already holds the two strongest; the top-up should steer power to b and c.
+  const people = [{ id: 'a', teams: ['t0', 't1'] }, { id: 'b', teams: [] }, { id: 'c', teams: [] }]
+  const strength = (c) => tl.find((t) => t.code === c).strength
+  const { byPerson } = planSweep(people, tl, { teamsPerPerson: 3, seed: 3 })
+  const total = (p) => [...p.teams, ...byPerson[p.id]].reduce((s, c) => s + strength(c), 0)
+  const sums = people.map(total)
+  expect(Math.max(...sums) - Math.min(...sums)).toBeLessThanOrEqual(80)
+})
