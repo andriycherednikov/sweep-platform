@@ -45,8 +45,7 @@ async function bettableFixture() {
     ou25: { label: 'Over/Under 2.5', line: 2.5, book: 'Pinnacle', selections: [
       { key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
   }
-  await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets,
-    oddsHome: null, oddsDraw: null, oddsAway: null, oddsBook: null }).where(eq(fixture.id, f.id))
+  await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets }).where(eq(fixture.id, f.id))
   return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
 }
 const balanceOfPerson = async (id) => (await app.inject({ method: 'GET', url: `/api/coins?personId=${id}` })).json().balance

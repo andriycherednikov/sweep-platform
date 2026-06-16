@@ -70,10 +70,6 @@ export const fixture = pgTable('fixture', {
   probA: integer('prob_a'),
   probD: integer('prob_d'),
   probB: integer('prob_b'),
-  oddsHome: numeric('odds_home'),
-  oddsDraw: numeric('odds_draw'),
-  oddsAway: numeric('odds_away'),
-  oddsBook: text('odds_book'),
   winnerCode: text('winner_code'), // winning team code or 'DRAW', set when final
   markets: jsonb('markets'),
   htScore1: integer('ht_score1'),
