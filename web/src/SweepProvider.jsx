@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchAll, fetchSocial } from './api/client.js'
+import { fetchAll, fetchSocial, fetchWallet } from './api/client.js'
 import { setSweepData } from './data.js'
-import { setSocialData, setCurrentSweepId } from './social.js'
+import { setSocialData, setCurrentSweepId, getMe } from './social.js'
+import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep, switchTo } from './sweeps.js'
@@ -55,6 +56,16 @@ function Gate({ children }) {
       const social = await fetchSocial()
       setSocialData(social)
       return social
+    },
+  })
+
+  useQuery({
+    queryKey: ['coins'],
+    queryFn: async () => {
+      const me = getMe()
+      const wallet = await fetchWallet(me ? me.id : '')
+      setWalletData(wallet)
+      return wallet
     },
   })
 

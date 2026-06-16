@@ -12,12 +12,13 @@ const bundle = {
   '/api/fixtures': [], '/api/standings': { L: [] }, '/api/photos': [],
   '/api/sync-status': { stale: true, lastBaselineAt: null, lastLiveAt: null },
   '/api/social': { watch: {}, support: {} },
+  '/api/coins': { balance: 1000, bets: [] },
 }
 
 beforeEach(() => {
   esInstances = []
   vi.stubGlobal('fetch', vi.fn(async (url) => {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     return { ok: true, status: 200, json: async () => bundle[path] }
   }))
 })
@@ -45,7 +46,7 @@ test('sets the active sweep id from bootstrap so identity keys per-sweep', async
   // a pick stored under sw_x must resolve once the gate sets the active sweep id
   localStorage.setItem('sweep.me.v1.sw_x', 'p1')
   vi.stubGlobal('fetch', vi.fn(async (url) => {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     if (path === '/api/bootstrap') {
       return { ok: true, status: 200, json: async () => ({
         teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#000', strength: 80 }],
@@ -64,7 +65,7 @@ test('sets the active sweep id from bootstrap so identity keys per-sweep', async
 
 function mock401() {
   vi.stubGlobal('fetch', vi.fn(async (url) => {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     if (path === '/api/bootstrap') return { ok: false, status: 401, json: async () => ({}) }
     return { ok: true, status: 200, json: async () => bundle[path] }
   }))
@@ -107,7 +108,7 @@ test('a successful load backfills the sweep name into the store via addSweep', a
   const addSweep = vi.fn()
   vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep, switchTo: vi.fn() }))
   vi.stubGlobal('fetch', vi.fn(async (url) => {
-    const path = url.replace(/^https?:\/\/[^/]+/, '')
+    const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     if (path === '/api/bootstrap') {
       return { ok: true, status: 200, json: async () => ({ ...bundle['/api/bootstrap'], sweep: { id: 'sw_9', name: 'Office Sweep' } }) }
     }

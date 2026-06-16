@@ -19,6 +19,7 @@ export function useEventStream() {
     es.onopen = () => {
       qc.invalidateQueries({ queryKey: ['sweep'] })
       qc.invalidateQueries({ queryKey: ['social'] })
+      qc.invalidateQueries({ queryKey: ['coins'] })
     }
     es.onmessage = (e) => {
       let ev
@@ -50,6 +51,8 @@ export function useEventStream() {
       } else if (ev.type === 'card') {
         pushNotification({ kind: 'match', event: 'card', fixtureId: ev.fixtureId, teamCode: ev.teamCode, player: ev.player, minute: ev.minute, card: ev.card, detail: ev.detail })
         qc.invalidateQueries({ queryKey: ['sweep'] })
+      } else if (ev.type === 'bet' || ev.type === 'bet-settled') {
+        qc.invalidateQueries({ queryKey: ['coins'] })
       } else if (ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
         qc.invalidateQueries({ queryKey: ['sweep'] })
         if ((ev.type === 'photo-approved' || ev.type === 'photo-removed') && getAdminBadge().isAdmin) refreshAdminBadge()

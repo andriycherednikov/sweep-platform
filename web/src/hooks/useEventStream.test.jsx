@@ -142,3 +142,16 @@ test('closes the stream on unmount', () => {
   unmount()
   expect(instances[0].closed).toBe(true)
 })
+
+test('bet and bet-settled events invalidate the coins query', () => {
+  const { spy, es } = setup()
+  es.emit({ type: 'bet', sweepId: 'default' })
+  es.emit({ type: 'bet-settled', sweepId: 'default' })
+  expect(spy).toHaveBeenCalledWith({ queryKey: ['coins'] })
+})
+
+test('on (re)open it also invalidates the coins query', () => {
+  const { spy, es } = setup()
+  es.open()
+  expect(spy).toHaveBeenCalledWith({ queryKey: ['coins'] })
+})
