@@ -231,6 +231,7 @@ export async function sweepsRoutes(app) {
       rows.push({ sweepId, personId: it.personId, teamCode: it.teamCode })
     }
     const inserted = await app.db.insert(ownership).values(rows).onConflictDoNothing().returning({ personId: ownership.personId, teamCode: ownership.teamCode })
+    if (inserted.length) await app.publish({ type: 'sync', sweepId })
     return reply.code(201).send({ inserted: inserted.length, items: rows.map(({ personId, teamCode }) => ({ personId, teamCode })) })
   })
 
@@ -240,6 +241,7 @@ export async function sweepsRoutes(app) {
     const { items } = req.body
     const pairs = items.map((it) => and(eq(ownership.personId, it.personId), eq(ownership.teamCode, it.teamCode)))
     await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), or(...pairs)))
+    await app.publish({ type: 'sync', sweepId })
     return { removed: items.length, items: items.map(({ personId, teamCode }) => ({ personId, teamCode })) }
   })
 }

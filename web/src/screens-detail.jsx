@@ -18,6 +18,7 @@ import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
+import { SweepDraw } from "./SweepDraw.jsx";
 
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ openPerson }) {
@@ -824,15 +825,17 @@ export function AdminScreen({ onBack, onToast }) {
 }
 
 export function AdminConsole({ onBack, onToast }) {
-  const [tab, setTab] = useState("people"); // 'people' | 'mod'
+  const [tab, setTab] = useState("people"); // 'people' | 'sweep' | 'mod'
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <PageHeader title="Admin" sub="Manage your sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
       <div className="admintabs">
         <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
+        <button className={"admintab"+(tab==="sweep"?" on":"")} onClick={()=>setTab("sweep")}>Sweep</button>
         <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Moderation</button>
       </div>
       {tab==="people" && <PeopleAdmin onToast={onToast} />}
+      {tab==="sweep" && <SweepDraw onToast={onToast} />}
       {tab==="mod" && <AdminQueue embedded onToast={onToast} />}
     </div>
   );
