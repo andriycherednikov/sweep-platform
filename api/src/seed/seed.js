@@ -47,10 +47,12 @@ export async function seed(db) {
       kickoffUtc: f.ko, venue: f.venue, city: f.city, status: f.status,
       score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null,
       probA: f.prob.a, probD: f.prob.d, probB: f.prob.b,
+      oddsHome: String(f.odds.home), oddsDraw: String(f.odds.draw), oddsAway: String(f.odds.away), oddsBook: f.odds.book,
       stage: 'group', derby: !!f.derby, doubleOwner: (f.doubleOwners?.length ?? 0) > 0,
     }).onConflictDoUpdate({
       target: s.fixture.id,
-      set: { status: f.status, score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null },
+      set: { status: f.status, score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null,
+        oddsHome: String(f.odds.home), oddsDraw: String(f.odds.draw), oddsAway: String(f.odds.away), oddsBook: f.odds.book },
     })
   }
 

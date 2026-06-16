@@ -133,6 +133,14 @@ function probFor(a, b) {
   return { a: pA, d: pD, b: pB };
 }
 
+// Dev-only decimal Match-Winner odds derived from the implied percents (~fair, >1), so the
+// Coins betting screen is usable locally without the worker/API-Football. A ~5% overround
+// keeps them looking like a real book. In prod these come from the worker (Pinnacle-first).
+function oddsFor(prob) {
+  var dec = function (pct) { return Math.round((100 / (Math.max(pct, 1) * 1.05)) * 100) / 100; };
+  return { home: dec(prob.a), draw: dec(prob.d), away: dec(prob.b), book: "Pinnacle" };
+}
+
 let fid = 0;
 const fixtures = [];
 Object.keys(GROUPS).forEach(function (g) {
@@ -148,7 +156,7 @@ Object.keys(GROUPS).forEach(function (g) {
         t1: a, t2: b,
         ko: ko, venue: venue[0], city: venue[1],
         status: "upcoming", score: null, minute: null,
-        prob: probFor(a, b)
+        prob: probFor(a, b), odds: oddsFor(probFor(a, b))
       };
       fixtures.push(f);
     });
