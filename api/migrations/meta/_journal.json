@@ -85,6 +85,13 @@
       "when": 1781587399149,
       "tag": "0011_naive_shocker",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781587825184,
+      "tag": "0012_misty_exodus",
+      "breakpoints": true
     }
   ]
 }

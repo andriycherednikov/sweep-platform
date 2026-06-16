@@ -127,6 +127,40 @@ export const support = pgTable('support', {
   personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'support_person_sweep_fk' }),
 }))
 
+export const coinLedger = pgTable('coin_ledger', {
+  id: serial('id').primaryKey(),
+  sweepId: text('sweep_id').notNull(),
+  personId: text('person_id').notNull(),
+  type: text('type').notNull(),         // 'grant' | 'stake' | 'payout' | 'refund'
+  amount: integer('amount').notNull(),  // signed
+  refId: text('ref_id').notNull(),      // week index for grants, bet id otherwise
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  sweepIdx: index('coin_ledger_sweep_id_idx').on(t.sweepId),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'coin_ledger_person_sweep_fk' }),
+  // idempotent grants/payouts: at most one row per (person, type, ref)
+  entryUq: unique('coin_ledger_entry_uq').on(t.sweepId, t.personId, t.type, t.refId),
+}))
+
+export const bet = pgTable('bet', {
+  id: text('id').primaryKey(),
+  sweepId: text('sweep_id').notNull(),
+  personId: text('person_id').notNull(),
+  fixtureId: text('fixture_id').notNull().references(() => fixture.id),
+  selection: text('selection').notNull(), // 'HOME' | 'DRAW' | 'AWAY'
+  stake: integer('stake').notNull(),
+  oddsDecimal: numeric('odds_decimal').notNull(),
+  book: text('book'),
+  potentialPayout: integer('potential_payout').notNull(),
+  status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost' | 'refunded'
+  placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+}, (t) => ({
+  sweepIdx: index('bet_sweep_id_idx').on(t.sweepId),
+  fixtureIdx: index('bet_fixture_id_idx').on(t.fixtureId),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'bet_person_sweep_fk' }),
+}))
+
 export const photo = pgTable('photo', {
   id: text('id').primaryKey(),
   sweepId: text('sweep_id').notNull().references(() => sweep.id),
