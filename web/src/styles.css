@@ -786,54 +786,59 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 .stale-banner { position:sticky; top:0; z-index:40; text-align:center; padding:7px 12px; font-size:13px; font-weight:700; background:#7a5a12; color:#ffe9b3; }
 
-/* ---------------- ADMIN: SWEEP (draw) ---------------- */
-.sweep-controls{ position:sticky; top:0; z-index:3; display:flex; flex-direction:column; gap:10px; padding:10px 0 12px; margin-bottom:12px; background:var(--bg); border-bottom:1px solid var(--line); }
-.sweep-n{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.sweep-n .alloc-lbl{ display:block; }
-.sweep-stepper{ display:flex; align-items:center; gap:6px; flex:0 0 auto; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:4px; }
-.sweep-stepper .allocbtn{ min-width:38px; width:38px; height:38px; padding:0; font-size:20px; border:0; background:transparent; }
-.sweep-stepper .allocbtn:hover:not([disabled]){ background:var(--bg); }
-.sweep-n-val{ font-family:'Barlow Condensed'; font-weight:800; font-size:26px; color:var(--navy); min-width:30px; text-align:center; line-height:1; }
-.sweep-summary{ margin:2px 0 0; font-size:13px; color:var(--muted2); font-weight:600; }
-.sweep-actions{ display:flex; gap:8px; }
-.sweep-actions .cta{ flex:1; margin-top:0; }
-.sweep-actions .sweep-reroll{ flex:0 0 auto; }
+/* ---------------- ADMIN: SWEEP (draft board) ---------------- */
+/* Command bar — sticky card holding the dial + actions */
+.sweep-controls{ position:sticky; top:0; z-index:3; display:flex; flex-direction:column; gap:12px; padding:14px 16px; margin-bottom:16px; background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:0 10px 28px -22px rgba(11,31,58,.55); }
+.sweep-n{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
+.sweep-n .alloc-lbl{ display:block; font-family:'Barlow Condensed'; font-weight:800; font-size:15px; letter-spacing:.6px; text-transform:uppercase; color:var(--navy); }
+.sweep-summary{ margin:2px 0 0; font-size:12.5px; color:var(--muted2); font-weight:600; }
+.sweep-stepper{ display:flex; align-items:center; gap:2px; flex:0 0 auto; background:var(--bg); border-radius:13px; padding:4px; }
+.sweep-stepper .allocbtn{ min-width:40px; width:40px; height:40px; padding:0; font-size:22px; border:0; border-radius:10px; background:transparent; color:var(--navy); }
+.sweep-stepper .allocbtn:hover:not([disabled]){ background:var(--card); box-shadow:0 1px 3px rgba(11,31,58,.12); }
+.sweep-stepper .allocbtn[disabled]{ opacity:.35; }
+.sweep-n-val{ font-family:'Barlow Condensed'; font-weight:800; font-size:30px; color:var(--navy); min-width:42px; text-align:center; line-height:1; }
+.sweep-actions{ display:flex; gap:10px; }
+.sweep-actions .cta{ flex:1; margin-top:0; height:48px; border-radius:13px; font-size:16px; }
+.sweep-actions .sweep-reroll{ flex:0 0 auto; height:48px; padding:0 20px; border-radius:13px; gap:7px; }
 
-.sweepgrid{ display:grid; grid-template-columns:1fr; gap:18px; }
-.sweep-col > .adminsec-h{ margin-bottom:8px; }
+.sweepgrid{ display:grid; grid-template-columns:1fr; gap:20px; }
+.sweep-col > .adminsec-h{ display:flex; align-items:center; gap:8px; margin:0 0 12px; padding-bottom:9px; border-bottom:2px solid var(--navy); }
 
-/* People: one row per person */
-.sweep-people{ display:flex; flex-direction:column; gap:6px; }
-.sweep-person{ display:flex; align-items:center; gap:10px; padding:8px 10px; background:var(--card); border:1px solid var(--line); border-radius:12px; transition:background .18s, box-shadow .18s, border-color .18s; }
+/* People — one card per person, big team-count stat */
+.sweep-people{ display:flex; flex-direction:column; gap:8px; }
+.sweep-person{ display:flex; align-items:center; gap:12px; padding:11px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; transition:box-shadow .18s, border-color .18s, transform .18s; }
 .sweep-person .pav{ flex:0 0 auto; }
 .sweep-person-main{ flex:1; min-width:0; }
-.sweep-person-name{ font-size:14px; color:var(--navy); }
+.sweep-person-name{ display:block; margin-bottom:7px; font-family:'Barlow Condensed'; font-weight:800; font-size:18px; letter-spacing:.4px; text-transform:uppercase; color:var(--navy); }
 .sweep-person.is-full{ opacity:.5; }
-.sweep-person.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset; animation:sweepSpot .45s ease; }
-.sweep-slot{ min-height:16px; }
-.sweep-old-flag{ opacity:.38; }
+.sweep-person.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(233,79,55,.28); transform:translateY(-1px); }
+.sweep-slot{ display:flex; flex-wrap:wrap; gap:5px; min-height:17px; }
+.sweep-slot .flag{ width:25px; height:18px; border-radius:3px; box-shadow:0 0 0 1px rgba(11,31,58,.1); }
+.sweep-old-flag .flag{ opacity:.62; }
 .sweep-new-flag .flag{ box-shadow:0 0 0 1.5px var(--accent); }
 .sweep-new-flag.in .flag{ animation:flagPop .28s cubic-bezier(.2,1.3,.5,1) both; }
-.sweep-count{ flex:0 0 auto; display:grid; place-items:center; min-width:34px; height:34px; border-radius:9px; background:var(--bg); }
-.sweep-count b{ font-family:'Barlow Condensed'; font-weight:800; font-size:18px; color:var(--navy); line-height:1; }
+.sweep-count{ flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:1px; min-width:48px; padding-left:8px; border-left:1px solid var(--line); }
+.sweep-count b{ font-family:'Barlow Condensed'; font-weight:800; font-size:27px; color:var(--navy); line-height:.95; }
+.sweep-count small{ font-size:9px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted2); font-weight:700; }
 
-/* Teams: one row per team, people names assigned */
-.sweep-pool{ display:flex; flex-direction:column; gap:6px; }
-.sweep-pool-team{ display:flex; align-items:center; gap:9px; padding:7px 10px; border:1px solid var(--line); border-radius:12px; background:var(--card); transition:border-color .18s, box-shadow .18s; }
-.sweep-pool-team .flag{ width:24px; height:17px; border-radius:3px; flex:0 0 auto; }
-.sweep-pool-team.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px var(--accent) inset; animation:sweepSpot .45s ease; }
-.sweep-pool-name{ flex:0 0 92px; font-size:13px; font-weight:700; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sweep-pool-owners{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:4px; }
-.sweep-owner-chip{ display:inline-flex; align-items:center; gap:4px; max-width:100%; padding:2px 7px 2px 2px; border-radius:11px; background:var(--bg); font-size:11px; font-weight:700; color:var(--navy); }
+/* Teams — "pot board": flag · name · owner names, co-owned highlighted */
+.sweep-pool{ display:grid; grid-template-columns:1fr; gap:8px; }
+.sweep-pool-team{ display:flex; align-items:center; gap:10px; padding:9px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); transition:border-color .18s, box-shadow .18s; }
+.sweep-pool-team .flag{ width:26px; height:18px; border-radius:3px; flex:0 0 auto; box-shadow:0 0 0 1px rgba(11,31,58,.1); }
+.sweep-pool-team.is-drawing{ border-color:var(--accent); box-shadow:0 0 0 2px rgba(233,79,55,.28); }
+.sweep-pool-team.is-multi{ border-color:#e7c46a; background:#fffdf4; }
+.sweep-pool-team.is-empty{ opacity:.62; border-style:dashed; }
+.sweep-pool-name{ flex:0 0 88px; font-family:'Barlow Condensed'; font-weight:700; font-size:14px; letter-spacing:.2px; text-transform:uppercase; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sweep-pool-owners{ flex:1; min-width:0; display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.sweep-pool-empty{ color:var(--muted2); font-size:13px; }
+.sweep-owner-chip{ display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:2px 9px 2px 2px; border-radius:12px; background:var(--bg); font-size:11.5px; font-weight:700; color:var(--navy); }
 .sweep-owner-chip.in{ animation:chipPop .26s cubic-bezier(.2,1.3,.5,1) both; }
-.sweep-ownav{ flex:0 0 auto; display:grid; place-items:center; width:18px; height:18px; border-radius:50%; color:#fff; font-size:9px; font-weight:800; letter-spacing:.2px; }
+.sweep-ownav{ flex:0 0 auto; display:grid; place-items:center; width:19px; height:19px; border-radius:50%; color:#fff; font-size:9px; font-weight:800; letter-spacing:.2px; }
 .sweep-owner-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.sweep-pool-count{ flex:0 0 auto; display:inline-grid; place-items:center; min-width:22px; height:22px; padding:0 6px; border-radius:11px; background:var(--navy); color:#fff; font-size:11px; font-weight:800; }
+.sweep-pool-count{ flex:0 0 auto; display:inline-grid; place-items:center; min-width:24px; height:22px; padding:0 7px; border-radius:11px; background:var(--gold); color:var(--navy); font-family:'Barlow Condensed'; font-size:13px; font-weight:800; }
 
 @keyframes flagPop{ from{ opacity:0; transform:scale(.4) translateY(-6px); } to{ opacity:1; transform:none; } }
 @keyframes chipPop{ from{ opacity:0; transform:scale(.6); } to{ opacity:1; transform:none; } }
-@keyframes sweepSpot{ from{ box-shadow:0 0 0 6px rgba(233,79,55,.35) inset; } to{ box-shadow:0 0 0 2px var(--accent) inset; } }
 @media (prefers-reduced-motion: reduce){
-  .sweep-person.is-drawing, .sweep-pool-team.is-drawing{ animation:none; }
   .sweep-new-flag.in .flag, .sweep-owner-chip.in{ animation:none; }
 }

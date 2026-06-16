@@ -203,7 +203,7 @@ export function SweepDraw({ onToast, queryClient }) {
                     <PersonAvatar p={p} cls="pav" />
                     <div className="sweep-person-main">
                       <b className="sweep-person-name">{p.name}</b>
-                      <div className="tms tms-wrap sweep-slot">
+                      <div className="sweep-slot">
                         {(p.teams || []).map((tc) => (
                           <span className="t tc-flag sweep-old-flag" key={"o" + tc}><img className="flag" src={S.flag(tc, 40)} alt="" /></span>
                         ))}
@@ -212,7 +212,7 @@ export function SweepDraw({ onToast, queryClient }) {
                         ))}
                       </div>
                     </div>
-                    <div className="sweep-count"><b>{total}</b></div>
+                    <div className="sweep-count"><b>{total}</b><small>teams</small></div>
                   </div>
                 )
               })}
@@ -226,15 +226,17 @@ export function SweepDraw({ onToast, queryClient }) {
               {teamList.map((t) => {
                 const existing = t.owners || []
                 const fresh = (live && newOwnersByTeam[t.code]) || []
+                const total = existing.length + fresh.length
                 return (
-                  <div className={"sweep-pool-team" + (activeRow?.teamCode === t.code ? " is-drawing" : "")} key={t.code}>
+                  <div className={"sweep-pool-team" + (activeRow?.teamCode === t.code ? " is-drawing" : "") + (total > 1 ? " is-multi" : "") + (total === 0 ? " is-empty" : "")} key={t.code}>
                     <img className="flag" src={S.flag(t.code, 40)} alt="" />
                     <span className="sweep-pool-name">{t.name}</span>
                     <div className="sweep-pool-owners">
                       {existing.map((o) => <OwnerChip key={"e" + o.id} person={byId[o.id] || o} />)}
                       {fresh.map((id, i) => <OwnerChip key={"n" + id + i} person={byId[id]} fresh />)}
+                      {total === 0 && <span className="sweep-pool-empty">—</span>}
                     </div>
-                    <span className="sweep-pool-count">{existing.length + fresh.length}</span>
+                    {total > 1 && <span className="sweep-pool-count">×{total}</span>}
                   </div>
                 )
               })}
