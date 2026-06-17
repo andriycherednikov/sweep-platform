@@ -102,7 +102,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const [pi, setPi] = useState(0);
   // auto-advance until the viewer takes manual control (swipe / dot / arrow)
   const [paused, setPaused] = useState(false);
-  useEffect(()=>{ if(approved.length===0 || paused) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length, paused]);
+  useEffect(()=>{ if(approved.length===0 || paused) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 6000); return ()=>clearInterval(t); },[approved.length, paused]);
   const photo = approved[pi];
   const fanTouch = useRef({ x: 0, moved: false });
   const fanGo = (delta) => { setPaused(true); setPi(p => (p + delta + approved.length) % approved.length); };
@@ -271,10 +271,6 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
-          {approved.length>1 && <>
-            <button className="fan-nav prev" aria-label="Previous photo" onClick={(e)=>{e.stopPropagation();fanGo(-1);}}>‹</button>
-            <button className="fan-nav next" aria-label="Next photo" onClick={(e)=>{e.stopPropagation();fanGo(1);}}>›</button>
-          </>}
         </div>
         <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{setPaused(true);setPi(i);}}></i>)}</div>
         </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
