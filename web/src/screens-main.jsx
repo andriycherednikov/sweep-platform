@@ -100,8 +100,17 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
-  useEffect(()=>{ if(approved.length===0) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length]);
+  // auto-advance until the viewer takes manual control (swipe / dot / arrow)
+  const [paused, setPaused] = useState(false);
+  useEffect(()=>{ if(approved.length===0 || paused) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 3500); return ()=>clearInterval(t); },[approved.length, paused]);
   const photo = approved[pi];
+  const fanTouch = useRef({ x: 0, moved: false });
+  const fanGo = (delta) => { setPaused(true); setPi(p => (p + delta + approved.length) % approved.length); };
+  const onFanTouchStart = (e) => { fanTouch.current = { x: e.touches[0].clientX, moved: false }; };
+  const onFanTouchMove = (e) => { if (Math.abs(e.touches[0].clientX - fanTouch.current.x) > 8) fanTouch.current.moved = true; };
+  const onFanTouchEnd = (e) => { const dx = e.changedTouches[0].clientX - fanTouch.current.x; if (Math.abs(dx) > 40) fanGo(dx < 0 ? 1 : -1); };
+  // a swipe shouldn't also open the lightbox
+  const onFanClick = () => { if (fanTouch.current.moved) { fanTouch.current.moved = false; return; } openPhoto(photo); };
   const photoFx = photo ? S.fixture(photo.fixtureId) : null;
 
   // people-centric stat panels — shown in the sidebar on desktop, above Next games on mobile
@@ -258,12 +267,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
         <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
         {photo ? <>
-        <div className="fan" onClick={()=>openPhoto(photo)}>
+        <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
+          {approved.length>1 && <>
+            <button className="fan-nav prev" aria-label="Previous photo" onClick={(e)=>{e.stopPropagation();fanGo(-1);}}>‹</button>
+            <button className="fan-nav next" aria-label="Next photo" onClick={(e)=>{e.stopPropagation();fanGo(1);}}>›</button>
+          </>}
         </div>
-        <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""}></i>)}</div>
+        <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{setPaused(true);setPi(i);}}></i>)}</div>
         </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
         </div>
        </div>
