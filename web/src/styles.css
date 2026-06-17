@@ -633,6 +633,11 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .field label{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:7px;}
 .field input{width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:12px 13px; font-family:'Barlow'; font-weight:600; font-size:15px; color:var(--ink);}
 .field input:focus{outline:none; border-color:var(--accent);}
+/* quick-add stake chips (+100 … +1000) above the stake field */
+.stake-chips{display:grid; grid-template-columns:repeat(4, 1fr); gap:8px; margin-bottom:14px;}
+.stake-chip{padding:10px 6px; border-radius:10px; border:1.5px solid var(--line); background:var(--card); font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:var(--navy); cursor:pointer; -webkit-tap-highlight-color:transparent;}
+.stake-chip:active{background:var(--navy); color:#fff; border-color:var(--navy); transform:scale(.97);}
+.stake-chip:disabled{opacity:.4; cursor:default;}
 /* mobile stake display (driven by the in-sheet keypad, not the OS keyboard) */
 .stake-display{width:100%; box-sizing:border-box; background:var(--card); border:1.5px solid var(--accent); border-radius:11px; padding:12px 13px; min-height:46px; font-family:'Barlow Condensed'; font-weight:800; font-size:22px; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center;}
 .stake-display.empty{color:var(--muted2); font-family:'Barlow'; font-weight:600; font-size:15px; letter-spacing:0; border-color:var(--line);}

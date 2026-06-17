@@ -203,6 +203,9 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   const stakeNum = parseInt(stake, 10)
   const valid = stakeNum >= 1 && stakeNum <= balance
   const payout = (stakeNum >= 1 && odds) ? Math.round(stakeNum * odds) : 0
+  // quick-add chips — bump the stake by a fixed amount, clamped to the balance
+  const addAmt = (amt) => setStake(String(Math.min(balance, (parseInt(stake, 10) || 0) + amt)))
+  const QUICK = [100, 200, 500, 1000]
 
   async function submit() {
     if (!valid || submitting) return
@@ -237,9 +240,16 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
             </div>
           </div>
 
+          {/* Quick-add chips — add a fixed amount to the stake in one tap */}
+          <div className="stake-chips">
+            {QUICK.map(a => (
+              <button key={a} type="button" className="stake-chip" onClick={() => addAmt(a)} disabled={(parseInt(stake, 10) || 0) >= balance}>+{a}</button>
+            ))}
+          </div>
+
           {/* Stake — editable input on desktop (physical keyboard); a tap-to-set
               display + in-sheet keypad on mobile (no OS keyboard). */}
-          <div className="field" style={{ marginTop: 16 }}>
+          <div className="field" style={{ marginTop: 12 }}>
             <label>Stake (Yowie Dollars)</label>
             {desktop ? (
               <input
