@@ -36,6 +36,12 @@ function Gate({ children }) {
   const qc = useQueryClient()
   const { data, isLoading, isError, error, refetch, isSuccess } = useQuery({
     queryKey: ['sweep'],
+    // Safety-net refresh: SSE pushes live score/standings updates within ~1s while
+    // connected, but if the stream drops (backgrounded PWA, flaky mobile network)
+    // the table can go stale. Re-pull every 5 min (background refetch — no loading
+    // flash) and on reconnect so results never lag for long.
+    refetchInterval: 5 * 60_000,
+    refetchOnReconnect: true,
     queryFn: async () => {
       const api = await fetchAll()
       setCurrentSweepId(api.bootstrap?.sweep?.id || 'default')
