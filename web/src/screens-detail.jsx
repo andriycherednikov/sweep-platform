@@ -14,7 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
-import { balanceByPerson } from "./coins.js";
+import { balanceByPerson, useCoins } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -92,7 +92,9 @@ export function PeopleScreen({ openPerson, initialView = "wins" }) {
 export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
   useSocial();
   useSpoiler();
+  useCoins();
   const isMe = getMe()?.id === person.id;
+  const myCoins = balanceByPerson()[person.id] ?? 0;
   const myFixtures = S.fixtures.filter(f => person.teams.indexOf(f.t1)>=0 || person.teams.indexOf(f.t2)>=0);
   const next = myFixtures.filter(f=> f.status==="upcoming").sort((a,b)=>a.ko-b.ko)[0];
   const cd = next ? useCountdown(Math.max(0, Math.floor((next.ko.getTime() - Date.now())/1000))) : null;
@@ -123,6 +125,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             <div className="dh-stat"><b>{played.length}</b><small>Games played</small></div>
             <div className="dh-stat"><b>{wins}</b><small>Wins</small></div>
             <div className="dh-stat"><b>{acc.correct}/{acc.total}</b><small>Calls right</small></div>
+            <div className="dh-stat"><b style={{color:"var(--gold)"}}>{myCoins.toLocaleString()}</b><small>Coins</small></div>
           </div>
         </div>
       </header>
