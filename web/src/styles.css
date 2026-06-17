@@ -602,6 +602,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* ===== modal / sheet ===== */
 .overlay{position:absolute; inset:0; background:rgba(8,16,28,.55); backdrop-filter:blur(2px); z-index:60; display:flex; align-items:flex-end; animation:fade .2s;}
+/* a bottom sheet covers the whole screen — hide the bottom nav so it can't peek
+   over the sheet's footer (e.g. the Place-bet button) on mobile */
+.viewport:has(.overlay) .tabs{display:none;}
 @keyframes fade{from{opacity:0;}}
 .sheet{background:var(--bg); width:100%; max-height:92%; border-radius:22px 22px 0 0; overflow:hidden; display:flex; flex-direction:column; animation:rise .28s cubic-bezier(.2,.8,.2,1);}
 @keyframes rise{from{transform:translateY(100%);}}
