@@ -87,9 +87,23 @@ export function MyBets({ bets }) {
           const isWon = b.status === 'won'
           const isLost = b.status === 'lost'
           const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+          const placed = b.placedAt ? new Date(b.placedAt) : null
+          const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
+          const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
           return (
             <div key={b.id} className="coin-betslip">
+              <div className="coin-bs-placed">
+                <span className="coin-bs-pd-date">{placedDate}</span>
+                <span className="coin-bs-pd-time">{placedTime}</span>
+              </div>
               <div className="coin-bs-main">
+                {f && (
+                  <span className="coin-bs-event">
+                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
+                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+                  </span>
+                )}
                 <div className="coin-bs-sel">
                   {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
                   <span className="coin-bs-pick">{selLabel}</span>
@@ -103,13 +117,6 @@ export function MyBets({ bets }) {
               </div>
               <div className="coin-bs-side">
                 <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
-                {f && (
-                  <span className="coin-bs-event">
-                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
-                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
-                  </span>
-                )}
                 <span className="coin-bs-stake">{b.stake} @ {b.odds}</span>
                 {(b.status === 'open' || isWon) && (
                   <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} {b.potentialPayout}</span>
