@@ -230,9 +230,11 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
           {/* Match summary */}
           <div className="coin-bet-match">
             <div className="coin-bet-teams">
+              <img className="flag" src={S.flag(f.t1, 40)} alt="" />
               <span>{t1?.name || f.t1}</span>
               <span className="coin-bet-vs">v</span>
               <span>{t2?.name || f.t2}</span>
+              <img className="flag" src={S.flag(f.t2, 40)} alt="" />
             </div>
             <div className="coin-bet-selection">
               <span className="coin-sel-label">{label}</span>
@@ -277,14 +279,16 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
 
           {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
 
-          <button
-            className="cta coin-place-cta"
-            style={{ opacity: (valid && !submitting) ? 1 : 0.5 }}
-            onClick={submit}
-            disabled={!valid || submitting}
-          >
-            <Icon.coin /> {submitting ? 'Placing…' : 'Place bet'}
-          </button>
+          <div className="sheet-foot">
+            <button
+              className="cta"
+              style={{ opacity: (valid && !submitting) ? 1 : 0.5 }}
+              onClick={submit}
+              disabled={!valid || submitting}
+            >
+              <Icon.coin /> {submitting ? 'Placing…' : 'Place bet'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

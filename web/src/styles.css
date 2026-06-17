@@ -611,9 +611,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .sheet-head .x svg{width:16px; height:16px; stroke:var(--muted);}
 .sheet-body{overflow-y:auto; padding:16px 16px 24px;}
 .grab{width:38px; height:4px; border-radius:2px; background:var(--muted2); opacity:.4; margin:8px auto 0;}
-/* keep the bet's submit button pinned to the foot of the sheet so the keyboard
-   never hides it — the rest of the body scrolls behind it */
-.coin-place-cta{position:sticky; bottom:0; margin-top:18px; padding-top:14px; padding-bottom:max(14px, env(safe-area-inset-bottom)); background:linear-gradient(180deg, rgba(238,241,245,0) 0%, var(--bg) 22%);}
+/* pin the submit button to the foot of the sheet (solid backdrop so scrolled
+   content doesn't bleed through) — the button keeps its own .cta accent fill */
+.sheet-foot{position:sticky; bottom:0; margin-top:18px; padding-top:12px; padding-bottom:max(8px, env(safe-area-inset-bottom)); background:var(--bg);}
 
 /* fan-photo lightbox — centered viewer */
 .overlay.lightbox{align-items:center; justify-content:center; padding:20px;}
@@ -645,7 +645,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .stakepad{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:4px 0 8px;}
 .stakekey{height:52px; border-radius:12px; border:1px solid var(--line); background:var(--card); font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:var(--ink); cursor:pointer; display:grid; place-items:center; user-select:none; -webkit-tap-highlight-color:transparent;}
 .stakekey:active{background:#e7ebf1; transform:scale(.97);}
-.stakekey.op{font-size:16px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); background:#eef1f5;}
+.stakekey.op{font-size:17px; letter-spacing:.5px; text-transform:uppercase; color:var(--navy); background:#e2e8f1; border-color:#cdd7e5;}
 /* searchable game picker (tag a game) */
 .gamepick{position:relative; display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto; padding:2px; margin-top:8px;}
 .gpk{display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; text-align:left; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:8px 11px; transition:border-color .12s, background .12s;}
@@ -986,6 +986,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 /* bet sheet internals */
 .coin-bet-match{background:var(--bg); border-radius:12px; padding:12px 14px;}
 .coin-bet-teams{display:flex; align-items:center; gap:6px; font-family:'Barlow Condensed'; font-weight:700; font-size:17px; color:var(--navy);}
+.coin-bet-teams .flag{width:24px; height:17px; border-radius:3px; flex:0 0 auto;}
 .coin-bet-vs{font-size:12px; color:var(--muted2); font-weight:700;}
 .coin-bet-selection{display:flex; align-items:center; gap:8px; margin-top:6px;}
 .coin-sel-label{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:14px; color:var(--navy);}
