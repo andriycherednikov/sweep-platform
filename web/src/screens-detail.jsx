@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
-  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, SearchInput, SquadList, resultFor, useCountdown, ScoreCover, PersonTeams,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import {
   useSocial, getMe, isWatching, toggleWatch,
@@ -14,7 +14,7 @@ import {
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
-import { balanceByPerson, useCoins } from "./coins.js";
+import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -22,42 +22,48 @@ import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
 
 /* ---------------- PEOPLE ---------------- */
-export function PeopleScreen({ openPerson, initialView = "wins" }) {
+export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   useSocial(); // re-render as picks/support arrive so prediction counts stay live
+  const scrollRef = useRef(null);
+  const { scrolled, onScroll } = useScrolled(scrollRef);
   const [q, setQ] = useState("");
   const [view, setView] = useState(initialView); // 'wins' | 'predictions' | 'coins'
   const ql = q.trim().toLowerCase();
   const balances = balanceByPerson();
+  // wagers are 18+; minors / not-signed-in can't filter by coin balance
+  const wager = canWager();
+  const av = (!wager && view === "coins") ? "wins" : view;
   // per-person stat for the active view: { value, label } (value 0 → no pill)
   const statOf = (m) => {
-    if (view === "predictions") return { value: predictionAccuracy(m.person.id).correct, label: "correct" };
-    if (view === "coins") return { value: balances[m.person.id] ?? 0, label: "coins" };
+    if (av === "predictions") return { value: predictionAccuracy(m.person.id).correct, label: "correct" };
+    if (av === "coins") return { value: balances[m.person.id] ?? 0, label: "Yowie Dollars" };
     return { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
   };
   let list = ql
     ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.money;
-  if (view === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
+  if (av === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
-  else if (view === "coins") // re-sort by coin balance descending
+  else if (av === "coins") // re-sort by coin balance descending
     list = list.slice().sort((a,b) => (balances[b.person.id] ?? 0) - (balances[a.person.id] ?? 0));
-  const subLabel = view === "predictions"
+  const subLabel = av === "predictions"
     ? " in the sweep · sorted by correct predictions"
-    : view === "coins"
-    ? " in the sweep · sorted by coin balance"
+    : av === "coins"
+    ? " in the sweep · sorted by Yowie Dollars balance"
     : " in the sweep · sorted by team wins";
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="People" sub={S.people.length + subLabel} tall />
-      <div className="scroll pad screen-anim" style={{paddingTop:14}}>
+      <AppHeader title="People" go={go} scrolled={scrolled} />
+      <div className="scroll pad screen-anim" style={{paddingTop:14}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
-            <div className="statseg" style={{marginTop:10, gridTemplateColumns:"repeat(3, 1fr)"}}>
-              <button className={"statseg-opt"+(view==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
-              <button className={"statseg-opt"+(view==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
-              <button className={"statseg-opt"+(view==="coins"?" on":"")} onClick={()=>setView("coins")}>Coins</button>
+            <div className="statseg" style={{marginTop:10, gridTemplateColumns:`repeat(${wager?3:2}, 1fr)`}}>
+              <button className={"statseg-opt"+(av==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
+              <button className={"statseg-opt"+(av==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
+              {wager && <button className={"statseg-opt"+(av==="coins"?" on":"")} onClick={()=>setView("coins")}>Yowie Dollars</button>}
             </div>
+            <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:"8px 2px 0"}}>{S.people.length}{subLabel}</p>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
           <div className="plist">
@@ -125,7 +131,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             <div className="dh-stat"><b>{played.length}</b><small>Games played</small></div>
             <div className="dh-stat"><b>{wins}</b><small>Wins</small></div>
             <div className="dh-stat"><b>{acc.correct}/{acc.total}</b><small>Calls right</small></div>
-            <div className="dh-stat"><b style={{color:"var(--gold)"}}>{myCoins.toLocaleString()}</b><small>Coins</small></div>
+            {canWager() && person.adult !== false && <div className="dh-stat"><b>{myCoins.toLocaleString()}</b><small>Yowie Dollars</small></div>}
           </div>
         </div>
       </header>
@@ -220,16 +226,18 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
 }
 
 /* ---------------- TEAMS ---------------- */
-export function TeamsScreen({ openTeam }) {
+export function TeamsScreen({ go, openTeam }) {
   const [mode, setMode] = useState("group"); // group | pool
+  const scrollRef = useRef(null);
+  const { scrolled, onScroll } = useScrolled(scrollRef);
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Teams" sub="All 48 nations" tall />
+      <AppHeader title="Teams" go={go} scrolled={scrolled} />
       <div className="filterbar">
         <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>By World Cup group</button>
         <button className={"fchip"+(mode==="pool"?" on":"")} onClick={()=>setMode("pool")}>By sweep pool</button>
       </div>
-      <div className="scroll pad screen-anim" style={{paddingTop:8}}>
+      <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           {mode==="group" ? S.groups.map(g=>(
             <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank />
@@ -988,6 +996,7 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
   const [adds, setAdds] = useState(new Set());      // brand-new teams to insert
   const [removes, setRemoves] = useState(new Set()); // owned teams to delete
   const [editName, setEditName] = useState(person.name);
+  const [adult, setAdult] = useState(person.adult !== false); // wagers age gate
   const [busy, setBusy] = useState(false);
 
   const current = useMemo(() => {
@@ -1013,13 +1022,14 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
 
   const nm = editName.trim();
   const nameChanged = !!nm && nm !== person.name;
-  const dirty = nameChanged || adds.size > 0 || removes.size > 0;
+  const adultChanged = adult !== (person.adult !== false);
+  const dirty = nameChanged || adultChanged || adds.size > 0 || removes.size > 0;
 
   async function apply() {
     if (busy || !dirty) return;
     setBusy(true);
     try {
-      if (nameChanged) await patchPerson(person.id, { name: nm });
+      if (nameChanged || adultChanged) await patchPerson(person.id, { ...(nameChanged ? { name: nm } : {}), ...(adultChanged ? { adult } : {}) });
       const addItems = [...adds].map((tc) => ({ personId: person.id, teamCode: tc }));
       const removeItems = [...removes].map((tc) => ({ personId: person.id, teamCode: tc }));
       if (addItems.length) await bulkPostOwnership(addItems);
@@ -1046,6 +1056,17 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
             <PersonAvatar p={person} cls="pav alloc-av" />
             <input className="alloc-name-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" placeholder="Name" />
             <button className="alloc-remove" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name} title="Remove person"><Icon.trash /></button>
+          </div>
+
+          <div className="alloc-age">
+            <div className="alloc-age-tx">
+              <b>Wagers access</b>
+              <small>18+ only — adults can use the wagering feature; minors can’t see it</small>
+            </div>
+            <button type="button" role="switch" aria-checked={adult} aria-label="Adult account (can use wagers)"
+              className={"agetoggle" + (adult ? " on" : "")} onClick={() => setAdult(a => !a)}>
+              {adult ? "Adult" : "Minor"}
+            </button>
           </div>
 
           <h4 className="adminsec-h alloc-h">Teams ({currentCodes.length})</h4>
@@ -1116,6 +1137,7 @@ export function PeopleAdmin({ onToast, queryClient }) {
         <div className="plist" style={{ marginTop: 12 }}>
           {sorted.map((p) => (
             <button className="prow prow-click" key={p.id} onClick={() => setAllocId(p.id)}>
+              {p.adult === false && <span className="minor-badge">Minor</span>}
               <PersonAvatar p={p} cls="pav" />
               <div className="pi" style={{ flex: 1, minWidth: 0 }}>
                 <b>{p.name}</b>

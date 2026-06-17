@@ -7,7 +7,7 @@ import { SWEEP as S } from "./data.js";
 import {
   Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop,
 } from "./components.jsx";
-import { setGlobalToast, getMe } from "./social.js";
+import { setGlobalToast, getMe, useSocial } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
 import { FloatingReactions } from "./FloatingReactions.jsx";
 import { InstallPrompt } from "./InstallPrompt.jsx";
@@ -20,6 +20,7 @@ import {
 } from "./screens-detail.jsx";
 import { SuperConsole } from "./screens-super.jsx";
 import { CoinsScreen } from "./screens-coins.jsx";
+import { canWager } from "./coins.js";
 import { BetDetail } from "./screens-bet-detail.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
@@ -98,6 +99,7 @@ export default function App() {
   }, [view]);
 
   const { tab, overlay, modal, identity } = view;
+  useSocial(); // re-render on identity change (gates the 18+ Wagers screen)
 
   // which stat toggle the People screen opens on; set per-navigation, defaults to wins
   const peopleViewRef = useRef("wins");
@@ -132,11 +134,13 @@ export default function App() {
 
   let base = null;
   if (tab==="home")      base = <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
-  else if (tab==="schedule")  base = <ScheduleScreen openMatch={openMatch} openPerson={openPerson}/>;
-  else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
-  else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
-  else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
-  else if (tab==="coins")    base = <CoinsScreen go={go} openBet={openBet} openMatch={openMatch}/>;
+  else if (tab==="schedule")  base = <ScheduleScreen go={go} openMatch={openMatch} openPerson={openPerson}/>;
+  else if (tab==="people")    base = <PeopleScreen go={go} openPerson={openPerson} initialView={peopleViewRef.current}/>;
+  else if (tab==="teams")     base = <TeamsScreen go={go} openTeam={openTeam}/>;
+  else if (tab==="standings") base = <StandingsScreen go={go} openTeam={openTeam} openKnockouts={openKnock}/>;
+  else if (tab==="coins")    base = canWager()
+    ? <CoinsScreen go={go} openBet={openBet} openMatch={openMatch}/>
+    : <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
 
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;

@@ -659,6 +659,7 @@ import { setWalletData } from './coins.js'
 // wins → Alice(3), Bob(1), Carol(0); coins → Bob(1500), Alice(900), Carol(0)
 test('PeopleScreen Coins toggle ranks people by coin balance descending', () => {
   peopleSweep()
+  setMe('alice') // wagers/coins filter is 18+ and requires a signed-in adult
   setWalletData({
     balance: 0,
     weeklyGrant: 1000,
@@ -669,12 +670,12 @@ test('PeopleScreen Coins toggle ranks people by coin balance descending', () => 
     ],
   })
   const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
-  act(() => { fireEvent.click(getByText('Coins')) })
+  act(() => { fireEvent.click(getByText('Yowie Dollars')) })
   // Bob has more coins → should appear first
   expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
   // balances are shown as pills
   expect(statFor(container, 'Bob Brown')).toBe('1500')
   expect(statFor(container, 'Alice Anders')).toBe('900')
   expect(statFor(container, 'Carol Clark')).toBeNull() // 0 balance → no pill
-  expect(getByText(/sorted by coin balance/i)).toBeInTheDocument()
+  expect(getByText(/sorted by Yowie Dollars balance/i)).toBeInTheDocument()
 })

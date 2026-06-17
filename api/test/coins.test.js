@@ -61,6 +61,16 @@ test('POST /api/bet deducts the stake, locks the odds, and returns the new balan
   expect(published.some((e) => e.type === 'bet')).toBe(true)
 })
 
+test('POST /api/bet is rejected for a minor account (server-side 18+ guard)', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id) // seed grant
+  await db.update(person).set({ adult: false }).where(eq(person.id, p.id))
+  const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 100 } })
+  expect(res.statusCode).toBe(403)
+  expect(res.json()).toEqual({ error: 'minor_not_allowed' })
+  await db.update(person).set({ adult: true }).where(eq(person.id, p.id)) // restore for other tests
+})
+
 test('POST /api/bet places a 1x2 bet (default market) and locks odds', async () => {
   const p = await aPerson(); const f = await bettableFixture()
   const before = await balanceOfPerson(p.id)

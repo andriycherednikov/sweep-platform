@@ -36,6 +36,8 @@ export async function coinsRoutes(app) {
     const market = req.body.market ?? '1x2'
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    // wagers are 18+ — enforce server-side so minors can't bet by bypassing the UI
+    if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
     if (f.status !== 'upcoming') return reply.code(400).send({ error: 'betting_closed' })

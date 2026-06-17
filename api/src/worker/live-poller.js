@@ -85,7 +85,8 @@ export async function pollLive(db, provider, ids, publish = () => {}) {
     for (const f of fetched) {
       const cur = byId.get(f.id)
       if (!cur) continue
-      if (cur.status === f.status && cur.score1 === f.score1 && cur.score2 === f.score2 && cur.minute === f.minute) continue
+      if (cur.status === f.status && cur.score1 === f.score1 && cur.score2 === f.score2 && cur.minute === f.minute
+        && (cur.htScore1 ?? null) === (f.htScore1 ?? null) && (cur.htScore2 ?? null) === (f.htScore2 ?? null)) continue
       await db.update(fixture)
         .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, htScore1: f.htScore1, htScore2: f.htScore2, updatedAt: new Date() })
         .where(eq(fixture.id, f.id))

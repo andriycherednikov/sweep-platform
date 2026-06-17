@@ -12,6 +12,7 @@ import { fmtDate } from "./lib/format.js";
 import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
+import { canWager } from "./coins.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -324,27 +325,52 @@ export function MatchCard({ f, onOpen, onToast }) {
   );
 }
 
-/* home header */
-export function HomeHeader({ onAdmin, go, onSweeps }) {
+/* unified mobile app header — one header for every screen, hidden on desktop
+   (the sidebar carries nav there). Home-size trophy that taps to Today (scrolls
+   to top on home), a title, the privacy toggle, and the "viewing as" identity
+   chip. Sticky; shrinks to a compact bar with a mini avatar once scrolled.
+   Variants:
+     home  → THE SWEEP / WORLD CUP 2026 + date + sweeps + admin
+     page  → menu name (pass `title`)
+     coins → balance + "COINS" (pass `coins`) */
+export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, scrollRef }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
+  useSocial();
+  const me = getMe();
+  const toTop = () => {
+    if (home && scrollRef && scrollRef.current) scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    else go && go("home");
+  };
+  const viewMe = () => { if (me) window.__sweepViewMe && window.__sweepViewMe(); };
   return (
-    <header className="top home-top">
+    <header className={"top home-top" + (scrolled ? " shrunk" : "")}>
       <div className="brandrow">
-        <button className="brand brand-btn" onClick={()=> go && go("home")} aria-label="Home">
+        <button className="brand brand-btn" onClick={toTop} aria-label={home ? "Scroll to top" : "Today"}>
           <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
-          <div><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
+          <div className={"brand-tx" + (home ? "" : " alt")}>
+            <b>{home ? "THE SWEEP" : title}</b>
+            {(home || sub) && <small>{home ? "WORLD CUP 2026" : sub}</small>}
+          </div>
         </button>
+        {me && (
+          <button className="id-mini" onClick={viewMe} aria-label="View your profile">
+            <PersonAvatar p={me} cls="av" style={{width:26,height:26,border:0,margin:0,fontSize:11}}/>
+            <b>{me.short}</b>
+          </button>
+        )}
         <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {coins != null && <span className="hdr-coins"><Icon.coin/>{coins.toLocaleString()}</span>}
           <div className="tz"><b>{fmtDate(new Date())}</b></div>
           <SpoilerToggle compact/>
+          {right}
           {onSweeps && sweeps.length > 1 && (
             <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             </button>
           )}
-          {showAdmin && (
+          {showAdmin && onAdmin && (
             <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
               {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
@@ -352,17 +378,42 @@ export function HomeHeader({ onAdmin, go, onSweeps }) {
           )}
         </div>
       </div>
-      <IdentityControl dark style={{marginTop:20}}/>
+      <div className="id-full"><IdentityControl dark style={{marginTop:20}}/></div>
     </header>
   );
 }
 
-/* page header w/ back */
-export function PageHeader({ title, sub, onBack, right, tall }) {
+/* back-compat alias — Home screen renders the header in its `home` variant. */
+export function HomeHeader(props) { return <AppHeader home {...props} />; }
+
+/* shrink-on-scroll helper: attach `ref` to a scroll container and read `scrolled`
+   (true once the user scrolls past `threshold`). Drives the sticky-header shrink. */
+export function useScrolled(scrollRef, threshold = 24) {
+  const [scrolled, setScrolled] = useState(false);
+  const onScroll = () => {
+    const el = scrollRef.current;
+    if (el) setScrolled(el.scrollTop > threshold);
+  };
+  return { scrolled, onScroll };
+}
+
+/* page header w/ back. On tab screens (no onBack) a trophy logo takes you home.
+   `scrolled` collapses it to a compact bar (smaller title, sub hidden).
+   Tab headers (go, no back) get `.tab-head` so desktop can drop them — the
+   sidebar already carries brand/nav there; mobile keeps the sticky-shrink bar. */
+export function PageHeader({ title, sub, onBack, right, tall, scrolled, go, deskHide }) {
+  // `.tab-head` → dropped on desktop (the sidebar carries it). Tab screens get it
+  // automatically; sidebar destinations that still need a mobile back button
+  // (Knockouts) opt in via deskHide.
+  const tabHead = deskHide || (go && !onBack);
   return (
-    <header className={"top page-top" + (tall ? " tall":"")}>
+    <header className={"top page-top" + (tall ? " tall":"") + (scrolled ? " shrunk":"") + (tabHead ? " tab-head":"")}>
       <div className="phead">
-        {onBack && <button className="backbtn" onClick={onBack}><Icon.back/></button>}
+        {onBack
+          ? <button className="backbtn" onClick={onBack}><Icon.back/></button>
+          : go && <button className="brand brand-btn phead-brand" onClick={()=> go("home")} aria-label="Home">
+              <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
+            </button>}
         <div style={{minWidth:0, flex:1}}>
           <h1>{title}</h1>
           {sub && <div className="sub">{sub}</div>}
@@ -380,12 +431,14 @@ export function PageHeader({ title, sub, onBack, right, tall }) {
 const TABS = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],
   ["people","People",Icon.people],["teams","Teams",Icon.ball],["standings","Table",Icon.bars],
-  ["coins","Coins",Icon.coin]
+  ["coins","Wagers",Icon.coin]
 ];
 export function BottomNav({ tab, go }) {
+  useSocial(); // re-render on identity change so the Wagers tab appears/hides
+  const tabs = TABS.filter(([id]) => id !== "coins" || canWager());
   return (
     <nav className="tabs">
-      {TABS.map(([id,label,Ic])=>(
+      {tabs.map(([id,label,Ic])=>(
         <button key={id} className={"tab" + (tab===id?" on":"")} onClick={()=>go(id)}>
           <Ic/><span>{label}</span>
         </button>
@@ -432,12 +485,14 @@ export function useIsDesktop() {
 const SB_NAV = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],["people","People",Icon.people],
   ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt],
-  ["coins","Coins",Icon.coin]
+  ["coins","Wagers",Icon.coin]
 ];
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
+  useSocial(); // re-render on identity change so the Wagers item appears/hides
+  const nav = SB_NAV.filter(([id]) => id !== "coins" || canWager());
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
@@ -446,7 +501,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
       </button>
       <div className="sb-sec">Browse</div>
       <nav className="sb-nav">
-        {SB_NAV.map(([id,label,Ic])=>(
+        {nav.map(([id,label,Ic])=>(
           <button key={id} className={"sb-item"+(current===id?" on":"")} onClick={()=> id==="knockouts" ? onKnock() : go(id)}>
             <Ic/><span>{label}</span>
           </button>

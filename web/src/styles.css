@@ -74,12 +74,51 @@ a{color:inherit; text-decoration:none;}
 .top::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg, rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
 .brandrow{display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1;}
 .brand{display:flex; align-items:center; gap:9px;}
-.brand .mark{width:26px; height:50px; border-radius:0; background:transparent; box-shadow:none; display:grid; place-items:center;}
-.mark img{width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 3px 6px rgba(0,0,0,.35));}
+.brand .mark{width:26px; height:50px; border-radius:0; background:transparent; box-shadow:none; display:flex; align-items:center; justify-content:center;}
+.mark img{width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));}
 .brand b{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; letter-spacing:.5px; line-height:1; white-space:nowrap;}
 .brand small{display:block; font-size:9.5px; letter-spacing:2.5px; color:#9fb6d6; font-weight:600; white-space:nowrap;}
+/* page/coins variant of the brand title (menu name / balance) — uppercase to
+   match the THE SWEEP wordmark; trophy + chip stay home-size. */
+.brand-tx.alt b{text-transform:uppercase; font-size:22px;}
 .tz{font-size:10.5px; color:#9fb6d6; text-align:right; font-weight:600; line-height:1.3; white-space:nowrap;}
 .tz b{color:#fff; font-size:12px; display:block; white-space:nowrap;}
+/* coin balance in the header (coins screen) — gold, coin glyph first */
+.hdr-coins{display:inline-flex; align-items:center; gap:5px; color:var(--gold); font-family:'Barlow Condensed'; font-weight:800; font-size:18px; letter-spacing:.3px; white-space:nowrap;}
+.hdr-coins svg{width:16px; height:16px; color:#fff;}
+/* "?" help button in the wagers header (mobile + desktop wallet bar) */
+.hdr-help{flex:0 0 auto; width:30px; height:30px; border-radius:9px; background:rgba(255,255,255,.1); color:#cfe0f5; font-family:'Barlow Condensed'; font-weight:800; font-size:16px; line-height:1; display:grid; place-items:center; cursor:pointer; border:0;}
+.hdr-help:hover{background:rgba(255,255,255,.18);}
+.coin-help{margin-left:auto; position:relative; z-index:1;}
+
+/* wagers FYI sheet */
+.fyi-lead{font-size:14px; line-height:1.55; color:var(--ink); margin:2px 0 14px;}
+.fyi-grant{display:flex; gap:10px; align-items:flex-start; background:linear-gradient(165deg,#14335f,#0b1f3a); color:#fff; border-radius:14px; padding:13px 14px; font-size:13px; line-height:1.5;}
+.fyi-grant svg{width:22px; height:22px; color:var(--gold); flex-shrink:0; margin-top:1px;}
+.fyi-grant b{color:var(--gold);}
+.fyi-18{font-size:13px; font-weight:700; color:var(--muted); margin:14px 0 4px;}
+.fyi-faq{margin-top:6px; display:flex; flex-direction:column; gap:12px;}
+.fyi-q b{display:block; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:14.5px; color:var(--navy); margin-bottom:3px;}
+.fyi-q p{font-size:13px; line-height:1.5; color:var(--muted); margin:0;}
+
+/* sticky/shrinking home header (mobile — .home-top is display:none on desktop).
+   The header sticks to the top of the scroll area and collapses to a compact
+   bar once scrolled: brand shrinks, the full identity chip + date drop out, and
+   a mini avatar+name appears inline. The brand button scrolls back to the top. */
+.home-top{ position:sticky; top:0; z-index:20; transition:padding .18s ease; }
+.home-top .brand .mark, .home-top .brand b, .home-top .brand small{ transition:all .18s ease; }
+.home-top .id-full{ overflow:hidden; transition:max-height .22s ease, opacity .18s ease, margin .18s ease; max-height:120px; opacity:1; }
+/* mini identity: avatar + short name, only shown in the collapsed bar */
+.home-top .id-mini{ display:none; align-items:center; gap:7px; min-width:0; flex:1; margin:0 8px; padding:4px 6px; background:transparent; border:0; }
+.home-top .id-mini b{ font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+.home-top.shrunk{ padding-top:9px; padding-bottom:9px; }
+.home-top.shrunk .brand .mark{ width:20px; height:34px; }
+.home-top.shrunk .brand b{ font-size:16px; }
+.home-top.shrunk .brand small{ font-size:0; letter-spacing:0; opacity:0; height:0; }
+.home-top.shrunk .tz{ display:none; }
+.home-top.shrunk .id-full{ max-height:0; opacity:0; margin:0; }
+.home-top.shrunk .id-mini{ display:flex; }
 
 /* page header (non-home) */
 .phead{display:flex; align-items:center; gap:12px; position:relative; z-index:1; margin-top:4px;}
@@ -88,6 +127,19 @@ a{color:inherit; text-decoration:none;}
 .phead h1{font-family:'Barlow Condensed'; font-weight:800; font-size:24px; letter-spacing:.4px; text-transform:uppercase; line-height:1;}
 .phead .sub{font-size:11px; color:#9fb6d6; font-weight:600; margin-top:2px;}
 .phead .spacer{flex:1;}
+/* tab-screen home logo (left of the title; taps go to Today) */
+.phead-brand{flex-shrink:0; padding:0; align-self:center;}
+.phead-brand .mark{width:22px; height:34px; transition:height .18s ease;}
+
+/* sticky page header shrink: collapse padding, shrink the title, drop the sub */
+.page-top{position:sticky; top:0; z-index:20; transition:padding .18s ease;}
+.page-top h1, .page-top .sub{transition:font-size .18s ease, opacity .18s ease, margin .18s ease, max-height .18s ease;}
+.page-top.tall.shrunk{padding-bottom:14px;}
+.page-top.shrunk{padding-top:9px; padding-bottom:10px;}
+.page-top.shrunk h1{font-size:18px;}
+.page-top.shrunk .sub{opacity:0; max-height:0; margin:0; overflow:hidden;}
+.page-top.shrunk .phead-brand .mark{height:28px;}
+
 .iconbtn{width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.1); display:grid; place-items:center;}
 .iconbtn svg{width:18px; height:18px; stroke:#fff;}
 
@@ -315,6 +367,8 @@ a{color:inherit; text-decoration:none;}
 .rankrow .rname{flex:1; min-width:0; font-family:'Barlow Condensed'; font-weight:700; font-size:15px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
 .rankrow .rval{font-family:'Barlow Condensed'; font-weight:800; font-size:17px; color:var(--navy); flex-shrink:0;}
 .rankrow .rval i{font-style:normal; font-size:10px; color:var(--muted2); margin-left:1px; letter-spacing:.5px;}
+.rankrow .rval-coin{display:inline-flex; align-items:center; gap:4px;}
+.rankrow .rval-coin svg{width:18px; height:18px; color:var(--navy); position:relative; top:1px;}
 .stand{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:6px 4px 8px; overflow:hidden; margin-bottom:12px;}
 .stand .gh{display:flex; align-items:center; justify-content:space-between; padding:8px 11px 9px; border-bottom:1px solid var(--line2);}
 .stand .gh b{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap;}
@@ -399,7 +453,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* ===== people list ===== */
 .plist{display:flex; flex-direction:column; gap:9px;}
-.prow{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; transition:transform .12s;}
+.prow{display:flex; align-items:center; gap:12px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:11px 13px; transition:transform .12s; position:relative;}
 .prow:active{transform:scale(.99);}
 .prow .pav{width:63px; height:63px; border-radius:14px; display:grid; place-items:center; font-family:'Barlow Condensed'; font-weight:800; font-size:25px; color:#fff; flex-shrink:0;}
 .prow .pi{flex:1; min-width:0;}
@@ -680,6 +734,15 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .alloc-remove{flex:0 0 auto; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:11px; background:#fbecea; border:1px solid #f3d6d2; cursor:pointer;}
 .alloc-remove svg{width:18px; height:18px; stroke:var(--accent);}
 .alloc-remove:active{transform:scale(.95);}
+/* admin age gate toggle (wagers 18+) */
+.alloc-age{display:flex; align-items:center; gap:12px; justify-content:space-between; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:6px;}
+.alloc-age-tx b{display:block; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:14px; color:var(--navy);}
+.alloc-age-tx small{display:block; font-size:11px; color:var(--muted); margin-top:2px; max-width:240px;}
+.agetoggle{flex:0 0 auto; min-width:74px; padding:8px 14px; border-radius:10px; border:1px solid #cdddf2; background:#e8f1fc; color:#2563b0; font-family:'Barlow Condensed'; font-weight:800; font-size:14px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer;}
+.agetoggle.on{background:#e7f4ec; border-color:#cbe7d6; color:#1e9e57;}
+.agetoggle:active{transform:scale(.96);}
+/* "Minor" tag pinned to the top-right of a people row (matches the blue toggle) */
+.minor-badge{position:absolute; top:8px; right:10px; padding:1px 7px; border-radius:7px; background:#e8f1fc; border:1px solid #cdddf2; color:#2563b0; font-family:'Barlow Condensed'; font-weight:800; font-size:11px; letter-spacing:.4px; text-transform:uppercase;}
 .alloc-rand{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:6px 0 4px;}
 .allocbtn{flex:0 0 auto; min-width:46px; display:inline-flex; align-items:center; justify-content:center; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-family:'Barlow Condensed'; font-weight:800; font-size:15px; letter-spacing:.3px; color:var(--navy); cursor:pointer; transition:all .12s;}
 .allocbtn:hover{border-color:var(--navy);}
@@ -857,10 +920,20 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 }
 .coin-wallet-header::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
 .coin-balance-row{display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
-.coin-icon{width:32px; height:32px; color:#fff; flex-shrink:0;}
+/* optically centre the coin icon to the digits — the big number's line box sits
+   slightly high, so nudge the icon down to the visual middle of "1024". */
+.coin-icon{width:32px; height:32px; color:#fff; flex-shrink:0; position:relative; top:2px;}
+.coin-wallet-header.shrunk .coin-icon{top:1px;}
 .coin-balance{font-family:'Barlow Condensed'; font-weight:800; font-size:40px; letter-spacing:.5px; color:var(--gold); line-height:1;}
 .coin-label{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:1px; color:rgba(255,255,255,.6); text-transform:uppercase; align-self:flex-end; padding-bottom:4px;}
-.coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; margin-left:46px; position:relative; z-index:1; letter-spacing:.3px;}
+.coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; margin-left:46px; position:relative; z-index:1; letter-spacing:.3px; transition:opacity .18s ease, max-height .18s ease, margin .18s ease;}
+/* sticky wallet header shrink: smaller balance + the grant note drops out */
+.coin-wallet-header{transition:padding .18s ease;}
+.coin-wallet-header .coin-balance, .coin-wallet-header .coin-icon{transition:font-size .18s ease, width .18s ease, height .18s ease;}
+.coin-wallet-header.shrunk{padding-top:10px; padding-bottom:12px;}
+.coin-wallet-header.shrunk .coin-balance{font-size:28px;}
+.coin-wallet-header.shrunk .coin-icon{width:24px; height:24px;}
+.coin-wallet-header.shrunk .coin-grant-note{opacity:0; max-height:0; margin-top:0; overflow:hidden;}
 .coin-no-id{position:relative; z-index:1;}
 .coin-no-id p{font-size:13px; color:rgba(255,255,255,.7); margin-bottom:10px;}
 

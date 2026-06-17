@@ -4,10 +4,11 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, PageHeader,
-  SearchInput, useCountdown, useIsDesktop, ScoreCover, PersonTeams,
+  Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, AppHeader, PageHeader,
+  SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
+import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
 // Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
@@ -86,6 +87,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     .sort((a,b)=> b.wins - a.wins)
     .slice(0,4);
   const accurate = predictionLeaderboard(4); // top predictors by correct crowd calls
+  // top Yowie Dollars balances — adults only, and only logged-in adults can see it
+  useCoins();
+  const showWagers = canWager();
+  const topWagers = showWagers
+    ? coinsLeaderboard(Infinity).filter(r => r.person?.adult !== false).slice(0, 4)
+    : [];
+
+  // sticky header shrink: collapse the header once scrolled past a threshold.
+  const scrollRef = useRef(null);
+  const { scrolled, onScroll } = useScrolled(scrollRef);
 
   const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
@@ -153,12 +164,24 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
         ))}</div>
       </>}
+
+      {showWagers && topWagers.length>0 && <>
+        <div className="sec-h"><h2>Top wagering</h2><span className="lnk" onClick={()=>go("people",{view:"coins"})}>People →</span></div>
+        <div className="ranklist">{topWagers.map((r,i)=>(
+          <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
+            <span className="rk">{i+1}</span>
+            <PersonAvatar p={r.person} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+            <span className="rname">{r.person.name}</span>
+            <b className="rval rval-coin"><Icon.coin/>{r.balance.toLocaleString()}</b>
+          </div>
+        ))}</div>
+      </>}
     </>
   );
 
   return (
-    <div className="scroll pad screen-anim">
-      <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps}/>
+    <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
+      <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps} scrolled={scrolled} scrollRef={scrollRef}/>
 
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
@@ -250,7 +273,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 }
 
 /* ---------------- SCHEDULE ---------------- */
-export function ScheduleScreen({ openMatch, openPerson }) {
+export function ScheduleScreen({ go, openMatch, openPerson }) {
   const [person, setPerson] = useState(null);
   const [team, setTeam] = useState(null);
   const [pick, setPick] = useState(null); // 'person' | 'team'
@@ -272,6 +295,7 @@ export function ScheduleScreen({ openMatch, openPerson }) {
   const scrollRef = useRef(null);
   const targetRef = useRef(null);
   const didScroll = useRef(false);
+  const { scrolled, onScroll } = useScrolled(scrollRef);
   useEffect(() => {
     if (didScroll.current || !scrollKey) return;
     const el = targetRef.current, sc = scrollRef.current;
@@ -283,8 +307,7 @@ export function ScheduleScreen({ openMatch, openPerson }) {
 
   return (
     <div className="viewport-inner" style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Schedule" sub="All group fixtures" tall
-        right={<div className="iconbtn"><Icon.cal/></div>} />
+      <AppHeader title="Schedule" go={go} scrolled={scrolled} />
       <div className="filterbar">
         <button className={"fchip" + (!person && !team ? " on":"")} onClick={()=>{setPerson(null);setTeam(null);}}>All matches</button>
         <button className={"fchip" + (person ? " on accent":"")} onClick={()=>setPick("person")}>
@@ -295,7 +318,7 @@ export function ScheduleScreen({ openMatch, openPerson }) {
         </button>
       </div>
 
-      <div className="scroll pad screen-anim" style={{paddingTop:4}} ref={scrollRef}>
+      <div className="scroll pad screen-anim" style={{paddingTop:4}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           {days.length===0 && <div className="empty"><div className="ic">🗓️</div><h3>No matches</h3><p>Nothing matches that filter yet.</p></div>}
           {days.map(dk=>{
@@ -380,11 +403,13 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
 }
 
 /* ---------------- STANDINGS ---------------- */
-export function StandingsScreen({ openTeam, openKnockouts }) {
+export function StandingsScreen({ go, openTeam, openKnockouts }) {
   const desktop = useIsDesktop();
   useSocial();
   const me = getMe();
   const myTeams = me ? me.teams : [];
+  const scrollRef = useRef(null);
+  const { scrolled, onScroll } = useScrolled(scrollRef);
 
   function GroupTable({ grp }) {
     const table = S.standings[grp];
@@ -411,9 +436,9 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
   if (desktop) {
     return (
       <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-        <PageHeader title="Standings" sub="All 12 groups · auto-calculated from results" tall
+        <AppHeader title="Standings" go={go} scrolled={scrolled}
           right={<button className="iconbtn" onClick={openKnockouts} aria-label="Knockouts"><span style={{fontSize:17}}>🏆</span></button>} />
-        <div className="scroll pad screen-anim" style={{paddingTop:16}}>
+        <div className="scroll pad screen-anim" style={{paddingTop:16}} ref={scrollRef} onScroll={onScroll}>
           <div className="wrap">
             <div className="stand-desk-head">
               <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
@@ -435,9 +460,9 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Standings" sub="Auto-calculated from results" tall
+      <AppHeader title="Standings" go={go} scrolled={scrolled}
         right={<button className="iconbtn" onClick={openKnockouts} aria-label="Knockouts"><span style={{fontSize:17}}>🏆</span></button>} />
-      <div className="scroll pad screen-anim" style={{paddingTop:12}}>
+      <div className="scroll pad screen-anim" style={{paddingTop:12}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           {S.groups.map(x=> <GroupTable key={x} grp={x}/>)}
           <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
@@ -453,7 +478,7 @@ export function StandingsScreen({ openTeam, openKnockouts }) {
 export function KnockoutsScreen({ onBack }) {
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <PageHeader title="Knockouts" sub="Round of 32 onward" onBack={onBack} tall />
+      <PageHeader title="Knockouts" sub="Round of 32 onward" onBack={onBack} tall deskHide />
       <div className="scroll pad screen-anim ko-wrap">
         <div className="ko-card">
           <div className="ko-trophy">🏆</div>

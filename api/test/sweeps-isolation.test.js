@@ -110,7 +110,7 @@ test('group admin can rename a person in their own sweep (PATCH)', async () => {
     payload: { name: 'Beatrice', short: 'Bea', initials: 'BE' },
   })
   expect(res.statusCode).toBe(200)
-  expect(res.json()).toEqual({ id: 'pb1', name: 'Beatrice', short: 'Bea', initials: 'BE' })
+  expect(res.json()).toEqual({ id: 'pb1', name: 'Beatrice', short: 'Bea', initials: 'BE', adult: true })
   // a scoped read reflects the rename
   const body = (await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { host: 'platform.test', cookie } })).json()
   expect(body.people.find((p) => p.id === 'pb1').name).toBe('Beatrice')

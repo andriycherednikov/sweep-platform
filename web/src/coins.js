@@ -20,6 +20,11 @@ export function setWalletData(server) {
 
 export function myBalance() { return wallet.balance }
 export function myWallet() { return wallet }
+
+/** Wagers are 18+ only. You can only see/use them when you're signed in as an
+ *  adult account. Everyone defaults to adult; a person is a minor when an admin
+ *  has marked `adult === false`. Not logged in (no `me`) → no wagers either. */
+export function canWager() { const me = getMe(); return !!me && me.adult !== false }
 export function balanceByPerson() { const m = {}; for (const e of board) m[e.personId] = e.balance; return m }
 
 /** Leaderboard rows resolved to people, highest balance first. */

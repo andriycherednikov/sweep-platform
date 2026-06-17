@@ -1,11 +1,11 @@
 /* ============================================================
    THE SWEEP — Coins screen: wallet, bettable matches, bet history
    ============================================================ */
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { useCoins, myWallet, placeBet } from './coins.js'
-import { Icon, Flag } from './components.jsx'
+import { Icon, Flag, useScrolled, useIsDesktop, AppHeader } from './components.jsx'
 
 /* ---- helpers ---- */
 function selectionLabel(selection, f) {
@@ -48,7 +48,7 @@ function betSelectionFlag(b) {
 }
 
 export function MyBets({ bets, onMatch }) {
-  const [filter, setFilter] = useState('all')
+  const [filter, setFilter] = useState('open')
   const { open, settled } = bets
 
   const picked = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
@@ -137,32 +137,35 @@ export function MyBets({ bets, onMatch }) {
 }
 
 /* ---- Shared wallet header (coins balance + optional back button) ---- */
-export function WalletHeader({ onBack }) {
+export function WalletHeader({ onBack, go, scrolled, onInfo }) {
   useCoins() // re-render on balance changes
   const me = getMe()
   const wallet = myWallet()
   return (
-    <div className="coin-wallet-header">
+    <div className={"coin-wallet-header" + (scrolled ? " shrunk" : "")}>
       <div className="coin-wallet-inner">
         {onBack
           ? <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
+          : go
+          ? <button className="brand brand-btn phead-brand" onClick={() => go("home")} aria-label="Home"><div className="mark"><img src="/trophy.png" alt="The Sweep" /></div></button>
           : <span className="coin-back coin-back-ghost" aria-hidden="true" />}
         {me ? (
           <div className="coin-balance-row">
             <Icon.coin className="coin-icon" />
             <span className="coin-balance">{wallet.balance}</span>
-            <span className="coin-label">coins</span>
+            <span className="coin-label">Yowie Dollars</span>
           </div>
         ) : (
           <div className="coin-no-id">
-            <p>Pick who you are to track your coins and place bets.</p>
+            <p>Pick who you are to track your Yowie Dollars and place bets.</p>
             <button className="cta" style={{ marginTop: 8 }} onClick={() => { if (window.__sweepPickMe) window.__sweepPickMe() }}>
               Choose your profile
             </button>
           </div>
         )}
+        {onInfo && <button className="hdr-help coin-help" onClick={onInfo} aria-label="About wagers" title="About wagers">?</button>}
       </div>
-      {me && <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} coins every week`}</div>}
+      {me && <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} Yowie Dollars every week`}</div>}
     </div>
   )
 }
@@ -212,7 +215,7 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
 
           {/* Stake input */}
           <div className="field" style={{ marginTop: 16 }}>
-            <label>Stake (coins)</label>
+            <label>Stake (Yowie Dollars)</label>
             <input
               type="number"
               min="1"
@@ -227,7 +230,7 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
           {/* Payout preview */}
           {stakeNum >= 1 && (
             <div className="coin-payout-preview">
-              To win: <b>{payout}</b> coins
+              To win: <b>{payout}</b> Yowie Dollars
             </div>
           )}
 
@@ -245,6 +248,63 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   )
 }
 
+/* Shown automatically the first time someone opens Wagers (once per device),
+   and re-openable anytime via the “?” in the header. */
+const WAGERS_FYI_KEY = 'sweep.wagers.fyi.v1'
+const WAGERS_END = '19 July 2026' // World Cup Final — weekly grants stop, table locks
+
+// Weekly grants roll on a 7-day cycle anchored to the first kickoff, so the
+// deposit lands on that same weekday/time. Surface it in Sydney time.
+function weeklyDropSydney() {
+  const first = S.fixtures.map(f => f.ko).filter(Boolean).sort()[0]
+  if (!first) return null
+  const d = new Date(first)
+  const day = d.toLocaleString('en-AU', { timeZone: 'Australia/Sydney', weekday: 'long' })
+  const time = d.toLocaleString('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true })
+  return `${day} at ${time}`
+}
+
+export function WagersInfoSheet({ onClose }) {
+  const drop = weeklyDropSydney()
+  const faqs = [
+    ['Can I buy more Yowie Dollars if I run out?', `No. There’s nothing to buy — no real money is ever involved. Everyone is topped up with +1,000 Yowie Dollars automatically each week${drop ? `, every ${drop} (Sydney time)` : ''}.`],
+    ['Can kids play?', 'No. Wagers is for adult accounts only (18+). Minors can’t see or use the feature at all.'],
+    ['Do I win anything for finishing on top?', 'Just bragging rights — the glory of the highest Yowie Dollars balance. There are no prizes and no payouts.'],
+    ['Is this real gambling?', 'Not at all. Yowie Dollars are play money for a bit of fun between mates. We’re not encouraging gambling.'],
+  ]
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '92%' }}>
+        <div className="grab" />
+        <div className="sheet-head"><h3>About Wagers</h3><button className="x" onClick={onClose}><Icon.x /></button></div>
+        <div className="sheet-body">
+          <p className="fyi-lead">
+            Wagers is a <b>just-for-fun</b>, recreational game — not real betting. It’s a friendly
+            competition for <b>bragging rights</b>: push your <b>Yowie Dollars</b> balance as high as
+            you can. No real money, no prizes, no gambling.
+          </p>
+          <div className="fyi-grant">
+            <Icon.coin />
+            <span>Everyone starts with <b>1,000 Yowie Dollars</b>, and another <b>1,000</b> drops into
+            every account automatically {drop ? <>every <b>{drop}</b> (Sydney time)</> : <b>each week</b>} —
+            until the World Cup Final on <b>{WAGERS_END}</b>, when the table locks and the bragging begins.</span>
+          </div>
+          <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
+          <div className="fyi-faq">
+            {faqs.map(([q, a]) => (
+              <div className="fyi-q" key={q}>
+                <b>{q}</b>
+                <p>{a}</p>
+              </div>
+            ))}
+          </div>
+          <button className="cta" style={{ marginTop: 8, width: '100%' }} onClick={onClose}>Got it</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* ---- Main screen ---- */
 export function CoinsScreen({ go, openBet, openMatch }) {
   useCoins() // re-render on store changes
@@ -253,6 +313,20 @@ export function CoinsScreen({ go, openBet, openMatch }) {
 
   const [tab, setTab] = useState('place')
   const [betSheet, setBetSheet] = useState(null) // { f, market, selection, odds } | null
+  const [info, setInfo] = useState(false)
+  const scrollRef = useRef(null)
+  const { scrolled, onScroll } = useScrolled(scrollRef)
+  const desktop = useIsDesktop()
+
+  // Auto-open the FYI the very first time this device opens Wagers; never again.
+  useEffect(() => {
+    try {
+      if (!localStorage.getItem(WAGERS_FYI_KEY)) { setInfo(true); localStorage.setItem(WAGERS_FYI_KEY, '1') }
+    } catch { /* private mode — just skip the one-time popup */ }
+  }, [])
+  const helpBtn = (
+    <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
+  )
 
   // Upcoming bettable matches, group stage with 1x2 market. Fixtures arrive chronological.
   const bettable = S.fixtures
@@ -275,7 +349,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
   return (
     <div className="screen screen-anim coins-page" data-testid="coins-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
-      <WalletHeader />
+      {desktop
+        ? <WalletHeader onInfo={() => setInfo(true)} />
+        : <AppHeader title="Wagers" coins={wallet.balance} go={go} scrolled={scrolled} right={helpBtn} />}
 
       {/* Tab toggle */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
@@ -291,7 +367,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
         </div>
       </div>
 
-      <div className="scroll pad screen-anim">
+      <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
         <div className="wrap" style={{ marginTop: 14 }}>
 
           {/* Place a bet tab */}
@@ -392,6 +468,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
           onClose={() => setBetSheet(null)}
         />
       )}
+      {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
     </div>
   )
 }

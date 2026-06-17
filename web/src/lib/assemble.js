@@ -57,6 +57,8 @@ export function assembleSweep(api) {
   const people = bootstrap.people.map((p) => ({
     id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.av, avatarPath: p.avatarPath,
     createdAt: p.createdAt ?? null,
+    // age gate for wagers — everyone is an adult unless an admin flags otherwise
+    adult: p.adult !== false,
     teams: ownership[p.id] ? ownership[p.id].slice() : [],
   }))
   const peopleById = Object.fromEntries(people.map((p) => [p.id, p]))

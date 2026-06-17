@@ -140,6 +140,7 @@ export async function sweepsRoutes(app) {
       name: { type: 'string', minLength: 1, maxLength: 80 },
       short: { type: 'string', minLength: 1, maxLength: 40 },
       initials: { type: 'string', minLength: 1, maxLength: 4 },
+      adult: { type: 'boolean' }, // wagers age gate (18+); minors can't see coins
     },
   }
   const ownBody = {
@@ -183,9 +184,10 @@ export async function sweepsRoutes(app) {
     if (req.body.name !== undefined) set.name = req.body.name
     if (req.body.short !== undefined) set.short = req.body.short
     if (req.body.initials !== undefined) set.initials = req.body.initials
+    if (req.body.adult !== undefined) set.adult = req.body.adult
     await app.db.update(person).set(set).where(where)
     const [updated] = await app.db.select().from(person).where(where)
-    return { id: updated.id, name: updated.name, short: updated.short, initials: updated.initials }
+    return { id: updated.id, name: updated.name, short: updated.short, initials: updated.initials, adult: updated.adult }
   })
 
   app.post('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req, reply) => {

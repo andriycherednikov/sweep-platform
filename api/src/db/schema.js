@@ -20,6 +20,8 @@ export const person = pgTable('person', {
   initials: text('initials').notNull(),
   avColor: text('av_color').notNull(),
   avatarPath: text('avatar_path'),
+  // wagers are 18+; admins flag minors so they can't see/use the coins feature
+  adult: boolean('adult').notNull().default(true),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   sweepIdx: index('person_sweep_id_idx').on(t.sweepId),

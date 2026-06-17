@@ -76,7 +76,7 @@ function BackReaction({ it }) {
   );
 }
 
-const BET_MARKET_NAMES = { "1x2": "Match Winner", fh1x2: "First Half", ou25: "Over/Under", cards: "Cards", cs: "Correct Score" };
+const BET_MARKET_NAMES = { "1x2": "Match Winner", fh1x2: "First Half", ou25: "Over/Under 2.5", cards: "Cards O/U", cs: "Correct Score" };
 
 // describe a bet selection for the reaction: market name, readable label, optional team flag
 function describeBet(market, selection, fx) {
