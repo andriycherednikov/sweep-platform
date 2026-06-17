@@ -89,20 +89,28 @@ export function MyBets({ bets }) {
           const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
           return (
             <div key={b.id} className="coin-betslip">
-              <div className="coin-bs-top">
-                <span className="coin-bs-match">
-                  {f && <><img className="flag" src={S.flag(f.t1, 40)} alt="" /><img className="flag" src={S.flag(f.t2, 40)} alt="" /></>}
-                  <span className="nm">{matchName}</span>
-                </span>
+              <div className="coin-bs-main">
+                <div className="coin-bs-sel">
+                  {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+                  <span className="coin-bs-pick">{selLabel}</span>
+                  <span className="coin-bs-mkt">{mktLabel}</span>
+                </div>
+                {f && (
+                  f.status === 'live'
+                    ? <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+                    : <div className="coin-bs-when">{f.status === 'final' ? 'Full time' : f.dateTimeLabel}</div>
+                )}
+              </div>
+              <div className="coin-bs-side">
                 <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
-              </div>
-              <div className="coin-bs-sel">
-                {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
-                <span className="coin-bs-pick">{selLabel}</span>
-                <span className="coin-bs-mkt">{mktLabel}</span>
-              </div>
-              <div className="coin-bs-foot">
-                <span className="coin-bs-stake"><Icon.coin /> {b.stake} @ {b.odds}</span>
+                {f && (
+                  <span className="coin-bs-event">
+                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
+                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+                  </span>
+                )}
+                <span className="coin-bs-stake">{b.stake} @ {b.odds}</span>
                 {(b.status === 'open' || isWon) && (
                   <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} {b.potentialPayout}</span>
                 )}
