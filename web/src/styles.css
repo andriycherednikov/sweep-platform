@@ -918,9 +918,10 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-lost{background:#fbecea; color:var(--accent);}
 
 /* My bets — betslip rows: pick + market + time on the left; event/stake/payout on the right */
-.coin-betslip{display:flex; flex-direction:column; gap:9px; padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;}
+.coin-betslip{display:flex; align-items:stretch; gap:16px; padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;}
 .coin-betslip:hover{background:var(--line2);}
 .coin-betslip:last-child{border-bottom:0;}
+.coin-bs-content{display:flex; flex-direction:column; gap:9px; flex:1; min-width:0;}
 .coin-bs-body{display:flex; align-items:flex-start; gap:16px;}
 .coin-bs-placed{display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:78px; align-self:center;}
 .coin-bs-pd-date{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; color:var(--navy); letter-spacing:.3px; text-transform:uppercase;}

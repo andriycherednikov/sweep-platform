@@ -94,36 +94,38 @@ export function MyBets({ bets, onMatch }) {
           const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
           return (
             <div key={b.id} className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
-              {f && (
-                <div className="coin-bs-event">
-                  <img className="flag" src={S.flag(f.t1, 40)} alt="" />
-                  {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                  <img className="flag" src={S.flag(f.t2, 40)} alt="" />
-                </div>
-              )}
-              <div className="coin-bs-body">
-                <div className="coin-bs-placed">
-                  <span className="coin-bs-pd-date">{placedDate}</span>
-                  <span className="coin-bs-pd-time">{placedTime}</span>
-                </div>
-                <div className="coin-bs-main">
-                  <span className="coin-bs-mkt">{mktLabel}</span>
-                  <div className="coin-bs-sel">
-                    {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
-                    <span className="coin-bs-pick">{selLabel}</span>
+              <div className="coin-bs-placed">
+                <span className="coin-bs-pd-date">{placedDate}</span>
+                <span className="coin-bs-pd-time">{placedTime}</span>
+              </div>
+              <div className="coin-bs-content">
+                {f && (
+                  <div className="coin-bs-event">
+                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
+                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
                   </div>
-                  {f && (
-                    f.status === 'live'
-                      ? <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
-                      : <div className="coin-bs-when">{f.status === 'final' ? 'Full time' : f.dateTimeLabel}</div>
-                  )}
-                </div>
-                <div className="coin-bs-side">
-                  <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
-                  <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                  {(b.status === 'open' || isWon) && (
-                    <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} <b>{b.potentialPayout}</b></span>
-                  )}
+                )}
+                <div className="coin-bs-body">
+                  <div className="coin-bs-main">
+                    <span className="coin-bs-mkt">{mktLabel}</span>
+                    <div className="coin-bs-sel">
+                      {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+                      <span className="coin-bs-pick">{selLabel}</span>
+                    </div>
+                    {f && (
+                      f.status === 'live'
+                        ? <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+                        : <div className="coin-bs-when">{f.status === 'final' ? 'Full time' : f.dateTimeLabel}</div>
+                    )}
+                  </div>
+                  <div className="coin-bs-side">
+                    <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
+                    <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+                    {(b.status === 'open' || isWon) && (
+                      <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} <b>{b.potentialPayout}</b></span>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
