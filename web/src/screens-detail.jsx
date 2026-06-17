@@ -53,7 +53,7 @@ export function PeopleScreen({ openPerson, initialView = "wins" }) {
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
-            <div className="statseg" style={{marginTop:10}}>
+            <div className="statseg" style={{marginTop:10, gridTemplateColumns:"repeat(3, 1fr)"}}>
               <button className={"statseg-opt"+(view==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
               <button className={"statseg-opt"+(view==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
               <button className={"statseg-opt"+(view==="coins"?" on":"")} onClick={()=>setView("coins")}>Coins</button>
