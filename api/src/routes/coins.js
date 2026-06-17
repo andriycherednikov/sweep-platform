@@ -71,7 +71,8 @@ export async function coinsRoutes(app) {
     if (result.error) return reply.code(400).send({ error: result.error })
 
     const [row] = await app.db.select().from(bet).where(eq(bet.id, id))
-    await app.publish({ type: 'bet', sweepId, personId, fixtureId })
+    // notify the sweep: who + what selection + which game (never the stake)
+    await app.publish({ type: 'bet', sweepId, personId, fixtureId, market, selection })
     return { bet: serializeBet(row), balance: result.balance }
   })
 }

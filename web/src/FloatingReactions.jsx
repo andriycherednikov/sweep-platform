@@ -26,6 +26,10 @@ export function FloatingReactions() {
     let resolved;
     if (n.kind === "match") {
       resolved = { ...n, fx };
+    } else if (n.kind === "bet") {
+      const person = S.peopleById[n.personId];
+      if (!person) return;
+      resolved = { ...n, person, fx };
     } else {
       const person = S.peopleById[n.personId];
       if (!person) return;
@@ -47,7 +51,7 @@ export function FloatingReactions() {
       {items.map((it) => (
         <div key={it.id} className="reaction-row">
           <div className="reaction" style={{ "--rx": it.offset + "px" }}>
-            {it.kind === "match" ? <MatchReaction it={it} /> : <BackReaction it={it} />}
+            {it.kind === "match" ? <MatchReaction it={it} /> : it.kind === "bet" ? <BetReaction it={it} /> : <BackReaction it={it} />}
           </div>
         </div>
       ))}
@@ -66,6 +70,38 @@ function BackReaction({ it }) {
             ? <><span aria-hidden="true" style={{ marginRight: 6 }}>🤝</span>Draw</>
             : <><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</>}
         </b>
+        <MatchupLine fx={it.fx} />
+      </div>
+    </>
+  );
+}
+
+const BET_MARKET_NAMES = { "1x2": "Match Winner", fh1x2: "First Half", ou25: "Over/Under", cards: "Cards", cs: "Correct Score" };
+
+// describe a bet selection for the reaction: market name, readable label, optional team flag
+function describeBet(market, selection, fx) {
+  const marketName = BET_MARKET_NAMES[market] || "Bet";
+  if (market === "1x2" || market === "fh1x2") {
+    if (selection === "HOME") return { marketName, label: S.team(fx.t1)?.name || "Home", flagCode: fx.t1 };
+    if (selection === "AWAY") return { marketName, label: S.team(fx.t2)?.name || "Away", flagCode: fx.t2 };
+    return { marketName, label: "Draw", flagCode: null };
+  }
+  if (market === "ou25" || market === "cards") {
+    const line = fx.markets?.[market]?.line ?? (market === "ou25" ? 2.5 : "");
+    return { marketName, label: `${selection === "OVER" ? "Over" : "Under"} ${line}`.trim(), flagCode: null };
+  }
+  if (market === "cs") return { marketName, label: String(selection).replace(":", "-"), flagCode: null };
+  return { marketName, label: selection, flagCode: null };
+}
+
+function BetReaction({ it }) {
+  const { marketName, label, flagCode } = describeBet(it.market, it.selection, it.fx);
+  return (
+    <>
+      <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
+      <div className="reaction-txt">
+        <small>{it.person.short} backed · {marketName}</small>
+        <b>{flagCode ? <><img className="flag" src={S.flag(flagCode, 40)} alt="" />{label}</> : label}</b>
         <MatchupLine fx={it.fx} />
       </div>
     </>

@@ -4,7 +4,8 @@
 import { useState } from 'react'
 import { SWEEP as S } from './data.js'
 import { Flag } from './components.jsx'
-import { BetSheet, WalletHeader } from './screens-coins.jsx'
+import { BetSheet, WalletHeader, MyBets } from './screens-coins.jsx'
+import { useCoins, myWallet } from './coins.js'
 
 const MARKET_ORDER = ['1x2', 'fh1x2', 'ou25', 'cards', 'cs']
 const CS_VISIBLE = 12
@@ -23,6 +24,8 @@ export function BetDetail({ fixtureId, onBack }) {
   const f = S.fixture(fixtureId)
   const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
   const [csOpen, setCsOpen] = useState(false)
+  const [tab, setTab] = useState('place')
+  useCoins() // re-render My bets on store changes
 
   if (!f) return <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }} />
 
@@ -32,6 +35,24 @@ export function BetDetail({ fixtureId, onBack }) {
   return (
     <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <WalletHeader onBack={onBack} />
+
+      {/* Place a bet / My bets toggle (kept on the game screen too) */}
+      <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
+        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr' }}>
+          <button className={'statseg-opt' + (tab === 'place' ? ' on' : '')} onClick={() => setTab('place')}>Place a bet</button>
+          <button className={'statseg-opt' + (tab === 'bets' ? ' on' : '')} onClick={() => setTab('bets')}>My bets</button>
+        </div>
+      </div>
+
+      {tab === 'bets' ? (
+        <div className="scroll pad screen-anim">
+          <div className="wrap" style={{ marginTop: 14 }}>
+            <div className="block" style={{ padding: '14px 14px' }}>
+              <MyBets bets={myWallet().bets} />
+            </div>
+          </div>
+        </div>
+      ) : (
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{ marginTop: 0 }}>
           <div className="coin-match-title">
@@ -86,6 +107,7 @@ export function BetDetail({ fixtureId, onBack }) {
           </div>
         </div>
       </div>
+      )}
 
       {sheet && (
         <BetSheet

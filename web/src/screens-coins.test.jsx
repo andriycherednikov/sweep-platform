@@ -38,10 +38,10 @@ test('My bets lists open and settled bets and filters', () => {
     settled: [{ id: 'b2', fixtureId: 'f1', market: '1x2', selection: 'HOME', stake: 50, odds: 2, potentialPayout: 100, status: 'won' }] } })
   render(<CoinsScreen go={() => {}} openBet={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
-  // 'All' (default) shows both
-  expect(screen.getByText(/Over\/Under 2\.5|OVER/i)).toBeInTheDocument()
-  expect(screen.getByText(/won/i)).toBeInTheDocument()
+  // 'All' (default) shows both — the open ou25 pick and the settled won status pill
+  expect(screen.getByText('Over')).toBeInTheDocument()
+  expect(screen.getByText('won')).toBeInTheDocument()
   // filter to Open only
   fireEvent.click(screen.getByRole('button', { name: /^open$/i }))
-  expect(screen.queryByText(/won/i)).not.toBeInTheDocument()
+  expect(screen.queryByText('won')).not.toBeInTheDocument()
 })

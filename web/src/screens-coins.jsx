@@ -37,7 +37,17 @@ function betSelectionLabel(b) {
   return b.selection
 }
 
-function MyBets({ bets }) {
+// the team flag for a team selection (Match Winner / First Half home/away), else null
+function betSelectionFlag(b) {
+  const f = S.fixture(b.fixtureId)
+  if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
+    if (b.selection === 'HOME') return f.t1
+    if (b.selection === 'AWAY') return f.t2
+  }
+  return null
+}
+
+export function MyBets({ bets }) {
   const [filter, setFilter] = useState('all')
   const { open, settled } = bets
 
@@ -72,21 +82,29 @@ function MyBets({ bets }) {
             ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}`
             : b.fixtureId
           const selLabel = betSelectionLabel(b)
+          const selFlag = betSelectionFlag(b)
           const mktLabel = MARKET_LABELS[b.market] || b.market
           const isWon = b.status === 'won'
           const isLost = b.status === 'lost'
           const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
           return (
-            <div key={b.id} className="coin-bet-row">
-              <div className="coin-bet-info">
-                <div className="coin-bet-match-name">{matchName}</div>
-                <div className="coin-bet-sel">{mktLabel} — {selLabel}</div>
-                <div className="coin-bet-stake">{b.stake} coins @ {b.odds}</div>
-              </div>
-              <div className="coin-bet-nums">
+            <div key={b.id} className="coin-betslip">
+              <div className="coin-bs-top">
+                <span className="coin-bs-match">
+                  {f && <><img className="flag" src={S.flag(f.t1, 40)} alt="" /><img className="flag" src={S.flag(f.t2, 40)} alt="" /></>}
+                  <span className="nm">{matchName}</span>
+                </span>
                 <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
+              </div>
+              <div className="coin-bs-sel">
+                {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+                <span className="coin-bs-pick">{selLabel}</span>
+                <span className="coin-bs-mkt">{mktLabel}</span>
+              </div>
+              <div className="coin-bs-foot">
+                <span className="coin-bs-stake"><Icon.coin /> {b.stake} @ {b.odds}</span>
                 {(b.status === 'open' || isWon) && (
-                  <span className="coin-bet-payout">To win {b.potentialPayout}</span>
+                  <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} {b.potentialPayout}</span>
                 )}
               </div>
             </div>
