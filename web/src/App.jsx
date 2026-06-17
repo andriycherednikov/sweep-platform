@@ -136,7 +136,7 @@ export default function App() {
   else if (tab==="people")    base = <PeopleScreen openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen openTeam={openTeam} openKnockouts={openKnock}/>;
-  else if (tab==="coins")    base = <CoinsScreen go={go} openBet={openBet}/>;
+  else if (tab==="coins")    base = <CoinsScreen go={go} openBet={openBet} openMatch={openMatch}/>;
 
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
@@ -144,7 +144,7 @@ export default function App() {
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
-  else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack}/>;
+  else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;

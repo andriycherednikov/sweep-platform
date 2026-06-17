@@ -47,7 +47,7 @@ function betSelectionFlag(b) {
   return null
 }
 
-export function MyBets({ bets }) {
+export function MyBets({ bets, onMatch }) {
   const [filter, setFilter] = useState('all')
   const { open, settled } = bets
 
@@ -93,7 +93,7 @@ export function MyBets({ bets }) {
           const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
           const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
           return (
-            <div key={b.id} className="coin-betslip">
+            <div key={b.id} className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
               <div className="coin-bs-placed">
                 <span className="coin-bs-pd-date">{placedDate}</span>
                 <span className="coin-bs-pd-time">{placedTime}</span>
@@ -106,10 +106,10 @@ export function MyBets({ bets }) {
                     <img className="flag" src={S.flag(f.t2, 40)} alt="" />
                   </span>
                 )}
+                <span className="coin-bs-mkt">{mktLabel}</span>
                 <div className="coin-bs-sel">
                   {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
                   <span className="coin-bs-pick">{selLabel}</span>
-                  <span className="coin-bs-mkt">{mktLabel}</span>
                 </div>
                 {f && (
                   f.status === 'live'
@@ -242,7 +242,7 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
 }
 
 /* ---- Main screen ---- */
-export function CoinsScreen({ go, openBet }) {
+export function CoinsScreen({ go, openBet, openMatch }) {
   useCoins() // re-render on store changes
   const me = getMe()
   const wallet = myWallet()
@@ -371,7 +371,7 @@ export function CoinsScreen({ go, openBet }) {
           {/* My bets tab */}
           {tab === 'bets' && (
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={wallet.bets} />
+              <MyBets bets={wallet.bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           )}
 

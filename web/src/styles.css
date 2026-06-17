@@ -918,7 +918,8 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-lost{background:#fbecea; color:var(--accent);}
 
 /* My bets — betslip rows: pick + market + time on the left; event/stake/payout on the right */
-.coin-betslip{display:flex; align-items:flex-start; gap:16px; padding:13px 4px; border-bottom:1px solid var(--line);}
+.coin-betslip{display:flex; align-items:flex-start; gap:16px; padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;}
+.coin-betslip:hover{background:var(--line2);}
 .coin-betslip:last-child{border-bottom:0;}
 .coin-bs-placed{display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:78px; align-self:center;}
 .coin-bs-pd-date{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; color:var(--navy); letter-spacing:.3px; text-transform:uppercase;}
@@ -932,8 +933,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-bs-when.live{display:flex; align-items:center; gap:6px; color:var(--live); font-weight:700;}
 .coin-live-dot{width:7px; height:7px; border-radius:50%; background:var(--live); box-shadow:0 0 0 3px rgba(31,157,87,.18); flex-shrink:0;}
 .coin-bs-side{display:flex; flex-direction:column; align-items:flex-end; gap:5px; text-align:right; flex-shrink:0;}
-.coin-bs-event{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; margin-bottom:1px;}
-.coin-bs-event .flag{width:21px; height:14px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
+.coin-bs-event{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+.coin-bs-event .flag{width:18px; height:12px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
+.coin-bs-mkt{align-self:flex-start;}
 .coin-bs-stake{display:inline-flex; align-items:center; gap:5px; font-size:14px; font-weight:600; color:var(--navy);}
 .coin-bs-stake svg{width:15px; height:15px; color:var(--gold); flex-shrink:0;}
 .coin-bs-payout{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}

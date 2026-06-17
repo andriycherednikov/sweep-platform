@@ -59,6 +59,8 @@
   /* Coins fills the full width with a multi-column grid, like the Schedule match grid. */
   .deskscreen .coin-bet-grid{ grid-template-columns:repeat(auto-fill, minmax(340px, 1fr)); gap:12px; }
   .deskscreen .coin-mkt-list{ grid-template-columns:repeat(auto-fill, minmax(380px, 1fr)); gap:12px; }
+  .deskscreen .coin-bs-event{ font-size:13px; }
+  .deskscreen .coin-bs-event .flag{ width:21px; height:14px; }
 
   /* filter bar aligns with the content wrap (same gutters + cap) */
   .deskscreen .filterbar{ padding-left:36px; padding-right:36px; max-width:2000px; margin-left:auto; margin-right:auto; width:100%; overflow:visible; }

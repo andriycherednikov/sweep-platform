@@ -20,7 +20,7 @@ function selLabel(mkKey, sel, f) {
   return sel.label
 }
 
-export function BetDetail({ fixtureId, onBack }) {
+export function BetDetail({ fixtureId, onBack, openMatch }) {
   const f = S.fixture(fixtureId)
   const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
   const [csOpen, setCsOpen] = useState(false)
@@ -48,7 +48,7 @@ export function BetDetail({ fixtureId, onBack }) {
         <div className="scroll pad screen-anim">
           <div className="wrap" style={{ marginTop: 14 }}>
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={myWallet().bets} />
+              <MyBets bets={myWallet().bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           </div>
         </div>
