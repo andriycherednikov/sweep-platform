@@ -857,7 +857,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 }
 .coin-wallet-header::after{content:""; position:absolute; inset:0; background-image:repeating-linear-gradient(115deg,rgba(255,255,255,.04) 0 2px, transparent 2px 9px); pointer-events:none;}
 .coin-balance-row{display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
-.coin-icon{width:32px; height:32px; stroke:var(--gold); flex-shrink:0;}
+.coin-icon{width:32px; height:32px; color:var(--gold); flex-shrink:0;}
 .coin-balance{font-family:'Barlow Condensed'; font-weight:800; font-size:40px; letter-spacing:.5px; color:var(--gold); line-height:1;}
 .coin-label{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; letter-spacing:1px; color:rgba(255,255,255,.6); text-transform:uppercase; align-self:flex-end; padding-bottom:4px;}
 .coin-grant-note{font-size:11px; color:rgba(255,255,255,.55); font-weight:600; margin-top:5px; margin-left:46px; position:relative; z-index:1; letter-spacing:.3px;}
@@ -920,10 +920,10 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 /* My bets — betslip rows: pick + market + time on the left; event/stake/payout on the right */
 .coin-betslip{display:flex; align-items:flex-start; gap:16px; padding:13px 4px; border-bottom:1px solid var(--line);}
 .coin-betslip:last-child{border-bottom:0;}
-.coin-bs-placed{display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:78px; padding-top:1px;}
+.coin-bs-placed{display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:78px; align-self:center;}
 .coin-bs-pd-date{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; color:var(--navy); letter-spacing:.3px; text-transform:uppercase;}
 .coin-bs-pd-time{font-size:11px; font-weight:600; color:var(--muted2);}
-.coin-bs-main{display:flex; flex-direction:column; gap:6px; min-width:0; flex:1;}
+.coin-bs-main{display:flex; flex-direction:column; gap:7px; min-width:0; flex:1;}
 .coin-bs-sel{display:flex; align-items:center; gap:9px; min-width:0;}
 .coin-bs-sel .flag{width:26px; height:18px; border-radius:3px; flex-shrink:0; box-shadow:0 1px 3px rgba(11,31,58,.28);}
 .coin-bs-pick{font-family:'Barlow Condensed'; font-weight:800; font-size:18px; letter-spacing:.3px; color:var(--navy); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -932,11 +932,13 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-bs-when.live{display:flex; align-items:center; gap:6px; color:var(--live); font-weight:700;}
 .coin-live-dot{width:7px; height:7px; border-radius:50%; background:var(--live); box-shadow:0 0 0 3px rgba(31,157,87,.18); flex-shrink:0;}
 .coin-bs-side{display:flex; flex-direction:column; align-items:flex-end; gap:5px; text-align:right; flex-shrink:0;}
-.coin-bs-event{display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
-.coin-bs-event .flag{width:18px; height:12px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
-.coin-bs-stake{font-size:12.5px; font-weight:600; color:var(--muted);}
-.coin-bs-payout{font-family:'Barlow Condensed'; font-weight:800; font-size:17px; color:var(--gold);}
-.coin-bs-payout.won{color:var(--live);}
+.coin-bs-event{display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px; margin-bottom:1px;}
+.coin-bs-event .flag{width:21px; height:14px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
+.coin-bs-stake{display:inline-flex; align-items:center; gap:5px; font-size:14px; font-weight:600; color:var(--muted);}
+.coin-bs-stake svg{width:15px; height:15px; color:var(--gold); flex-shrink:0;}
+.coin-bs-payout{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+.coin-bs-payout b{font-family:'Barlow Condensed'; font-weight:800; font-size:17px; color:var(--gold); margin-left:2px;}
+.coin-bs-payout.won b{color:var(--live);}
 .coin-status-pill{text-transform:uppercase; letter-spacing:.5px; font-size:10px; font-weight:800;}
 .coin-status-pill:not(.coin-won):not(.coin-lost){background:#eaf0f7; color:var(--blue);}
 

@@ -51,7 +51,9 @@ export function MyBets({ bets }) {
   const [filter, setFilter] = useState('all')
   const { open, settled } = bets
 
-  const list = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
+  const picked = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
+  // newest first (by when the bet was struck)
+  const list = [...picked].sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0))
 
   const emptyMsg =
     filter === 'open' ? 'No open bets.' :
@@ -117,9 +119,9 @@ export function MyBets({ bets }) {
               </div>
               <div className="coin-bs-side">
                 <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
-                <span className="coin-bs-stake">{b.stake} @ {b.odds}</span>
+                <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
                 {(b.status === 'open' || isWon) && (
-                  <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} {b.potentialPayout}</span>
+                  <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} <b>{b.potentialPayout}</b></span>
                 )}
               </div>
             </div>
