@@ -611,6 +611,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .sheet-head .x svg{width:16px; height:16px; stroke:var(--muted);}
 .sheet-body{overflow-y:auto; padding:16px 16px 24px;}
 .grab{width:38px; height:4px; border-radius:2px; background:var(--muted2); opacity:.4; margin:8px auto 0;}
+/* keep the bet's submit button pinned to the foot of the sheet so the keyboard
+   never hides it — the rest of the body scrolls behind it */
+.coin-place-cta{position:sticky; bottom:0; margin-top:18px; padding-top:14px; padding-bottom:max(14px, env(safe-area-inset-bottom)); background:linear-gradient(180deg, rgba(238,241,245,0) 0%, var(--bg) 22%);}
 
 /* fan-photo lightbox — centered viewer */
 .overlay.lightbox{align-items:center; justify-content:center; padding:20px;}

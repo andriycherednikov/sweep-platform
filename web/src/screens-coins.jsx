@@ -235,8 +235,8 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
           )}
 
           <button
-            className="cta"
-            style={{ marginTop: 18, opacity: (valid && !submitting) ? 1 : 0.5 }}
+            className="cta coin-place-cta"
+            style={{ opacity: (valid && !submitting) ? 1 : 0.5 }}
             onClick={submit}
             disabled={!valid || submitting}
           >
