@@ -36,7 +36,8 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // per-person stat for the active view: { value, label } (value 0 → no pill)
   const statOf = (m) => {
     if (av === "predictions") return { value: predictionAccuracy(m.person.id).correct, label: "correct" };
-    if (av === "coins") return { value: balances[m.person.id] ?? 0, label: "Yowie Dollars" };
+    // minors have no wagers — never surface a Yowie Dollars balance for them
+    if (av === "coins") return { value: m.person.adult === false ? 0 : (balances[m.person.id] ?? 0), label: "Yowie Dollars" };
     return { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
   };
   let list = ql
