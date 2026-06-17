@@ -100,8 +100,9 @@ function BetReaction({ it }) {
     <>
       <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
       <div className="reaction-txt">
-        <small>{it.person.short} backed · {marketName}</small>
+        <small>{it.person.short} backed</small>
         <b>{flagCode ? <><img className="flag" src={S.flag(flagCode, 40)} alt="" />{label}</> : label}</b>
+        <span className="reaction-mkt">{marketName}</span>
         <MatchupLine fx={it.fx} />
       </div>
     </>
