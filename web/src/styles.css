@@ -633,6 +633,14 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .field label{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:7px;}
 .field input{width:100%; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:12px 13px; font-family:'Barlow'; font-weight:600; font-size:15px; color:var(--ink);}
 .field input:focus{outline:none; border-color:var(--accent);}
+/* mobile stake display (driven by the in-sheet keypad, not the OS keyboard) */
+.stake-display{width:100%; box-sizing:border-box; background:var(--card); border:1.5px solid var(--accent); border-radius:11px; padding:12px 13px; min-height:46px; font-family:'Barlow Condensed'; font-weight:800; font-size:22px; letter-spacing:.5px; color:var(--ink); display:flex; align-items:center;}
+.stake-display.empty{color:var(--muted2); font-family:'Barlow'; font-weight:600; font-size:15px; letter-spacing:0; border-color:var(--line);}
+/* in-sheet number pad */
+.stakepad{display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; margin:4px 0 8px;}
+.stakekey{height:52px; border-radius:12px; border:1px solid var(--line); background:var(--card); font-family:'Barlow Condensed'; font-weight:800; font-size:24px; color:var(--ink); cursor:pointer; display:grid; place-items:center; user-select:none; -webkit-tap-highlight-color:transparent;}
+.stakekey:active{background:#e7ebf1; transform:scale(.97);}
+.stakekey.op{font-size:16px; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); background:#eef1f5;}
 /* searchable game picker (tag a game) */
 .gamepick{position:relative; display:flex; flex-direction:column; gap:6px; max-height:230px; overflow-y:auto; padding:2px; margin-top:8px;}
 .gpk{display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; text-align:left; background:var(--card); border:1.5px solid var(--line); border-radius:11px; padding:8px 11px; transition:border-color .12s, background .12s;}

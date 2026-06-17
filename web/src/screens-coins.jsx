@@ -170,11 +170,35 @@ export function WalletHeader({ onBack, go, scrolled, onInfo }) {
   )
 }
 
+/* In-sheet number pad for the stake — used on mobile so we never summon the OS
+   keyboard (which on iOS doesn't resize the viewport and leaves the sheet/button
+   stranded behind it). Clamps to the balance and strips leading zeros. */
+function StakePad({ value, onChange, max }) {
+  const press = (k) => {
+    if (k === 'del') return onChange(value.slice(0, -1))
+    if (k === 'max') return onChange(String(max))
+    const next = (value + k).replace(/^0+(?=\d)/, '')
+    if (next.length > 9) return
+    onChange(parseInt(next || '0', 10) > max ? String(max) : next)
+  }
+  const keys = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'max', '0', 'del']
+  return (
+    <div className="stakepad">
+      {keys.map(k => (
+        <button key={k} type="button" className={'stakekey' + (k === 'max' || k === 'del' ? ' op' : '')} onClick={() => press(k)} aria-label={k === 'del' ? 'Backspace' : k === 'max' ? 'Max stake' : k}>
+          {k === 'del' ? '⌫' : k === 'max' ? 'Max' : k}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 /* ---- Bet sheet (bottom-sheet overlay) ---- */
 export function BetSheet({ f, market, selection, odds, onClose }) {
   const [stake, setStake] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const { wallet } = useCoins()
+  const desktop = useIsDesktop()
   const balance = wallet.balance
   const stakeNum = parseInt(stake, 10)
   const valid = stakeNum >= 1 && stakeNum <= balance
@@ -213,18 +237,25 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
             </div>
           </div>
 
-          {/* Stake input */}
+          {/* Stake — editable input on desktop (physical keyboard); a tap-to-set
+              display + in-sheet keypad on mobile (no OS keyboard). */}
           <div className="field" style={{ marginTop: 16 }}>
             <label>Stake (Yowie Dollars)</label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              max={balance}
-              value={stake}
-              onChange={e => setStake(e.target.value)}
-              placeholder={`1 – ${balance}`}
-            />
+            {desktop ? (
+              <input
+                type="number"
+                min="1"
+                step="1"
+                max={balance}
+                value={stake}
+                onChange={e => setStake(e.target.value)}
+                placeholder={`1 – ${balance}`}
+              />
+            ) : (
+              <div className={'stake-display' + (stake ? '' : ' empty')} aria-label="Stake">
+                {stake || `1 – ${balance}`}
+              </div>
+            )}
           </div>
 
           {/* Payout preview */}
@@ -233,6 +264,8 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
               To win: <b>{payout}</b> Yowie Dollars
             </div>
           )}
+
+          {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
 
           <button
             className="cta coin-place-cta"

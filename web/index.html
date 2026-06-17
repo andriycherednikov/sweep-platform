@@ -23,21 +23,12 @@
      avoid a layout jump; visualViewport keeps it correct through keyboard/rotate. */
   (function () {
     var set = function () {
-      /* innerHeight excludes the Android system bar (the reason we don't use
-         100dvh); visualViewport.height also shrinks when the on-screen keyboard
-         opens. Take the smaller so the shell tracks the *visible* area — bottom
-         sheets stay above the keyboard, and the layout restores when it closes. */
-      var vv = window.visualViewport;
-      var h = vv ? Math.min(window.innerHeight, vv.height) : window.innerHeight;
-      document.documentElement.style.setProperty('--app-height', h + 'px');
+      document.documentElement.style.setProperty('--app-height', window.innerHeight + 'px');
     };
     set();
     window.addEventListener('resize', set);
     window.addEventListener('orientationchange', set);
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', set);
-      window.visualViewport.addEventListener('scroll', set);
-    }
+    if (window.visualViewport) window.visualViewport.addEventListener('resize', set);
   })();
 </script>
 </head>

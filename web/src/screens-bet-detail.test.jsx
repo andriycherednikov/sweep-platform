@@ -25,8 +25,11 @@ test('bet detail lists every market for the fixture', () => {
   expect(screen.getByText('Correct Score')).toBeInTheDocument()
 })
 
-test('tapping a selection opens the bet sheet with a stake input', () => {
+test('tapping a selection opens the bet sheet with a stake entry', () => {
   render(<BetDetail fixtureId="f1" onBack={() => {}} />)
   fireEvent.click(screen.getAllByTestId('mkt-sel')[0])
-  expect(screen.getByRole('spinbutton')).toBeInTheDocument()
+  // jsdom reports a mobile viewport → the in-sheet keypad (not the OS keyboard).
+  expect(screen.getByRole('button', { name: 'Max stake' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Backspace' })).toBeInTheDocument()
 })
