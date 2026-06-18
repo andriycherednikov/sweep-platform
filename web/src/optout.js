@@ -1,10 +1,13 @@
 // web/src/optout.js
-// Device-local Wagers self-exclusion ("opt out"). Binding for the chosen period:
-// no early reversal, and the remaining time is never surfaced. Mirrors the
-// localStorage-backed module-store pattern in spoiler.js (flag + listeners + hook).
+// Per-person Wagers self-exclusion ("opt out"), stored locally on the device.
+// Binding for the chosen period: no early reversal, and the remaining time is never
+// surfaced. Keyed by the person you're signed in as — opting out affects only that
+// identity, so switching to a different person restores their own access.
+// Mirrors the localStorage-backed module-store pattern in spoiler.js.
 import { useState, useEffect } from 'react'
+import { getMe } from './social.js'
 
-const KEY = 'sweep.wagers.optout.v1'
+const KEY = 'sweep.wagers.optout.v2' // map { personId: 'forever' | expiryMs }
 const listeners = new Set()
 function notify() { listeners.forEach((fn) => fn()) }
 
@@ -13,27 +16,46 @@ export const OPT_OUT_DAYS = { '1d': 1, '3d': 3, '7d': 7, '14d': 14 }
 
 // In-memory mirror so it still works in-session when localStorage is unavailable
 // (private mode). localStorage is the source of truth when readable.
-let mem = null // null = not opted out; 'forever'; or an epoch-ms expiry string
-function read() {
-  try { return localStorage.getItem(KEY) } catch { return mem }
+let mem = {} // { personId: 'forever' | epoch-ms expiry }
+function readMap() {
+  try {
+    const raw = localStorage.getItem(KEY)
+    const parsed = raw ? JSON.parse(raw) : {}
+    return (parsed && typeof parsed === 'object') ? parsed : {}
+  } catch { return mem }
+}
+function writeMap(map) {
+  mem = map
+  try { localStorage.setItem(KEY, JSON.stringify(map)) } catch { /* private mode — mem holds it */ }
 }
 
-/** @returns {boolean} whether Wagers is currently locked out on this device */
-export function isOptedOut() {
-  const v = read()
+/**
+ * @param {string} [personId] defaults to the person you're signed in as
+ * @returns {boolean} whether Wagers is currently locked out for that person
+ */
+export function isOptedOut(personId) {
+  const id = personId ?? getMe()?.id
+  if (!id) return false
+  const v = readMap()[id]
   if (!v) return false
   if (v === 'forever') return true
   return Number(v) > Date.now()
 }
 
-/** Opt out for a duration key (∈ keys of OPT_OUT_DAYS, or 'forever'). Binding. */
-export function optOut(durationKey) {
+/**
+ * Opt the given person out for a duration key (∈ keys of OPT_OUT_DAYS, or 'forever').
+ * Binding. Defaults to the person you're signed in as.
+ */
+export function optOut(durationKey, personId) {
+  const id = personId ?? getMe()?.id
+  if (!id) return // no identity → nothing to opt out
   let v
   if (durationKey === 'forever') v = 'forever'
-  else if (OPT_OUT_DAYS[durationKey]) v = String(Date.now() + OPT_OUT_DAYS[durationKey] * 86_400_000)
+  else if (OPT_OUT_DAYS[durationKey]) v = Date.now() + OPT_OUT_DAYS[durationKey] * 86_400_000
   else return // unknown key: ignore, never lock out on a typo
-  mem = v
-  try { localStorage.setItem(KEY, v) } catch { /* private mode — mem holds it */ }
+  const map = readMap()
+  map[id] = v
+  writeMap(map)
   notify()
 }
 

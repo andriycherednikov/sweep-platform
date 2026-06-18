@@ -56,3 +56,12 @@ test('canWager is false while opted out, true once the window lapses', () => {
   localStorage.clear()            // simulate the window elapsing / silent lift
   expect(canWager()).toBe(true)
 })
+
+test('opt-out is per-person — switching identity restores Wagers', () => {
+  optOut('7d')                    // me = pn_a
+  expect(canWager()).toBe(false)
+  setMe('pn_b')                   // a different person, not opted out
+  expect(canWager()).toBe(true)
+  setMe('pn_a')                   // back to the opted-out person
+  expect(canWager()).toBe(false)
+})
