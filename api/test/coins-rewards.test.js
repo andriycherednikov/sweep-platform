@@ -111,3 +111,23 @@ test('rewards are granted under the row’s own sweep (isolation)', async () => 
   await db.delete(person).where(eq(person.sweepId, 'other'))
   await db.delete(sweep).where(eq(sweep.id, 'other'))
 })
+
+test('a minor’s correct prediction grants nothing (coins is 18+)', async () => {
+  const [a] = await twoPeople()
+  const f = await homeWinFixture()
+  await db.update(person).set({ adult: false }).where(eq(person.id, a.id))
+  await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: f.t1Code })
+  await grantMatchRewards(db, f.id)
+  expect(await rows(a.id, 'predict')).toHaveLength(0)
+  await db.update(person).set({ adult: true }).where(eq(person.id, a.id)) // restore for sibling tests
+})
+
+test('a minor who owns the winning team gets no team-win reward', async () => {
+  const [a] = await twoPeople()
+  const f = await homeWinFixture()
+  await db.update(person).set({ adult: false }).where(eq(person.id, a.id))
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, teamCode: f.t1Code })
+  await grantMatchRewards(db, f.id)
+  expect(await rows(a.id, 'teamwin')).toHaveLength(0)
+  await db.update(person).set({ adult: true }).where(eq(person.id, a.id)) // restore for sibling tests
+})
