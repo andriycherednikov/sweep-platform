@@ -320,8 +320,8 @@ export function WagersInfoSheet({ onClose }) {
           </div>
           <div className="fyi-grant">
             <Icon.coin />
-            <span>Earn more when you’re right: <b>+100 Yowie Dollars</b> for every match you predict
-            correctly, and <b>+300</b> each time a team you own wins a match.</span>
+            <span><b>+100 Yowie Dollars</b> for every match outcome you predict correctly in the
+            schedule, and <b>+300</b> each time a team you own wins a match.</span>
           </div>
           <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
           <div className="fyi-faq">
