@@ -274,7 +274,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
           {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
           {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
-          <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
+          <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader}</small></div>
         </div>
         <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
         </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}

@@ -537,7 +537,7 @@ export function PhotoLightbox({ photo, onClose, openMatch }) {
             </button>
           )}
           {photo.caption && <b>{photo.caption}</b>}
-          <small>Posted by {photo.uploader} · approved</small>
+          <small>Posted by {photo.uploader}</small>
         </div>
       </div>
     </div>
