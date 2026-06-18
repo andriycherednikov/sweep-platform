@@ -673,9 +673,9 @@ test('PeopleScreen Coins toggle ranks people by coin balance descending', () => 
   act(() => { fireEvent.click(getByText('Yowie Dollars')) })
   // Bob has more coins → should appear first
   expect(rowNames(container)).toEqual(['Bob Brown', 'Alice Anders', 'Carol Clark'])
-  // balances are shown as pills
-  expect(statFor(container, 'Bob Brown')).toBe('1500')
+  // balances are shown as pills (adults always show, even at 0)
+  expect(statFor(container, 'Bob Brown')).toBe('1,500')
   expect(statFor(container, 'Alice Anders')).toBe('900')
-  expect(statFor(container, 'Carol Clark')).toBeNull() // 0 balance → no pill
+  expect(statFor(container, 'Carol Clark')).toBe('0') // adult with 0 still shows "0"
   expect(getByText(/sorted by Yowie Dollars balance/i)).toBeInTheDocument()
 })

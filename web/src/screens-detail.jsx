@@ -24,6 +24,7 @@ import { SweepDraw } from "./SweepDraw.jsx";
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   useSocial(); // re-render as picks/support arrive so prediction counts stay live
+  useCoins();  // re-render (and re-sort) when balances load / change
   const scrollRef = useRef(null);
   const { scrolled, onScroll } = useScrolled(scrollRef);
   const [q, setQ] = useState("");
@@ -33,20 +34,22 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // wagers are 18+; minors / not-signed-in can't filter by coin balance
   const wager = canWager();
   const av = (!wager && view === "coins") ? "wins" : view;
-  // per-person stat for the active view: { value, label } (value 0 → no pill)
+  // minors have no wagers → treated as 0 (sorts to the bottom, no pill); adults
+  // always show their balance, including 0 once they've spent it all
+  const coinsVal = (m) => m.person.adult === false ? 0 : (balances[m.person.id] ?? 0);
+  // per-person stat for the active view: { value, label, show }
   const statOf = (m) => {
-    if (av === "predictions") return { value: predictionAccuracy(m.person.id).correct, label: "correct" };
-    // minors have no wagers — never surface a Yowie Dollars balance for them
-    if (av === "coins") return { value: m.person.adult === false ? 0 : (balances[m.person.id] ?? 0), label: "Yowie Dollars" };
-    return { value: m.wins, label: m.wins === 1 ? "win" : "wins" };
+    if (av === "predictions") { const v = predictionAccuracy(m.person.id).correct; return { value: v, label: "correct", show: v > 0 }; }
+    if (av === "coins") return { value: coinsVal(m), label: "Yowie Dollars", show: m.person.adult !== false };
+    return { value: m.wins, label: m.wins === 1 ? "win" : "wins", show: m.wins > 0 };
   };
   let list = ql
     ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.money;
   if (av === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
-  else if (av === "coins") // re-sort by coin balance descending
-    list = list.slice().sort((a,b) => (balances[b.person.id] ?? 0) - (balances[a.person.id] ?? 0));
+  else if (av === "coins") // re-sort by Yowie Dollars balance descending (minors last)
+    list = list.slice().sort((a,b) => coinsVal(b) - coinsVal(a));
   const subLabel = av === "predictions"
     ? " in the sweep · sorted by correct predictions"
     : av === "coins"
@@ -78,9 +81,9 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
                     <b>{p.name}</b>
                     <PersonTeams codes={p.teams} />
                   </div>
-                  {stat.value > 0 && (
+                  {stat.show && (
                     <div className="stat">
-                      <div className="pp">{stat.value}</div>
+                      <div className="pp">{stat.value.toLocaleString()}</div>
                       <small style={{color:"var(--muted2)"}}>{stat.label}</small>
                     </div>
                   )}
