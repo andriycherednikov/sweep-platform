@@ -1,5 +1,5 @@
 // web/src/hooks/useEventStream.js
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SWEEP as S } from '../data.js'
 import { pushNotification } from '../notifications.js'
@@ -13,6 +13,11 @@ import { getAdminBadge, refreshAdminBadge } from '../admin.js'
  */
 export function useEventStream() {
   const qc = useQueryClient()
+  // De-dupe match-event notifications: the worker can re-emit a goal/card (e.g.
+  // overlapping poll ticks), so only the first occurrence of a given event keys
+  // a notification. The cache still invalidates so scores stay current.
+  const seen = useRef(new Set())
+  const notifyOnce = (key, fn) => { if (seen.current.has(key)) return; seen.current.add(key); fn() }
   useEffect(() => {
     if (typeof EventSource === 'undefined') return
     const es = new EventSource('/api/stream')
@@ -46,10 +51,12 @@ export function useEventStream() {
         }
         qc.invalidateQueries({ queryKey: ['sweep'] })
       } else if (ev.type === 'goal') {
-        pushNotification({ kind: 'match', event: 'goal', fixtureId: ev.fixtureId, teamCode: ev.teamCode, player: ev.player, assist: ev.assist, minute: ev.minute, detail: ev.detail, score: ev.score })
+        notifyOnce(`goal|${ev.fixtureId}|${ev.minute}|${ev.teamCode}|${ev.player}|${ev.detail}`, () =>
+          pushNotification({ kind: 'match', event: 'goal', fixtureId: ev.fixtureId, teamCode: ev.teamCode, player: ev.player, assist: ev.assist, minute: ev.minute, detail: ev.detail, score: ev.score }))
         qc.invalidateQueries({ queryKey: ['sweep'] })
       } else if (ev.type === 'card') {
-        pushNotification({ kind: 'match', event: 'card', fixtureId: ev.fixtureId, teamCode: ev.teamCode, player: ev.player, minute: ev.minute, card: ev.card, detail: ev.detail })
+        notifyOnce(`card|${ev.fixtureId}|${ev.minute}|${ev.teamCode}|${ev.player}|${ev.card}|${ev.detail}`, () =>
+          pushNotification({ kind: 'match', event: 'card', fixtureId: ev.fixtureId, teamCode: ev.teamCode, player: ev.player, minute: ev.minute, card: ev.card, detail: ev.detail }))
         qc.invalidateQueries({ queryKey: ['sweep'] })
       } else if (ev.type === 'bet' || ev.type === 'bet-settled') {
         qc.invalidateQueries({ queryKey: ['coins'] })

@@ -38,7 +38,12 @@ function scheduleFinalReconcile() {
 
 // Live tick every 60s, but only hit the API inside a kickoff window.
 // Scores poll in the ±150m live window; lineups in a wider ~45m pre-kickoff window.
+// Re-entrancy guard: if a tick runs long (slow API), skip the next one so two
+// overlapping polls can't both see the same event as "new" and double-publish it.
+let ticking = false
 setInterval(async () => {
+  if (ticking) return
+  ticking = true
   try {
     const rows = await db.select({ id: fixture.id, ko: fixture.kickoffUtc, status: fixture.status, lineups: fixture.lineups }).from(fixture)
     const now = new Date()
@@ -76,6 +81,7 @@ setInterval(async () => {
       }
     }
   } catch (e) { console.error('[tick] failed:', e.message) }
+  finally { ticking = false }
 }, 60_000)
 
 console.log(`worker up — season ${season}`)
