@@ -111,7 +111,20 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
   const money = S.money.find(m=>m.person.id===person.id);
   const myTeams = person.teams.map(c=>S.team(c));
   const played = myFixtures.filter(f=>f.status==="final");
-  const wins = played.filter(f=>{ const r=resultFor(f, f.t1)===null?null:(person.teams.indexOf(f.t1)>=0?resultFor(f,f.t1):resultFor(f,f.t2)); return r==="w"; }).length;
+  // Result of a fixture from this person's side. If they own BOTH teams, one of
+  // their teams always wins (or it's a draw) — never a loss. Returns the team
+  // code to show (the winner when both are owned) + the W/L/D code.
+  const matchResult = (f) => {
+    const ownsT1 = person.teams.indexOf(f.t1) >= 0, ownsT2 = person.teams.indexOf(f.t2) >= 0;
+    if (ownsT1 && ownsT2) {
+      if (f.status !== "final") return { myCode: f.t1, r: resultFor(f, f.t1) };
+      const draw = f.score[0] === f.score[1], t1Won = f.score[0] > f.score[1];
+      return { myCode: (draw || t1Won) ? f.t1 : f.t2, r: draw ? "d" : "w" };
+    }
+    const myCode = ownsT1 ? f.t1 : f.t2;
+    return { myCode, r: resultFor(f, myCode) };
+  };
+  const wins = played.filter(f => matchResult(f).r === "w").length;
   const acc = predictionAccuracy(person.id);
   const preds = predictionsOf(person.id);
 
@@ -164,9 +177,8 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
           <div className="sec-h"><h2>All their matches</h2></div>
           <div className="block">
             {myFixtures.map(f=>{
-              const myCode = person.teams.indexOf(f.t1)>=0 ? f.t1 : f.t2;
+              const { myCode, r } = matchResult(f);
               const oppCode = myCode===f.t1 ? f.t2 : f.t1;
-              const r = resultFor(f, myCode);
               const live = f.status==="live";
               return (
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
