@@ -22,6 +22,7 @@ import { SuperConsole } from "./screens-super.jsx";
 import { CoinsScreen } from "./screens-coins.jsx";
 import { canWager } from "./coins.js";
 import { BetDetail } from "./screens-bet-detail.jsx";
+import { StatementScreen } from "./screens-statement.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
@@ -119,6 +120,7 @@ export default function App() {
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
   const openBet    = (id) => navigate({ overlay: { type: "betdetail", id } });
+  const openStatement = () => navigate({ overlay: { type: "statement" } });
   // intentional future entry point (sidebar/landing); no UI trigger wired this slice
   const openSuper  = () => navigate({ overlay: { type: "super" } });
   // Guarded: App.test.jsx renders <App/> without a QueryClientProvider, so the
@@ -139,7 +141,7 @@ export default function App() {
   else if (tab==="teams")     base = <TeamsScreen go={go} openTeam={openTeam}/>;
   else if (tab==="standings") base = <StandingsScreen go={go} openTeam={openTeam} openKnockouts={openKnock}/>;
   else if (tab==="coins")    base = canWager()
-    ? <CoinsScreen go={go} openBet={openBet} openMatch={openMatch}/>
+    ? <CoinsScreen go={go} openBet={openBet} openMatch={openMatch} openStatement={openStatement}/>
     : <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
 
   let ov = null, ovZ = 25;
@@ -149,6 +151,7 @@ export default function App() {
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
   else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
+  else if (overlay?.type==="statement") ov = <StatementScreen onBack={goBack}/>;
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;

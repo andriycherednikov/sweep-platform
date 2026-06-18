@@ -50,3 +50,10 @@ test('My bets lists open and settled bets and filters', () => {
   expect(screen.queryByText('Over')).not.toBeInTheDocument()
   expect(screen.getByText('won')).toBeInTheDocument()
 })
+
+test('the View statement link calls openStatement', () => {
+  const openStatement = vi.fn()
+  render(<CoinsScreen go={() => {}} openBet={() => {}} openStatement={openStatement} />)
+  fireEvent.click(screen.getByRole('button', { name: /view statement/i }))
+  expect(openStatement).toHaveBeenCalledTimes(1)
+})

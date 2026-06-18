@@ -353,7 +353,7 @@ export function WagersInfoSheet({ onClose }) {
 }
 
 /* ---- Main screen ---- */
-export function CoinsScreen({ go, openBet, openMatch }) {
+export function CoinsScreen({ go, openBet, openMatch, openStatement }) {
   useCoins() // re-render on store changes
   const me = getMe()
   const wallet = myWallet()
@@ -412,6 +412,11 @@ export function CoinsScreen({ go, openBet, openMatch }) {
             onClick={() => setTab('bets')}
           >My bets</button>
         </div>
+        {me && openStatement && (
+          <button type="button" className="stmt-link" onClick={openStatement}>
+            View statement <Icon.chev />
+          </button>
+        )}
       </div>
 
       <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
