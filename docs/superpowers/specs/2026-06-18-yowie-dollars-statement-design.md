@@ -16,9 +16,11 @@ running balance and a plain-English reason per row.
 
 ## Scope
 
-- **Whose:** the caller's *own* statement only. Reached from the wallet header on the
-  Wagers tab. No viewing other people's statements (the public People → Yowie Dollars list
-  already exposes balances; per-entry history stays private for now).
+- **Whose:** your *own* statement. Reached from the Wagers tab. The endpoint takes a
+  `personId` (the same trust model as `GET /api/coins`, which already accepts any
+  `?personId=`) — "own" is enforced by the UI passing your own id, not by the server. This
+  matches the existing model where balances are already public (People → Yowie Dollars list)
+  and keeps us from inventing a person-level auth concept the backend doesn't have.
 - **Detail:** each row shows match + selection (for bets) and the bet's outcome.
 - **Layout:** flat list, newest first, each row labelled with its own date. No day-grouping
   (ledger volume is low — a handful of grants plus bets).
@@ -50,16 +52,21 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
 
 `GET /api/coins/ledger?personId=<id>`
 
-- Auth: `member | admin` (same guard pattern as `GET /api/coins`).
-- **Own-person guard:** `personId` must match the authenticated caller's person; otherwise
-  403. (Admins included — this is a personal statement, not a moderation tool.)
-- Reads `coin_ledger` rows for `(sweepId, personId)`.
-- Left-joins `bet` on `refId = bet.id` (for `stake`/`payout`/`refund` rows) and `fixture`
-  on `bet.fixtureId` for team names.
-- Computes **running balance** server-side: order ascending by `(createdAt, id)`, take a
-  cumulative sum, attach `balanceAfter` to each row, then return **newest first**
-  (descending by `(createdAt, id)`). The final row's `balanceAfter` equals the wallet
-  balance from `GET /api/coins`.
+- Auth: `member | admin` (same `requireSweep` guard as `GET /api/coins`). Sweep-isolated:
+  all reads scoped by `req.sweep.id`.
+- Person validation mirrors `GET /api/coins`: if `personId` is missing or not a member of
+  this sweep, return `{ balance: 0, entries: [] }` (no error). No person-level "own" guard —
+  the backend has no notion of the caller's person; the UI passes your own id.
+- Runs `ensureGrants` first (so the statement matches the wallet, including any
+  newly-due weekly grant), then reads `coin_ledger` rows for `(sweepId, personId)`.
+- **No fixture join.** For `stake`/`payout`/`refund` rows it attaches the matching `bet`
+  (looked up by `refId = bet.id`) serialized via the existing `serializeBet` from
+  `ledger.js`. The web client already resolves team names + selection wording from the
+  in-memory `SWEEP` data (`S.fixture(fixtureId)`, `betSelectionLabel`), so the server only
+  needs the bet's own fields.
+- Computes **running balance** server-side: order rows ascending by `(createdAt, id)`, take a
+  cumulative sum, attach `balanceAfter` to each, then return **newest first** (reverse).
+  The newest entry's `balanceAfter` equals the wallet `balance`.
 - Response shape:
 
   ```json
@@ -72,36 +79,29 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
         "amount": 230,
         "createdAt": "2026-06-18T12:00:00.000Z",
         "balanceAfter": 1730,
+        "weekIndex": null,
         "bet": {
-          "homeTeam": "Brazil",
-          "awayTeam": "Croatia",
-          "market": "1x2",
-          "selection": "home",
-          "line": null,
-          "status": "won"
+          "id": "uuid…", "fixtureId": "f1", "market": "1x2", "selection": "HOME",
+          "line": null, "stake": 100, "odds": 2.3, "book": "Pinnacle",
+          "potentialPayout": 230, "status": "won", "placedAt": "…", "settledAt": "…"
         }
       },
       {
-        "id": 12,
-        "type": "grant",
-        "amount": 1000,
+        "id": 12, "type": "grant", "amount": 1000,
         "createdAt": "2026-06-09T00:00:00.000Z",
-        "balanceAfter": 1000,
-        "bet": null,
-        "weekIndex": 0
+        "balanceAfter": 1000, "weekIndex": 0, "bet": null
       }
     ]
   }
   ```
 
-  - `bet` is `null` for `grant` rows. `weekIndex` (parsed from `refId`) is present on grant
-    rows so the client can distinguish "Starting bankroll" (week 0) from "Weekly Yowie
-    Dollars" (week n).
-  - For `stake`/`payout` rows whose bet/fixture has been pruned from the feed, `bet` may be
-    `null` — the client falls back to a generic label.
-- Sweep-isolated like every other route (scoped by `sweepId` from the session).
-- Composing logic lives next to `walletFor`/`leaderboard` in `api/src/coins/ledger.js`
-  (e.g. a `statementFor(db, sweepId, personId)`), keeping the route thin.
+  - `bet` is `null` for `grant` rows; `weekIndex` (parsed from `refId`) is set on grant rows
+    (and `null` otherwise) so the client labels "Starting bankroll" (0) vs "Weekly Yowie
+    Dollars" (>0).
+  - For a `stake`/`payout` row whose bet was pruned from the feed, `bet` is `null` — the
+    client falls back to a generic label.
+- Composing logic lives next to `walletFor`/`leaderboard` in `api/src/coins/ledger.js` as a
+  new `statementFor(db, sweepId, personId, now)`, keeping the route thin.
 
 ### Frontend
 
@@ -117,8 +117,9 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
   - Empty state when there are no entries yet (shouldn't happen once week-0 grant exists,
     but handle it).
 - **Reason labels** — composed on the client, **reusing the bet-slip's existing
-  selection/market formatter** (whatever `MyBets`/`BetSheet` already use) so selection
-  wording stays DRY and consistent:
+  selection/market formatter** (`betSelectionLabel`, `betSelectionFlag`, `MARKET_LABELS` —
+  exported from `screens-coins.jsx` for reuse) so selection wording stays DRY and
+  consistent. Team names come from `S.fixture(bet.fixtureId)` exactly as `MyBets` does:
   - `grant`, `weekIndex === 0` → **"Starting bankroll"**
   - `grant`, `weekIndex > 0` → **"Weekly Yowie Dollars"**
   - `stake` → **"Bet on {home} v {away} — {selection} ({Status})"** where `Status` is the
@@ -126,9 +127,11 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
   - `payout` → **"Won bet on {home} v {away} — {selection}"**. Fallback "Bet payout".
   - `refund` → **"Refund"** (defensive; unused today).
 - **Routing (`web/src/App.jsx`):** register the overlay in the overlay switch with an
-  `openStatement()` navigator (mirrors `openBet`/`betdetail`).
-- **Entry point:** `WalletHeader` (`web/src/screens-coins.jsx`) gains a "View statement"
-  link/button → `openStatement()`.
+  `openStatement()` navigator (mirrors `openBet`/`betdetail`, `overlay.type === "statement"`).
+- **Entry point:** a "View statement ›" affordance in the Wagers screen body
+  (`CoinsScreen`), rendered above the tab toggle so it shows in *both* the desktop
+  (`WalletHeader`) and mobile (`AppHeader`) layouts — mobile has no `WalletHeader`, so the
+  link lives in the screen body, not the header. Calls `openStatement()`.
 - **Data/query:** dedicated TanStack Query `['coins', 'ledger', personId]` (lazy — only
   fetched when the statement opens). Invalidated on `bet` and `bet-settled` SSE events
   (extend the existing handler in `web/src/hooks/useEventStream.js`, which already
@@ -146,11 +149,11 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
 
 ## Error handling
 
-- Missing/invalid `personId`, or `personId` ≠ caller → 403 (own-person guard) / 400.
-- Unauthenticated → 401 (existing auth middleware).
-- Pruned bet/fixture → `bet: null` → generic fallback label (no crash).
+- Missing/unknown `personId` → `{ balance: 0, entries: [] }` (mirrors `/api/coins`).
+- Unauthenticated → handled by the existing `requireSweep` middleware.
+- Pruned bet → `bet: null` → generic fallback label (no crash).
 - Frontend query error → inline error state in the overlay; balance still visible from the
-  cached wallet.
+  cached wallet store.
 
 ## Testing (TDD)
 
@@ -159,18 +162,19 @@ handled defensively but not exercised), editing/deleting ledger entries, exporti
 - stake debit row (negative amount) joined to its bet + fixture team names;
 - payout credit row for a won bet;
 - a **lost** bet yields a lone stake row with `bet.status === "lost"` (no payout row);
-- newest-first ordering; running-balance cumulative math; final `balanceAfter` == wallet
+- newest-first ordering; running-balance cumulative math; newest `balanceAfter` == wallet
   balance;
-- auth required; own-person guard (caller cannot fetch another person's ledger);
+- unknown / missing `personId` → `{ balance: 0, entries: [] }` (mirrors `/api/coins`);
 - sweep isolation (no cross-sweep rows).
 
 **web (`web/src/screens-statement.test.jsx`, Vitest + RTL):**
 - renders each row type with correct sign, colour, reason label, date, running balance;
 - lost-bet stake row shows `(Lost)`;
 - empty state;
-- "View statement" link on the wallet header opens the overlay.
+- the "View statement" affordance in `CoinsScreen` calls `openStatement`.
 
 ## YAGNI / non-goals
 
-- No other-person statements, no admin adjustments, no refund-writing path, no export, no
-  pagination (ledger is small), no day-grouping.
+- No person-level auth (the backend has none; "own" is a UI convention), no admin
+  adjustments, no refund-writing path, no export, no pagination (ledger is small), no
+  day-grouping (flat list, each row dated).
