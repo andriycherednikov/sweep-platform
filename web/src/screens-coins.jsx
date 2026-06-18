@@ -279,7 +279,7 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   )
 }
 
-/* Wagers self-exclusion sheet. Two steps -- choose a duration, then confirm --
+/* Wagers self-exclusion sheet. Two steps — choose a duration, then confirm —
    because the choice is BINDING: once confirmed there's no early opt-back-in and
    the remaining time is never shown. Reachable from the header shield and from the
    "Stepping away" section of the About sheet. */
@@ -295,7 +295,7 @@ export function OptOutSheet({ onClose }) {
   const label = OPT_OUT_CHOICES.find(([k]) => k === chosen)?.[1]
   const confirmCopy = chosen === 'forever'
     ? "You're stepping away from Wagers for good. It won't turn itself back on."
-    : `You're stepping away from Wagers for ${label}. It'll lock now and quietly come back when the time's up -- you can't turn it back on early.`
+    : `You're stepping away from Wagers for ${label}. It'll lock now and quietly come back when the time's up — you can't turn it back on early.`
   function confirm() { optOut(chosen); onClose() }
   return (
     <div className="overlay" onClick={onClose}>
@@ -309,7 +309,7 @@ export function OptOutSheet({ onClose }) {
           {chosen == null ? (
             <>
               <p className="fyi-lead">
-                Taking a break is completely OK -- and completely anonymous. Choose how long to
+                Taking a break is completely OK — and completely anonymous. Choose how long to
                 step away. Wagers will be hidden until then; there's no turning it back on early.
               </p>
               <div className="optout-choices">
