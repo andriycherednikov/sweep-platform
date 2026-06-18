@@ -4,15 +4,16 @@
    date · activity (icon + game / selection) · amount (+/−) · running balance.
    ============================================================ */
 import { useQuery } from '@tanstack/react-query'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { faCoins, faTicket, faMoneyBillWave } from '@fortawesome/free-solid-svg-icons'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { fetchLedger } from './api/client.js'
-import { Icon } from './components.jsx'
 import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
-// one icon per ledger entry kind: deposit (grant) = coin, bet placed (stake) = ticket,
-// bet won (payout) = cash
-const KIND_ICON = { dep: Icon.coin, bet: Icon.ticket, win: Icon.cash }
+// one icon per ledger entry kind: deposit (grant) = coins, bet placed (stake) = ticket,
+// bet won (payout) = money
+const KIND_ICON = { dep: faCoins, bet: faTicket, win: faMoneyBillWave }
 
 /** Structured view of one ledger entry: an icon kind, a title line (the game or grant),
  *  and a sub line (the selection). Reuses the bet-slip helpers for selection wording. */
@@ -68,7 +69,6 @@ export function StatementList() {
       {entries.map((e) => {
         const { date, time } = dateParts(e.createdAt)
         const v = entryView(e)
-        const Ic = KIND_ICON[v.kind]
         const credit = e.amount > 0
         return (
           <div key={e.id} className="stmt-row">
@@ -77,7 +77,7 @@ export function StatementList() {
               <span className="stmt-when-time">{time}</span>
             </div>
             <div className="stmt-act">
-              <span className={'stmt-ic ' + v.kind}><Ic /></span>
+              <FontAwesomeIcon icon={KIND_ICON[v.kind]} className={'stmt-ic ' + v.kind} />
               <span className="stmt-txt">
                 <span className="stmt-title">{v.title}</span>
                 {v.sub && <span className="stmt-sub">{v.sub}</span>}
