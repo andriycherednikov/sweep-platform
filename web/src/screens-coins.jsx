@@ -146,8 +146,12 @@ export function WalletHeader({ onBack, go, scrolled, onInfo, onOptOut }) {
             </button>
           </div>
         )}
-        {onOptOut && <OptOutButton onClick={onOptOut} />}
-        {onInfo && <button className="hdr-help coin-help" onClick={onInfo} aria-label="About wagers" title="About wagers">?</button>}
+        {(onOptOut || onInfo) && (
+          <div className="coin-wallet-actions">
+            {onOptOut && <OptOutButton onClick={onOptOut} />}
+            {onInfo && <button className="hdr-help coin-help" onClick={onInfo} aria-label="About wagers" title="About wagers">?</button>}
+          </div>
+        )}
       </div>
       {me && <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} Yowie Dollars every week`}</div>}
     </div>
