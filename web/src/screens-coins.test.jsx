@@ -2,11 +2,12 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoinsScreen } from './screens-coins.jsx'
-import { setWalletData } from './coins.js'
+import { setWalletData, canWager } from './coins.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  localStorage.clear()
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
   S.flag = (c) => `/flags/${c}.png`
   S.team = (c) => ({ code: c, name: c.toUpperCase(), color: '#123', flagCode: c })
@@ -68,4 +69,18 @@ test('the Statement tab shows the Yowie Dollars statement', () => {
   fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
   expect(screen.getByText('Starting bankroll')).toBeInTheDocument()
   expect(screen.getByText('Balance')).toBeInTheDocument()
+})
+
+test('the header shield opens the opt-out sheet and a duration locks Wagers', () => {
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  // shield replaces the privacy eye in the Wagers header
+  fireEvent.click(screen.getByLabelText('Step away from Wagers'))
+  // sheet shows the five choices
+  expect(screen.getByRole('button', { name: '7 days' })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Completely' })).toBeInTheDocument()
+  // choosing a duration reveals the confirm step
+  fireEvent.click(screen.getByRole('button', { name: '7 days' }))
+  fireEvent.click(screen.getByRole('button', { name: /^confirm$/i }))
+  // opted out → canWager() is now false
+  expect(canWager()).toBe(false)
 })
