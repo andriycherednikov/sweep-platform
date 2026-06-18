@@ -27,6 +27,9 @@ Yowie Dollars statement with their own row type.
   backfill of already-finished matches.
 - **Result source = `fixtureResult(f)`** (authoritative; honours `winnerCode`, i.e. ET /
   penalties), not the 90-minute score.
+- **Minors are excluded.** Coins/Wagers is 18+ (minors can't see/use it; balance shows 0),
+  so reward rows are granted only to adult accounts (`person.adult !== false`). Both reward
+  paths join `person` (on the composite `(id, sweepId)`) and skip `adult === false`.
 
 ## Background (existing code)
 
