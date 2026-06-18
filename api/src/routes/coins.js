@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
 import { fixture, person, coinLedger, bet } from '../db/schema.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { walletFor, leaderboard, ensureGrants, serializeBet } from '../coins/ledger.js'
+import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor } from '../coins/ledger.js'
 
 const member = requireSweep(['member', 'admin'])
 
@@ -28,6 +28,17 @@ export async function coinsRoutes(app) {
       if (p) wallet = await walletFor(app.db, sweepId, me)
     }
     return { ...wallet, leaderboard: board }
+  })
+
+  app.get('/api/coins/ledger', { preHandler: member }, async (req) => {
+    const sweepId = req.sweep.id
+    const me = req.query?.personId
+    if (!me) return { balance: 0, entries: [] }
+    // mirror GET /api/coins: validate the person belongs to this sweep before statementFor
+    // (which grants/inserts), so a bogus ?personId returns empty rather than an FK error
+    const [p] = await app.db.select().from(person).where(and(eq(person.id, me), eq(person.sweepId, sweepId)))
+    if (!p) return { balance: 0, entries: [] }
+    return statementFor(app.db, sweepId, me)
   })
 
   app.post('/api/bet', { preHandler: member, schema: { body: betBody } }, async (req, reply) => {

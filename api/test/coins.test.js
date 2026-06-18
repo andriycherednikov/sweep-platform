@@ -148,3 +148,39 @@ test('two concurrent full-balance bets cannot overdraw — exactly one wins', as
   expect(wallet.balance).toBe(0)          // never negative
   expect(wallet.bets.open).toHaveLength(1) // only the funded bet landed
 })
+
+// --- GET /api/coins/ledger ------------------------------------------------
+
+test('GET /api/coins/ledger returns the grant entry with a running balance', async () => {
+  const p = await aPerson()
+  const res = await app.inject({ method: 'GET', url: `/api/coins/ledger?personId=${p.id}` })
+  expect(res.statusCode).toBe(200)
+  const body = res.json()
+  expect(body.balance).toBeGreaterThanOrEqual(1000)
+  expect(Array.isArray(body.entries)).toBe(true)
+  const grant = body.entries.find((e) => e.type === 'grant' && e.weekIndex === 0)
+  expect(grant).toMatchObject({ amount: 1000, balanceAfter: 1000, bet: null })
+})
+
+test('GET /api/coins/ledger reflects a placed bet as a stake entry with its bet attached', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id) // seed grant
+  await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 100 } })
+  const body = (await app.inject({ method: 'GET', url: `/api/coins/ledger?personId=${p.id}` })).json()
+  // newest first → the stake entry is on top
+  expect(body.entries[0]).toMatchObject({ type: 'stake', amount: -100 })
+  expect(body.entries[0].bet).toMatchObject({ market: '1x2', selection: 'HOME', stake: 100, status: 'open' })
+  expect(body.balance).toBe(body.entries[0].balanceAfter)
+})
+
+test('GET /api/coins/ledger with an unknown personId returns an empty statement, not an error', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/coins/ledger?personId=does_not_exist' })
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toEqual({ balance: 0, entries: [] })
+})
+
+test('GET /api/coins/ledger with no personId returns an empty statement', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/coins/ledger' })
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toEqual({ balance: 0, entries: [] })
+})
