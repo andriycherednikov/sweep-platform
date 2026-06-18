@@ -1060,12 +1060,14 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-wallet-inner .coin-no-id{flex:1;}
 
 /* ---- bet-detail: game heading bar under the wallet header ---- */
-.coin-match-title{display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:8px 12px; padding:14px 8px 12px; margin-bottom:6px; border-bottom:1px solid var(--line);
-  font-family:'Barlow Condensed'; font-weight:800; font-size:21px; letter-spacing:.4px; color:var(--navy); text-align:center;}
-.coin-match-title .flag{width:30px; height:21px; border-radius:3px; box-shadow:0 1px 3px rgba(11,31,58,.22); flex-shrink:0;}
-.coin-mt-team{display:flex; align-items:center; gap:8px;}
-.coin-mt-vs{font-family:'Barlow'; font-weight:700; font-size:11px; color:var(--muted2); text-transform:uppercase; letter-spacing:1.5px;}
-.coin-mt-ko{width:100%; text-align:center; font-family:'Barlow Semi Condensed'; font-size:11.5px; font-weight:600; color:var(--muted); letter-spacing:.3px; margin-top:-2px;}
+.coin-match-title{display:flex; flex-direction:column; align-items:center; gap:4px; padding:14px 8px 12px; margin-bottom:6px; border-bottom:1px solid var(--line);
+  font-family:'Barlow Condensed'; font-weight:800; letter-spacing:.4px; color:var(--navy); text-align:center;}
+/* teams stay on ONE line — shrink the font (and keep flags small) so long pairs fit */
+.coin-mt-row{display:flex; flex-wrap:nowrap; align-items:center; justify-content:center; gap:8px; max-width:100%; white-space:nowrap; font-size:clamp(15px, 5.2vw, 21px);}
+.coin-match-title .flag{width:24px; height:17px; border-radius:3px; box-shadow:0 1px 3px rgba(11,31,58,.22); flex-shrink:0;}
+.coin-mt-team{display:flex; align-items:center; gap:6px; min-width:0;}
+.coin-mt-vs{flex:none; font-family:'Barlow'; font-weight:700; font-size:11px; color:var(--muted2); text-transform:uppercase; letter-spacing:1.5px;}
+.coin-mt-ko{text-align:center; font-family:'Barlow Semi Condensed'; font-size:11.5px; font-weight:600; color:var(--muted); letter-spacing:.3px;}
 
 /* ---- bet-detail overlay: market cards ---- */
 .coin-mkt{padding:13px 14px 15px;}

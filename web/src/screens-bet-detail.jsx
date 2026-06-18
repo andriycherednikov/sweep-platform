@@ -3,8 +3,9 @@
    ============================================================ */
 import { useState } from 'react'
 import { SWEEP as S } from './data.js'
-import { Flag } from './components.jsx'
+import { Flag, AppHeader, useIsDesktop } from './components.jsx'
 import { BetSheet, WalletHeader, MyBets } from './screens-coins.jsx'
+import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
 const MARKET_ORDER = ['1x2', 'fh1x2', 'ou25', 'cards', 'cs']
@@ -25,6 +26,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
   const [csOpen, setCsOpen] = useState(false)
   const [tab, setTab] = useState('place')
+  const desktop = useIsDesktop()
   useCoins() // re-render My bets on store changes
 
   if (!f) return <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }} />
@@ -34,13 +36,16 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
 
   return (
     <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <WalletHeader onBack={onBack} />
+      {desktop
+        ? <WalletHeader onBack={onBack} />
+        : <AppHeader title="Wagers" coins={myWallet().balance} onBack={onBack} />}
 
-      {/* Place a bet / My bets toggle (kept on the game screen too) */}
+      {/* Place a bet / My bets / Statement toggle (kept on the game screen too) */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
-        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <button className={'statseg-opt' + (tab === 'place' ? ' on' : '')} onClick={() => setTab('place')}>Place a bet</button>
           <button className={'statseg-opt' + (tab === 'bets' ? ' on' : '')} onClick={() => setTab('bets')}>My bets</button>
+          <button className={'statseg-opt' + (tab === 'statement' ? ' on' : '')} onClick={() => setTab('statement')}>Statement</button>
         </div>
       </div>
 
@@ -52,13 +57,21 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
             </div>
           </div>
         </div>
+      ) : tab === 'statement' ? (
+        <div className="scroll pad screen-anim">
+          <div className="wrap" style={{ marginTop: 14 }}>
+            <StatementList />
+          </div>
+        </div>
       ) : (
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{ marginTop: 0 }}>
           <div className="coin-match-title">
-            <span className="coin-mt-team"><Flag code={f.t1} w={30} h={21} />{S.team(f.t1)?.name || f.t1}</span>
-            <span className="coin-mt-vs">v</span>
-            <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={30} h={21} /></span>
+            <div className="coin-mt-row">
+              <span className="coin-mt-team"><Flag code={f.t1} w={24} h={17} />{S.team(f.t1)?.name || f.t1}</span>
+              <span className="coin-mt-vs">v</span>
+              <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={24} h={17} /></span>
+            </div>
             <span className="coin-mt-ko">{f.dateTimeLabel}</span>
           </div>
           <div className="coin-mkt-list">
