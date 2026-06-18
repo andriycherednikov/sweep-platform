@@ -3,6 +3,7 @@ import { SWEEP as S } from './data.js'
 import { getMe, toast } from './social.js'
 import { postBet } from './api/client.js'
 import { trackEvent } from './lib/analytics.js'
+import { isOptedOut } from './optout.js'
 
 const listeners = new Set()
 function notify() { listeners.forEach((fn) => fn()) }
@@ -24,7 +25,7 @@ export function myWallet() { return wallet }
 /** Wagers are 18+ only. You can only see/use them when you're signed in as an
  *  adult account. Everyone defaults to adult; a person is a minor when an admin
  *  has marked `adult === false`. Not logged in (no `me`) → no wagers either. */
-export function canWager() { const me = getMe(); return !!me && me.adult !== false }
+export function canWager() { const me = getMe(); return !!me && me.adult !== false && !isOptedOut() }
 export function balanceByPerson() { const m = {}; for (const e of board) m[e.personId] = e.balance; return m }
 
 /** Leaderboard rows resolved to people, highest balance first. */
