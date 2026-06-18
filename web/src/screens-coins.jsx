@@ -16,7 +16,7 @@ function selectionLabel(selection, f) {
   return selection
 }
 
-const MARKET_LABELS = {
+export const MARKET_LABELS = {
   '1x2': 'Match Winner',
   fh1x2: 'First Half',
   ou25: 'Over/Under 2.5',
@@ -24,7 +24,7 @@ const MARKET_LABELS = {
   cs: 'Correct Score',
 }
 
-function betSelectionLabel(b) {
+export function betSelectionLabel(b) {
   const f = S.fixture(b.fixtureId)
   if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
     if (b.selection === 'HOME') return S.team(f.t1)?.name || 'Home'
@@ -38,7 +38,7 @@ function betSelectionLabel(b) {
 }
 
 // the team flag for a team selection (Match Winner / First Half home/away), else null
-function betSelectionFlag(b) {
+export function betSelectionFlag(b) {
   const f = S.fixture(b.fixtureId)
   if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
     if (b.selection === 'HOME') return f.t1
