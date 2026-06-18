@@ -1052,6 +1052,13 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* ---- shared wallet header: optional back button + balance ---- */
 .coin-wallet-inner{display:flex; align-items:center; gap:12px; position:relative; z-index:1;}
+/* back arrow in the app-bar (reuses the brand button; box matches .coin-back) */
+.brand-back-box{flex:none; width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:grid; place-items:center; transition:all .18s ease;}
+.brand-back-box svg{width:18px; height:18px; stroke:#fff;}
+.brand.brand-btn:hover .brand-back-box{background:rgba(255,255,255,.22);}
+.home-top.shrunk .brand-back-box{width:28px; height:28px;}
+.home-top.shrunk .brand-back-box svg{width:15px; height:15px;}
+
 .coin-back{width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.12); display:grid; place-items:center; flex-shrink:0; cursor:pointer; transition:background .14s;}
 .coin-back:hover{background:rgba(255,255,255,.22);}
 .coin-back svg{width:18px; height:18px; stroke:#fff;}

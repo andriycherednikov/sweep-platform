@@ -1,10 +1,10 @@
 /* ============================================================
    THE SWEEP — Bet detail overlay: all markets for a fixture
    ============================================================ */
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
-import { Flag, AppHeader, useIsDesktop } from './components.jsx'
-import { BetSheet, WalletHeader, MyBets } from './screens-coins.jsx'
+import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
+import { BetSheet, WalletHeader, MyBets, WagersInfoSheet } from './screens-coins.jsx'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
@@ -26,8 +26,14 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
   const [csOpen, setCsOpen] = useState(false)
   const [tab, setTab] = useState('place')
+  const [info, setInfo] = useState(false)
   const desktop = useIsDesktop()
+  const scrollRef = useRef(null)
+  const { scrolled, onScroll } = useScrolled(scrollRef)
   useCoins() // re-render My bets on store changes
+  const helpBtn = (
+    <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
+  )
 
   if (!f) return <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }} />
 
@@ -37,8 +43,8 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   return (
     <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {desktop
-        ? <WalletHeader onBack={onBack} />
-        : <AppHeader title="Wagers" coins={myWallet().balance} onBack={onBack} />}
+        ? <WalletHeader onBack={onBack} onInfo={() => setInfo(true)} scrolled={scrolled} />
+        : <AppHeader title="Wagers" coins={myWallet().balance} onBack={onBack} scrolled={scrolled} right={helpBtn} />}
 
       {/* Place a bet / My bets / Statement toggle (kept on the game screen too) */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
@@ -50,7 +56,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
       </div>
 
       {tab === 'bets' ? (
-        <div className="scroll pad screen-anim">
+        <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
           <div className="wrap" style={{ marginTop: 14 }}>
             <div className="block" style={{ padding: '14px 14px' }}>
               <MyBets bets={myWallet().bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
@@ -58,7 +64,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           </div>
         </div>
       ) : tab === 'statement' ? (
-        <div className="scroll pad screen-anim">
+        <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
           <div className="wrap" style={{ marginTop: 14 }}>
             <StatementList />
           </div>
@@ -131,6 +137,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           onClose={() => setSheet(null)}
         />
       )}
+      {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
     </div>
   )
 }
