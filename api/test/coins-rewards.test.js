@@ -1,4 +1,4 @@
-import { expect, test, afterAll, beforeEach } from 'vitest'
+import { expect, test, afterAll, beforeEach, afterEach } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { fixture, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
@@ -7,6 +7,15 @@ import { grantMatchRewards } from '../src/coins/rewards.js'
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
 beforeEach(async () => { await db.delete(coinLedger); await db.delete(support); await db.delete(ownership) })
+// Robust teardown: runs even if an assertion throws mid-test. Undo any minor flip and
+// remove the parallel 'other' sweep so neither can leak into sibling tests.
+afterEach(async () => {
+  await db.update(person).set({ adult: true })
+  await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'other'))
+  await db.delete(support).where(eq(support.sweepId, 'other'))
+  await db.delete(person).where(eq(person.sweepId, 'other'))
+  await db.delete(sweep).where(eq(sweep.id, 'other'))
+})
 
 const twoPeople = async () => db.select().from(person).limit(2)
 const rows = (personId, type) =>
@@ -105,11 +114,7 @@ test('rewards are granted under the row’s own sweep (isolation)', async () => 
   await grantMatchRewards(db, f.id)
   const otherRow = (await rows('pn_other', 'predict'))[0]
   expect(otherRow.sweepId).toBe('other')
-  // cleanup so the parallel sweep can't leak into sibling tests
-  await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'other'))
-  await db.delete(support).where(eq(support.sweepId, 'other'))
-  await db.delete(person).where(eq(person.sweepId, 'other'))
-  await db.delete(sweep).where(eq(sweep.id, 'other'))
+  // (the 'other' sweep is torn down in afterEach, so cleanup is robust to assertion failure)
 })
 
 test('a minor’s correct prediction grants nothing (coins is 18+)', async () => {
@@ -119,7 +124,6 @@ test('a minor’s correct prediction grants nothing (coins is 18+)', async () =>
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: f.t1Code })
   await grantMatchRewards(db, f.id)
   expect(await rows(a.id, 'predict')).toHaveLength(0)
-  await db.update(person).set({ adult: true }).where(eq(person.id, a.id)) // restore for sibling tests
 })
 
 test('a minor who owns the winning team gets no team-win reward', async () => {
@@ -129,5 +133,4 @@ test('a minor who owns the winning team gets no team-win reward', async () => {
   await db.insert(ownership).values({ sweepId: 'default', personId: a.id, teamCode: f.t1Code })
   await grantMatchRewards(db, f.id)
   expect(await rows(a.id, 'teamwin')).toHaveLength(0)
-  await db.update(person).set({ adult: true }).where(eq(person.id, a.id)) // restore for sibling tests
 })
