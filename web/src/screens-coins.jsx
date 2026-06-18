@@ -318,6 +318,11 @@ export function WagersInfoSheet({ onClose }) {
             every account automatically {drop ? <>every <b>{drop}</b> (Sydney time)</> : <b>each week</b>} —
             until the World Cup Final on <b>{WAGERS_END}</b>, when the table locks and the bragging begins.</span>
           </div>
+          <div className="fyi-grant">
+            <Icon.coin />
+            <span>Earn more when you’re right: <b>+100 Yowie Dollars</b> for every match you predict
+            correctly, and <b>+300</b> each time a team you own wins a match.</span>
+          </div>
           <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
           <div className="fyi-faq">
             {faqs.map(([q, a]) => (
