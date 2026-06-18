@@ -116,15 +116,15 @@ inherited from `newlyFinal`.
   `bet` stays `null` and `weekIndex` stays `null` for these types.
 - **`entryView` + `KIND_ICON`** (`screens-statement.jsx`):
   - `predict` → `{ kind:'predict', title: <match via S.fixture(e.fixtureId)>, sub:'Correct
-    prediction' }`, icon `faBullseye`.
-  - `teamwin` → `{ kind:'teamwin', title: <match>, sub:'Your team won' }`, icon
-    `faShieldHalved`.
+    prediction' }`.
+  - `teamwin` → `{ kind:'teamwin', title: <match>, sub:'Your team won' }`.
+  - **Icons (both gold, `var(--gold)`):** `predict` → a golden **dollar-sign**
+    (`faDollarSign`); `teamwin` → a golden **team** icon (`faUsers`).
   - Both amounts are positive → render green like other credits. Match title resolved the
     same way `bet` rows do (`S.fixture(id)` → `S.team(...).name v ...`); if the fixture
     isn't in the client cache, fall back to a generic title ("Correct prediction" /
     "Team won").
-  - Icon colours assigned via `.stmt-ic.predict` / `.stmt-ic.teamwin` (palette tokens;
-    easily swapped later, like the other icons).
+  - Icon colour assigned via `.stmt-ic.predict` / `.stmt-ic.teamwin` → both `var(--gold)`.
 
 ## Data flow
 
