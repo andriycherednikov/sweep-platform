@@ -42,6 +42,32 @@ export async function walletFor(db, sweepId, personId, now = new Date()) {
   return { balance, weeklyGrant: WEEKLY_COINS, bets: { open, settled } }
 }
 
+/** A person's full ledger: every signed entry, newest-first, with a running balance and
+ *  (for stake/payout/refund rows) the matching bet attached. Grants carry their weekIndex. */
+export async function statementFor(db, sweepId, personId, now = new Date()) {
+  await ensureGrants(db, sweepId, personId, now)
+  const rows = await db.select().from(coinLedger)
+    .where(and(eq(coinLedger.sweepId, sweepId), eq(coinLedger.personId, personId)))
+    .orderBy(coinLedger.createdAt, coinLedger.id)
+  const bets = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId)))
+  const betById = new Map(bets.map((b) => [b.id, serializeBet(b)]))
+  let running = 0
+  const entries = rows.map((r) => {
+    running += r.amount
+    return {
+      id: r.id,
+      type: r.type,
+      amount: r.amount,
+      createdAt: r.createdAt,
+      balanceAfter: running,
+      weekIndex: r.type === 'grant' ? Number(r.refId) : null,
+      bet: r.type === 'grant' ? null : (betById.get(r.refId) ?? null),
+    }
+  })
+  entries.reverse() // newest first
+  return { balance: running, entries }
+}
+
 /** Every person's current balance, ranked high → low (ensures all members are granted first). */
 export async function leaderboard(db, sweepId, now = new Date()) {
   const people = await db.select().from(person).where(eq(person.sweepId, sweepId))
