@@ -349,7 +349,7 @@ function weeklyDropSydney() {
   return `${day} at ${time}`
 }
 
-export function WagersInfoSheet({ onClose }) {
+export function WagersInfoSheet({ onClose, onOptOut }) {
   const drop = weeklyDropSydney()
   const faqs = [
     ['Can I buy more Yowie Dollars if I run out?', `No. There’s nothing to buy — no real money is ever involved. Everyone is topped up with +1,000 Yowie Dollars automatically each week${drop ? `, every ${drop} (Sydney time)` : ''}.`],
@@ -380,6 +380,17 @@ export function WagersInfoSheet({ onClose }) {
             schedule, and <b>+300</b> each time a team you own wins a match.</span>
           </div>
           <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
+          <div className="fyi-stepaway">
+            <p>
+              <b>Stepping away is OK.</b> Everyone's different. If you'd rather not take part — or if
+              this feature could be harmful or a trigger for you — you absolutely should step away,
+              and we 100% support that. It's completely anonymous: no one can see that you did it.
+              You're free, welcome, and encouraged to do it any time it feels right for you.
+            </p>
+            <button className="btn-ghost fyi-stepaway-btn" onClick={onOptOut} aria-label="Step away from Wagers">
+              <Icon.shield style={{ width: 16, height: 16 }} /> Step away from Wagers
+            </button>
+          </div>
           <div className="fyi-faq">
             {faqs.map(([q, a]) => (
               <div className="fyi-q" key={q}>
@@ -567,7 +578,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
           onClose={() => setBetSheet(null)}
         />
       )}
-      {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
+      {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
       {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}
     </div>
   )

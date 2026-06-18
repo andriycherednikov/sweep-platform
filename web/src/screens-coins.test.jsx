@@ -71,8 +71,22 @@ test('the Statement tab shows the Yowie Dollars statement', () => {
   expect(screen.getByText('Balance')).toBeInTheDocument()
 })
 
+test('the About sheet shield hands off to the opt-out sheet', () => {
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  // open the "?" About sheet
+  fireEvent.click(screen.getByRole('button', { name: /about wagers/i }))
+  expect(screen.getByText(/Stepping away is OK/i)).toBeInTheDocument()
+  // its shield opens the opt-out sheet (there may be 2 matches: header + sheet — click the last)
+  const btns = screen.getAllByRole('button', { name: /step away from wagers/i })
+  fireEvent.click(btns[btns.length - 1])
+  expect(screen.getByRole('button', { name: 'Completely' })).toBeInTheDocument()
+})
+
 test('the header shield opens the opt-out sheet and a duration locks Wagers', () => {
   render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  // The About sheet auto-opens on first render (localStorage cleared in beforeEach).
+  // Close it first so only the header shield button is in the DOM.
+  fireEvent.click(screen.getByRole('button', { name: /got it/i }))
   // shield replaces the privacy eye in the Wagers header
   fireEvent.click(screen.getByLabelText('Step away from Wagers'))
   // sheet shows the five choices
