@@ -333,7 +333,7 @@ export function MatchCard({ f, onOpen, onToast }) {
      home  → THE SWEEP / WORLD CUP 2026 + date + sweeps + admin
      page  → menu name (pass `title`)
      coins → balance + "COINS" (pass `coins`) */
-export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, scrollRef }) {
+export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, scrollRef, onBack }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
@@ -347,6 +347,12 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
   return (
     <header className={"top home-top" + (scrolled ? " shrunk" : "")}>
       <div className="brandrow">
+        {onBack ? (
+          <button className="brand brand-btn" onClick={onBack} aria-label="Back">
+            <div className="mark back"><span className="brand-back-box"><Icon.back/></span></div>
+            <div className="brand-tx alt"><b>{title}</b>{sub && <small>{sub}</small>}</div>
+          </button>
+        ) : (
         <button className="brand brand-btn" onClick={toTop} aria-label={home ? "Scroll to top" : "Today"}>
           <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
           <div className={"brand-tx" + (home ? "" : " alt")}>
@@ -354,6 +360,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
             {(home || sub) && <small>{home ? "WORLD CUP 2026" : sub}</small>}
           </div>
         </button>
+        )}
         {me && (
           <button className="id-mini" onClick={viewMe} aria-label="View your profile">
             <PersonAvatar p={me} cls="av" style={{width:26,height:26,border:0,margin:0,fontSize:11}}/>

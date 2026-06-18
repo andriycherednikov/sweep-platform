@@ -1,11 +1,13 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BetDetail } from './screens-bet-detail.jsx'
 import { setWalletData } from './coins.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
   S.flag = (c) => `/flags/${c}.png`
   S.team = (c) => ({ code: c, name: c.toUpperCase(), color: '#123', flagCode: c })
   S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', stage: 'group', status: 'upcoming',
@@ -32,4 +34,20 @@ test('tapping a selection opens the bet sheet with a stake entry', () => {
   expect(screen.getByRole('button', { name: 'Max stake' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Backspace' })).toBeInTheDocument()
+})
+
+test('the Statement tab shows the Yowie Dollars statement', () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  qc.setQueryData(['coins', 'ledger', 'pn_a'], {
+    balance: 1000,
+    entries: [{ id: 1, type: 'grant', amount: 1000, weekIndex: 0, balanceAfter: 1000, createdAt: '2026-07-01T00:00:00.000Z', bet: null }],
+  })
+  render(
+    <QueryClientProvider client={qc}>
+      <BetDetail fixtureId="f1" onBack={() => {}} />
+    </QueryClientProvider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
+  expect(screen.getByText('Starting bankroll')).toBeInTheDocument()
+  expect(screen.getByText('Balance')).toBeInTheDocument()
 })

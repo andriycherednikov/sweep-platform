@@ -1,5 +1,5 @@
 import { expect, test, vi, beforeEach } from 'vitest'
-import { fetchBootstrap, fetchFixtures, fetchStandings, fetchPhotos, fetchSyncStatus, fetchAll, fetchWallet, postBet } from './client.js'
+import { fetchBootstrap, fetchFixtures, fetchStandings, fetchPhotos, fetchSyncStatus, fetchAll, fetchWallet, postBet, fetchLedger } from './client.js'
 
 beforeEach(() => { vi.restoreAllMocks() })
 
@@ -347,4 +347,12 @@ test('postBet posts market + selection to /api/bet', async () => {
   expect(calls[0].opts.method).toBe('POST')
   expect(calls[0].opts.credentials).toBe('include')
   expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', personId: 'pn_x', market: 'ou25', selection: 'OVER', stake: 50 })
+})
+
+test('fetchLedger requests the ledger endpoint with an encoded personId', async () => {
+  const fetchSpy = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ balance: 1000, entries: [] }) }))
+  vi.stubGlobal('fetch', fetchSpy)
+  const out = await fetchLedger('pn a/b')
+  expect(fetchSpy).toHaveBeenCalledWith('/api/coins/ledger?personId=pn%20a%2Fb', { credentials: 'include' })
+  expect(out).toEqual({ balance: 1000, entries: [] })
 })

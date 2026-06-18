@@ -7,6 +7,7 @@ import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets } from './coins/settle.js'
+import { grantMatchRewards } from './coins/rewards.js'
 import { inArray } from 'drizzle-orm'
 import { fixture } from './db/schema.js'
 
@@ -67,6 +68,8 @@ setInterval(async () => {
         for (const r of newlyFinal) {
           try { await settleBets(db, r.id, (e) => publish(db, e)) }
           catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
+          try { await grantMatchRewards(db, r.id, (e) => publish(db, e)) }
+          catch (e) { console.error(`[grantMatchRewards] fixture ${r.id} failed:`, e.message) }
         }
         await publish(db, { type: 'sync' })
         console.log(`[standings] recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)

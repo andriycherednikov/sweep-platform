@@ -1,10 +1,11 @@
 /* ============================================================
    THE SWEEP — Bet detail overlay: all markets for a fixture
    ============================================================ */
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
-import { Flag } from './components.jsx'
-import { BetSheet, WalletHeader, MyBets } from './screens-coins.jsx'
+import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
+import { BetSheet, WalletHeader, MyBets, WagersInfoSheet } from './screens-coins.jsx'
+import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
 const MARKET_ORDER = ['1x2', 'fh1x2', 'ou25', 'cards', 'cs']
@@ -25,7 +26,14 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
   const [csOpen, setCsOpen] = useState(false)
   const [tab, setTab] = useState('place')
+  const [info, setInfo] = useState(false)
+  const desktop = useIsDesktop()
+  const scrollRef = useRef(null)
+  const { scrolled, onScroll } = useScrolled(scrollRef)
   useCoins() // re-render My bets on store changes
+  const helpBtn = (
+    <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
+  )
 
   if (!f) return <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }} />
 
@@ -34,31 +42,42 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
 
   return (
     <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <WalletHeader onBack={onBack} />
+      {desktop
+        ? <WalletHeader onBack={onBack} onInfo={() => setInfo(true)} scrolled={scrolled} />
+        : <AppHeader title="Wagers" coins={myWallet().balance} onBack={onBack} scrolled={scrolled} right={helpBtn} />}
 
-      {/* Place a bet / My bets toggle (kept on the game screen too) */}
+      {/* Place a bet / My bets / Statement toggle (kept on the game screen too) */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
-        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <button className={'statseg-opt' + (tab === 'place' ? ' on' : '')} onClick={() => setTab('place')}>Place a bet</button>
           <button className={'statseg-opt' + (tab === 'bets' ? ' on' : '')} onClick={() => setTab('bets')}>My bets</button>
+          <button className={'statseg-opt' + (tab === 'statement' ? ' on' : '')} onClick={() => setTab('statement')}>Statement</button>
         </div>
       </div>
 
       {tab === 'bets' ? (
-        <div className="scroll pad screen-anim">
+        <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
           <div className="wrap" style={{ marginTop: 14 }}>
             <div className="block" style={{ padding: '14px 14px' }}>
               <MyBets bets={myWallet().bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           </div>
         </div>
+      ) : tab === 'statement' ? (
+        <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
+          <div className="wrap" style={{ marginTop: 14 }}>
+            <StatementList />
+          </div>
+        </div>
       ) : (
-      <div className="scroll pad screen-anim">
+      <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
         <div className="wrap" style={{ marginTop: 0 }}>
           <div className="coin-match-title">
-            <span className="coin-mt-team"><Flag code={f.t1} w={30} h={21} />{S.team(f.t1)?.name || f.t1}</span>
-            <span className="coin-mt-vs">v</span>
-            <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={30} h={21} /></span>
+            <div className="coin-mt-row">
+              <span className="coin-mt-team"><Flag code={f.t1} w={24} h={17} />{S.team(f.t1)?.name || f.t1}</span>
+              <span className="coin-mt-vs">v</span>
+              <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={24} h={17} /></span>
+            </div>
             <span className="coin-mt-ko">{f.dateTimeLabel}</span>
           </div>
           <div className="coin-mkt-list">
@@ -118,6 +137,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           onClose={() => setSheet(null)}
         />
       )}
+      {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
     </div>
   )
 }

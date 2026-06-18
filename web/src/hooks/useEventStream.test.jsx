@@ -155,3 +155,11 @@ test('on (re)open it also invalidates the coins query', () => {
   es.open()
   expect(spy).toHaveBeenCalledWith({ queryKey: ['coins'] })
 })
+
+test('bet-settled invalidates the coins query (prefix covers the statement ledger key)', () => {
+  const { spy, es } = setup()
+  es.emit({ type: 'bet-settled' })
+  // ['coins'] is a prefix of the statement key ['coins','ledger',id], so this one call
+  // refreshes both the wallet and the open statement — no separate invalidation needed.
+  expect(spy).toHaveBeenCalledWith({ queryKey: ['coins'] })
+})
