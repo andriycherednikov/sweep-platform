@@ -313,8 +313,10 @@ export function OptOutSheet({ onClose }) {
           {chosen == null ? (
             <>
               <p className="fyi-lead">
-                Taking a break is completely OK — and completely anonymous. Choose how long to
-                step away. Wagers will be hidden until then; there's no turning it back on early.
+                Taking a break is completely OK — and completely anonymous. You won't miss out on
+                any of the fun: the rest of The Sweep carries on exactly the same, only Wagers
+                pauses. Choose how long to step away — it'll be hidden until then, with no turning
+                it back on early.
               </p>
               <div className="optout-choices">
                 {OPT_OUT_CHOICES.map(([k, lbl]) => (
