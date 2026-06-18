@@ -1087,17 +1087,26 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-more:hover{border-color:var(--gold); color:var(--navy);}
 
 /* ---- Statement (Yowie Dollars ledger) ---- */
-/* columns: date · activity · amount · running balance */
+/* columns: date · activity (icon + game / selection) · amount · running balance */
 .stmt-list { padding: 2px 0; }
 .stmt-row { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; column-gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
 .stmt-row:last-child { border-bottom: 0; }
 .stmt-row-head { padding-top: 10px; padding-bottom: 8px; }
 .stmt-col-h { font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
 .stmt-col-r { text-align: right; }
-.stmt-when { display: flex; flex-direction: column; line-height: 1.15; }
+.stmt-when { display: flex; flex-direction: column; line-height: 1.15; white-space: nowrap; }
 .stmt-when-date { font-size: 12px; font-weight: 700; }
 .stmt-when-time { font-size: 11px; color: var(--muted); }
-.stmt-label { font-size: 14px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* activity = round type icon + two text lines (game / selection) */
+.stmt-act { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.stmt-ic { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; }
+.stmt-ic svg { width: 17px; height: 17px; }
+.stmt-ic.dep { color: var(--gold); background: rgba(242,177,56,.16); }
+.stmt-ic.bet { color: var(--blue); background: rgba(42,143,214,.14); }
+.stmt-ic.win { color: var(--live); background: rgba(31,157,87,.15); }
+.stmt-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1.25; }
+.stmt-title { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.stmt-sub { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
 .stmt-amt { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stmt-amt.up { color: var(--live); }
 .stmt-amt.down { color: var(--accent); }
