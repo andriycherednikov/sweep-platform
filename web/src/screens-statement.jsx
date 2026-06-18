@@ -5,15 +5,15 @@
    ============================================================ */
 import { useQuery } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faTicket, faTrophy } from '@fortawesome/free-solid-svg-icons'
+import { faCoins, faTicket, faFaceGrinStars } from '@fortawesome/free-solid-svg-icons'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { fetchLedger } from './api/client.js'
 import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
 // one icon per ledger entry kind: deposit (grant) = coins, bet placed (stake) = ticket,
-// bet won (payout) = trophy
-const KIND_ICON = { dep: faCoins, bet: faTicket, win: faTrophy }
+// bet won (payout) = star-struck face
+const KIND_ICON = { dep: faCoins, bet: faTicket, win: faFaceGrinStars }
 
 /** Structured view of one ledger entry: an icon kind, a title line (the game or grant),
  *  and a sub line (the selection). Reuses the bet-slip helpers for selection wording. */
