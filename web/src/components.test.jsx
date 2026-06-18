@@ -1,5 +1,5 @@
 // web/src/components.test.jsx
-import { expect, test, beforeEach, vi } from 'vitest'
+import { expect, test, beforeEach, afterEach, vi } from 'vitest'
 import { render, fireEvent, renderHook, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
@@ -9,13 +9,16 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams, BottomNav, OptOutButton } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
+import { optOut } from './optout.js'
+
+const S = SWEEP
 
 test('Av renders the initials chip when no avatarPath', () => {
   const { container } = render(<Av p={{ initials: 'AB', av: '#123456' }} size={24} />)
@@ -51,6 +54,7 @@ beforeEach(() => {
   }))
   setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } })
 })
+afterEach(() => localStorage.clear())
 
 test('CrowdPick renders tappable team zones showing each crowd count', () => {
   const { getByLabelText, container } = render(<CrowdPick f={F} />)
@@ -695,4 +699,22 @@ test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
   const on = render(<SpoilerToggle compact />)
   expect(on.container.querySelector('.spoiler-tog.compact.on')).toBeTruthy()
   setSpoiler(false)
+})
+
+test('BottomNav hides the Wagers tab once opted out', () => {
+  localStorage.clear()
+  S.people = [{ id: 'pn_a', name: 'Ann' }]
+  setMe('pn_a') // an adult (no adult:false)
+  const { queryByText, rerender } = render(<BottomNav tab="home" go={() => {}} />)
+  expect(queryByText('Wagers')).toBeInTheDocument()
+  act(() => { optOut('7d') })
+  rerender(<BottomNav tab="home" go={() => {}} />)
+  expect(queryByText('Wagers')).not.toBeInTheDocument()
+})
+
+test('OptOutButton renders a shield and fires onClick', () => {
+  const onClick = vi.fn()
+  const { getByLabelText } = render(<OptOutButton onClick={onClick} />)
+  fireEvent.click(getByLabelText('Step away from Wagers'))
+  expect(onClick).toHaveBeenCalled()
 })
