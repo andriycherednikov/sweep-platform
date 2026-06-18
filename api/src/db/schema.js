@@ -132,7 +132,7 @@ export const coinLedger = pgTable('coin_ledger', {
   id: serial('id').primaryKey(),
   sweepId: text('sweep_id').notNull(),
   personId: text('person_id').notNull(),
-  type: text('type').notNull(),         // 'grant' | 'stake' | 'payout' | 'refund'
+  type: text('type').notNull(),         // 'grant' | 'stake' | 'payout' | 'refund' | 'predict' | 'teamwin'
   amount: integer('amount').notNull(),  // signed
   refId: text('ref_id').notNull(),      // week index for grants, bet id otherwise
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
