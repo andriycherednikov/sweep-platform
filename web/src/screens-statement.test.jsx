@@ -1,7 +1,7 @@
 import { expect, test, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { StatementScreen } from './screens-statement.jsx'
+import { StatementList } from './screens-statement.jsx'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
@@ -11,7 +11,7 @@ function renderWith(entries, balance = 0) {
   qc.setQueryData(['coins', 'ledger', 'pn_a'], { balance, entries })
   return render(
     <QueryClientProvider client={qc}>
-      <StatementScreen onBack={() => {}} />
+      <StatementList />
     </QueryClientProvider>
   )
 }
@@ -25,12 +25,24 @@ beforeEach(() => {
   setMe('pn_a')
 })
 
-test('renders a grant as a positive entry labelled Starting bankroll', () => {
+test('renders column headers including a Balance column', () => {
+  renderWith([
+    { id: 1, type: 'grant', amount: 1000, weekIndex: 0, balanceAfter: 1000, createdAt: '2026-06-09T00:00:00.000Z', bet: null },
+  ], 1000)
+  expect(screen.getByText('Date')).toBeInTheDocument()
+  expect(screen.getByText('Activity')).toBeInTheDocument()
+  expect(screen.getByText('Amount')).toBeInTheDocument()
+  expect(screen.getByText('Balance')).toBeInTheDocument()
+})
+
+test('renders a grant as a positive entry labelled Starting bankroll with its running balance', () => {
   renderWith([
     { id: 1, type: 'grant', amount: 1000, weekIndex: 0, balanceAfter: 1000, createdAt: '2026-06-09T00:00:00.000Z', bet: null },
   ], 1000)
   expect(screen.getByText('Starting bankroll')).toBeInTheDocument()
   expect(screen.getByText('+1,000')).toBeInTheDocument()
+  // running balance shows in the last column
+  expect(screen.getByText('1,000')).toBeInTheDocument()
 })
 
 test('weekly grant (weekIndex > 0) is labelled Weekly Yowie Dollars', () => {
@@ -40,7 +52,7 @@ test('weekly grant (weekIndex > 0) is labelled Weekly Yowie Dollars', () => {
   expect(screen.getByText('Weekly Yowie Dollars')).toBeInTheDocument()
 })
 
-test('a lost stake shows the match, selection and (Lost), with a negative amount', () => {
+test('a lost stake shows the match, selection and (Lost), with a negative amount and balance', () => {
   renderWith([
     { id: 3, type: 'stake', amount: -200, weekIndex: null, balanceAfter: 800, createdAt: '2026-06-17T00:00:00.000Z',
       bet: { id: 'b1', fixtureId: 'f1', market: '1x2', selection: 'AWAY', line: null, stake: 200, odds: 3, status: 'lost' } },
@@ -49,6 +61,7 @@ test('a lost stake shows the match, selection and (Lost), with a negative amount
   expect(screen.getByText(/BRA/)).toBeInTheDocument()
   expect(screen.getByText(/\(Lost\)/)).toBeInTheDocument()
   expect(screen.getByText('-200')).toBeInTheDocument()
+  expect(screen.getByText('800')).toBeInTheDocument()
 })
 
 test('a payout shows Won bet on the match and a positive amount', () => {

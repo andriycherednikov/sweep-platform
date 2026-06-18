@@ -1,5 +1,6 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoinsScreen } from './screens-coins.jsx'
 import { setWalletData } from './coins.js'
 import { setMe } from './social.js'
@@ -51,9 +52,20 @@ test('My bets lists open and settled bets and filters', () => {
   expect(screen.getByText('won')).toBeInTheDocument()
 })
 
-test('the View statement link calls openStatement', () => {
-  const openStatement = vi.fn()
-  render(<CoinsScreen go={() => {}} openBet={() => {}} openStatement={openStatement} />)
-  fireEvent.click(screen.getByRole('button', { name: /view statement/i }))
-  expect(openStatement).toHaveBeenCalledTimes(1)
+test('the Statement tab shows the Yowie Dollars statement', () => {
+  // CoinsScreen renders <StatementList/> for this tab, which fetches via TanStack Query —
+  // wrap in a provider and pre-seed the ledger so it renders synchronously.
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  qc.setQueryData(['coins', 'ledger', 'pn_a'], {
+    balance: 1000,
+    entries: [{ id: 1, type: 'grant', amount: 1000, weekIndex: 0, balanceAfter: 1000, createdAt: '2026-07-01T00:00:00.000Z', bet: null }],
+  })
+  render(
+    <QueryClientProvider client={qc}>
+      <CoinsScreen go={() => {}} openBet={() => {}} />
+    </QueryClientProvider>
+  )
+  fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
+  expect(screen.getByText('Starting bankroll')).toBeInTheDocument()
+  expect(screen.getByText('Balance')).toBeInTheDocument()
 })

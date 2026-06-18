@@ -1,12 +1,13 @@
 /* ============================================================
-   THE SWEEP — Statement screen: a person's Yowie Dollars ledger
+   THE SWEEP — Yowie Dollars statement: a person's coin ledger,
+   rendered inline as a tab inside the Wagers screen. Columns:
+   date · activity · amount (+/−) · running balance.
    ============================================================ */
 import { useQuery } from '@tanstack/react-query'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { fetchLedger } from './api/client.js'
-import { Icon } from './components.jsx'
-import { betSelectionLabel, MARKET_LABELS } from './screens-coins.jsx'
+import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
 /** Human reason for one ledger entry. Reuses the bet-slip helpers for selection wording. */
 function entryLabel(e) {
@@ -23,14 +24,22 @@ function entryLabel(e) {
   return `${match} — ${sel} · ${mkt}${status}`
 }
 
-function fmtDate(iso) {
+function dateParts(iso) {
   const d = iso ? new Date(iso) : null
-  return d ? d.toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }) : ''
+  if (!d) return { date: '', time: '' }
+  return {
+    date: d.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }),
+    time: d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }),
+  }
 }
 
 const fmtAmount = (n) => `${n > 0 ? '+' : n < 0 ? '-' : ''}${Math.abs(n).toLocaleString()}`
 
-export function StatementScreen({ onBack }) {
+const noteStyle = { padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }
+
+/** The statement list — fetches the signed-in person's ledger and renders it as a table.
+ *  Rendered inside the Wagers screen's scroll/wrap, so it owns no header or scroll chrome. */
+export function StatementList() {
   const me = getMe()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['coins', 'ledger', me?.id],
@@ -39,45 +48,33 @@ export function StatementScreen({ onBack }) {
   })
   const entries = data?.entries ?? []
 
-  return (
-    <div className="screen screen-anim" data-testid="statement-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div className="stmt-head">
-        <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
-        <h2 className="stmt-title">Statement</h2>
-        <div className="stmt-bal"><Icon.coin /><span>{(data?.balance ?? 0).toLocaleString()}</span></div>
-      </div>
+  if (isError) return <div className="block" style={noteStyle}>Couldn’t load your statement — try again.</div>
+  if (isLoading) return <div className="block" style={noteStyle}>Loading…</div>
+  if (entries.length === 0) return <div className="block" style={noteStyle}>No activity yet.</div>
 
-      <div className="scroll pad screen-anim">
-        <div className="wrap" style={{ marginTop: 14 }}>
-          {isError ? (
-            <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>
-              Couldn’t load your statement — pull down or try again.
-            </div>
-          ) : isLoading ? (
-            <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>Loading…</div>
-          ) : entries.length === 0 ? (
-            <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>No activity yet.</div>
-          ) : (
-            <div className="block stmt-list">
-              {entries.map((e) => {
-                const credit = e.amount > 0
-                return (
-                  <div key={e.id} className="stmt-row">
-                    <div className="stmt-main">
-                      <span className="stmt-label">{entryLabel(e)}</span>
-                      <span className="stmt-date">{fmtDate(e.createdAt)}</span>
-                    </div>
-                    <div className="stmt-side">
-                      <span className={'stmt-amt ' + (credit ? 'up' : 'down')}>{fmtAmount(e.amount)}</span>
-                      <span className="stmt-running">{e.balanceAfter.toLocaleString()}</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
+  return (
+    <div className="block stmt-list">
+      <div className="stmt-row stmt-row-head">
+        <span className="stmt-col-h">Date</span>
+        <span className="stmt-col-h">Activity</span>
+        <span className="stmt-col-h stmt-col-r">Amount</span>
+        <span className="stmt-col-h stmt-col-r">Balance</span>
       </div>
+      {entries.map((e) => {
+        const { date, time } = dateParts(e.createdAt)
+        const credit = e.amount > 0
+        return (
+          <div key={e.id} className="stmt-row">
+            <div className="stmt-when">
+              <span className="stmt-when-date">{date}</span>
+              <span className="stmt-when-time">{time}</span>
+            </div>
+            <span className="stmt-label">{entryLabel(e)}</span>
+            <span className={'stmt-amt ' + (credit ? 'up' : 'down')}>{fmtAmount(e.amount)}</span>
+            <span className="stmt-bal-col">{e.balanceAfter.toLocaleString()}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

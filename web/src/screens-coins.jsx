@@ -6,6 +6,8 @@ import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { useCoins, myWallet, placeBet } from './coins.js'
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader } from './components.jsx'
+import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
+import { StatementList } from './screens-statement.jsx'
 
 /* ---- helpers ---- */
 function selectionLabel(selection, f) {
@@ -14,27 +16,6 @@ function selectionLabel(selection, f) {
   if (selection === 'HOME') return S.team(f.t1)?.name || f.t1
   if (selection === 'AWAY') return S.team(f.t2)?.name || f.t2
   return selection
-}
-
-export const MARKET_LABELS = {
-  '1x2': 'Match Winner',
-  fh1x2: 'First Half',
-  ou25: 'Over/Under 2.5',
-  cards: 'Cards O/U',
-  cs: 'Correct Score',
-}
-
-export function betSelectionLabel(b) {
-  const f = S.fixture(b.fixtureId)
-  if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
-    if (b.selection === 'HOME') return S.team(f.t1)?.name || 'Home'
-    if (b.selection === 'AWAY') return S.team(f.t2)?.name || 'Away'
-    if (b.selection === 'DRAW') return 'Draw'
-  }
-  if (b.market === 'ou25' || b.market === 'cards')
-    return b.selection === 'OVER' ? `Over ${b.line ?? ''}`.trim() : `Under ${b.line ?? ''}`.trim()
-  if (b.market === 'cs') return String(b.selection).replace(':', '-')
-  return b.selection
 }
 
 // the team flag for a team selection (Match Winner / First Half home/away), else null
@@ -353,7 +334,7 @@ export function WagersInfoSheet({ onClose }) {
 }
 
 /* ---- Main screen ---- */
-export function CoinsScreen({ go, openBet, openMatch, openStatement }) {
+export function CoinsScreen({ go, openBet, openMatch }) {
   useCoins() // re-render on store changes
   const me = getMe()
   const wallet = myWallet()
@@ -402,7 +383,7 @@ export function CoinsScreen({ go, openBet, openMatch, openStatement }) {
 
       {/* Tab toggle */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
-        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="statseg" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
           <button
             className={'statseg-opt' + (tab === 'place' ? ' on' : '')}
             onClick={() => setTab('place')}
@@ -411,12 +392,11 @@ export function CoinsScreen({ go, openBet, openMatch, openStatement }) {
             className={'statseg-opt' + (tab === 'bets' ? ' on' : '')}
             onClick={() => setTab('bets')}
           >My bets</button>
+          <button
+            className={'statseg-opt' + (tab === 'statement' ? ' on' : '')}
+            onClick={() => setTab('statement')}
+          >Statement</button>
         </div>
-        {me && openStatement && (
-          <button type="button" className="stmt-link" onClick={openStatement}>
-            View statement <Icon.chev />
-          </button>
-        )}
       </div>
 
       <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
@@ -506,6 +486,9 @@ export function CoinsScreen({ go, openBet, openMatch, openStatement }) {
               <MyBets bets={wallet.bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           )}
+
+          {/* Yowie Dollars statement tab */}
+          {tab === 'statement' && <StatementList />}
 
         </div>
       </div>
