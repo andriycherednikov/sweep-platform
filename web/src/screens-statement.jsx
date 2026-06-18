@@ -5,14 +5,14 @@
    ============================================================ */
 import { useQuery } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faTicket } from '@fortawesome/free-solid-svg-icons'
+import { faCoins, faTicket, faUsers } from '@fortawesome/free-solid-svg-icons'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { fetchLedger } from './api/client.js'
 import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
 // Font Awesome glyphs for the non-tick kinds: deposit (grant) = coins, bet placed = ticket.
-const KIND_ICON = { dep: faCoins, bet: faTicket }
+const KIND_ICON = { dep: faCoins, bet: faTicket, teamwin: faUsers }
 
 /** A stylish rounded checkmark (custom SVG, not Font Awesome). Colour is inherited
  *  (green for a won bet). Sized to 1em so it tracks the icon font-size. */
@@ -27,7 +27,7 @@ function Tick() {
 
 /** Render the right glyph for an entry kind: the stylish tick for won bets, else a FA icon. */
 function KindGlyph({ kind }) {
-  if (kind === 'win') return <Tick />
+  if (kind === 'win' || kind === 'predict') return <Tick />
   return <FontAwesomeIcon icon={KIND_ICON[kind]} />
 }
 
@@ -36,6 +36,12 @@ function KindGlyph({ kind }) {
 function entryView(e) {
   if (e.type === 'grant') return { kind: 'dep', title: e.weekIndex === 0 ? 'Starting bankroll' : 'Weekly Yowie Dollars', sub: 'Deposit' }
   if (e.type === 'refund') return { kind: 'dep', title: 'Refund', sub: '' }
+  if (e.type === 'predict' || e.type === 'teamwin') {
+    const f = S.fixture(e.fixtureId)
+    const match = f ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}` : null
+    const sub = e.type === 'predict' ? 'Correct prediction' : 'Your team won'
+    return { kind: e.type, title: match || sub, sub: match ? sub : '' }
+  }
   const won = e.type === 'payout'
   const kind = won ? 'win' : 'bet'
   const b = e.bet
