@@ -388,7 +388,7 @@ export function WagersInfoSheet({ onClose, onOptOut }) {
             <p>
               <b>Stepping away is OK.</b> Everyone's different. If you'd rather not take part — or if
               this feature could be harmful or a trigger for you — you absolutely should step away,
-              and we 100% support that. It's completely anonymous: no one can see that you did it.
+              and we 100% support that. It's completely anonymous.
               You're free, welcome, and encouraged to do it any time it feels right for you.
             </p>
             <button className="btn-ghost fyi-stepaway-btn" onClick={onOptOut} aria-label="Step away from Wagers">
