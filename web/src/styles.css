@@ -422,11 +422,11 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .fan .badge span{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:10.5px; color:#fff;}
 /* admin moderation count on the mobile header lock button */
 .hdr-badge{position:absolute; top:-5px; right:-5px; min-width:16px; height:16px; padding:0 4px; border-radius:8px; background:var(--accent); color:#fff; font-size:10px; font-weight:800; display:grid; place-items:center; box-shadow:0 0 0 2px var(--navy);}
-.dots{display:flex; gap:0; justify-content:center; margin-top:9px;}
+.dots{display:flex; gap:0; align-items:center; justify-content:center; margin-top:9px;}
 /* small visible dot with a transparent padding hit-area (clipped via content-box
    so the dots stay separate, not a merged blob) */
-.dots i{width:7px; height:7px; padding:5px; box-sizing:content-box; background:#cdd2d9; background-clip:content-box; border-radius:50%; cursor:pointer; transition:width .2s, background .2s;}
-.dots i.on{background:var(--accent); width:18px; border-radius:9px;}
+.dots i{width:6px; height:6px; padding:5px; box-sizing:content-box; background:#cdd2d9; background-clip:content-box; border-radius:50%; cursor:pointer; transition:width .2s, background .2s;}
+.dots i.on{background:var(--accent); width:16px; height:4px; border-radius:2px;}
 
 /* ===== filters / chips bar ===== */
 .filterbar{display:flex; gap:8px; padding:12px 14px 4px; overflow-x:auto; scrollbar-width:none; flex-shrink:0;}

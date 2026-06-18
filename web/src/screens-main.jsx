@@ -100,12 +100,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
-  // auto-advance until the viewer takes manual control (swipe / dot / arrow)
+  // auto-advance, but pause on manual control (swipe / dot) and resume after a
+  // short idle timeout
   const [paused, setPaused] = useState(false);
   useEffect(()=>{ if(approved.length===0 || paused) return; const t=setInterval(()=>setPi(x=>(x+1)%approved.length), 6000); return ()=>clearInterval(t); },[approved.length, paused]);
+  const resumeRef = useRef(null);
+  useEffect(()=>()=>{ if(resumeRef.current) clearTimeout(resumeRef.current); },[]);
+  const pauseAuto = () => { setPaused(true); if(resumeRef.current) clearTimeout(resumeRef.current); resumeRef.current = setTimeout(()=>setPaused(false), 10000); };
   const photo = approved[pi];
   const fanTouch = useRef({ x: 0, moved: false });
-  const fanGo = (delta) => { setPaused(true); setPi(p => (p + delta + approved.length) % approved.length); };
+  const fanGo = (delta) => { pauseAuto(); setPi(p => (p + delta + approved.length) % approved.length); };
   const onFanTouchStart = (e) => { fanTouch.current = { x: e.touches[0].clientX, moved: false }; };
   const onFanTouchMove = (e) => { if (Math.abs(e.touches[0].clientX - fanTouch.current.x) > 8) fanTouch.current.moved = true; };
   const onFanTouchEnd = (e) => { const dx = e.changedTouches[0].clientX - fanTouch.current.x; if (Math.abs(dx) > 40) fanGo(dx < 0 ? 1 : -1); };
@@ -272,7 +276,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
           <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader} · approved</small></div>
         </div>
-        <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{setPaused(true);setPi(i);}}></i>)}</div>
+        <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
         </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
         </div>
        </div>
