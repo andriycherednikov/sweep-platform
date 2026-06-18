@@ -61,6 +61,7 @@ export async function statementFor(db, sweepId, personId, now = new Date()) {
       createdAt: r.createdAt,
       balanceAfter: running,
       weekIndex: r.type === 'grant' ? Number(r.refId) : null,
+      fixtureId: (r.type === 'predict' || r.type === 'teamwin') ? r.refId : null,
       bet: r.type === 'grant' ? null : (betById.get(r.refId) ?? null),
     }
   })

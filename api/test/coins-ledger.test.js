@@ -119,6 +119,17 @@ test('statementFor sets bet=null when the ledger row references a pruned bet', a
   expect(stake.bet).toBeNull()
 })
 
+test('statementFor surfaces fixtureId (and bet:null) for predict/teamwin reward rows', async () => {
+  const p = await aPerson()
+  await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'predict', amount: 100, refId: 'fix_42' })
+  await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'teamwin', amount: 300, refId: 'fix_42' })
+  const { entries } = await statementFor(db, 'default', p.id)
+  const predict = entries.find((e) => e.type === 'predict')
+  const teamwin = entries.find((e) => e.type === 'teamwin')
+  expect(predict).toMatchObject({ amount: 100, fixtureId: 'fix_42', bet: null, weekIndex: null })
+  expect(teamwin).toMatchObject({ amount: 300, fixtureId: 'fix_42', bet: null, weekIndex: null })
+})
+
 test('statementFor is isolated per sweep', async () => {
   const p = await aPerson()
   // a parallel sweep with its own person — the composite FK requires both to exist
