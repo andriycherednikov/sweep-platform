@@ -118,8 +118,14 @@ inherited from `newlyFinal`.
   - `predict` → `{ kind:'predict', title: <match via S.fixture(e.fixtureId)>, sub:'Correct
     prediction' }`.
   - `teamwin` → `{ kind:'teamwin', title: <match>, sub:'Your team won' }`.
-  - **Icons (both gold, `var(--gold)`):** `predict` → a golden **dollar-sign**
-    (`faDollarSign`); `teamwin` → a golden **team** icon (`faUsers`).
+  - **Icons:** `predict` → the **stylish custom tick** (the shared `Tick` inline-SVG
+    component already used by the won-bet `win` row — `web/src/screens-statement.jsx`), in
+    **gold** (`.stmt-ic.predict { color: var(--gold) }`). `teamwin` → a golden **team** icon
+    (Font Awesome `faUsers`, `.stmt-ic.teamwin { color: var(--gold) }`). The won-bet `win`
+    row uses the same `Tick` in green — predict is the gold variant. `KindGlyph` already
+    renders `Tick` for `win`; extend it to also render `Tick` for `predict`, and add
+    `teamwin → faUsers` to `KIND_ICON`. (`.stmt-ic.predict`/`.stmt-ic.teamwin` colour rules
+    are already in `styles.css`.)
   - Both amounts are positive → render green like other credits. Match title resolved the
     same way `bet` rows do (`S.fixture(id)` → `S.team(...).name v ...`); if the fixture
     isn't in the client cache, fall back to a generic title ("Correct prediction" /
