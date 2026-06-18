@@ -10,8 +10,9 @@ import { fetchLedger } from './api/client.js'
 import { Icon } from './components.jsx'
 import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
-// one icon per ledger entry kind: deposit (grant), bet placed (stake), bet won (payout)
-const KIND_ICON = { dep: Icon.coin, bet: Icon.ball, win: Icon.star }
+// one icon per ledger entry kind: deposit (grant) = coin, bet placed (stake) = ticket,
+// bet won (payout) = cash
+const KIND_ICON = { dep: Icon.coin, bet: Icon.ticket, win: Icon.cash }
 
 /** Structured view of one ledger entry: an icon kind, a title line (the game or grant),
  *  and a sub line (the selection). Reuses the bet-slip helpers for selection wording. */
