@@ -111,10 +111,16 @@ the Wagers screen (it shows odds/upcoming matches, not scores), so nothing is lo
 - **Icon:** a discreet round icon button, **not** an eye — a shield (protection /
   self-care framing). `aria-label="Step away from Wagers"`.
 
+The opt-out **sheet** is a `CoinsScreen`-owned component (like `betSheet` / `info`),
+driven by a new `optOut` UI-state flag. `OptOutButton` (header) and the shield button
+inside `WagersInfoSheet` (§4) both just flip that flag open — so the same sheet is
+reachable from both entry points.
+
 **Interaction (two-step, to prevent an accidental binding lockout):**
 
-1. Tap `OptOutButton` → opens the **opt-out sheet** (same sheet styling as
-   `WagersInfoSheet`): supportive intro copy, then five choices — `1 day`, `3 days`,
+1. Open the **opt-out sheet** (from the header shield, or the in-explainer shield) —
+   same sheet styling as `WagersInfoSheet`: supportive intro copy, then five choices —
+   `1 day`, `3 days`,
    `7 days`, `14 days`, `Completely`.
 2. Choosing a duration moves to a **confirm step**:
    - timed: *"You're stepping away from Wagers for {N days}. It'll lock now and quietly
@@ -131,15 +137,24 @@ hard-lockout behavior.
 
 ### 4. The "?" About-Wagers sheet — new "Stepping away" section
 
-Add a section to `WagersInfoSheet` (`screens-coins.jsx`) with supportive copy, e.g.:
+Add a section to `WagersInfoSheet` (`screens-coins.jsx`) with supportive copy **and a
+shield button that opens the opt-out flow directly** — so opt-out is reachable both
+from the header and from the explainer. Example:
 
-> **Stepping away is OK.** Everyone's different. If you'd rather not take part — or if
+> 🛡 **Stepping away is OK.** Everyone's different. If you'd rather not take part — or if
 > this feature could be harmful or a trigger for you — you absolutely should step away,
-> and we 100% support that. Tap the shield in the header to opt out for a day, a few
-> days, or for good. It's completely anonymous: no one can see that you did it. You're
-> free, welcome, and encouraged to do it any time it feels right for you.
+> and we 100% support that. It's completely anonymous: no one can see that you did it.
+> You're free, welcome, and encouraged to do it any time it feels right for you.
+>
+> [ 🛡 Step away from Wagers ]
 
 (Final wording polished during implementation; keep it warm and non-clinical.)
+
+**Wiring:** the shield button in this section opens the same opt-out sheet as the
+header `OptOutButton`. `CoinsScreen` owns both pieces of UI state — tapping the
+in-sheet shield does `setInfo(false); setOptOut(true)`, handing off from the About
+sheet to the opt-out sheet. `WagersInfoSheet` takes an `onOptOut` callback prop to
+trigger this; it does not own the opt-out sheet itself.
 
 ## Testing (TDD — Vitest, `web/`)
 
@@ -172,7 +187,8 @@ Follows the existing web suite (`spoiler.test.js` is the template).
 - `web/src/coins.js` (gate), `web/src/coins.test.js`
 - `web/src/components.jsx` (`AppHeader` `replaceSpoiler` prop; `useOptOut()` in
   `Nav`/`Sidebar`; new `OptOutButton`; a shield `Icon`)
-- `web/src/screens-coins.jsx` (`CoinsScreen` + `WalletHeader` wire `OptOutButton`;
-  opt-out sheet; About-Wagers "Stepping away" section)
+- `web/src/screens-coins.jsx` (`CoinsScreen` owns the opt-out sheet + `optOut` state;
+  `CoinsScreen` + `WalletHeader` wire `OptOutButton`; `WagersInfoSheet` gains the
+  "Stepping away" section + `onOptOut` callback shield button)
 - `web/src/App.jsx` (`useOptOut()` for re-render on flip)
 - relevant component/App tests
