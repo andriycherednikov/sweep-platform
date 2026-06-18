@@ -349,7 +349,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
       <div className="brandrow">
         {onBack ? (
           <button className="brand brand-btn" onClick={onBack} aria-label="Back">
-            <span className="brand-back-box"><Icon.back/></span>
+            <div className="mark back"><span className="brand-back-box"><Icon.back/></span></div>
             <div className="brand-tx alt"><b>{title}</b>{sub && <small>{sub}</small>}</div>
           </button>
         ) : (

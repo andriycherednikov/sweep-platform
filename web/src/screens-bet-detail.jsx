@@ -70,7 +70,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           </div>
         </div>
       ) : (
-      <div className="scroll pad screen-anim">
+      <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
         <div className="wrap" style={{ marginTop: 0 }}>
           <div className="coin-match-title">
             <div className="coin-mt-row">
