@@ -94,14 +94,15 @@ export function MyBets({ bets, onMatch }) {
                       {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
                       <span className="coin-bs-pick">{selLabel}</span>
                     </div>
-                    {f && (
-                      f.status === 'live'
-                        ? <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
-                        : <div className="coin-bs-when">{f.status === 'final' ? 'Full time' : f.dateTimeLabel}</div>
+                    {f && f.status === 'live' && (
+                      <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+                    )}
+                    {f && f.status === 'upcoming' && (
+                      <div className="coin-bs-when">{f.dateTimeLabel}</div>
                     )}
                   </div>
                   <div className="coin-bs-side">
-                    <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>
+                    {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
                     <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
                     {(b.status === 'open' || isWon) && (
                       <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} <b>{b.potentialPayout}</b></span>

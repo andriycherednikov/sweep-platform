@@ -1012,33 +1012,33 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-won{background:#e7f6ee; color:var(--live);}
 .coin-lost{background:#fbecea; color:var(--accent);}
 
-/* My bets — betslip rows: pick + market + time on the left; event/stake/payout on the right */
-.coin-betslip{display:flex; align-items:stretch; gap:16px; padding:13px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;}
+/* My bets — compact betslip rows: slim date · event/pick/market · stake/payout */
+.coin-betslip{display:flex; align-items:stretch; gap:11px; padding:10px 4px; border-bottom:1px solid var(--line); cursor:pointer; transition:background .12s;}
 .coin-betslip:hover{background:var(--line2);}
 .coin-betslip:last-child{border-bottom:0;}
-.coin-bs-content{display:flex; flex-direction:column; gap:9px; flex:1; min-width:0;}
-.coin-bs-body{display:flex; align-items:flex-start; gap:16px;}
-.coin-bs-placed{display:flex; flex-direction:column; gap:2px; flex-shrink:0; width:78px; align-self:center;}
-.coin-bs-pd-date{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; color:var(--navy); letter-spacing:.3px; text-transform:uppercase;}
-.coin-bs-pd-time{font-size:11px; font-weight:600; color:var(--muted2);}
-.coin-bs-main{display:flex; flex-direction:column; gap:7px; min-width:0; flex:1;}
-.coin-bs-sel{display:flex; align-items:center; gap:9px; min-width:0;}
-.coin-bs-sel .flag{width:26px; height:18px; border-radius:3px; flex-shrink:0; box-shadow:0 1px 3px rgba(11,31,58,.28);}
-.coin-bs-pick{font-family:'Barlow Condensed'; font-weight:800; font-size:18px; letter-spacing:.3px; color:var(--navy); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.coin-bs-mkt{font-family:'Barlow Semi Condensed'; font-size:10.5px; font-weight:700; color:var(--muted2); text-transform:uppercase; letter-spacing:.4px; padding:2px 7px; background:var(--bg); border-radius:999px; flex-shrink:0;}
-.coin-bs-when{font-size:11.5px; font-weight:600; color:var(--muted2); letter-spacing:.2px;}
+.coin-bs-content{display:flex; flex-direction:column; gap:5px; flex:1; min-width:0;}
+.coin-bs-body{display:flex; align-items:flex-start; gap:12px;}
+.coin-bs-placed{display:flex; flex-direction:column; gap:1px; flex-shrink:0; width:44px; align-self:center;}
+.coin-bs-pd-date{font-family:'Barlow Condensed'; font-weight:800; font-size:12.5px; color:var(--navy); letter-spacing:.2px; text-transform:uppercase; line-height:1.1;}
+.coin-bs-pd-time{font-size:9.5px; font-weight:600; color:var(--muted2);}
+.coin-bs-main{display:flex; flex-direction:column; gap:3px; min-width:0; flex:1;}
+.coin-bs-sel{display:flex; align-items:center; gap:7px; min-width:0;}
+.coin-bs-sel .flag{width:20px; height:14px; border-radius:3px; flex-shrink:0; box-shadow:0 1px 3px rgba(11,31,58,.28);}
+.coin-bs-pick{font-family:'Barlow Condensed'; font-weight:800; font-size:15px; letter-spacing:.2px; color:var(--navy); line-height:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+/* market = plain small caption (no pill) */
+.coin-bs-mkt{align-self:flex-start; font-family:'Barlow Semi Condensed'; font-size:10px; font-weight:700; color:var(--muted2); text-transform:uppercase; letter-spacing:.4px;}
+.coin-bs-when{font-size:10.5px; font-weight:600; color:var(--muted2); letter-spacing:.2px;}
 .coin-bs-when.live{display:flex; align-items:center; gap:6px; color:var(--live); font-weight:700;}
 .coin-live-dot{width:7px; height:7px; border-radius:50%; background:var(--live); box-shadow:0 0 0 3px rgba(31,157,87,.18); flex-shrink:0;}
-.coin-bs-side{display:flex; flex-direction:column; align-items:flex-end; gap:5px; text-align:right; flex-shrink:0;}
-.coin-bs-event{display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
-.coin-bs-event .flag{width:18px; height:12px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
-.coin-bs-mkt{align-self:flex-start;}
-.coin-bs-stake{display:inline-flex; align-items:center; gap:5px; font-size:14px; font-weight:600; color:var(--navy);}
-.coin-bs-stake svg{width:15px; height:15px; color:var(--gold); flex-shrink:0;}
-.coin-bs-payout{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
-.coin-bs-payout b{font-family:'Barlow Condensed'; font-weight:800; font-size:17px; color:var(--gold); margin-left:2px;}
+.coin-bs-side{display:flex; flex-direction:column; align-items:flex-end; gap:3px; text-align:right; flex-shrink:0;}
+.coin-bs-event{display:inline-flex; align-items:center; gap:6px; font-size:10.5px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+.coin-bs-event .flag{width:16px; height:11px; border-radius:2px; flex-shrink:0; box-shadow:0 1px 2px rgba(11,31,58,.2);}
+.coin-bs-stake{display:inline-flex; align-items:center; gap:5px; font-size:13px; font-weight:600; color:var(--navy);}
+.coin-bs-stake svg{width:14px; height:14px; color:var(--gold); flex-shrink:0;}
+.coin-bs-payout{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.3px;}
+.coin-bs-payout b{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; color:var(--gold); margin-left:2px;}
 .coin-bs-payout.won b{color:var(--live);}
-.coin-status-pill{text-transform:uppercase; letter-spacing:.5px; font-size:10px; font-weight:800;}
+.coin-status-pill{text-transform:uppercase; letter-spacing:.5px; font-size:9px; font-weight:800;}
 .coin-status-pill:not(.coin-won):not(.coin-lost){background:#eaf0f7; color:var(--blue);}
 
 /* place-a-bet row: clickable affordance + "more markets" footer */
