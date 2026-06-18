@@ -21,6 +21,7 @@ import {
 import { SuperConsole } from "./screens-super.jsx";
 import { CoinsScreen } from "./screens-coins.jsx";
 import { canWager } from "./coins.js";
+import { useOptOut } from "./optout.js";
 import { BetDetail } from "./screens-bet-detail.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
@@ -100,6 +101,7 @@ export default function App() {
 
   const { tab, overlay, modal, identity } = view;
   useSocial(); // re-render on identity change (gates the 18+ Wagers screen)
+  useOptOut(); // re-render on opt-out so the coins tab falls back to Home immediately
 
   // which stat toggle the People screen opens on; set per-navigation, defaults to wins
   const peopleViewRef = useRef("wins");
