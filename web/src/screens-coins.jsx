@@ -38,7 +38,7 @@ export function betSelectionLabel(b) {
 }
 
 // the team flag for a team selection (Match Winner / First Half home/away), else null
-export function betSelectionFlag(b) {
+function betSelectionFlag(b) {
   const f = S.fixture(b.fixtureId)
   if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
     if (b.selection === 'HOME') return f.t1
