@@ -122,13 +122,15 @@ a{color:inherit; text-decoration:none;}
 .optout-confirm-row { display: flex; gap: 10px; margin-top: 18px; }
 .optout-confirm-row .cta, .optout-confirm-row .btn-ghost { flex: 1; }
 .fyi-stepaway {
-  margin-top: 14px; padding: 13px 14px; border-radius: 14px;
-  background: var(--line2); border: 1.5px solid var(--gold);
+  margin-top: 16px; padding: 15px 16px; border-radius: 14px;
+  background: linear-gradient(165deg, rgba(242,177,56,.18), rgba(242,177,56,.06));
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 10px 22px -12px rgba(242,177,56,.75);
 }
-.fyi-stepaway p { margin: 0 0 11px; font-size: 13px; line-height: 1.5; color: var(--muted); }
+.fyi-stepaway p { margin: 0 0 13px; font-size: 13px; line-height: 1.55; color: var(--ink); }
 .fyi-stepaway p b { color: var(--navy); }
-.fyi-stepaway-btn { display: inline-flex; align-items: center; gap: 7px; width: 100%; justify-content: center; }
-.fyi-stepaway-btn svg { stroke: var(--navy); }
+.fyi-stepaway-btn { display: inline-flex; align-items: center; gap: 7px; width: 100%; justify-content: center; border-color: var(--gold); }
+.fyi-stepaway-btn svg { stroke: var(--gold); }
 
 /* sticky/shrinking home header (mobile — .home-top is display:none on desktop).
    The header sticks to the top of the scroll area and collapses to a compact
