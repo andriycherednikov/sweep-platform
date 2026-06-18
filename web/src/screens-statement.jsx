@@ -5,15 +5,31 @@
    ============================================================ */
 import { useQuery } from '@tanstack/react-query'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faCoins, faTicket, faFaceGrinStars } from '@fortawesome/free-solid-svg-icons'
+import { faCoins, faTicket } from '@fortawesome/free-solid-svg-icons'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { fetchLedger } from './api/client.js'
 import { betSelectionLabel, MARKET_LABELS } from './lib/betLabels.js'
 
-// one icon per ledger entry kind: deposit (grant) = coins, bet placed (stake) = ticket,
-// bet won (payout) = star-struck face
-const KIND_ICON = { dep: faCoins, bet: faTicket, win: faFaceGrinStars }
+// Font Awesome glyphs for the non-tick kinds: deposit (grant) = coins, bet placed = ticket.
+const KIND_ICON = { dep: faCoins, bet: faTicket }
+
+/** A stylish rounded checkmark (custom SVG, not Font Awesome). Colour is inherited
+ *  (green for a won bet). Sized to 1em so it tracks the icon font-size. */
+function Tick() {
+  return (
+    <svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor"
+      strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M5 12.5l4.5 4.5L19 7" />
+    </svg>
+  )
+}
+
+/** Render the right glyph for an entry kind: the stylish tick for won bets, else a FA icon. */
+function KindGlyph({ kind }) {
+  if (kind === 'win') return <Tick />
+  return <FontAwesomeIcon icon={KIND_ICON[kind]} />
+}
 
 /** Structured view of one ledger entry: an icon kind, a title line (the game or grant),
  *  and a sub line (the selection). Reuses the bet-slip helpers for selection wording. */
@@ -77,7 +93,7 @@ export function StatementList() {
               <span className="stmt-when-time">{time}</span>
             </div>
             <div className="stmt-act">
-              <FontAwesomeIcon icon={KIND_ICON[v.kind]} className={'stmt-ic ' + v.kind} />
+              <span className={'stmt-ic ' + v.kind}><KindGlyph kind={v.kind} /></span>
               <span className="stmt-txt">
                 <span className="stmt-title">{v.title}</span>
                 {v.sub && <span className="stmt-sub">{v.sub}</span>}
