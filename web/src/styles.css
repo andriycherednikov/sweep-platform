@@ -1085,3 +1085,21 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-grid.cs .coin-mkt-odds{font-size:14px; color:var(--gold);}
 .coin-more{margin-top:11px; width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--muted); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:border-color .14s, color .14s;}
 .coin-more:hover{border-color:var(--gold); color:var(--navy);}
+
+/* ---- Statement (Yowie Dollars ledger) ---- */
+.stmt-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+.stmt-title { flex: 1; font-size: 18px; font-weight: 700; margin: 0; }
+.stmt-bal { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; }
+.stmt-link { display: inline-flex; align-items: center; gap: 4px; margin: 10px 2px 0; padding: 0; background: none; border: 0; color: var(--muted); font-size: 13px; cursor: pointer; }
+.stmt-link svg { width: 14px; height: 14px; }
+.stmt-list { padding: 4px 0; }
+.stmt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.stmt-row:last-child { border-bottom: 0; }
+.stmt-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stmt-label { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.stmt-date { font-size: 12px; color: var(--muted); }
+.stmt-side { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+.stmt-amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+.stmt-amt.up { color: var(--live); }
+.stmt-amt.down { color: var(--accent); }
+.stmt-running { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
