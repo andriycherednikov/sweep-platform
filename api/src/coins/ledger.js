@@ -85,3 +85,8 @@ export function serializeBet(b) {
     line: b.line == null ? null : Number(b.line), stake: b.stake, odds: Number(b.oddsDecimal),
     book: b.book, potentialPayout: b.potentialPayout, status: b.status, placedAt: b.placedAt, settledAt: b.settledAt }
 }
+
+export function serializeParlay(p, legs) {
+  return { id: p.id, stake: p.stake, combinedOdds: Number(p.combinedOdds), potentialPayout: p.potentialPayout,
+    status: p.status, placedAt: p.placedAt, settledAt: p.settledAt, legs: legs.map(serializeBet) }
+}
