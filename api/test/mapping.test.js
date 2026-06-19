@@ -200,3 +200,18 @@ test('mapFixture half-time score is null when absent', () => {
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1 }, away: { id: 2 } }, goals: {} }
   expect(mapFixture(raw).htScore1).toBeNull()
 })
+
+test('mapFixture captures the 90-minute (regulation) score from score.fulltime', () => {
+  const raw = { fixture: { id: 8, date: '2026-06-20T18:00:00Z', status: { short: 'AET', elapsed: 120 }, venue: {} },
+    league: { round: 'Round of 16' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },
+    goals: { home: 2, away: 1 }, score: { halftime: { home: 0, away: 1 }, fulltime: { home: 1, away: 1 } } }
+  const f = mapFixture(raw)
+  expect(f.regScore1).toBe(1)
+  expect(f.regScore2).toBe(1)
+})
+
+test('mapFixture regulation score is null when absent', () => {
+  const raw = { fixture: { id: 9, date: '2026-06-20T18:00:00Z', status: { short: 'NS', elapsed: null }, venue: {} },
+    league: { round: 'Group Stage - 1' }, teams: { home: { id: 1 }, away: { id: 2 } }, goals: {} }
+  expect(mapFixture(raw).regScore1).toBeNull()
+})
