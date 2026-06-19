@@ -35,7 +35,10 @@ function KindGlyph({ kind }) {
  *  and a sub line (the selection). Reuses the bet-slip helpers for selection wording. */
 function entryView(e) {
   if (e.type === 'grant') return { kind: 'dep', title: e.weekIndex === 0 ? 'Starting bankroll' : 'Weekly Yowie Dollars', sub: 'Deposit' }
-  if (e.type === 'refund') return { kind: 'dep', title: 'Refund', sub: '' }
+  if (e.type === 'refund') {
+    if (e.parlay) return { kind: 'dep', title: `Multi · ${e.parlay.legs.length} legs`, sub: 'Refund' }
+    return { kind: 'dep', title: 'Refund', sub: '' }
+  }
   if (e.type === 'predict' || e.type === 'teamwin') {
     const f = S.fixture(e.fixtureId)
     const match = f ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}` : null
@@ -44,6 +47,7 @@ function entryView(e) {
   }
   const won = e.type === 'payout'
   const kind = won ? 'win' : 'bet'
+  if (e.parlay) return { kind, title: `Multi · ${e.parlay.legs.length} legs`, sub: won ? 'Multi won' : 'Multi placed' }
   const b = e.bet
   if (!b) return { kind, title: won ? 'Bet won' : 'Bet placed', sub: '' }
   const f = S.fixture(b.fixtureId)

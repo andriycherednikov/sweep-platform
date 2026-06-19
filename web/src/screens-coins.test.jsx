@@ -92,6 +92,18 @@ test('the Statement tab shows the Yowie Dollars statement', () => {
   expect(screen.getByText('Balance')).toBeInTheDocument()
 })
 
+test('the Statement tab labels a parlay stake as a Multi', () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  qc.setQueryData(['coins', 'ledger', 'pn_a'], {
+    balance: 900,
+    entries: [{ id: 2, type: 'stake', amount: -100, balanceAfter: 900, createdAt: '2026-07-01T18:00:00.000Z', bet: null,
+      parlay: { id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', legs: [{ id: 'l1' }, { id: 'l2' }] } }],
+  })
+  render(<QueryClientProvider client={qc}><CoinsScreen go={() => {}} openBet={() => {}} /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
+  expect(screen.getByText(/Multi · 2 legs/i)).toBeInTheDocument()
+})
+
 test('the About sheet shield hands off to the opt-out sheet', () => {
   render(<CoinsScreen go={() => {}} openBet={() => {}} />)
   // open the "?" About sheet
