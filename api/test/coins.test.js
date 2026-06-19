@@ -1,14 +1,14 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, coinLedger, bet, fixture } from '../src/db/schema.js'
+import { person, coinLedger, bet, fixture, parlay } from '../src/db/schema.js'
 import { and, eq } from 'drizzle-orm'
 
 const { pool, db } = openTestDb()
 const published = []
 const app = buildApp(db, { publish: (e) => published.push(e) })
 afterAll(async () => { await app.close(); await pool.end() })
-beforeEach(async () => { await db.delete(bet); await db.delete(coinLedger); published.length = 0 })
+beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db.delete(coinLedger); published.length = 0 })
 
 const aPerson = async () => (await db.select().from(person).limit(1))[0]
 
@@ -129,6 +129,21 @@ test('POST /api/bet allows multiple independent bets on the same match', async (
   const wallet = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
   expect(wallet.bets.open).toHaveLength(2)
   expect(wallet.balance).toBe(before - 100)
+})
+
+test('GET /api/coins returns parlays and excludes parlay legs from single bets', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id)
+  await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+  await db.insert(parlay).values({ id: 'par_test', sweepId: 'default', personId: p.id, stake: 20, combinedOdds: '3.8', potentialPayout: 76, status: 'open' })
+  await db.insert(bet).values({ id: 'leg_test', sweepId: 'default', personId: p.id, fixtureId: f.id, parlayId: 'par_test',
+    selection: 'AWAY', market: '1x2', stake: 0, oddsDecimal: '4', potentialPayout: 0, status: 'open' })
+  const body = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
+  expect(body.bets.open).toHaveLength(1)
+  expect(body.bets.open[0].selection).toBe('HOME')
+  expect(body.parlays.open).toHaveLength(1)
+  expect(body.parlays.open[0]).toMatchObject({ id: 'par_test', stake: 20, status: 'open' })
+  expect(body.parlays.open[0].legs[0]).toMatchObject({ selection: 'AWAY', odds: 4 })
 })
 
 test('two concurrent full-balance bets cannot overdraw — exactly one wins', async () => {

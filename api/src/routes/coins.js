@@ -20,7 +20,7 @@ export async function coinsRoutes(app) {
     const sweepId = req.sweep.id
     const board = await leaderboard(app.db, sweepId)
     const me = req.query?.personId
-    let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] } }
+    let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }
     if (me) {
       // validate the person belongs to this sweep before walletFor (which grants/inserts),
       // so a bogus ?personId returns an empty wallet rather than an FK error
