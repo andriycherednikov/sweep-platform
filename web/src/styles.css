@@ -121,6 +121,32 @@ a{color:inherit; text-decoration:none;}
 .home-top.shrunk .id-full{ max-height:0; opacity:0; margin:0; }
 .home-top.shrunk .id-mini{ display:flex; }
 
+/* ===== Home in-flow header: GRADUAL scroll-linked shrink driven by --p (0..1).
+   ONLY .home-flow (the single in-scroll Home header) gets these — the sibling
+   .home-top headers keep their binary .shrunk snap above. No CSS time-transition on
+   the collapsing SIZE dimensions: the shrink is locked to scroll position so the
+   header's height always agrees with the MEASURED bottom spacer (home-shrink-spacer),
+   keeping scrollHeight constant → the browser never clamps scrollTop → no jitter
+   loop, for any content length. Only opacity carries a short ease (no flow height). */
+.home-flow{ --p:0; }
+.home-flow.home-top{
+  transition:none;
+  padding-top:calc(14px - 5px * var(--p, 0));
+  padding-bottom:calc(14px - 5px * var(--p, 0));
+}
+.home-flow .brand .mark, .home-flow .brand b, .home-flow .brand small{ transition:none; }
+.home-flow .brand .mark{ width:calc(26px - 6px * var(--p, 0)); height:calc(50px - 16px * var(--p, 0)); }
+.home-flow .brand b{ font-size:calc(20px - 4px * var(--p, 0)); }
+.home-flow .brand small{ opacity:calc(1 - var(--p, 0)); }
+.home-flow .id-full{ overflow:hidden; max-height:calc(120px * (1 - var(--p, 0))); opacity:calc(1 - var(--p, 0)); margin:0; transition:opacity .12s linear; }
+.home-flow .tz{ opacity:calc(1 - var(--p, 0)); transition:opacity .12s linear; }
+.home-flow .id-mini{ display:flex; opacity:var(--p, 0); max-width:calc(160px * var(--p, 0)); overflow:hidden; pointer-events:none; transition:opacity .12s linear; }
+.home-flow .id-mini.on{ pointer-events:auto; }
+.home-flow .id-mini .av{ width:calc(26px * var(--p, 0)); height:26px; }
+/* compensating spacer at the BOTTOM of the Home scroll: height = the exact measured
+   px the header has collapsed, so total scrollHeight stays constant. */
+.home-shrink-spacer{ flex-shrink:0; width:100%; pointer-events:none; }
+
 /* page header (non-home) */
 .phead{display:flex; align-items:center; gap:12px; position:relative; z-index:1; margin-top:4px;}
 .backbtn{width:34px; height:34px; border-radius:10px; background:rgba(255,255,255,.1); display:grid; place-items:center; flex-shrink:0;}
