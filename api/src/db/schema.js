@@ -68,6 +68,8 @@ export const fixture = pgTable('fixture', {
   status: text('status').notNull(),
   score1: integer('score1'),
   score2: integer('score2'),
+  regScore1: integer('reg_score1'),
+  regScore2: integer('reg_score2'),
   minute: integer('minute'),
   probA: integer('prob_a'),
   probD: integer('prob_d'),
