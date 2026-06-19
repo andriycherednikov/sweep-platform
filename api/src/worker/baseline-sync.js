@@ -1,8 +1,24 @@
-import { notInArray, inArray } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog, watch, support, bet, coinLedger } from '../db/schema.js'
+import { notInArray, inArray, and, isNull, eq } from 'drizzle-orm'
+import { fixture, standing, ownership, syncLog, watch, support, bet, coinLedger, parlay } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
+
+export async function refundPrunedParlays(db, keep) {
+  const legRows = await db.select({ parlayId: bet.parlayId }).from(bet).where(notInArray(bet.fixtureId, keep))
+  const parlayIds = [...new Set(legRows.map((r) => r.parlayId).filter(Boolean))]
+  if (!parlayIds.length) return
+  const parls = await db.select().from(parlay).where(inArray(parlay.id, parlayIds))
+  for (const pl of parls) {
+    if (pl.status === 'open') {
+      await db.insert(coinLedger)
+        .values({ sweepId: pl.sweepId, personId: pl.personId, type: 'refund', amount: pl.stake, refId: pl.id })
+        .onConflictDoNothing()
+      await db.update(parlay).set({ status: 'refunded', settledAt: new Date() }).where(eq(parlay.id, pl.id))
+    }
+  }
+  await db.delete(parlay).where(inArray(parlay.id, parlayIds)) // cascade-deletes the legs
+}
 
 /**
  * Fetch fixtures + standings + predictions, map provider ids via crosswalk (loud assert),
@@ -85,11 +101,15 @@ export async function syncBaseline(db, provider, { season }) {
     if (keep.length) {
       await db.delete(watch).where(notInArray(watch.fixtureId, keep))
       await db.delete(support).where(notInArray(support.fixtureId, keep))
-      // a bet's stake/payout ledger rows use refId = bet.id; drop them with the bet so a
+      // a parlay with a leg on a dropped fixture can never complete → refund + delete it
+      // (ON DELETE CASCADE drops its legs) before we touch single bets below.
+      await refundPrunedParlays(db, keep)
+      // a single bet's stake/payout ledger rows use refId = bet.id; drop them with the bet so a
       // pruned fixture doesn't leave the person's balance debited for a bet that's gone.
-      const prunedBets = await db.select({ id: bet.id }).from(bet).where(notInArray(bet.fixtureId, keep))
+      // Only single bets here (parlayId NULL) — parlay legs were removed via refundPrunedParlays.
+      const prunedBets = await db.select({ id: bet.id }).from(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
       if (prunedBets.length) await db.delete(coinLedger).where(inArray(coinLedger.refId, prunedBets.map((b) => b.id)))
-      await db.delete(bet).where(notInArray(bet.fixtureId, keep))
+      await db.delete(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
       await db.delete(fixture).where(notInArray(fixture.id, keep))
     }
 
