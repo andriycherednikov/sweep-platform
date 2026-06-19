@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { fixture, person, coinLedger, bet, parlay } from '../src/db/schema.js'
-import { settleBets, settleParlay } from '../src/coins/settle.js'
+import { settleBets, settleParlay, settleStaleBets } from '../src/coins/settle.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
 
 const { pool, db } = openTestDb()
@@ -59,4 +59,19 @@ test('settleParlay is idempotent (no double payout)', async () => {
   await settleParlay(db, 'par_idem'); await settleBets(db, f2.id)
   expect(await balanceOf(db, 'default', p.id)).toBe(bal)
   expect(bal).toBe(start - 50 + 200)
+})
+
+test('settleStaleBets rolls up a parlay whose legs were graded but the parent stayed open', async () => {
+  const p = await aPerson(); await ensureGrants(db, 'default', p.id)
+  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const start = await balanceOf(db, 'default', p.id)
+  await makeParlay(p, 'par_stale', 100, 4, [{ fixtureId: f1.id, selection: 'HOME', odds: 2 }, { fixtureId: f2.id, selection: 'HOME', odds: 2 }])
+  await db.update(bet).set({ status: 'won' }).where(eq(bet.parlayId, 'par_stale'))
+  await db.update(fixture).set({ status: 'final', regScore1: 1, regScore2: 0 }).where(eq(fixture.id, f1.id))
+  await db.update(fixture).set({ status: 'final', regScore1: 1, regScore2: 0 }).where(eq(fixture.id, f2.id))
+  const published = []
+  await settleStaleBets(db, (e) => published.push(e))
+  expect((await db.select().from(parlay).where(eq(parlay.id, 'par_stale')))[0].status).toBe('won')
+  expect(await balanceOf(db, 'default', p.id)).toBe(start - 100 + 400)
+  expect(published).toContainEqual({ type: 'bet-settled', sweepId: 'default' })
 })

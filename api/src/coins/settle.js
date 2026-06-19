@@ -123,5 +123,11 @@ export async function settleStaleBets(db, publish = () => {}) {
     .where(and(eq(bet.status, 'open'), eq(fixture.status, 'final')))
   const ids = [...new Set(rows.map((r) => r.fixtureId))]
   for (const id of ids) await settleBets(db, id, publish)
+  // roll up any open parlay whose legs are already graded but the parent never settled —
+  // settleParlay is a no-op while still pending, so this is safe to run every sweep.
+  const openParlays = await db.select({ id: parlay.id }).from(parlay).where(eq(parlay.status, 'open'))
+  const sweeps = new Set()
+  for (const { id } of openParlays) { const sw = await settleParlay(db, id); if (sw) sweeps.add(sw) }
+  for (const sweepId of sweeps) await publish({ type: 'bet-settled', sweepId })
   return ids.length
 }
