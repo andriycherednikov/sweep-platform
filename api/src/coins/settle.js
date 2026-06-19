@@ -23,19 +23,26 @@ function htResult(f) {
   return h > a ? 'HOME' : h < a ? 'AWAY' : 'DRAW'
 }
 
+/** Regulation-time (90') winning side from the stored 90-minute score. Used for bet
+ *  settlement so a knockout decided in ET/penalties still grades on its 90' result. */
+export function regulationResult(f) {
+  if (f.regScore1 == null || f.regScore2 == null) return null
+  return f.regScore1 > f.regScore2 ? 'HOME' : f.regScore1 < f.regScore2 ? 'AWAY' : 'DRAW'
+}
+
 /** Resolve one bet → 'won' | 'lost' | null (null = data not available yet, leave open). */
 export function resolveBet(market, selection, line, f) {
-  if (market === '1x2') { const r = fixtureResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
+  if (market === '1x2') { const r = regulationResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
   if (market === 'fh1x2') { const r = htResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
   if (market === 'ou25' || market === 'cards') {
     if (line == null) return null
     let measure
-    if (market === 'ou25') { if (f.score1 == null || f.score2 == null) return null; measure = f.score1 + f.score2 }
-    else { if (!Array.isArray(f.events)) return null; measure = f.events.filter((e) => e.type === 'card').length }
+    if (market === 'ou25') { if (f.regScore1 == null || f.regScore2 == null) return null; measure = f.regScore1 + f.regScore2 }
+    else { if (!Array.isArray(f.events)) return null; measure = f.events.filter((e) => e.type === 'card' && (e.minute ?? 0) <= 90).length }
     const over = measure > line
     return (selection === 'OVER' ? over : !over) ? 'won' : 'lost'
   }
-  if (market === 'cs') { if (f.score1 == null || f.score2 == null) return null; return `${f.score1}:${f.score2}` === selection ? 'won' : 'lost' }
+  if (market === 'cs') { if (f.regScore1 == null || f.regScore2 == null) return null; return `${f.regScore1}:${f.regScore2}` === selection ? 'won' : 'lost' }
   return null
 }
 

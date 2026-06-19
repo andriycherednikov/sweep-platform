@@ -29,7 +29,7 @@ test('POST /api/admin/settle-stale requires admin', async () => {
 test('POST /api/admin/settle-stale grades open bets on already-final fixtures', async () => {
   const [p] = await db.select().from(person).limit(1)
   const [f] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code }).where(eq(fixture.id, f.id))
+  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
   await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'stake', amount: -100, refId: 'b_stale' })
   await db.insert(bet).values({ id: 'b_stale', sweepId: 'default', personId: p.id, fixtureId: f.id, selection: 'HOME',
     stake: 100, oddsDecimal: '2', book: 'Pinnacle', potentialPayout: 200, status: 'open' })
