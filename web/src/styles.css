@@ -1209,7 +1209,11 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .betslip-leg-pick { font-size: 14px; font-weight: 600; }
 .betslip-leg-closed { font-size: 11px; color: var(--accent); }
 .betslip-leg-odds { font-weight: 700; }
-.betslip-leg-x { background: none; border: none; color: var(--muted2, #9aa); cursor: pointer; padding: 4px; }
+.betslip-leg-x { display: inline-grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; padding: 0;
+  background: var(--line2); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s; }
+.betslip-leg-x:hover { background: #fdeae6; border-color: #f3c0b6; color: var(--accent); }
+.betslip-leg-x svg { width: 15px; height: 15px; }
 .coin-odds-btn.on, .coin-mkt-sel.on { outline: 2px solid var(--gold, #d9a441); outline-offset: -2px; }
 .betslip-combined { color: var(--muted2, #9aa); font-weight: 600; margin-left: 6px; }
 
