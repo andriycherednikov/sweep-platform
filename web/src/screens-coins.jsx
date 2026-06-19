@@ -5,7 +5,8 @@ import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { useCoins, myWallet, placeBet } from './coins.js'
-import { Icon, Flag, useScrolled, useIsDesktop, AppHeader } from './components.jsx'
+import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
+import { optOut } from './optout.js'
 import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
 import { StatementList } from './screens-statement.jsx'
 
@@ -119,7 +120,7 @@ export function MyBets({ bets, onMatch }) {
 }
 
 /* ---- Shared wallet header (coins balance + optional back button) ---- */
-export function WalletHeader({ onBack, go, scrolled, onInfo }) {
+export function WalletHeader({ onBack, go, scrolled, onInfo, onOptOut }) {
   useCoins() // re-render on balance changes
   const me = getMe()
   const wallet = myWallet()
@@ -145,7 +146,12 @@ export function WalletHeader({ onBack, go, scrolled, onInfo }) {
             </button>
           </div>
         )}
-        {onInfo && <button className="hdr-help coin-help" onClick={onInfo} aria-label="About wagers" title="About wagers">?</button>}
+        {(onOptOut || onInfo) && (
+          <div className="coin-wallet-actions">
+            {onOptOut && <OptOutButton onClick={onOptOut} />}
+            {onInfo && <button className="hdr-help coin-help" onClick={onInfo} aria-label="About wagers" title="About wagers">?</button>}
+          </div>
+        )}
       </div>
       {me && <div className="coin-grant-note">{`+${wallet.weeklyGrant.toLocaleString()} Yowie Dollars every week`}</div>}
     </div>
@@ -277,8 +283,64 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   )
 }
 
+/* Wagers self-exclusion sheet. Two steps — choose a duration, then confirm —
+   because the choice is BINDING: once confirmed there's no early opt-back-in and
+   the remaining time is never shown. Reachable from the header shield and from the
+   "Stepping away" section of the About sheet. */
+const OPT_OUT_CHOICES = [
+  ['1d', '1 day'],
+  ['3d', '3 days'],
+  ['7d', '7 days'],
+  ['14d', '14 days'],
+  ['forever', 'Completely'],
+]
+export function OptOutSheet({ onClose }) {
+  const [chosen, setChosen] = useState(null) // duration key awaiting confirmation
+  const label = OPT_OUT_CHOICES.find(([k]) => k === chosen)?.[1]
+  const confirmCopy = chosen === 'forever'
+    ? "You're stepping away from Wagers for good. It won't turn itself back on."
+    : `You're stepping away from Wagers for ${label}. It'll lock now and quietly come back when the time's up — you can't turn it back on early.`
+  function confirm() { optOut(chosen); onClose() }
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={e => e.stopPropagation()} style={{ maxHeight: '92%' }}>
+        <div className="grab" />
+        <div className="sheet-head">
+          <h3>Step away from Wagers</h3>
+          <button className="x" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="sheet-body">
+          {chosen == null ? (
+            <>
+              <p className="fyi-lead">
+                Taking a break is completely OK — and completely anonymous. You won't miss out on
+                any of the fun: the rest of The Sweep carries on exactly the same, only Wagers
+                pauses. Choose how long to step away — it'll be hidden until then, with no turning
+                it back on early.
+              </p>
+              <div className="optout-choices">
+                {OPT_OUT_CHOICES.map(([k, lbl]) => (
+                  <button key={k} className="optout-choice" onClick={() => setChosen(k)}>{lbl}</button>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="fyi-lead">{confirmCopy}</p>
+              <div className="optout-confirm-row">
+                <button className="btn-ghost" onClick={() => setChosen(null)}>Cancel</button>
+                <button className="cta" onClick={confirm}>Confirm</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Shown automatically the first time someone opens Wagers (once per device),
-   and re-openable anytime via the “?” in the header. */
+   and re-openable anytime via the "?" in the header. */
 const WAGERS_FYI_KEY = 'sweep.wagers.fyi.v1'
 const WAGERS_END = '19 July 2026' // World Cup Final — weekly grants stop, table locks
 
@@ -293,7 +355,7 @@ function weeklyDropSydney() {
   return `${day} at ${time}`
 }
 
-export function WagersInfoSheet({ onClose }) {
+export function WagersInfoSheet({ onClose, onOptOut }) {
   const drop = weeklyDropSydney()
   const faqs = [
     ['Can I buy more Yowie Dollars if I run out?', `No. There’s nothing to buy — no real money is ever involved. Everyone is topped up with +1,000 Yowie Dollars automatically each week${drop ? `, every ${drop} (Sydney time)` : ''}.`],
@@ -320,10 +382,21 @@ export function WagersInfoSheet({ onClose }) {
           </div>
           <div className="fyi-grant">
             <Icon.coin />
-            <span><b>+100 Yowie Dollars</b> for every match outcome you predict correctly in the
-            schedule, and <b>+300</b> each time a team you own wins a match.</span>
+            <span>You will get <b>100 Yowie Dollars</b> for every match outcome you predict correctly in the
+            schedule, and <b>300</b> each time a team you own wins a match.</span>
           </div>
           <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
+          <div className="fyi-stepaway">
+            <p>
+              <b>Stepping away is OK.</b> Everyone's different. If you'd rather not take part — or if
+              this feature could be harmful or a trigger for you — you absolutely should step away,
+              and we 100% support that. It's completely anonymous.
+              You're free, welcome, and encouraged to do it any time it feels right for you.
+            </p>
+            <button className="btn-ghost fyi-stepaway-btn" onClick={onOptOut} aria-label="Step away from Wagers">
+              <Icon.shield style={{ width: 16, height: 16 }} /> Step away from Wagers
+            </button>
+          </div>
           <div className="fyi-faq">
             {faqs.map(([q, a]) => (
               <div className="fyi-q" key={q}>
@@ -348,6 +421,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
   const [tab, setTab] = useState('place')
   const [betSheet, setBetSheet] = useState(null) // { f, market, selection, odds } | null
   const [info, setInfo] = useState(false)
+  const [optOutOpen, setOptOutOpen] = useState(false)
   const scrollRef = useRef(null)
   const { scrolled, onScroll } = useScrolled(scrollRef)
   const desktop = useIsDesktop()
@@ -384,8 +458,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
     <div className="screen screen-anim coins-page" data-testid="coins-screen" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
 
       {desktop
-        ? <WalletHeader onInfo={() => setInfo(true)} />
-        : <AppHeader title="Wagers" coins={wallet.balance} go={go} scrolled={scrolled} right={helpBtn} />}
+        ? <WalletHeader onInfo={() => setInfo(true)} onOptOut={() => setOptOutOpen(true)} />
+        : <AppHeader title="Wagers" coins={wallet.balance} go={go} scrolled={scrolled} right={helpBtn}
+            replaceSpoiler={<OptOutButton onClick={() => setOptOutOpen(true)} />} />}
 
       {/* Tab toggle */}
       <div className="wrap" style={{ paddingTop: 12, paddingBottom: 0 }}>
@@ -509,7 +584,8 @@ export function CoinsScreen({ go, openBet, openMatch }) {
           onClose={() => setBetSheet(null)}
         />
       )}
-      {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
+      {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
+      {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}
     </div>
   )
 }

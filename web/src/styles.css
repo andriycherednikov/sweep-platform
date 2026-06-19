@@ -90,6 +90,8 @@ a{color:inherit; text-decoration:none;}
 .hdr-help{flex:0 0 auto; width:30px; height:30px; border-radius:9px; background:rgba(255,255,255,.1); color:#cfe0f5; font-family:'Barlow Condensed'; font-weight:800; font-size:16px; line-height:1; display:grid; place-items:center; cursor:pointer; border:0;}
 .hdr-help:hover{background:rgba(255,255,255,.18);}
 .coin-help{margin-left:auto; position:relative; z-index:1;}
+.coin-wallet-actions{margin-left:auto; display:flex; align-items:center; gap:10px; position:relative; z-index:1;}
+.coin-wallet-actions .coin-help{margin-left:0;}
 
 /* wagers FYI sheet */
 .fyi-lead{font-size:14px; line-height:1.55; color:var(--ink); margin:2px 0 14px;}
@@ -101,6 +103,34 @@ a{color:inherit; text-decoration:none;}
 .fyi-faq{margin-top:6px; display:flex; flex-direction:column; gap:12px;}
 .fyi-q b{display:block; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:14.5px; color:var(--navy); margin-bottom:3px;}
 .fyi-q p{font-size:13px; line-height:1.5; color:var(--muted); margin:0;}
+
+/* Wagers opt-out (self-exclusion) sheet — light bottom-sheet surface */
+.btn-ghost {
+  padding: 13px 14px; border-radius: 13px; cursor: pointer; font-weight: 700; font-size: 15px;
+  background: var(--card); color: var(--navy); border: 1px solid var(--line);
+}
+.btn-ghost:active { transform: scale(.98); }
+.optout-choices { display: grid; gap: 8px; margin-top: 14px; }
+.optout-choice {
+  width: 100%; padding: 14px 15px; border-radius: 12px;
+  background: var(--card); border: 1px solid var(--line);
+  color: var(--ink); font-size: 15px; font-weight: 600; text-align: left; cursor: pointer;
+}
+.optout-choice:active { background: var(--bg); }
+/* "Completely" — the heaviest choice, sits last; give it a subtle accent edge */
+.optout-choice:last-child { border-color: var(--accent); color: var(--accent); }
+.optout-confirm-row { display: flex; gap: 10px; margin-top: 18px; }
+.optout-confirm-row .cta, .optout-confirm-row .btn-ghost { flex: 1; }
+.fyi-stepaway {
+  margin-top: 16px; padding: 15px 16px; border-radius: 14px;
+  background: linear-gradient(165deg, rgba(242,177,56,.18), rgba(242,177,56,.06));
+  border: 1.5px solid var(--gold);
+  box-shadow: 0 10px 22px -12px rgba(242,177,56,.75);
+}
+.fyi-stepaway p { margin: 0 0 13px; font-size: 13px; line-height: 1.55; color: var(--ink); }
+.fyi-stepaway p b { color: var(--navy); }
+.fyi-stepaway-btn { display: inline-flex; align-items: center; gap: 7px; width: 100%; justify-content: center; border-color: var(--gold); }
+.fyi-stepaway-btn svg { stroke: var(--gold); }
 
 /* sticky/shrinking home header (mobile — .home-top is display:none on desktop).
    The header sticks to the top of the scroll area and collapses to a compact

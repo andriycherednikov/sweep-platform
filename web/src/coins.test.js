@@ -1,10 +1,12 @@
 import { expect, test, vi, beforeEach } from 'vitest'
 import * as client from './api/client.js'
-import { setWalletData, myBalance, placeBet, coinsLeaderboard, balanceByPerson } from './coins.js'
+import { setWalletData, myBalance, placeBet, coinsLeaderboard, balanceByPerson, canWager } from './coins.js'
 import { setMe } from './social.js'
+import { optOut } from './optout.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  localStorage.clear()
   S.people = [{ id: 'pn_a', name: 'Ann' }, { id: 'pn_b', name: 'Bob' }]
   S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', status: 'upcoming', markets: {
     '1x2': { selections: [{ key: 'HOME', odds: 2 }, { key: 'DRAW', odds: 3.5 }, { key: 'AWAY', odds: 4 }] },
@@ -45,4 +47,21 @@ test('placeBet reads odds from the chosen market and posts market+selection', as
   await placeBet('f1', 'ou25', 'OVER', 100)
   expect(myBalance()).toBe(900)
   expect(client.postBet).toHaveBeenCalledWith({ fixtureId: 'f1', personId: 'pn_a', market: 'ou25', selection: 'OVER', stake: 100 })
+})
+
+test('canWager is false while opted out, true once the window lapses', () => {
+  expect(canWager()).toBe(true)   // me = pn_a, an adult
+  optOut('1d')
+  expect(canWager()).toBe(false)
+  localStorage.clear()            // simulate the window elapsing / silent lift
+  expect(canWager()).toBe(true)
+})
+
+test('opt-out is per-person — switching identity restores Wagers', () => {
+  optOut('7d')                    // me = pn_a
+  expect(canWager()).toBe(false)
+  setMe('pn_b')                   // a different person, not opted out
+  expect(canWager()).toBe(true)
+  setMe('pn_a')                   // back to the opted-out person
+  expect(canWager()).toBe(false)
 })

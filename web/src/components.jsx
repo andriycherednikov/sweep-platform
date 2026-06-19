@@ -13,6 +13,7 @@ import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./swe
 import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
+import { useOptOut } from "./optout.js";
 
 export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
 
@@ -113,6 +114,19 @@ export function SpoilerToggle({ compact }) {
       <Ic/>
       <span className="pt-label">Privacy mode</span>
       <span className="pt-state">{on ? "On" : "Off"}</span>
+    </button>
+  );
+}
+
+/* Wagers self-exclusion entry point — a discreet round shield button that opens
+   the opt-out sheet (CoinsScreen owns that sheet). Replaces the privacy eye in the
+   Wagers header only; not an eye, to read as self-care rather than spoiler control. */
+export function OptOutButton({ onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      aria-label="Step away from Wagers" title="Step away from Wagers"
+      style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+      <Icon.shield style={{width:15,height:15,stroke:"#9fb6d6"}}/>
     </button>
   );
 }
@@ -333,7 +347,7 @@ export function MatchCard({ f, onOpen, onToast }) {
      home  → THE SWEEP / WORLD CUP 2026 + date + sweeps + admin
      page  → menu name (pass `title`)
      coins → balance + "COINS" (pass `coins`) */
-export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef }) {
+export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef, replaceSpoiler }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
@@ -374,7 +388,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {coins != null && <span className="hdr-coins"><Icon.coin/>{coins.toLocaleString()}</span>}
           <div className="tz"><b>{fmtDate(new Date())}</b></div>
-          <SpoilerToggle compact/>
+          {replaceSpoiler != null ? replaceSpoiler : <SpoilerToggle compact/>}
           {right}
           {onSweeps && sweeps.length > 1 && (
             <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
@@ -462,6 +476,7 @@ const TABS = [
 ];
 export function BottomNav({ tab, go }) {
   useSocial(); // re-render on identity change so the Wagers tab appears/hides
+  useOptOut(); // ...and on opt-out, so the tab disappears immediately
   const tabs = TABS.filter(([id]) => id !== "coins" || canWager());
   return (
     <nav className="tabs">
@@ -519,6 +534,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
   useSocial(); // re-render on identity change so the Wagers item appears/hides
+  useOptOut(); // ...and on opt-out
   const nav = SB_NAV.filter(([id]) => id !== "coins" || canWager());
   return (
     <aside className="sidebar">
