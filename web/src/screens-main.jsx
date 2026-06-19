@@ -1,7 +1,7 @@
 /* ============================================================
    THE SWEEP — main screens: Home, Schedule, Standings, Knockouts
    ============================================================ */
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, AppHeader, PageHeader,
@@ -94,9 +94,39 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     ? coinsLeaderboard(Infinity).filter(r => r.person?.adult !== false).slice(0, 4)
     : [];
 
-  // sticky header shrink: collapse the header once scrolled past a threshold.
+  // sticky header shrink: GRADUAL, scroll-linked. The Home header is the only one
+  // rendered INSIDE its scroll container, so collapsing it changes scrollHeight. We
+  // (a) shrink it gradually (progress 0..1) and (b) add a bottom spacer equal to the
+  // EXACT px the header has collapsed, so scrollHeight stays constant — the browser
+  // never force-clamps scrollTop, which is what used to make the header oscillate
+  // ("spaz") when there wasn't much content on screen.
   const scrollRef = useRef(null);
-  const { scrolled, onScroll } = useScrolled(scrollRef);
+  const { progress, scrolled, onScroll } = useScrolled(scrollRef);
+  const headRef = useRef(null);
+  const expandedH = useRef(0);
+  const progressRef = useRef(0);
+  const [collapsePx, setCollapsePx] = useState(0);
+  const measureCollapse = useCallback(() => {
+    const el = headRef.current;
+    if (!el) return;
+    // capture the expanded baseline only while at the top (progress 0) so a
+    // mid-shrink measurement can't poison it
+    if (progressRef.current === 0) expandedH.current = el.offsetHeight;
+    const delta = Math.max(0, expandedH.current - el.offsetHeight);
+    setCollapsePx((prev) => (prev === delta ? prev : delta));
+  }, []);
+  // sync (pre-paint) measure on every progress change → spacer tracks the header in
+  // the same frame, no flash and no one-frame clamp
+  useLayoutEffect(() => { progressRef.current = progress; measureCollapse(); }, [progress, measureCollapse]);
+  // re-measure the expanded baseline on resize / async content (countdown, login,
+  // late data) — set up once, reads the latest progress via the ref
+  useLayoutEffect(() => {
+    const el = headRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => measureCollapse());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureCollapse]);
 
   const approved = S.photos.filter(p=>p.status==="approved" && p.kind==="fan");
   const [pi, setPi] = useState(0);
@@ -194,7 +224,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   return (
     <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
-      <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps} scrolled={scrolled} scrollRef={scrollRef}/>
+      <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps} scrolled={scrolled} progress={progress} scrollRef={scrollRef} headRef={headRef}/>
 
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
@@ -281,6 +311,10 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         </div>
        </div>
       </div>
+      {/* compensating spacer: keeps scrollHeight constant as the header collapses,
+          so the shrink can't yank scrollTop back and oscillate. Mobile only —
+          desktop hides the in-flow header. */}
+      {!isDesktop && <div className="home-shrink-spacer" aria-hidden="true" style={{ height: collapsePx }} />}
     </div>
   );
 }

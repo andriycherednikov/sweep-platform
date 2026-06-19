@@ -333,7 +333,7 @@ export function MatchCard({ f, onOpen, onToast }) {
      home  → THE SWEEP / WORLD CUP 2026 + date + sweeps + admin
      page  → menu name (pass `title`)
      coins → balance + "COINS" (pass `coins`) */
-export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, scrollRef, onBack }) {
+export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
@@ -345,7 +345,11 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
   };
   const viewMe = () => { if (me) window.__sweepViewMe && window.__sweepViewMe(); };
   return (
-    <header className={"top home-top" + (scrolled ? " shrunk" : "")}>
+    <header
+      ref={headRef}
+      className={"top home-top" + (home ? " home-flow" : (scrolled ? " shrunk" : ""))}
+      style={home ? { "--p": progress ?? 0 } : undefined}
+    >
       <div className="brandrow">
         {onBack ? (
           <button className="brand brand-btn" onClick={onBack} aria-label="Back">
@@ -362,7 +366,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
         </button>
         )}
         {me && (
-          <button className="id-mini" onClick={viewMe} aria-label="View your profile">
+          <button className={"id-mini" + ((progress ?? 0) > 0.5 ? " on" : "")} onClick={viewMe} aria-label="View your profile">
             <PersonAvatar p={me} cls="av" style={{width:26,height:26,border:0,margin:0,fontSize:11}}/>
             <b>{me.short}</b>
           </button>
@@ -393,23 +397,31 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
 /* back-compat alias — Home screen renders the header in its `home` variant. */
 export function HomeHeader(props) { return <AppHeader home {...props} />; }
 
-/* shrink-on-scroll helper: attach `ref` to a scroll container and read `scrolled`
-   (true once shrunk). Drives the sticky-header shrink. Uses hysteresis (separate
-   enter/exit marks) so the shrink can't flip-flop when a scroll hovers on the edge. */
-export function useScrolled(scrollRef, enter = 56, exit = 8) {
-  const [scrolled, setScrolled] = useState(false);
+/* shrink-on-scroll helper: attach `ref` to a scroll container + `onScroll`.
+   Returns a continuous `progress` (0..1, linear in scrollTop over SHRINK_PX) that
+   drives the Home header's GRADUAL collapse, plus a derived `scrolled` boolean the
+   sibling page/coins headers still use for their binary `.shrunk` class. progress
+   is computed from the CLAMPED scrollTop so the shrink tracks the finger with no
+   lag and iOS rubber-band/overscroll can never push it out of [0,1]. The gradual
+   shrink (vs the old instant collapse) is what makes the home-header feedback loop
+   stable; the bottom spacer in HomeScreen severs it entirely (constant scrollHeight). */
+export const SHRINK_PX = 220; // D: scroll distance for a full Home-header collapse
+export function useScrolled(scrollRef, distance = SHRINK_PX) {
+  const [progress, setProgress] = useState(0);
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
-    const y = el.scrollTop;
-    // Shrink once past `enter`, and only expand again below `exit`. The dead-band
-    // between the two stops the sticky header flip-flopping when a micro-scroll hovers
-    // on a single threshold — each toggle reflows the header (~120px), which the user
-    // sees as a jittery "spaz". A wide band makes that boundary un-crossable by tiny
-    // scrolls. (Single-arg callers keep working — the defaults supply both marks.)
-    setScrolled((was) => (was ? y > exit : y > enter));
+    // Clamp the input into [0, maxScroll]. iOS overscroll can report scrollTop < 0
+    // or momentarily > maxScroll; either would over/under-drive the ratio. A bare
+    // {scrollTop} mock (no scrollHeight/clientHeight) → max = +Infinity, so progress
+    // is just scrollTop/distance.
+    const sh = el.scrollHeight, ch = el.clientHeight;
+    const max = (Number.isFinite(sh) && Number.isFinite(ch)) ? Math.max(0, sh - ch) : Infinity;
+    const y = Math.max(0, Math.min(el.scrollTop, max));
+    const p = distance > 0 ? Math.min(1, y / distance) : (y > 0 ? 1 : 0);
+    setProgress((prev) => (prev === p ? prev : p));
   };
-  return { scrolled, onScroll };
+  return { progress, scrolled: progress > 0.5, onScroll };
 }
 
 /* page header w/ back. On tab screens (no onBack) a trophy logo takes you home.

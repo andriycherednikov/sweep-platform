@@ -9,7 +9,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
@@ -697,13 +697,64 @@ test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
   setSpoiler(false)
 })
 
-test('useScrolled applies hysteresis so the shrink never flip-flops on a single threshold', () => {
-  const ref = { current: { scrollTop: 0 } }
+test('useScrolled returns a gradual progress (0..1) linear in scrollTop, clamped at the ends', () => {
+  // tall content so the input clamp (max = scrollHeight - clientHeight) never bites
+  const ref = { current: { scrollTop: 0, scrollHeight: 10000, clientHeight: 800 } }
+  const { result } = renderHook(() => useScrolled(ref))
+  const at = (y) => { ref.current.scrollTop = y; act(() => result.current.onScroll()); return result.current.progress }
+  expect(result.current.progress).toBe(0)
+  expect(at(0)).toBe(0)
+  expect(at(SHRINK_PX / 2)).toBeCloseTo(0.5, 5)   // halfway through D → 0.5
+  expect(at(SHRINK_PX)).toBe(1)                   // at D → fully shrunk
+  expect(at(SHRINK_PX * 3)).toBe(1)               // past D → clamped at 1
+})
+
+test('useScrolled is gradual & monotonic — a small scroll moves progress a small, exact amount (no binary flip)', () => {
+  const ref = { current: { scrollTop: 0, scrollHeight: 10000, clientHeight: 800 } }
+  const { result } = renderHook(() => useScrolled(ref))
+  const at = (y) => { ref.current.scrollTop = y; act(() => result.current.onScroll()); return result.current.progress }
+  const a = at(100)
+  const b = at(110)
+  expect(b).toBeGreaterThan(a)
+  expect(b - a).toBeCloseTo(10 / SHRINK_PX, 5)    // exactly linear, no dead-band snap
+})
+
+test('useScrolled derives a binary `scrolled` (progress>0.5) for the sibling headers', () => {
+  const ref = { current: { scrollTop: 0, scrollHeight: 10000, clientHeight: 800 } }
   const { result } = renderHook(() => useScrolled(ref))
   const at = (y) => { ref.current.scrollTop = y; act(() => result.current.onScroll()); return result.current.scrolled }
-  expect(result.current.scrolled).toBe(false)
-  expect(at(30)).toBe(false)  // below the shrink (enter) mark → stays expanded
-  expect(at(60)).toBe(true)   // past enter → shrinks
-  expect(at(30)).toBe(true)   // back into the dead-band → STAYS shrunk (no flip-flop)
-  expect(at(5)).toBe(false)   // only well back near the top → expands again
+  expect(at(0)).toBe(false)
+  expect(at(SHRINK_PX * 0.4)).toBe(false)         // below half → not yet "scrolled"
+  expect(at(SHRINK_PX * 0.6)).toBe(true)          // past half → siblings snap to .shrunk
+})
+
+test('useScrolled clamps iOS rubber-band/overscroll input so progress stays in [0,1]', () => {
+  // negative scrollTop (top overscroll) → floored to 0
+  const ref = { current: { scrollTop: -40, scrollHeight: 10000, clientHeight: 800 } }
+  const { result } = renderHook(() => useScrolled(ref))
+  act(() => result.current.onScroll())
+  expect(result.current.progress).toBe(0)
+  // momentum past the bottom → clamped to maxScroll (=9200), well beyond D → 1
+  ref.current.scrollTop = 99999
+  act(() => result.current.onScroll())
+  expect(result.current.progress).toBe(1)
+})
+
+test('useScrolled: when maxScroll < D (short content), progress cannot reach 1', () => {
+  // scrollHeight - clientHeight = 120, which is < SHRINK_PX(220). This is the
+  // SHORT-content regime that caused the original jitter. Progress maxes at the
+  // clamped maxScroll / D, never 1.
+  const ref = { current: { scrollTop: 99999, scrollHeight: 920, clientHeight: 800 } }
+  const { result } = renderHook(() => useScrolled(ref))
+  act(() => result.current.onScroll())
+  expect(result.current.progress).toBeCloseTo(120 / SHRINK_PX, 5)
+  expect(result.current.progress).toBeLessThan(1)
+})
+
+test('useScrolled tolerates a bare {scrollTop} ref (no scrollHeight/clientHeight) without NaN', () => {
+  const ref = { current: { scrollTop: SHRINK_PX } }
+  const { result } = renderHook(() => useScrolled(ref))
+  act(() => result.current.onScroll())
+  expect(result.current.progress).toBe(1)
+  expect(Number.isNaN(result.current.progress)).toBe(false)
 })
