@@ -60,6 +60,7 @@ export async function syncBaseline(db, provider, { season }) {
         score1: f.score1, score2: f.score2, minute: f.minute,
         probA: prob?.a ?? null, probD: prob?.d ?? null, probB: prob?.b ?? null,
         ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
+        regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
         stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
       }).onConflictDoUpdate({
         target: fixture.id,
@@ -71,6 +72,7 @@ export async function syncBaseline(db, provider, { season }) {
           ...(prob ? { probA: prob.a, probD: prob.d, probB: prob.b } : {}),
           // markets only overwrite when freshly fetched (marketsSet empty otherwise → preserves prior)
           ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
+          regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
           stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
         },
       })

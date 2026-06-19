@@ -206,3 +206,13 @@ test('backfillFinalEvents ignores non-final fixtures and is a no-op when nothing
   const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
   expect(f2.events).toBeNull() // untouched
 })
+
+test('pollLive persists the 90-minute regulation score on a knockout final', async () => {
+  const [f] = await db.select().from(fixture).limit(1)
+  await db.update(fixture).set({ status: 'live', score1: 1, score2: 1, regScore1: null, regScore2: null }).where(eq(fixture.id, f.id))
+  // stub provider: a knockout match decided in ET — final score 2:1, but 90' was 1:1
+  const provider = { fetchFixturesByIds: async () => [{ id: f.id, status: 'final', score1: 2, score2: 1, minute: 120, htScore1: 0, htScore2: 1, regScore1: 1, regScore2: 1 }] }
+  await pollLive(db, provider, [f.id])
+  const [after] = await db.select().from(fixture).where(eq(fixture.id, f.id))
+  expect([after.regScore1, after.regScore2]).toEqual([1, 1])
+})
