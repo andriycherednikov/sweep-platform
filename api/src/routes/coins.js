@@ -52,9 +52,6 @@ export async function coinsRoutes(app) {
     const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
     if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
     if (f.status !== 'upcoming') return reply.code(400).send({ error: 'betting_closed' })
-    // group stage only for now: knockout odds are the 90-min 1X2 market, which would
-    // mis-settle against our final (incl. ET/penalties) winnerCode.
-    if (f.stage !== 'group') return reply.code(400).send({ error: 'not_group_stage' })
     const mk = f.markets?.[market]
     const sel = mk?.selections?.find((s) => s.key === selection)
     if (!sel) return reply.code(400).send({ error: 'no_odds' })

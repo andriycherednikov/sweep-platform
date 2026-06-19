@@ -109,14 +109,13 @@ test('POST /api/bet rejects once the match is no longer upcoming', async () => {
   expect(res.json()).toEqual({ error: 'betting_closed' })
 })
 
-test('POST /api/bet rejects all selections on knockout fixtures (group-stage only) and an unpriced fixture', async () => {
+test('POST /api/bet now accepts knockout fixtures (full tournament) and still rejects an unpriced fixture', async () => {
   const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id) // seed grant
   await db.update(fixture).set({ stage: 'r16' }).where(eq(fixture.id, f.id))
-  for (const selection of ['HOME', 'DRAW', 'AWAY']) {
-    const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection, stake: 10 } })
-    expect(res.statusCode).toBe(400)
-    expect(res.json()).toEqual({ error: 'not_group_stage' })
-  }
+  const ok = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+  expect(ok.statusCode).toBe(200)
+  expect(ok.json().bet).toMatchObject({ market: '1x2', selection: 'HOME' })
   await db.update(fixture).set({ stage: 'group', markets: null }).where(eq(fixture.id, f.id))
   expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
 })
