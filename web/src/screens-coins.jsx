@@ -104,9 +104,18 @@ export function MyBets({ bets, onMatch }) {
                   </div>
                   <div className="coin-bs-side">
                     {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
-                    <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                    {(b.status === 'open' || isWon) && (
-                      <span className={'coin-bs-payout' + (isWon ? ' won' : '')}>{isWon ? 'Won' : 'To win'} <b>{b.potentialPayout}</b></span>
+                    {/* won keeps the stake/odds AND "Won 732", but on one row so the card
+                        stays 2 lines tall — no third line, no empty bottom space. */}
+                    {isWon ? (
+                      <span className="coin-bs-resultline">
+                        <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+                        <span className="coin-bs-payout won">Won <b>{b.potentialPayout}</b></span>
+                      </span>
+                    ) : (
+                      <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+                    )}
+                    {b.status === 'open' && (
+                      <span className="coin-bs-payout">To win <b>{b.potentialPayout}</b></span>
                     )}
                   </div>
                 </div>
