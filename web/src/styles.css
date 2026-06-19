@@ -1191,9 +1191,12 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .stmt-bal-col { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 52px; }
 
 /* --- Multi-bet betslip --- */
-.betslip-pill { position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 40;
-  display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border: none; border-radius: 999px;
-  background: var(--gold, #d9a441); color: #1a1205; font-weight: 700; box-shadow: 0 6px 20px rgba(0,0,0,.35); cursor: pointer; }
+.betslip-pill { position: fixed; right: 16px; left: auto; bottom: 84px; transform: none; z-index: 40;
+  display: inline-flex; align-items: center; gap: 8px; padding: 10px 15px; border: none; border-radius: 999px;
+  background: var(--gold, #d9a441); color: #1a1205; font-weight: 700; box-shadow: 0 6px 20px rgba(11,31,58,.34); cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease; }
+.betslip-pill:hover { transform: translateY(-1px); box-shadow: 0 9px 24px rgba(11,31,58,.4); }
+@media (min-width: 980px) { .betslip-pill { right: 28px; bottom: 28px; } }
 .betslip-pill-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
   border-radius: 999px; background: rgba(0,0,0,.25); color: #fff; font-size: 12px; }
 .betslip-notice { background: #fdeae6; color: var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 10px; }
@@ -1209,3 +1212,25 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .betslip-leg-x { background: none; border: none; color: var(--muted2, #9aa); cursor: pointer; padding: 4px; }
 .coin-odds-btn.on, .coin-mkt-sel.on { outline: 2px solid var(--gold, #d9a441); outline-offset: -2px; }
 .betslip-combined { color: var(--muted2, #9aa); font-weight: 600; margin-left: 6px; }
+
+/* --- Parlay (multi) card in My bets --- */
+.coin-parlay .coin-bs-content { gap: 7px; }
+.coin-parlay-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.coin-parlay-tag { display: inline-flex; align-items: center; gap: 7px; font-family: 'Barlow Condensed'; font-weight: 800;
+  font-size: 14px; letter-spacing: .3px; text-transform: uppercase; color: var(--navy); line-height: 1; }
+.coin-parlay-tag::before { content: ""; width: 15px; height: 15px; border-radius: 4px; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--gold, #d9a441), #c2982f); box-shadow: 0 1px 3px rgba(11,31,58,.28); }
+.coin-parlay-odds { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 15px; color: var(--gold); flex-shrink: 0; }
+.coin-parlay-legs { display: flex; flex-direction: column; border-left: 2px solid var(--line); padding-left: 10px; margin: 1px 0; }
+.coin-parlay-leg { display: flex; align-items: center; gap: 7px; padding: 5px 0; min-width: 0; }
+.coin-parlay-leg + .coin-parlay-leg { border-top: 1px solid var(--line); }
+.coin-parlay-leg .flag { width: 18px; height: 12px; border-radius: 2px; flex-shrink: 0; box-shadow: 0 1px 2px rgba(11,31,58,.2); }
+.coin-parlay-leg-pick { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 14px; letter-spacing: .2px; color: var(--navy);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex-shrink: 0; max-width: 44%; }
+.coin-parlay-leg-mkt { font-family: 'Barlow Semi Condensed'; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .3px; color: var(--muted2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.coin-parlay-leg-odds { font-size: 13px; font-weight: 700; color: var(--navy); flex-shrink: 0; margin-left: auto; }
+.coin-parlay-leg .coin-status-pill { flex-shrink: 0; }
+.coin-parlay-leg.lost .coin-parlay-leg-pick, .coin-parlay-leg.lost .coin-parlay-leg-odds { color: var(--muted2); }
+.coin-parlay-leg.lost .coin-parlay-leg-odds { text-decoration: line-through; }
+.coin-parlay-foot { display: flex; flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }

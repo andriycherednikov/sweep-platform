@@ -93,38 +93,55 @@ function SingleBetRow({ b, onMatch }) {
   )
 }
 
-/* One parlay (multi) card — leg count + combined odds, each leg's pick/odds with
-   won/lost pills, and the stake/payout line. */
+/* One parlay (multi) card — placed-date column + a header (leg count, combined odds),
+   each leg's flag/pick/market/odds (with won/lost styling), and the stake/payout footer.
+   Mirrors the single-bet card's layout vocabulary so the two read as one list. */
 function ParlayCard({ p }) {
   const isWon = p.status === 'won'
   const isLost = p.status === 'lost'
   const isRefunded = p.status === 'refunded'
   const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
   const odds = Number(p.combinedOdds).toFixed(2)
+  const placed = p.placedAt ? new Date(p.placedAt) : null
+  const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
+  const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
   return (
     <div className="coin-betslip coin-parlay">
+      <div className="coin-bs-placed">
+        <span className="coin-bs-pd-date">{placedDate}</span>
+        <span className="coin-bs-pd-time">{placedTime}</span>
+      </div>
       <div className="coin-bs-content">
-        <div className="coin-bs-event">
+        <div className="coin-parlay-head">
           <span className="coin-parlay-tag">Multi · {p.legs.length} legs</span>
           <span className="coin-parlay-odds">@ {odds}</span>
         </div>
         <div className="coin-parlay-legs">
           {p.legs.map((l) => {
             const lw = l.status === 'won', ll = l.status === 'lost'
+            const legFlag = betSelectionFlag(l)
             return (
-              <div key={l.id} className="coin-parlay-leg">
-                <span className="coin-parlay-leg-pick">{betSelectionLabel(l)} · {MARKET_LABELS[l.market] || l.market}</span>
+              <div key={l.id} className={'coin-parlay-leg' + (lw ? ' won' : ll ? ' lost' : '')}>
+                {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
+                <span className="coin-parlay-leg-pick">{betSelectionLabel(l)}</span>
+                <span className="coin-parlay-leg-mkt">{MARKET_LABELS[l.market] || l.market}</span>
                 <span className="coin-parlay-leg-odds">{l.odds}</span>
                 {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}
               </div>
             )
           })}
         </div>
-        <div className="coin-bs-side">
+        <div className="coin-bs-side coin-parlay-foot">
           {(isWon || isLost || isRefunded) && <span className={`pill coin-status-pill ${pillClass}`}>{p.status}</span>}
-          <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+          {isWon ? (
+            <span className="coin-bs-resultline">
+              <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+              <span className="coin-bs-payout won">Won <b>{p.potentialPayout}</b></span>
+            </span>
+          ) : (
+            <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+          )}
           {p.status === 'open' && <span className="coin-bs-payout">To win <b>{p.potentialPayout}</b></span>}
-          {isWon && <span className="coin-bs-payout won">Won <b>{p.potentialPayout}</b></span>}
         </div>
       </div>
     </div>
