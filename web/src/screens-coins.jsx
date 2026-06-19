@@ -30,13 +30,115 @@ function betSelectionFlag(b) {
   return null
 }
 
-export function MyBets({ bets, onMatch }) {
-  const [filter, setFilter] = useState('open')
-  const { open, settled } = bets
+/* One single-bet row. Extracted verbatim from MyBets so single bets render
+   identically alongside parlay cards. */
+function SingleBetRow({ b, onMatch }) {
+  const f = S.fixture(b.fixtureId)
+  const selLabel = betSelectionLabel(b)
+  const selFlag = betSelectionFlag(b)
+  const mktLabel = MARKET_LABELS[b.market] || b.market
+  const isWon = b.status === 'won'
+  const isLost = b.status === 'lost'
+  const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+  const placed = b.placedAt ? new Date(b.placedAt) : null
+  const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
+  const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
+  return (
+    <div className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
+      <div className="coin-bs-placed">
+        <span className="coin-bs-pd-date">{placedDate}</span>
+        <span className="coin-bs-pd-time">{placedTime}</span>
+      </div>
+      <div className="coin-bs-content">
+        {f && (
+          <div className="coin-bs-event">
+            <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+            {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
+            <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+          </div>
+        )}
+        <div className="coin-bs-body">
+          <div className="coin-bs-main">
+            <span className="coin-bs-mkt">{mktLabel}</span>
+            <div className="coin-bs-sel">
+              {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+              <span className="coin-bs-pick">{selLabel}</span>
+            </div>
+            {f && f.status === 'live' && (
+              <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+            )}
+            {f && f.status === 'upcoming' && (
+              <div className="coin-bs-when">{f.dateTimeLabel}</div>
+            )}
+          </div>
+          <div className="coin-bs-side">
+            {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
+            {/* won keeps the stake/odds AND "Won 732", but on one row so the card
+                stays 2 lines tall — no third line, no empty bottom space. */}
+            {isWon ? (
+              <span className="coin-bs-resultline">
+                <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+                <span className="coin-bs-payout won">Won <b>{b.potentialPayout}</b></span>
+              </span>
+            ) : (
+              <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+            )}
+            {b.status === 'open' && (
+              <span className="coin-bs-payout">To win <b>{b.potentialPayout}</b></span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
+/* One parlay (multi) card — leg count + combined odds, each leg's pick/odds with
+   won/lost pills, and the stake/payout line. */
+function ParlayCard({ p }) {
+  const isWon = p.status === 'won'
+  const isLost = p.status === 'lost'
+  const isRefunded = p.status === 'refunded'
+  const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+  const odds = Number(p.combinedOdds).toFixed(2)
+  return (
+    <div className="coin-betslip coin-parlay">
+      <div className="coin-bs-content">
+        <div className="coin-bs-event">
+          <span className="coin-parlay-tag">Multi · {p.legs.length} legs</span>
+          <span className="coin-parlay-odds">@ {odds}</span>
+        </div>
+        <div className="coin-parlay-legs">
+          {p.legs.map((l) => {
+            const lw = l.status === 'won', ll = l.status === 'lost'
+            return (
+              <div key={l.id} className="coin-parlay-leg">
+                <span className="coin-parlay-leg-pick">{betSelectionLabel(l)} · {MARKET_LABELS[l.market] || l.market}</span>
+                <span className="coin-parlay-leg-odds">{l.odds}</span>
+                {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}
+              </div>
+            )
+          })}
+        </div>
+        <div className="coin-bs-side">
+          {(isWon || isLost || isRefunded) && <span className={`pill coin-status-pill ${pillClass}`}>{p.status}</span>}
+          <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+          {p.status === 'open' && <span className="coin-bs-payout">To win <b>{p.potentialPayout}</b></span>}
+          {isWon && <span className="coin-bs-payout won">Won <b>{p.potentialPayout}</b></span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MyBets({ bets, parlays = { open: [], settled: [] }, onMatch }) {
+  const [filter, setFilter] = useState('open')
+  const tag = (arr, kind) => arr.map((d) => ({ kind, data: d }))
+  const open = [...tag(bets.open, 'bet'), ...tag(parlays.open, 'parlay')]
+  const settled = [...tag(bets.settled, 'bet'), ...tag(parlays.settled, 'parlay')]
   const picked = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
-  // newest first (by when the bet was struck)
-  const list = [...picked].sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0))
+  // newest first (by when the bet/parlay was struck)
+  const list = [...picked].sort((a, b) => new Date(b.data.placedAt || 0) - new Date(a.data.placedAt || 0))
 
   const emptyMsg =
     filter === 'open' ? 'No open bets.' :
@@ -61,69 +163,9 @@ export function MyBets({ bets, onMatch }) {
       {list.length === 0 ? (
         <div style={{ color: 'var(--muted2)', fontSize: 13, padding: '10px 2px' }}>{emptyMsg}</div>
       ) : (
-        list.map(b => {
-          const f = S.fixture(b.fixtureId)
-          const matchName = f
-            ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}`
-            : b.fixtureId
-          const selLabel = betSelectionLabel(b)
-          const selFlag = betSelectionFlag(b)
-          const mktLabel = MARKET_LABELS[b.market] || b.market
-          const isWon = b.status === 'won'
-          const isLost = b.status === 'lost'
-          const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
-          const placed = b.placedAt ? new Date(b.placedAt) : null
-          const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
-          const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
-          return (
-            <div key={b.id} className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
-              <div className="coin-bs-placed">
-                <span className="coin-bs-pd-date">{placedDate}</span>
-                <span className="coin-bs-pd-time">{placedTime}</span>
-              </div>
-              <div className="coin-bs-content">
-                {f && (
-                  <div className="coin-bs-event">
-                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
-                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
-                  </div>
-                )}
-                <div className="coin-bs-body">
-                  <div className="coin-bs-main">
-                    <span className="coin-bs-mkt">{mktLabel}</span>
-                    <div className="coin-bs-sel">
-                      {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
-                      <span className="coin-bs-pick">{selLabel}</span>
-                    </div>
-                    {f && f.status === 'live' && (
-                      <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
-                    )}
-                    {f && f.status === 'upcoming' && (
-                      <div className="coin-bs-when">{f.dateTimeLabel}</div>
-                    )}
-                  </div>
-                  <div className="coin-bs-side">
-                    {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
-                    {/* won keeps the stake/odds AND "Won 732", but on one row so the card
-                        stays 2 lines tall — no third line, no empty bottom space. */}
-                    {isWon ? (
-                      <span className="coin-bs-resultline">
-                        <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                        <span className="coin-bs-payout won">Won <b>{b.potentialPayout}</b></span>
-                      </span>
-                    ) : (
-                      <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                    )}
-                    {b.status === 'open' && (
-                      <span className="coin-bs-payout">To win <b>{b.potentialPayout}</b></span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })
+        list.map((item) => item.kind === 'parlay'
+          ? <ParlayCard key={item.data.id} p={item.data} />
+          : <SingleBetRow key={item.data.id} b={item.data} onMatch={onMatch} />)
       )}
     </div>
   )
@@ -692,7 +734,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
           {/* My bets tab */}
           {tab === 'bets' && (
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={wallet.bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
+              <MyBets bets={wallet.bets} parlays={wallet.parlays} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           )}
 

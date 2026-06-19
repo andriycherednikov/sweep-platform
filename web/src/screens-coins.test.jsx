@@ -62,6 +62,18 @@ test('My bets lists open and settled bets and filters', () => {
   expect(screen.getByText('won')).toBeInTheDocument()
 })
 
+test('My bets renders a parlay card with leg count and payout', () => {
+  setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: { open: [], settled: [] }, parlays: {
+    open: [{ id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', placedAt: '2026-07-01T18:00:00Z', legs: [
+      { id: 'l1', fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2, line: null, status: 'open' },
+      { id: 'l2', fixtureId: 'f1', market: 'ou25', selection: 'OVER', odds: 1.9, line: 2.5, status: 'open' }] }],
+    settled: [] } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
+  expect(screen.getByText(/2 legs/i)).toBeInTheDocument()
+  expect(screen.getByText('380')).toBeInTheDocument()
+})
+
 test('the Statement tab shows the Yowie Dollars statement', () => {
   // CoinsScreen renders <StatementList/> for this tab, which fetches via TanStack Query —
   // wrap in a provider and pre-seed the ledger so it renders synchronously.

@@ -61,7 +61,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
         <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
           <div className="wrap" style={{ marginTop: 14 }}>
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={myWallet().bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
+              <MyBets bets={myWallet().bets} parlays={myWallet().parlays} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           </div>
         </div>
