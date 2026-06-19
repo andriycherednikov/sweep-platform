@@ -2,6 +2,7 @@ import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
 import { photo, person } from '../db/schema.js'
 import { verifyPasscode } from '../auth.js'
+import { settleStaleBets } from '../coins/settle.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep } from '../sweeps/auth.js'
 import { DEFAULT_SWEEP_ID } from '../sweeps/constants.js'
 
@@ -31,6 +32,13 @@ export async function adminRoutes(app) {
   })
 
   app.get('/api/admin/me', { preHandler: admin }, async () => ({ admin: true }))
+
+  // Safety net: settle any open bets stuck on already-final fixtures (the worker only
+  // grades at the moment a match flips final, so a missed transition leaves them stale).
+  app.post('/api/admin/settle-stale', { preHandler: admin }, async () => {
+    const swept = await settleStaleBets(app.db, app.publish)
+    return { swept }
+  })
 
   app.get('/api/admin/photos', { preHandler: admin }, async (req) => {
     const rows = await app.db.select().from(photo).where(eq(photo.sweepId, req.sweep.id)).orderBy(desc(photo.createdAt))

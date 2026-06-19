@@ -67,3 +67,18 @@ export async function settleBets(db, fixtureId, publish = () => {}) {
   for (const sweepId of sweeps) await publish({ type: 'bet-settled', sweepId })
   return open.length
 }
+
+/**
+ * Safety net for stale bets: settle every OPEN bet whose fixture is already 'final'
+ * but was never graded — e.g. the worker was down, the live-poll window missed the
+ * transition, or result data arrived late. Reuses the idempotent per-fixture
+ * settleBets, so it's safe to run repeatedly. Returns the number of fixtures swept.
+ */
+export async function settleStaleBets(db, publish = () => {}) {
+  const rows = await db.select({ fixtureId: bet.fixtureId })
+    .from(bet).innerJoin(fixture, eq(bet.fixtureId, fixture.id))
+    .where(and(eq(bet.status, 'open'), eq(fixture.status, 'final')))
+  const ids = [...new Set(rows.map((r) => r.fixtureId))]
+  for (const id of ids) await settleBets(db, id, publish)
+  return ids.length
+}

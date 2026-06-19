@@ -16,7 +16,7 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
@@ -1175,8 +1175,19 @@ export function AdminQueue({ onBack, onToast, embedded }) {
   const [tab, setTab] = useState("pending");
   const [busy, setBusy] = useState(null);
 
+  const [staleBusy, setStaleBusy] = useState(false);
+
   async function load(){ try { setData(await fetchAdminPhotos()); } catch { onToast("Couldn't load the queue"); } }
   useEffect(()=>{ load(); },[]);
+
+  async function runSettleStale(){
+    setStaleBusy(true);
+    try {
+      const { swept } = await settleStaleBets();
+      onToast(swept>0 ? `Settled stale bets on ${swept} match${swept>1?"es":""}` : "No stale bets to settle");
+    } catch { onToast("Couldn't settle stale bets — try again"); }
+    finally { setStaleBusy(false); }
+  }
 
   const list = tab==="pending" ? data.pending : data.approved;
 
@@ -1200,6 +1211,15 @@ export function AdminQueue({ onBack, onToast, embedded }) {
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:10}}>
         <div className="wrap">
+          <div className="admin-maint">
+            <div className="admin-maint-tx">
+              <b>Wagers upkeep</b>
+              <small>Settle any bets left open on matches that have already finished.</small>
+            </div>
+            <button className="cta ghost admin-maint-btn" disabled={staleBusy} onClick={runSettleStale}>
+              {staleBusy ? "Settling…" : "Settle stale bets"}
+            </button>
+          </div>
           {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
           {list.map(p=>(
             <div className="queueitem" key={p.id}>

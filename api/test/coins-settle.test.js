@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { fixture, person, coinLedger, bet } from '../src/db/schema.js'
-import { fixtureResult, settleBets } from '../src/coins/settle.js'
+import { fixtureResult, settleBets, settleStaleBets } from '../src/coins/settle.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
 
 const { pool, db } = openTestDb()
@@ -79,4 +79,37 @@ test('resolveBet fh1x2 from half-time score (or goal-events fallback)', () => {
 test('resolveBet cs exact final score', () => {
   expect(resolveBet('cs', '2:1', null, fx({ score1: 2, score2: 1 }))).toBe('won')
   expect(resolveBet('cs', '2:1', null, fx({ score1: 1, score2: 1 }))).toBe('lost')
+})
+
+test('settleStaleBets grades open bets left on already-final fixtures', async () => {
+  const p = await aPerson()
+  await ensureGrants(db, 'default', p.id)
+  const [f] = await db.select().from(fixture).limit(1)
+  // fixture is final, but its bet was never settled (worker missed it → stale)
+  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code }).where(eq(fixture.id, f.id))
+  const startBal = await balanceOf(db, 'default', p.id)
+  await placeRaw(f, p, 'HOME', 100, 2) // should win → +200
+  const published = []
+  const swept = await settleStaleBets(db, (e) => published.push(e))
+  expect(swept).toBe(1)
+  const [b] = await db.select().from(bet).where(eq(bet.fixtureId, f.id))
+  expect(b.status).toBe('won')
+  expect(await balanceOf(db, 'default', p.id)).toBe(startBal - 100 + 200)
+  expect(published).toEqual([{ type: 'bet-settled', sweepId: 'default' }])
+  // idempotent: a second sweep finds nothing open and pays nothing more
+  const again = []
+  expect(await settleStaleBets(db, (e) => again.push(e))).toBe(0)
+  expect(again).toEqual([])
+  expect(await balanceOf(db, 'default', p.id)).toBe(startBal - 100 + 200)
+})
+
+test('settleStaleBets leaves bets on non-final fixtures untouched', async () => {
+  const p = await aPerson()
+  await ensureGrants(db, 'default', p.id)
+  const [f] = await db.select().from(fixture).limit(1)
+  await db.update(fixture).set({ status: 'live', winnerCode: null, score1: null, score2: null }).where(eq(fixture.id, f.id))
+  await placeRaw(f, p, 'HOME', 50, 2)
+  expect(await settleStaleBets(db, () => {})).toBe(0)
+  const [b] = await db.select().from(bet).where(eq(bet.fixtureId, f.id))
+  expect(b.status).toBe('open')
 })
