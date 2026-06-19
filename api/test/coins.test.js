@@ -50,6 +50,22 @@ async function bettableFixture() {
 }
 const balanceOfPerson = async (id) => (await app.inject({ method: 'GET', url: `/api/coins?personId=${id}` })).json().balance
 
+async function twoBettableFixtures() {
+  const fs = await db.select().from(fixture).limit(2)
+  const markets = {
+    '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [
+      { key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] },
+    ou25: { label: 'Over/Under 2.5', line: 2.5, book: 'Pinnacle', selections: [
+      { key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
+  }
+  const out = []
+  for (const f of fs) {
+    await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets }).where(eq(fixture.id, f.id))
+    out.push((await db.select().from(fixture).where(eq(fixture.id, f.id)))[0])
+  }
+  return out
+}
+
 test('POST /api/bet deducts the stake, locks the odds, and returns the new balance', async () => {
   const p = await aPerson(); const f = await bettableFixture()
   const before = await balanceOfPerson(p.id) // also seeds the grant
@@ -144,6 +160,26 @@ test('GET /api/coins returns parlays and excludes parlay legs from single bets',
   expect(body.parlays.open).toHaveLength(1)
   expect(body.parlays.open[0]).toMatchObject({ id: 'par_test', stake: 20, status: 'open' })
   expect(body.parlays.open[0].legs[0]).toMatchObject({ selection: 'AWAY', odds: 4 })
+})
+
+test('POST /api/parlay places a 2-leg parlay: combined odds × stake, two legs, one debit', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  const before = await balanceOfPerson(p.id)
+  const res = await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 100, legs: [
+    { fixtureId: f1.id, market: '1x2', selection: 'HOME' },
+    { fixtureId: f2.id, market: 'ou25', selection: 'OVER' },
+  ] } })
+  expect(res.statusCode).toBe(200)
+  const body = res.json()
+  expect(body.balance).toBe(before - 100)
+  expect(body.parlay.combinedOdds).toBeCloseTo(3.8, 5)
+  expect(body.parlay.potentialPayout).toBe(380)
+  expect(body.parlay.status).toBe('open')
+  expect(body.parlay.legs).toHaveLength(2)
+  expect(published.some((e) => e.type === 'bet' && e.parlay === true && e.legCount === 2)).toBe(true)
+  const wallet = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
+  expect(wallet.parlays.open).toHaveLength(1)
+  expect(wallet.bets.open).toHaveLength(0)
 })
 
 test('two concurrent full-balance bets cannot overdraw — exactly one wins', async () => {

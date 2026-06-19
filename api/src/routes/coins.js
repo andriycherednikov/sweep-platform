@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
-import { fixture, person, coinLedger, bet } from '../db/schema.js'
+import { fixture, person, coinLedger, bet, parlay } from '../db/schema.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor } from '../coins/ledger.js'
+import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../coins/ledger.js'
 
 const member = requireSweep(['member', 'admin'])
 
@@ -12,6 +12,16 @@ const betBody = {
   properties: {
     fixtureId: { type: 'string' }, personId: { type: 'string' },
     market: { type: 'string', enum: MARKETS }, selection: { type: 'string' }, stake: { type: 'integer', minimum: 1 },
+  },
+}
+
+const parlayBody = {
+  type: 'object', required: ['personId', 'stake', 'legs'], additionalProperties: false,
+  properties: {
+    personId: { type: 'string' }, stake: { type: 'integer', minimum: 1 },
+    legs: { type: 'array', minItems: 1, items: {
+      type: 'object', required: ['fixtureId', 'selection'], additionalProperties: false,
+      properties: { fixtureId: { type: 'string' }, market: { type: 'string', enum: MARKETS }, selection: { type: 'string' } } } },
   },
 }
 
@@ -84,5 +94,57 @@ export async function coinsRoutes(app) {
     // notify the sweep: who + what selection + which game (never the stake)
     await app.publish({ type: 'bet', sweepId, personId, fixtureId, market, selection })
     return { bet: serializeBet(row), balance: result.balance }
+  })
+
+  app.post('/api/parlay', { preHandler: member, schema: { body: parlayBody } }, async (req, reply) => {
+    const sweepId = req.sweep.id
+    const { personId, stake, legs } = req.body
+    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
+    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
+    if (legs.length < 2) return reply.code(400).send({ error: 'too_few_legs' })
+    const seen = new Set()
+    for (const l of legs) {
+      if (seen.has(l.fixtureId)) return reply.code(400).send({ error: 'duplicate_fixture', fixtureId: l.fixtureId })
+      seen.add(l.fixtureId)
+    }
+    const resolved = []
+    for (const l of legs) {
+      const market = l.market ?? '1x2'
+      const [f] = await app.db.select().from(fixture).where(eq(fixture.id, l.fixtureId))
+      if (!f) return reply.code(400).send({ error: 'fixture_not_found', fixtureId: l.fixtureId })
+      if (f.status !== 'upcoming') return reply.code(400).send({ error: 'leg_betting_closed', fixtureId: l.fixtureId })
+      const mk = f.markets?.[market]
+      const sel = mk?.selections?.find((s) => s.key === l.selection)
+      const odds = sel ? Number(sel.odds) : NaN
+      if (!sel || !Number.isFinite(odds) || odds <= 1) return reply.code(400).send({ error: 'leg_no_odds', fixtureId: l.fixtureId, market, selection: l.selection })
+      resolved.push({ fixtureId: l.fixtureId, market, selection: l.selection, odds, line: mk.line ?? null, book: mk.book ?? null })
+    }
+
+    await ensureGrants(app.db, sweepId, personId)
+    const combinedOdds = resolved.reduce((acc, r) => acc * r.odds, 1)
+    const potentialPayout = Math.round(stake * combinedOdds)
+    const parlayId = `par_${randomUUID()}`
+    const result = await app.db.transaction(async (tx) => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtext(${sweepId}), hashtext(${personId}))`)
+      const [b] = await tx.select({ total: sql`coalesce(sum(${coinLedger.amount}), 0)` })
+        .from(coinLedger).where(and(eq(coinLedger.sweepId, sweepId), eq(coinLedger.personId, personId)))
+      const balance = Number(b.total)
+      if (stake > balance) return { error: 'insufficient_funds' }
+      await tx.insert(coinLedger).values({ sweepId, personId, type: 'stake', amount: -stake, refId: parlayId })
+      await tx.insert(parlay).values({ id: parlayId, sweepId, personId, stake, combinedOdds: String(combinedOdds), potentialPayout, status: 'open' })
+      for (const r of resolved) {
+        await tx.insert(bet).values({ id: randomUUID(), sweepId, personId, fixtureId: r.fixtureId, parlayId,
+          market: r.market, selection: r.selection, line: r.line == null ? null : String(r.line),
+          stake: 0, oddsDecimal: String(r.odds), book: r.book, potentialPayout: 0, status: 'open' })
+      }
+      return { balance: balance - stake }
+    })
+    if (result.error) return reply.code(400).send({ error: result.error })
+
+    const [prow] = await app.db.select().from(parlay).where(eq(parlay.id, parlayId))
+    const legRows = await app.db.select().from(bet).where(eq(bet.parlayId, parlayId))
+    await app.publish({ type: 'bet', sweepId, personId, parlay: true, legCount: legRows.length })
+    return { parlay: serializeParlay(prow, legRows), balance: result.balance }
   })
 }
