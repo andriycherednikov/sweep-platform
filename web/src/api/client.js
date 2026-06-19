@@ -85,6 +85,7 @@ export const adminLogout = () => postCreds('/api/admin/logout', {})
 export const fetchAdminMe = () => getCreds('/api/admin/me')
 export const fetchAdminPhotos = () => getCreds('/api/admin/photos')
 export const moderatePhoto = (id, action) => postCreds(`/api/admin/photos/${id}`, { action })
+export const settleStaleBets = () => postCreds('/api/admin/settle-stale', {})
 
 export const postSession = (token) => postCreds('/api/session', { token })
 export const fetchWhoami = () => getCreds('/api/whoami')

@@ -224,6 +224,16 @@ test('deletePerson DELETEs /api/admin/people/:id with credentials', async () => 
   expect(calls[0].opts.credentials).toBe('include')
 })
 
+test('settleStaleBets POSTs /api/admin/settle-stale with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ swept: 2 }) } }))
+  const { settleStaleBets } = await import('./client.js')
+  expect(await settleStaleBets()).toEqual({ swept: 2 })
+  expect(calls[0].url).toMatch(/\/api\/admin\/settle-stale$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
 test('postOwnership and deleteOwnership send personId+teamCode with credentials', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ ok: true }) } }))
