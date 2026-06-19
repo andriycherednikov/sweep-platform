@@ -182,6 +182,23 @@ test('POST /api/parlay places a 2-leg parlay: combined odds × stake, two legs, 
   expect(wallet.bets.open).toHaveLength(0)
 })
 
+test('POST /api/parlay validation: too few legs, duplicate fixture, leg errors, minor, funds', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  await balanceOfPerson(p.id)
+  const post = (payload) => app.inject({ method: 'POST', url: '/api/parlay', payload })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }] })).json()).toEqual({ error: 'too_few_legs' })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f1.id, market: 'ou25', selection: 'OVER' }] })).json()).toMatchObject({ error: 'duplicate_fixture' })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: 'nope', selection: 'HOME' }] })).json()).toMatchObject({ error: 'fixture_not_found' })
+  await db.update(fixture).set({ status: 'live' }).where(eq(fixture.id, f2.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'HOME' }] })).json()).toMatchObject({ error: 'leg_betting_closed' })
+  await db.update(fixture).set({ status: 'upcoming' }).where(eq(fixture.id, f2.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, market: 'cards', selection: 'OVER' }] })).json()).toMatchObject({ error: 'leg_no_odds' })
+  expect((await post({ personId: p.id, stake: 99999999, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] })).json()).toEqual({ error: 'insufficient_funds' })
+  await db.update(person).set({ adult: false }).where(eq(person.id, p.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] })).statusCode).toBe(403)
+  await db.update(person).set({ adult: true }).where(eq(person.id, p.id))
+})
+
 test('two concurrent full-balance bets cannot overdraw — exactly one wins', async () => {
   const p = await aPerson(); const f = await bettableFixture()
   const before = await balanceOfPerson(p.id) // seed the grant; whole balance
