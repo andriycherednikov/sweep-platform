@@ -6,7 +6,7 @@ import { pollLive, pollEvents, pollLineups, fixturesToPoll, isLineupWindow } fro
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
-import { settleBets } from './coins/settle.js'
+import { settleBets, settleStaleBets } from './coins/settle.js'
 import { grantMatchRewards } from './coins/rewards.js'
 import { inArray } from 'drizzle-orm'
 import { fixture } from './db/schema.js'
@@ -27,6 +27,18 @@ async function baseline(reason) {
 // Baseline a few times a day (00:10, 06:10, 12:10, 18:10 UTC) + once at boot.
 cron.schedule('10 0,6,12,18 * * *', () => baseline('cron'))
 await baseline('boot')
+
+// Safety net for stale bets: the live tick only grades a fixture at the moment it flips
+// final, so a missed transition (worker down, late result) leaves open bets stranded on a
+// finished match. Sweep them at boot and every 10 minutes via the idempotent settler.
+async function settleStale(reason) {
+  try {
+    const n = await settleStaleBets(db, (e) => publish(db, e))
+    if (n) console.log(`[settle-stale:${reason}] swept ${n} fixture(s)`)
+  } catch (e) { console.error(`[settle-stale:${reason}] failed:`, e.message) }
+}
+cron.schedule('*/10 * * * *', () => settleStale('cron'))
+await settleStale('boot')
 
 // When a match finishes we recompute the table instantly from our own results, then queue
 // ONE official provider reconcile ~5 min later — debounced so a cluster of finals triggers
