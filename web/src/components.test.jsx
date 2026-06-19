@@ -9,7 +9,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
@@ -695,4 +695,15 @@ test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
   const on = render(<SpoilerToggle compact />)
   expect(on.container.querySelector('.spoiler-tog.compact.on')).toBeTruthy()
   setSpoiler(false)
+})
+
+test('useScrolled applies hysteresis so the shrink never flip-flops on a single threshold', () => {
+  const ref = { current: { scrollTop: 0 } }
+  const { result } = renderHook(() => useScrolled(ref))
+  const at = (y) => { ref.current.scrollTop = y; act(() => result.current.onScroll()); return result.current.scrolled }
+  expect(result.current.scrolled).toBe(false)
+  expect(at(30)).toBe(false)  // below the shrink (enter) mark → stays expanded
+  expect(at(60)).toBe(true)   // past enter → shrinks
+  expect(at(30)).toBe(true)   // back into the dead-band → STAYS shrunk (no flip-flop)
+  expect(at(5)).toBe(false)   // only well back near the top → expands again
 })

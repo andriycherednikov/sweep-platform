@@ -394,12 +394,20 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
 export function HomeHeader(props) { return <AppHeader home {...props} />; }
 
 /* shrink-on-scroll helper: attach `ref` to a scroll container and read `scrolled`
-   (true once the user scrolls past `threshold`). Drives the sticky-header shrink. */
-export function useScrolled(scrollRef, threshold = 24) {
+   (true once shrunk). Drives the sticky-header shrink. Uses hysteresis (separate
+   enter/exit marks) so the shrink can't flip-flop when a scroll hovers on the edge. */
+export function useScrolled(scrollRef, enter = 56, exit = 8) {
   const [scrolled, setScrolled] = useState(false);
   const onScroll = () => {
     const el = scrollRef.current;
-    if (el) setScrolled(el.scrollTop > threshold);
+    if (!el) return;
+    const y = el.scrollTop;
+    // Shrink once past `enter`, and only expand again below `exit`. The dead-band
+    // between the two stops the sticky header flip-flopping when a micro-scroll hovers
+    // on a single threshold — each toggle reflows the header (~120px), which the user
+    // sees as a jittery "spaz". A wide band makes that boundary un-crossable by tiny
+    // scrolls. (Single-arg callers keep working — the defaults supply both marks.)
+    setScrolled((was) => (was ? y > exit : y > enter));
   };
   return { scrolled, onScroll };
 }
