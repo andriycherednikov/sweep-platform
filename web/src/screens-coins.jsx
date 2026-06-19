@@ -4,7 +4,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
-import { useCoins, myWallet, placeBet } from './coins.js'
+import { useCoins, myWallet, placeBet, placeParlay } from './coins.js'
+import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds } from './betslip.js'
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
 import { optOut } from './optout.js'
 import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
@@ -284,6 +285,122 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
               disabled={!valid || submitting}
             >
               <Icon.coin /> {submitting ? 'Placing…' : 'Place bet'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* Floating pill — leg count + combined odds; opens the betslip sheet. Hidden when empty. */
+export function BetslipPill({ onOpen }) {
+  const { legs } = useBetslip()
+  if (legs.length === 0) return null
+  return (
+    <button className="betslip-pill" onClick={onOpen}
+      aria-label={`Open bet slip, ${legs.length} selection${legs.length > 1 ? 's' : ''}`}>
+      <span className="betslip-pill-count">{legs.length}</span>
+      <span className="betslip-pill-label">{legs.length === 1 ? 'Bet slip' : 'Multi'} · {combinedOdds().toFixed(2)}</span>
+      <Icon.coin />
+    </button>
+  )
+}
+
+/* Unified accumulating betslip. 1 leg → a single bet; 2+ → a parlay. Reuses StakePad +
+   quick-add chips + payout preview. Surfaces a closed-event notice (on open and on a blocked
+   submit), an "odds updated" note on drift, and a remove control per leg. */
+export function BetslipSheet({ onClose }) {
+  const { legs } = useBetslip()
+  const [stake, setStake] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const { wallet } = useCoins()
+  const desktop = useIsDesktop()
+  const balance = wallet.balance
+  const stakeNum = parseInt(stake, 10)
+  // per-leg live state: bettable iff the fixture is still upcoming and the pick still has odds
+  const legState = legs.map((l) => {
+    const f = S.fixture(l.fixtureId)
+    const live = f?.markets?.[l.market]?.selections?.find((s) => s.key === l.selection)
+    return { leg: l, f, bettable: !!f && f.status === 'upcoming' && !!live, liveOdds: live ? live.odds : null }
+  })
+  const closed = legState.filter((s) => !s.bettable)
+  const drifted = legState.some((s) => s.bettable && s.liveOdds != null && s.liveOdds !== s.leg.odds)
+  const combined = legState.reduce((acc, s) => acc * (s.liveOdds ?? s.leg.odds), 1)
+  const payout = stakeNum >= 1 ? Math.round(stakeNum * combined) : 0
+  const valid = stakeNum >= 1 && stakeNum <= balance && legs.length >= 1 && closed.length === 0
+  const addAmt = (amt) => setStake(String(Math.min(balance, (parseInt(stake, 10) || 0) + amt)))
+  const QUICK = [100, 200, 500, 1000]
+
+  async function submit() {
+    if (submitting || closed.length > 0 || !valid) return
+    setSubmitting(true)
+    try {
+      const placing = legState.map((s) => ({ ...s.leg, odds: s.liveOdds ?? s.leg.odds }))
+      if (placing.length === 1) {
+        await placeBet(placing[0].fixtureId, placing[0].market, placing[0].selection, stakeNum)
+        clearBetslip(); onClose()
+      } else {
+        const res = await placeParlay(placing, stakeNum)
+        if (res?.ok) { clearBetslip(); onClose() }
+      }
+    } finally { setSubmitting(false) }
+  }
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '92%' }}>
+        <div className="grab" />
+        <div className="sheet-head">
+          <h3>{legs.length > 1 ? `Multi · ${legs.length} legs` : 'Bet slip'}</h3>
+          <button className="x" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="sheet-body">
+          {closed.length > 0 && (
+            <div className="betslip-notice" role="alert">
+              {closed.length === 1 ? '1 selection is no longer available' : `${closed.length} selections are no longer available`} — remove it to place.
+            </div>
+          )}
+          {drifted && <div className="betslip-note">Odds updated — your payout has been refreshed.</div>}
+
+          <div className="betslip-legs">
+            {legState.map(({ leg, f, bettable }) => (
+              <div key={leg.fixtureId + leg.market + leg.selection} className={'betslip-leg' + (bettable ? '' : ' closed')}>
+                <div className="betslip-leg-main">
+                  <span className="betslip-leg-match">{f ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}` : leg.fixtureId}</span>
+                  <span className="betslip-leg-pick">{leg.label} · {MARKET_LABELS[leg.market] || leg.market}</span>
+                  {!bettable && <span className="betslip-leg-closed">Closed</span>}
+                </div>
+                <span className="betslip-leg-odds">{leg.odds}</span>
+                <button className="betslip-leg-x" aria-label={`Remove ${leg.label}`} onClick={() => removeLeg(leg.fixtureId)}><Icon.x /></button>
+              </div>
+            ))}
+          </div>
+
+          <div className="stake-chips">
+            {QUICK.map((a) => (
+              <button key={a} type="button" className="stake-chip" onClick={() => addAmt(a)} disabled={(parseInt(stake, 10) || 0) >= balance}>+{a}</button>
+            ))}
+          </div>
+
+          <div className="field" style={{ marginTop: 12 }}>
+            <label>Stake (Yowie Dollars)</label>
+            {desktop ? (
+              <input type="number" min="1" step="1" max={balance} value={stake} onChange={(e) => setStake(e.target.value)} placeholder={`1 – ${balance}`} />
+            ) : (
+              <div className={'stake-display' + (stake ? '' : ' empty')} aria-label="Stake">{stake || `1 – ${balance}`}</div>
+            )}
+          </div>
+
+          {stakeNum >= 1 && (
+            <div className="coin-payout-preview">To win: <b>{payout}</b> Yowie Dollars <span className="betslip-combined">@ {combined.toFixed(2)}</span></div>
+          )}
+
+          {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
+
+          <div className="sheet-foot">
+            <button className="cta" style={{ opacity: valid && !submitting ? 1 : 0.5 }} onClick={submit} disabled={!valid || submitting}>
+              <Icon.coin /> {submitting ? 'Placing…' : legs.length > 1 ? 'Place multi' : 'Place bet'}
             </button>
           </div>
         </div>
