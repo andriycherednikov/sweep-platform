@@ -1,6 +1,6 @@
 import { expect, test, vi, beforeEach } from 'vitest'
 import * as client from './api/client.js'
-import { setWalletData, myBalance, placeBet, coinsLeaderboard, balanceByPerson, canWager } from './coins.js'
+import { setWalletData, myBalance, placeBet, placeParlay, coinsLeaderboard, balanceByPerson, canWager } from './coins.js'
 import { setMe } from './social.js'
 import { optOut } from './optout.js'
 import { SWEEP as S } from './data.js'
@@ -47,6 +47,21 @@ test('placeBet reads odds from the chosen market and posts market+selection', as
   await placeBet('f1', 'ou25', 'OVER', 100)
   expect(myBalance()).toBe(900)
   expect(client.postBet).toHaveBeenCalledWith({ fixtureId: 'f1', personId: 'pn_a', market: 'ou25', selection: 'OVER', stake: 100 })
+})
+
+test('placeParlay optimistically debits and keeps the debit on success', async () => {
+  vi.spyOn(client, 'postParlay').mockResolvedValueOnce({ parlay: { id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', legs: [] }, balance: 900 })
+  const legs = [{ fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2 }, { fixtureId: 'f2', market: 'ou25', selection: 'OVER', odds: 1.9 }]
+  await placeParlay(legs, 100)
+  expect(myBalance()).toBe(900)
+  expect(client.postParlay).toHaveBeenCalledWith({ personId: 'pn_a', stake: 100, legs: [
+    { fixtureId: 'f1', market: '1x2', selection: 'HOME' }, { fixtureId: 'f2', market: 'ou25', selection: 'OVER' }] })
+})
+
+test('placeParlay rolls back the debit on failure', async () => {
+  vi.spyOn(client, 'postParlay').mockRejectedValueOnce(new Error('nope'))
+  await placeParlay([{ fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2 }, { fixtureId: 'f2', market: '1x2', selection: 'AWAY', odds: 4 }], 100)
+  expect(myBalance()).toBe(1000) // rolled back
 })
 
 test('canWager is false while opted out, true once the window lapses', () => {
