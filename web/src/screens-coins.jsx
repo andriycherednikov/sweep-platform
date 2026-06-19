@@ -541,11 +541,12 @@ export function WagersInfoSheet({ onClose, onOptOut }) {
 /* ---- Main screen ---- */
 export function CoinsScreen({ go, openBet, openMatch }) {
   useCoins() // re-render on store changes
+  useBetslip() // re-render on slip changes (pill count + selected-state highlight)
   const me = getMe()
   const wallet = myWallet()
 
   const [tab, setTab] = useState('place')
-  const [betSheet, setBetSheet] = useState(null) // { f, market, selection, odds } | null
+  const [slipOpen, setSlipOpen] = useState(false)
   const [info, setInfo] = useState(false)
   const [optOutOpen, setOptOutOpen] = useState(false)
   const scrollRef = useRef(null)
@@ -562,9 +563,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
     <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
   )
 
-  // Upcoming bettable matches, group stage with 1x2 market. Fixtures arrive chronological.
+  // Upcoming bettable matches with a 1x2 market — full tournament. Fixtures arrive chronological.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'] && f.stage === 'group')
+    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'])
 
   // Group by dayKey (same pattern as ScheduleScreen in screens-main.jsx)
   const days = []
@@ -577,7 +578,8 @@ export function CoinsScreen({ go, openBet, openMatch }) {
   function openInlineBet(e, f, market, selKey, odds) {
     e.stopPropagation()
     if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
-    setBetSheet({ f, market, selection: selKey, odds })
+    const mk = f.markets?.[market]
+    toggleLeg({ fixtureId: f.id, market, selection: selKey, odds, line: mk?.line ?? null, book: mk?.book ?? null, label: selectionLabel(selKey, f) })
   }
 
   return (
@@ -661,7 +663,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                                 return (
                                   <button
                                     key={sel.key}
-                                    className="coin-odds-btn"
+                                    className={'coin-odds-btn' + (hasLeg(f.id, '1x2', sel.key) ? ' on' : '')}
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
                                     onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
                                   >
@@ -700,16 +702,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
         </div>
       </div>
 
-      {/* Bet sheet */}
-      {betSheet && (
-        <BetSheet
-          f={betSheet.f}
-          market={betSheet.market}
-          selection={betSheet.selection}
-          odds={betSheet.odds}
-          onClose={() => setBetSheet(null)}
-        />
-      )}
+      {/* Accumulating betslip — floating pill opens the slip sheet */}
+      <BetslipPill onOpen={() => setSlipOpen(true)} />
+      {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
       {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}
     </div>

@@ -3,10 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoinsScreen } from './screens-coins.jsx'
 import { setWalletData, canWager } from './coins.js'
+import { clearBetslip } from './betslip.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  clearBetslip()
   localStorage.clear()
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
   S.flag = (c) => `/flags/${c}.png`
@@ -32,6 +34,13 @@ test('tapping the row opens the bet detail', () => {
   render(<CoinsScreen go={() => {}} openBet={openBet} />)
   fireEvent.click(screen.getByTestId('bet-row-f1'))
   expect(openBet).toHaveBeenCalledWith('f1')
+})
+
+test('tapping an odds button adds the selection to the betslip (pill appears)', () => {
+  clearBetslip()
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /home odds 2/i }))
+  expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
 })
 
 test('My bets lists open and settled bets and filters', () => {
