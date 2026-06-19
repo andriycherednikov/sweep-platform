@@ -251,3 +251,15 @@ test('GET /api/coins/ledger with no personId returns an empty statement', async 
   expect(res.statusCode).toBe(200)
   expect(res.json()).toEqual({ balance: 0, entries: [] })
 })
+
+test('GET /api/coins/ledger attaches the parlay to its stake entry', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  await balanceOfPerson(p.id)
+  await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 50, legs: [
+    { fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] } })
+  const body = (await app.inject({ method: 'GET', url: `/api/coins/ledger?personId=${p.id}` })).json()
+  const stakeEntry = body.entries.find((e) => e.type === 'stake')
+  expect(stakeEntry.parlay).toMatchObject({ stake: 50, status: 'open' })
+  expect(stakeEntry.parlay.legs).toHaveLength(2)
+  expect(stakeEntry.bet).toBeNull()
+})

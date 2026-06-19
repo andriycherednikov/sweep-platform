@@ -54,7 +54,7 @@ async function parlaysFor(db, sweepId, personId) {
 }
 
 /** A person's full ledger: every signed entry, newest-first, with a running balance and
- *  (for stake/payout/refund rows) the matching bet attached. Grants carry their weekIndex. */
+ *  (for stake/payout/refund rows) the matching bet OR parlay attached. Grants carry their weekIndex. */
 export async function statementFor(db, sweepId, personId, now = new Date()) {
   await ensureGrants(db, sweepId, personId, now)
   const rows = await db.select().from(coinLedger)
@@ -62,6 +62,12 @@ export async function statementFor(db, sweepId, personId, now = new Date()) {
     .orderBy(coinLedger.createdAt, coinLedger.id)
   const bets = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId)))
   const betById = new Map(bets.map((b) => [b.id, serializeBet(b)]))
+  const parls = await db.select().from(parlay).where(and(eq(parlay.sweepId, sweepId), eq(parlay.personId, personId)))
+  const parlayById = new Map()
+  for (const pl of parls) {
+    const legs = await db.select().from(bet).where(eq(bet.parlayId, pl.id))
+    parlayById.set(pl.id, serializeParlay(pl, legs))
+  }
   let running = 0
   const entries = rows.map((r) => {
     running += r.amount
@@ -74,6 +80,7 @@ export async function statementFor(db, sweepId, personId, now = new Date()) {
       weekIndex: r.type === 'grant' ? Number(r.refId) : null,
       fixtureId: (r.type === 'predict' || r.type === 'teamwin') ? r.refId : null,
       bet: r.type === 'grant' ? null : (betById.get(r.refId) ?? null),
+      parlay: r.type === 'grant' ? null : (parlayById.get(r.refId) ?? null),
     }
   })
   entries.reverse() // newest first
