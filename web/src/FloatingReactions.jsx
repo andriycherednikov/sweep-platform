@@ -21,22 +21,29 @@ export function FloatingReactions() {
     // still-hidden match — they would announce the score/result. Social reactions pass.
     if (n.kind === "match" && isSpoiler() && !isRevealed(n.fixtureId)) return;
     // resolve from already-loaded data; skip silently if we can't render it
-    const fx = S.fixture(n.fixtureId);
-    if (!fx) return;
     let resolved;
-    if (n.kind === "match") {
-      resolved = { ...n, fx };
-    } else if (n.kind === "bet") {
+    if (n.kind === "multi") {
+      // a parlay spans several fixtures — there's no single fixture to resolve
       const person = S.peopleById[n.personId];
       if (!person) return;
-      resolved = { ...n, person, fx };
+      resolved = { ...n, person };
     } else {
-      const person = S.peopleById[n.personId];
-      if (!person) return;
-      const isDraw = n.teamCode === DRAW;
-      const team = isDraw ? null : S.team(n.teamCode);
-      if (!isDraw && !team) return;
-      resolved = { ...n, person, team, isDraw, fx };
+      const fx = S.fixture(n.fixtureId);
+      if (!fx) return;
+      if (n.kind === "match") {
+        resolved = { ...n, fx };
+      } else if (n.kind === "bet") {
+        const person = S.peopleById[n.personId];
+        if (!person) return;
+        resolved = { ...n, person, fx };
+      } else {
+        const person = S.peopleById[n.personId];
+        if (!person) return;
+        const isDraw = n.teamCode === DRAW;
+        const team = isDraw ? null : S.team(n.teamCode);
+        if (!isDraw && !team) return;
+        resolved = { ...n, person, team, isDraw, fx };
+      }
     }
     // random horizontal start, clamped to keep the whole card within the layer
     const w = (wrapRef.current && wrapRef.current.clientWidth) || 360;
@@ -51,7 +58,7 @@ export function FloatingReactions() {
       {items.map((it) => (
         <div key={it.id} className="reaction-row">
           <div className="reaction" style={{ "--rx": it.offset + "px" }}>
-            {it.kind === "match" ? <MatchReaction it={it} /> : it.kind === "bet" ? <BetReaction it={it} /> : <BackReaction it={it} />}
+            {it.kind === "match" ? <MatchReaction it={it} /> : it.kind === "bet" ? <BetReaction it={it} /> : it.kind === "multi" ? <MultiReaction it={it} /> : <BackReaction it={it} />}
           </div>
         </div>
       ))}
@@ -104,6 +111,20 @@ function BetReaction({ it }) {
         <b>{flagCode ? <><img className="flag" src={S.flag(flagCode, 40)} alt="" />{label}</> : label}</b>
         <span className="reaction-mkt">{marketName}</span>
         <MatchupLine fx={it.fx} />
+      </div>
+    </>
+  );
+}
+
+// a multi (parlay) placement — no single fixture, so just the actor + leg count
+function MultiReaction({ it }) {
+  return (
+    <>
+      <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
+      <div className="reaction-txt">
+        <small>{it.person.short} placed a</small>
+        <b><span className="reaction-multi-ico" aria-hidden="true">🎟️</span>Multi · {it.legCount} legs</b>
+        <span className="reaction-mu">Good luck!</span>
       </div>
     </>
   );

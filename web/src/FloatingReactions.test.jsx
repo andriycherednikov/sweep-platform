@@ -40,6 +40,13 @@ test('uses "switched to" copy for a switch', () => {
   expect(container.textContent).toContain('switched to')
 })
 
+test('renders a multi (parlay) placement notification with no fixture', () => {
+  const { container } = render(<FloatingReactions />)
+  act(() => { pushNotification({ kind: 'multi', personId: 'p1', legCount: 3 }) })
+  expect(container.textContent).toContain('placed a')
+  expect(container.textContent).toContain('Multi · 3 legs')
+})
+
 test('silently skips a notification it cannot resolve', () => {
   const { queryByText } = render(<FloatingReactions />)
   act(() => { pushNotification({ personId: 'nobody', teamCode: 'br', fixtureId: 'm1', action: 'pick' }) })

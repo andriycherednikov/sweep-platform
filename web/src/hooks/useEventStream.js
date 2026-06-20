@@ -60,9 +60,13 @@ export function useEventStream() {
         qc.invalidateQueries({ queryKey: ['sweep'] })
       } else if (ev.type === 'bet' || ev.type === 'bet-settled') {
         qc.invalidateQueries({ queryKey: ['coins'] })
-        // ambient floating reaction: who backed what selection in which game (no stake)
+        // ambient floating reaction: who backed what (a single selection, or a multi)
         if (ev.type === 'bet') {
-          pushNotification({ kind: 'bet', personId: ev.personId, fixtureId: ev.fixtureId, market: ev.market, selection: ev.selection })
+          if (ev.parlay) {
+            pushNotification({ kind: 'multi', personId: ev.personId, legCount: ev.legCount })
+          } else {
+            pushNotification({ kind: 'bet', personId: ev.personId, fixtureId: ev.fixtureId, market: ev.market, selection: ev.selection })
+          }
         }
       } else if (ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
         qc.invalidateQueries({ queryKey: ['sweep'] })
