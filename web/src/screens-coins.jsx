@@ -118,12 +118,28 @@ function ParlayCard({ p }) {
         <div className="coin-parlay-legs">
           {p.legs.map((l) => {
             const lw = l.status === 'won', ll = l.status === 'lost'
+            const lf = S.fixture(l.fixtureId)
             const legFlag = betSelectionFlag(l)
             return (
               <div key={l.id} className={'coin-parlay-leg' + (lw ? ' won' : ll ? ' lost' : '')}>
-                {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
-                <span className="coin-parlay-leg-pick">{betSelectionLabel(l)}</span>
-                <span className="coin-parlay-leg-mkt">{MARKET_LABELS[l.market] || l.market}</span>
+                <div className="coin-parlay-leg-body">
+                  {lf && (
+                    <div className="coin-bs-event">
+                      <img className="flag" src={S.flag(lf.t1, 40)} alt="" />
+                      {S.team(lf.t1)?.name || lf.t1} v {S.team(lf.t2)?.name || lf.t2}
+                      <img className="flag" src={S.flag(lf.t2, 40)} alt="" />
+                    </div>
+                  )}
+                  <div className="coin-bs-main">
+                    <span className="coin-bs-mkt">{MARKET_LABELS[l.market] || l.market}</span>
+                    <div className="coin-bs-sel">
+                      {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
+                      <span className="coin-bs-pick">{betSelectionLabel(l)}</span>
+                    </div>
+                    {lf && lf.status === 'upcoming' && <div className="coin-bs-when">{lf.dateTimeLabel}</div>}
+                    {lf && lf.status === 'live' && <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {lf.minute ?? 0}'</div>}
+                  </div>
+                </div>
                 {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}
               </div>
             )
