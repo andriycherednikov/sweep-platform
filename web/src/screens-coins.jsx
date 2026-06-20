@@ -421,7 +421,7 @@ export function BetslipSheet({ onClose }) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '92%' }}>
+      <div className="sheet betslip-sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '92%' }}>
         <div className="grab" />
         <div className="sheet-head">
           <h3>{legs.length > 1 ? `Multi · ${legs.length} legs` : 'Bet slip'}</h3>
@@ -484,15 +484,17 @@ export function BetslipSheet({ onClose }) {
             <div className="coin-payout-preview">To win: <b>{payout}</b> Yowie Dollars <span className="betslip-combined">@ {combined.toFixed(2)}</span></div>
           )}
 
-          {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
+          </>)}
+        </div>
 
-          <div className="sheet-foot">
+        {legs.length > 0 && (
+          <div className="betslip-bottom">
+            {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
             <button className="cta" style={{ opacity: valid && !submitting ? 1 : 0.5 }} onClick={submit} disabled={!valid || submitting}>
               <Icon.coin /> {submitting ? 'Placing…' : legs.length > 1 ? 'Place multi' : 'Place bet'}
             </button>
           </div>
-          </>)}
-        </div>
+        )}
       </div>
     </div>
   )
