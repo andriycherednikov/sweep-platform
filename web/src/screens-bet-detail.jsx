@@ -5,7 +5,7 @@ import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
 import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
 import { WalletHeader, MyBets, WagersInfoSheet, BetslipSheet, BetslipPill } from './screens-coins.jsx'
-import { useBetslip, toggleLeg, hasLeg } from './betslip.js'
+import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
@@ -108,7 +108,11 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
                         key={s.key}
                         className={'coin-mkt-sel' + (hasLeg(f.id, k, s.key) ? ' on' : '')}
                         data-testid="mkt-sel"
-                        onClick={() => toggleLeg({ fixtureId: f.id, market: k, selection: s.key, odds: s.odds, line: mk.line ?? null, book: mk.book ?? null, label: selLabel(k, s, f) })}
+                        onClick={() => {
+                          const before = betslipCount()
+                          toggleLeg({ fixtureId: f.id, market: k, selection: s.key, odds: s.odds, line: mk.line ?? null, book: mk.book ?? null, label: selLabel(k, s, f) })
+                          if (before === 0 && betslipCount() === 1) setSlipOpen(true) // open only on the first selection
+                        }}
                       >
                         {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
                         <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>

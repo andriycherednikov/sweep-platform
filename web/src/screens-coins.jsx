@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
 import { useCoins, myWallet, placeBet, placeParlay } from './coins.js'
-import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds } from './betslip.js'
+import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds, betslipCount } from './betslip.js'
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
 import { optOut } from './optout.js'
 import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
@@ -113,8 +113,7 @@ function ParlayCard({ p }) {
       </div>
       <div className="coin-bs-content">
         <div className="coin-parlay-head">
-          <span className="coin-parlay-tag">Multi · {p.legs.length} legs</span>
-          <span className="coin-parlay-odds">@ {odds}</span>
+          <span className="coin-parlay-tag"><span className="coin-parlay-ico"><Icon.tickets /></span>Multi · {p.legs.length} legs</span>
         </div>
         <div className="coin-parlay-legs">
           {p.legs.map((l) => {
@@ -125,7 +124,6 @@ function ParlayCard({ p }) {
                 {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
                 <span className="coin-parlay-leg-pick">{betSelectionLabel(l)}</span>
                 <span className="coin-parlay-leg-mkt">{MARKET_LABELS[l.market] || l.market}</span>
-                <span className="coin-parlay-leg-odds">{l.odds}</span>
                 {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}
               </div>
             )
@@ -360,8 +358,7 @@ export function BetslipPill({ onOpen }) {
     <button className="betslip-pill" onClick={onOpen}
       aria-label={`Open bet slip, ${legs.length} selection${legs.length > 1 ? 's' : ''}`}>
       <span className="betslip-pill-count">{legs.length}</span>
-      <span className="betslip-pill-label">{legs.length === 1 ? 'Bet slip' : 'Multi'} · {combinedOdds().toFixed(2)}</span>
-      <Icon.coin />
+      <span className="betslip-pill-label">Betslip</span>
     </button>
   )
 }
@@ -638,7 +635,10 @@ export function CoinsScreen({ go, openBet, openMatch }) {
     e.stopPropagation()
     if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
     const mk = f.markets?.[market]
+    const before = betslipCount()
     toggleLeg({ fixtureId: f.id, market, selection: selKey, odds, line: mk?.line ?? null, book: mk?.book ?? null, label: selectionLabel(selKey, f) })
+    // auto-open the slip only when the FIRST selection is added; later adds don't reopen it
+    if (before === 0 && betslipCount() === 1) setSlipOpen(true)
   }
 
   return (
