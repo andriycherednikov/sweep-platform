@@ -43,6 +43,12 @@ test('tapping an odds button adds the selection to the betslip (pill appears)', 
   expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
 })
 
+test('the bet slip tab is visible even with no selections', () => {
+  clearBetslip()
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
+})
+
 test('My bets lists open and settled bets and filters', () => {
   setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
     open: [{ id: 'b1', fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 100, odds: 1.9, potentialPayout: 190, status: 'open' }],
