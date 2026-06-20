@@ -1,5 +1,5 @@
-import { and, eq, sql } from 'drizzle-orm'
-import { fixture, person, coinLedger, bet } from '../db/schema.js'
+import { and, eq, sql, isNull } from 'drizzle-orm'
+import { fixture, person, coinLedger, bet, parlay } from '../db/schema.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
 
 /** Tournament start = earliest fixture kickoff, or null when there are no fixtures. */
@@ -36,14 +36,25 @@ export async function balanceOf(db, sweepId, personId) {
 export async function walletFor(db, sweepId, personId, now = new Date()) {
   await ensureGrants(db, sweepId, personId, now)
   const balance = await balanceOf(db, sweepId, personId)
-  const rows = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId)))
+  const rows = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId), isNull(bet.parlayId)))
   const open = [], settled = []
   for (const b of rows) (b.status === 'open' ? open : settled).push(serializeBet(b))
-  return { balance, weeklyGrant: WEEKLY_COINS, bets: { open, settled } }
+  const parlays = await parlaysFor(db, sweepId, personId)
+  return { balance, weeklyGrant: WEEKLY_COINS, bets: { open, settled }, parlays }
+}
+
+async function parlaysFor(db, sweepId, personId) {
+  const rows = await db.select().from(parlay).where(and(eq(parlay.sweepId, sweepId), eq(parlay.personId, personId)))
+  const open = [], settled = []
+  for (const pl of rows) {
+    const legs = await db.select().from(bet).where(eq(bet.parlayId, pl.id))
+    ;(pl.status === 'open' ? open : settled).push(serializeParlay(pl, legs))
+  }
+  return { open, settled }
 }
 
 /** A person's full ledger: every signed entry, newest-first, with a running balance and
- *  (for stake/payout/refund rows) the matching bet attached. Grants carry their weekIndex. */
+ *  (for stake/payout/refund rows) the matching bet OR parlay attached. Grants carry their weekIndex. */
 export async function statementFor(db, sweepId, personId, now = new Date()) {
   await ensureGrants(db, sweepId, personId, now)
   const rows = await db.select().from(coinLedger)
@@ -51,6 +62,12 @@ export async function statementFor(db, sweepId, personId, now = new Date()) {
     .orderBy(coinLedger.createdAt, coinLedger.id)
   const bets = await db.select().from(bet).where(and(eq(bet.sweepId, sweepId), eq(bet.personId, personId)))
   const betById = new Map(bets.map((b) => [b.id, serializeBet(b)]))
+  const parls = await db.select().from(parlay).where(and(eq(parlay.sweepId, sweepId), eq(parlay.personId, personId)))
+  const parlayById = new Map()
+  for (const pl of parls) {
+    const legs = await db.select().from(bet).where(eq(bet.parlayId, pl.id))
+    parlayById.set(pl.id, serializeParlay(pl, legs))
+  }
   let running = 0
   const entries = rows.map((r) => {
     running += r.amount
@@ -63,6 +80,7 @@ export async function statementFor(db, sweepId, personId, now = new Date()) {
       weekIndex: r.type === 'grant' ? Number(r.refId) : null,
       fixtureId: (r.type === 'predict' || r.type === 'teamwin') ? r.refId : null,
       bet: r.type === 'grant' ? null : (betById.get(r.refId) ?? null),
+      parlay: r.type === 'grant' ? null : (parlayById.get(r.refId) ?? null),
     }
   })
   entries.reverse() // newest first
@@ -84,4 +102,9 @@ export function serializeBet(b) {
   return { id: b.id, fixtureId: b.fixtureId, market: b.market, selection: b.selection,
     line: b.line == null ? null : Number(b.line), stake: b.stake, odds: Number(b.oddsDecimal),
     book: b.book, potentialPayout: b.potentialPayout, status: b.status, placedAt: b.placedAt, settledAt: b.settledAt }
+}
+
+export function serializeParlay(p, legs) {
+  return { id: p.id, stake: p.stake, combinedOdds: Number(p.combinedOdds), potentialPayout: p.potentialPayout,
+    status: p.status, placedAt: p.placedAt, settledAt: p.settledAt, legs: legs.map(serializeBet) }
 }

@@ -1189,3 +1189,55 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .stmt-amt.up { color: var(--live); }
 .stmt-amt.down { color: var(--accent); }
 .stmt-bal-col { text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 52px; }
+
+/* --- Multi-bet betslip --- */
+.betslip-pill { position: fixed; right: 0; top: 42%; left: auto; bottom: auto; transform: translateY(-50%); z-index: 40;
+  display: inline-flex; flex-direction: column; align-items: center; gap: 9px; padding: 15px 8px 17px; border: none;
+  border-radius: 14px 0 0 14px; background: var(--gold, #d9a441); color: #1a1205; font-weight: 800;
+  box-shadow: -5px 6px 18px rgba(11,31,58,.3); cursor: pointer; transition: padding-right .12s ease, box-shadow .12s ease; }
+.betslip-pill:hover { padding-right: 12px; box-shadow: -7px 8px 22px rgba(11,31,58,.4); }
+.betslip-pill-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
+  border-radius: 999px; background: rgba(11,31,58,.22); color: #fff; font-size: 12px; font-weight: 800; }
+.betslip-pill-label { writing-mode: vertical-rl; text-transform: uppercase; letter-spacing: 1.5px; font-size: 12px; font-weight: 800; }
+.betslip-notice { background: #fdeae6; color: var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 10px; }
+.betslip-note { color: var(--muted2, #9aa); font-size: 12px; margin-bottom: 10px; }
+.betslip-legs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+.betslip-leg { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); color: var(--ink); }
+.betslip-leg.closed { opacity: .55; }
+.betslip-leg-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.betslip-leg-match { font-size: 12px; color: var(--muted2, #9aa); }
+.betslip-leg-pick { font-size: 14px; font-weight: 600; }
+.betslip-leg-closed { font-size: 11px; color: var(--accent); }
+.betslip-leg-odds { font-weight: 700; }
+.betslip-leg-x { display: inline-grid; place-items: center; width: 30px; height: 30px; flex-shrink: 0; padding: 0;
+  background: var(--line2); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); cursor: pointer;
+  transition: background .12s, color .12s, border-color .12s; }
+.betslip-leg-x:hover { background: #fdeae6; border-color: #f3c0b6; color: var(--accent); }
+.betslip-leg-x svg { width: 15px; height: 15px; }
+.coin-odds-btn.on, .coin-mkt-sel.on { outline: 2px solid var(--gold, #d9a441); outline-offset: -2px; }
+.betslip-combined { color: var(--muted2, #9aa); font-weight: 600; margin-left: 6px; }
+
+/* --- Parlay (multi) card in My bets --- */
+.coin-betslip.coin-parlay { padding: 14px 4px; }
+.coin-parlay .coin-bs-content { gap: 11px; }
+.coin-parlay-head { display: flex; align-items: center; gap: 9px; }
+.coin-parlay-tag { display: inline-flex; align-items: center; gap: 9px; font-family: 'Barlow Condensed'; font-weight: 800;
+  font-size: 15px; letter-spacing: .4px; text-transform: uppercase; color: var(--navy); line-height: 1; }
+.coin-parlay-ico { display: inline-grid; place-items: center; color: var(--gold); flex-shrink: 0; }
+.coin-parlay-ico svg { width: 20px; height: 20px; }
+.coin-parlay-legs { display: flex; flex-direction: column; border-left: 2px solid var(--line); padding-left: 13px; margin: 1px 0; }
+.coin-parlay-leg { display: flex; align-items: flex-start; gap: 8px; padding: 9px 0; min-width: 0; }
+.coin-parlay-leg + .coin-parlay-leg { border-top: 1px solid var(--line); }
+.coin-parlay-leg-body { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+/* legs reuse the single-bet content vocabulary (event + market + pick + when), scaled down */
+.coin-parlay-leg .coin-bs-event { font-size: 9.5px; }
+.coin-parlay-leg .coin-bs-event .flag { width: 15px; height: 10px; }
+.coin-parlay-leg .coin-bs-main { gap: 2px; }
+.coin-parlay-leg .coin-bs-mkt { font-size: 9.5px; }
+.coin-parlay-leg .coin-bs-sel .flag { width: 18px; height: 12px; }
+.coin-parlay-leg .coin-bs-pick { font-size: 14px; }
+.coin-parlay-leg .coin-bs-when { font-size: 10px; }
+.coin-parlay-leg .coin-status-pill { flex-shrink: 0; margin-top: 1px; }
+.coin-parlay-leg.lost .coin-bs-pick, .coin-parlay-leg.lost .coin-bs-event { color: var(--muted2); }
+.coin-parlay-leg.lost .flag { opacity: .55; }
+.coin-parlay-foot { margin-top: 3px; gap: 3px; }

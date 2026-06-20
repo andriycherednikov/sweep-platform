@@ -1,14 +1,14 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, coinLedger, bet, fixture } from '../src/db/schema.js'
+import { person, coinLedger, bet, fixture, parlay } from '../src/db/schema.js'
 import { and, eq } from 'drizzle-orm'
 
 const { pool, db } = openTestDb()
 const published = []
 const app = buildApp(db, { publish: (e) => published.push(e) })
 afterAll(async () => { await app.close(); await pool.end() })
-beforeEach(async () => { await db.delete(bet); await db.delete(coinLedger); published.length = 0 })
+beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db.delete(coinLedger); published.length = 0 })
 
 const aPerson = async () => (await db.select().from(person).limit(1))[0]
 
@@ -49,6 +49,22 @@ async function bettableFixture() {
   return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
 }
 const balanceOfPerson = async (id) => (await app.inject({ method: 'GET', url: `/api/coins?personId=${id}` })).json().balance
+
+async function twoBettableFixtures() {
+  const fs = await db.select().from(fixture).limit(2)
+  const markets = {
+    '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [
+      { key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] },
+    ou25: { label: 'Over/Under 2.5', line: 2.5, book: 'Pinnacle', selections: [
+      { key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
+  }
+  const out = []
+  for (const f of fs) {
+    await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets }).where(eq(fixture.id, f.id))
+    out.push((await db.select().from(fixture).where(eq(fixture.id, f.id)))[0])
+  }
+  return out
+}
 
 test('POST /api/bet deducts the stake, locks the odds, and returns the new balance', async () => {
   const p = await aPerson(); const f = await bettableFixture()
@@ -109,14 +125,13 @@ test('POST /api/bet rejects once the match is no longer upcoming', async () => {
   expect(res.json()).toEqual({ error: 'betting_closed' })
 })
 
-test('POST /api/bet rejects all selections on knockout fixtures (group-stage only) and an unpriced fixture', async () => {
+test('POST /api/bet now accepts knockout fixtures (full tournament) and still rejects an unpriced fixture', async () => {
   const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id) // seed grant
   await db.update(fixture).set({ stage: 'r16' }).where(eq(fixture.id, f.id))
-  for (const selection of ['HOME', 'DRAW', 'AWAY']) {
-    const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection, stake: 10 } })
-    expect(res.statusCode).toBe(400)
-    expect(res.json()).toEqual({ error: 'not_group_stage' })
-  }
+  const ok = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+  expect(ok.statusCode).toBe(200)
+  expect(ok.json().bet).toMatchObject({ market: '1x2', selection: 'HOME' })
   await db.update(fixture).set({ stage: 'group', markets: null }).where(eq(fixture.id, f.id))
   expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
 })
@@ -130,6 +145,58 @@ test('POST /api/bet allows multiple independent bets on the same match', async (
   const wallet = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
   expect(wallet.bets.open).toHaveLength(2)
   expect(wallet.balance).toBe(before - 100)
+})
+
+test('GET /api/coins returns parlays and excludes parlay legs from single bets', async () => {
+  const p = await aPerson(); const f = await bettableFixture()
+  await balanceOfPerson(p.id)
+  await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+  await db.insert(parlay).values({ id: 'par_test', sweepId: 'default', personId: p.id, stake: 20, combinedOdds: '3.8', potentialPayout: 76, status: 'open' })
+  await db.insert(bet).values({ id: 'leg_test', sweepId: 'default', personId: p.id, fixtureId: f.id, parlayId: 'par_test',
+    selection: 'AWAY', market: '1x2', stake: 0, oddsDecimal: '4', potentialPayout: 0, status: 'open' })
+  const body = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
+  expect(body.bets.open).toHaveLength(1)
+  expect(body.bets.open[0].selection).toBe('HOME')
+  expect(body.parlays.open).toHaveLength(1)
+  expect(body.parlays.open[0]).toMatchObject({ id: 'par_test', stake: 20, status: 'open' })
+  expect(body.parlays.open[0].legs[0]).toMatchObject({ selection: 'AWAY', odds: 4 })
+})
+
+test('POST /api/parlay places a 2-leg parlay: combined odds × stake, two legs, one debit', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  const before = await balanceOfPerson(p.id)
+  const res = await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 100, legs: [
+    { fixtureId: f1.id, market: '1x2', selection: 'HOME' },
+    { fixtureId: f2.id, market: 'ou25', selection: 'OVER' },
+  ] } })
+  expect(res.statusCode).toBe(200)
+  const body = res.json()
+  expect(body.balance).toBe(before - 100)
+  expect(body.parlay.combinedOdds).toBeCloseTo(3.8, 5)
+  expect(body.parlay.potentialPayout).toBe(380)
+  expect(body.parlay.status).toBe('open')
+  expect(body.parlay.legs).toHaveLength(2)
+  expect(published.some((e) => e.type === 'bet' && e.parlay === true && e.legCount === 2)).toBe(true)
+  const wallet = (await app.inject({ method: 'GET', url: `/api/coins?personId=${p.id}` })).json()
+  expect(wallet.parlays.open).toHaveLength(1)
+  expect(wallet.bets.open).toHaveLength(0)
+})
+
+test('POST /api/parlay validation: too few legs, duplicate fixture, leg errors, minor, funds', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  await balanceOfPerson(p.id)
+  const post = (payload) => app.inject({ method: 'POST', url: '/api/parlay', payload })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }] })).json()).toEqual({ error: 'too_few_legs' })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f1.id, market: 'ou25', selection: 'OVER' }] })).json()).toMatchObject({ error: 'duplicate_fixture' })
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: 'nope', selection: 'HOME' }] })).json()).toMatchObject({ error: 'fixture_not_found' })
+  await db.update(fixture).set({ status: 'live' }).where(eq(fixture.id, f2.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'HOME' }] })).json()).toMatchObject({ error: 'leg_betting_closed' })
+  await db.update(fixture).set({ status: 'upcoming' }).where(eq(fixture.id, f2.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, market: 'cards', selection: 'OVER' }] })).json()).toMatchObject({ error: 'leg_no_odds' })
+  expect((await post({ personId: p.id, stake: 99999999, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] })).json()).toEqual({ error: 'insufficient_funds' })
+  await db.update(person).set({ adult: false }).where(eq(person.id, p.id))
+  expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] })).statusCode).toBe(403)
+  await db.update(person).set({ adult: true }).where(eq(person.id, p.id))
 })
 
 test('two concurrent full-balance bets cannot overdraw — exactly one wins', async () => {
@@ -183,4 +250,16 @@ test('GET /api/coins/ledger with no personId returns an empty statement', async 
   const res = await app.inject({ method: 'GET', url: '/api/coins/ledger' })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toEqual({ balance: 0, entries: [] })
+})
+
+test('GET /api/coins/ledger attaches the parlay to its stake entry', async () => {
+  const p = await aPerson(); const [f1, f2] = await twoBettableFixtures()
+  await balanceOfPerson(p.id)
+  await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 50, legs: [
+    { fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] } })
+  const body = (await app.inject({ method: 'GET', url: `/api/coins/ledger?personId=${p.id}` })).json()
+  const stakeEntry = body.entries.find((e) => e.type === 'stake')
+  expect(stakeEntry.parlay).toMatchObject({ stake: 50, status: 'open' })
+  expect(stakeEntry.parlay.legs).toHaveLength(2)
+  expect(stakeEntry.bet).toBeNull()
 })

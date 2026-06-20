@@ -48,6 +48,8 @@ export function mapFixture(raw) {
     score2: raw.goals?.away ?? null,
     htScore1: raw.score?.halftime?.home ?? null,
     htScore2: raw.score?.halftime?.away ?? null,
+    regScore1: raw.score?.fulltime?.home ?? null,
+    regScore2: raw.score?.fulltime?.away ?? null,
     minute: status === 'live' ? (raw.fixture?.status?.elapsed ?? null) : null,
   }
 }

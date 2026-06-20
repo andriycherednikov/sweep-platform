@@ -4,7 +4,8 @@
 import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
-import { useCoins, myWallet, placeBet } from './coins.js'
+import { useCoins, myWallet, placeBet, placeParlay } from './coins.js'
+import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds, betslipCount } from './betslip.js'
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
 import { optOut } from './optout.js'
 import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
@@ -29,13 +30,146 @@ function betSelectionFlag(b) {
   return null
 }
 
-export function MyBets({ bets, onMatch }) {
-  const [filter, setFilter] = useState('open')
-  const { open, settled } = bets
+/* One single-bet row. Extracted verbatim from MyBets so single bets render
+   identically alongside parlay cards. */
+function SingleBetRow({ b, onMatch }) {
+  const f = S.fixture(b.fixtureId)
+  const selLabel = betSelectionLabel(b)
+  const selFlag = betSelectionFlag(b)
+  const mktLabel = MARKET_LABELS[b.market] || b.market
+  const isWon = b.status === 'won'
+  const isLost = b.status === 'lost'
+  const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+  const placed = b.placedAt ? new Date(b.placedAt) : null
+  const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
+  const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
+  return (
+    <div className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
+      <div className="coin-bs-placed">
+        <span className="coin-bs-pd-date">{placedDate}</span>
+        <span className="coin-bs-pd-time">{placedTime}</span>
+      </div>
+      <div className="coin-bs-content">
+        {f && (
+          <div className="coin-bs-event">
+            <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+            {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
+            <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+          </div>
+        )}
+        <div className="coin-bs-body">
+          <div className="coin-bs-main">
+            <span className="coin-bs-mkt">{mktLabel}</span>
+            <div className="coin-bs-sel">
+              {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+              <span className="coin-bs-pick">{selLabel}</span>
+            </div>
+            {f && f.status === 'live' && (
+              <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+            )}
+            {f && f.status === 'upcoming' && (
+              <div className="coin-bs-when">{f.dateTimeLabel}</div>
+            )}
+          </div>
+          <div className="coin-bs-side">
+            {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
+            {/* won keeps the stake/odds AND "Won 732", but on one row so the card
+                stays 2 lines tall — no third line, no empty bottom space. */}
+            {isWon ? (
+              <span className="coin-bs-resultline">
+                <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+                <span className="coin-bs-payout won">Won <b>{b.potentialPayout}</b></span>
+              </span>
+            ) : (
+              <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
+            )}
+            {b.status === 'open' && (
+              <span className="coin-bs-payout">To win <b>{b.potentialPayout}</b></span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
+/* One parlay (multi) card — placed-date column + a header (leg count, combined odds),
+   each leg's flag/pick/market/odds (with won/lost styling), and the stake/payout footer.
+   Mirrors the single-bet card's layout vocabulary so the two read as one list. */
+function ParlayCard({ p }) {
+  const isWon = p.status === 'won'
+  const isLost = p.status === 'lost'
+  const isRefunded = p.status === 'refunded'
+  const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
+  const odds = Number(p.combinedOdds).toFixed(2)
+  const placed = p.placedAt ? new Date(p.placedAt) : null
+  const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
+  const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
+  return (
+    <div className="coin-betslip coin-parlay">
+      <div className="coin-bs-placed">
+        <span className="coin-bs-pd-date">{placedDate}</span>
+        <span className="coin-bs-pd-time">{placedTime}</span>
+      </div>
+      <div className="coin-bs-content">
+        <div className="coin-parlay-head">
+          <span className="coin-parlay-tag"><span className="coin-parlay-ico"><Icon.tickets /></span>Multi · {p.legs.length} legs</span>
+        </div>
+        <div className="coin-parlay-legs">
+          {p.legs.map((l) => {
+            const lw = l.status === 'won', ll = l.status === 'lost'
+            const lf = S.fixture(l.fixtureId)
+            const legFlag = betSelectionFlag(l)
+            return (
+              <div key={l.id} className={'coin-parlay-leg' + (lw ? ' won' : ll ? ' lost' : '')}>
+                <div className="coin-parlay-leg-body">
+                  {lf && (
+                    <div className="coin-bs-event">
+                      <img className="flag" src={S.flag(lf.t1, 40)} alt="" />
+                      {S.team(lf.t1)?.name || lf.t1} v {S.team(lf.t2)?.name || lf.t2}
+                      <img className="flag" src={S.flag(lf.t2, 40)} alt="" />
+                    </div>
+                  )}
+                  <div className="coin-bs-main">
+                    <span className="coin-bs-mkt">{MARKET_LABELS[l.market] || l.market}</span>
+                    <div className="coin-bs-sel">
+                      {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
+                      <span className="coin-bs-pick">{betSelectionLabel(l)}</span>
+                    </div>
+                    {lf && lf.status === 'upcoming' && <div className="coin-bs-when">{lf.dateTimeLabel}</div>}
+                    {lf && lf.status === 'live' && <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {lf.minute ?? 0}'</div>}
+                  </div>
+                </div>
+                {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}
+              </div>
+            )
+          })}
+        </div>
+        <div className="coin-bs-side coin-parlay-foot">
+          {(isWon || isLost || isRefunded) && <span className={`pill coin-status-pill ${pillClass}`}>{p.status}</span>}
+          {isWon ? (
+            <span className="coin-bs-resultline">
+              <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+              <span className="coin-bs-payout won">Won <b>{p.potentialPayout}</b></span>
+            </span>
+          ) : (
+            <span className="coin-bs-stake"><Icon.coin />{p.stake} @ {odds}</span>
+          )}
+          {p.status === 'open' && <span className="coin-bs-payout">To win <b>{p.potentialPayout}</b></span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export function MyBets({ bets, parlays = { open: [], settled: [] }, onMatch }) {
+  const [filter, setFilter] = useState('open')
+  const tag = (arr, kind) => arr.map((d) => ({ kind, data: d }))
+  const open = [...tag(bets.open, 'bet'), ...tag(parlays.open, 'parlay')]
+  const settled = [...tag(bets.settled, 'bet'), ...tag(parlays.settled, 'parlay')]
   const picked = filter === 'open' ? open : filter === 'settled' ? settled : [...open, ...settled]
-  // newest first (by when the bet was struck)
-  const list = [...picked].sort((a, b) => new Date(b.placedAt || 0) - new Date(a.placedAt || 0))
+  // newest first (by when the bet/parlay was struck)
+  const list = [...picked].sort((a, b) => new Date(b.data.placedAt || 0) - new Date(a.data.placedAt || 0))
 
   const emptyMsg =
     filter === 'open' ? 'No open bets.' :
@@ -60,69 +194,9 @@ export function MyBets({ bets, onMatch }) {
       {list.length === 0 ? (
         <div style={{ color: 'var(--muted2)', fontSize: 13, padding: '10px 2px' }}>{emptyMsg}</div>
       ) : (
-        list.map(b => {
-          const f = S.fixture(b.fixtureId)
-          const matchName = f
-            ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}`
-            : b.fixtureId
-          const selLabel = betSelectionLabel(b)
-          const selFlag = betSelectionFlag(b)
-          const mktLabel = MARKET_LABELS[b.market] || b.market
-          const isWon = b.status === 'won'
-          const isLost = b.status === 'lost'
-          const pillClass = isWon ? 'coin-won' : isLost ? 'coin-lost' : ''
-          const placed = b.placedAt ? new Date(b.placedAt) : null
-          const placedDate = placed ? placed.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) : ''
-          const placedTime = placed ? placed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : ''
-          return (
-            <div key={b.id} className="coin-betslip" onClick={() => f && onMatch && onMatch(b.fixtureId)}>
-              <div className="coin-bs-placed">
-                <span className="coin-bs-pd-date">{placedDate}</span>
-                <span className="coin-bs-pd-time">{placedTime}</span>
-              </div>
-              <div className="coin-bs-content">
-                {f && (
-                  <div className="coin-bs-event">
-                    <img className="flag" src={S.flag(f.t1, 40)} alt="" />
-                    {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-                    <img className="flag" src={S.flag(f.t2, 40)} alt="" />
-                  </div>
-                )}
-                <div className="coin-bs-body">
-                  <div className="coin-bs-main">
-                    <span className="coin-bs-mkt">{mktLabel}</span>
-                    <div className="coin-bs-sel">
-                      {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
-                      <span className="coin-bs-pick">{selLabel}</span>
-                    </div>
-                    {f && f.status === 'live' && (
-                      <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
-                    )}
-                    {f && f.status === 'upcoming' && (
-                      <div className="coin-bs-when">{f.dateTimeLabel}</div>
-                    )}
-                  </div>
-                  <div className="coin-bs-side">
-                    {(isWon || isLost) && <span className={`pill coin-status-pill ${pillClass}`}>{b.status}</span>}
-                    {/* won keeps the stake/odds AND "Won 732", but on one row so the card
-                        stays 2 lines tall — no third line, no empty bottom space. */}
-                    {isWon ? (
-                      <span className="coin-bs-resultline">
-                        <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                        <span className="coin-bs-payout won">Won <b>{b.potentialPayout}</b></span>
-                      </span>
-                    ) : (
-                      <span className="coin-bs-stake"><Icon.coin />{b.stake} @ {b.odds}</span>
-                    )}
-                    {b.status === 'open' && (
-                      <span className="coin-bs-payout">To win <b>{b.potentialPayout}</b></span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })
+        list.map((item) => item.kind === 'parlay'
+          ? <ParlayCard key={item.data.id} p={item.data} />
+          : <SingleBetRow key={item.data.id} b={item.data} onMatch={onMatch} />)
       )}
     </div>
   )
@@ -292,6 +366,121 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   )
 }
 
+/* Floating pill — leg count + combined odds; opens the betslip sheet. Hidden when empty. */
+export function BetslipPill({ onOpen }) {
+  const { legs } = useBetslip()
+  if (legs.length === 0) return null
+  return (
+    <button className="betslip-pill" onClick={onOpen}
+      aria-label={`Open bet slip, ${legs.length} selection${legs.length > 1 ? 's' : ''}`}>
+      <span className="betslip-pill-count">{legs.length}</span>
+      <span className="betslip-pill-label">Betslip</span>
+    </button>
+  )
+}
+
+/* Unified accumulating betslip. 1 leg → a single bet; 2+ → a parlay. Reuses StakePad +
+   quick-add chips + payout preview. Surfaces a closed-event notice (on open and on a blocked
+   submit), an "odds updated" note on drift, and a remove control per leg. */
+export function BetslipSheet({ onClose }) {
+  const { legs } = useBetslip()
+  const [stake, setStake] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const { wallet } = useCoins()
+  const desktop = useIsDesktop()
+  const balance = wallet.balance
+  const stakeNum = parseInt(stake, 10)
+  // per-leg live state: bettable iff the fixture is still upcoming and the pick still has odds
+  const legState = legs.map((l) => {
+    const f = S.fixture(l.fixtureId)
+    const live = f?.markets?.[l.market]?.selections?.find((s) => s.key === l.selection)
+    return { leg: l, f, bettable: !!f && f.status === 'upcoming' && !!live, liveOdds: live ? live.odds : null }
+  })
+  const closed = legState.filter((s) => !s.bettable)
+  const drifted = legState.some((s) => s.bettable && s.liveOdds != null && s.liveOdds !== s.leg.odds)
+  const combined = legState.reduce((acc, s) => acc * (s.liveOdds ?? s.leg.odds), 1)
+  const payout = stakeNum >= 1 ? Math.round(stakeNum * combined) : 0
+  const valid = stakeNum >= 1 && stakeNum <= balance && legs.length >= 1 && closed.length === 0
+  const addAmt = (amt) => setStake(String(Math.min(balance, (parseInt(stake, 10) || 0) + amt)))
+  const QUICK = [100, 200, 500, 1000]
+
+  async function submit() {
+    if (submitting || closed.length > 0 || !valid) return
+    setSubmitting(true)
+    try {
+      const placing = legState.map((s) => ({ ...s.leg, odds: s.liveOdds ?? s.leg.odds }))
+      if (placing.length === 1) {
+        await placeBet(placing[0].fixtureId, placing[0].market, placing[0].selection, stakeNum)
+        clearBetslip(); onClose()
+      } else {
+        const res = await placeParlay(placing, stakeNum)
+        if (res?.ok) { clearBetslip(); onClose() }
+      }
+    } finally { setSubmitting(false) }
+  }
+
+  return (
+    <div className="overlay" onClick={onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: '92%' }}>
+        <div className="grab" />
+        <div className="sheet-head">
+          <h3>{legs.length > 1 ? `Multi · ${legs.length} legs` : 'Bet slip'}</h3>
+          <button className="x" onClick={onClose}><Icon.x /></button>
+        </div>
+        <div className="sheet-body">
+          {closed.length > 0 && (
+            <div className="betslip-notice" role="alert">
+              {closed.length === 1 ? '1 selection is no longer available' : `${closed.length} selections are no longer available`} — remove it to place.
+            </div>
+          )}
+          {drifted && <div className="betslip-note">Odds updated — your payout has been refreshed.</div>}
+
+          <div className="betslip-legs">
+            {legState.map(({ leg, f, bettable }) => (
+              <div key={leg.fixtureId + leg.market + leg.selection} className={'betslip-leg' + (bettable ? '' : ' closed')}>
+                <div className="betslip-leg-main">
+                  <span className="betslip-leg-match">{f ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}` : leg.fixtureId}</span>
+                  <span className="betslip-leg-pick">{leg.label} · {MARKET_LABELS[leg.market] || leg.market}</span>
+                  {!bettable && <span className="betslip-leg-closed">Closed</span>}
+                </div>
+                <span className="betslip-leg-odds">{leg.odds}</span>
+                <button className="betslip-leg-x" aria-label={`Remove ${leg.label}`} onClick={() => removeLeg(leg.fixtureId)}><Icon.x /></button>
+              </div>
+            ))}
+          </div>
+
+          <div className="stake-chips">
+            {QUICK.map((a) => (
+              <button key={a} type="button" className="stake-chip" onClick={() => addAmt(a)} disabled={(parseInt(stake, 10) || 0) >= balance}>+{a}</button>
+            ))}
+          </div>
+
+          <div className="field" style={{ marginTop: 12 }}>
+            <label>Stake (Yowie Dollars)</label>
+            {desktop ? (
+              <input type="number" min="1" step="1" max={balance} value={stake} onChange={(e) => setStake(e.target.value)} placeholder={`1 – ${balance}`} />
+            ) : (
+              <div className={'stake-display' + (stake ? '' : ' empty')} aria-label="Stake">{stake || `1 – ${balance}`}</div>
+            )}
+          </div>
+
+          {stakeNum >= 1 && (
+            <div className="coin-payout-preview">To win: <b>{payout}</b> Yowie Dollars <span className="betslip-combined">@ {combined.toFixed(2)}</span></div>
+          )}
+
+          {!desktop && <StakePad value={stake} onChange={setStake} max={balance} />}
+
+          <div className="sheet-foot">
+            <button className="cta" style={{ opacity: valid && !submitting ? 1 : 0.5 }} onClick={submit} disabled={!valid || submitting}>
+              <Icon.coin /> {submitting ? 'Placing…' : legs.length > 1 ? 'Place multi' : 'Place bet'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /* Wagers self-exclusion sheet. Two steps — choose a duration, then confirm —
    because the choice is BINDING: once confirmed there's no early opt-back-in and
    the remaining time is never shown. Reachable from the header shield and from the
@@ -424,11 +613,12 @@ export function WagersInfoSheet({ onClose, onOptOut }) {
 /* ---- Main screen ---- */
 export function CoinsScreen({ go, openBet, openMatch }) {
   useCoins() // re-render on store changes
+  useBetslip() // re-render on slip changes (pill count + selected-state highlight)
   const me = getMe()
   const wallet = myWallet()
 
   const [tab, setTab] = useState('place')
-  const [betSheet, setBetSheet] = useState(null) // { f, market, selection, odds } | null
+  const [slipOpen, setSlipOpen] = useState(false)
   const [info, setInfo] = useState(false)
   const [optOutOpen, setOptOutOpen] = useState(false)
   const scrollRef = useRef(null)
@@ -445,9 +635,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
     <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
   )
 
-  // Upcoming bettable matches, group stage with 1x2 market. Fixtures arrive chronological.
+  // Upcoming bettable matches with a 1x2 market — full tournament. Fixtures arrive chronological.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'] && f.stage === 'group')
+    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'])
 
   // Group by dayKey (same pattern as ScheduleScreen in screens-main.jsx)
   const days = []
@@ -460,7 +650,11 @@ export function CoinsScreen({ go, openBet, openMatch }) {
   function openInlineBet(e, f, market, selKey, odds) {
     e.stopPropagation()
     if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
-    setBetSheet({ f, market, selection: selKey, odds })
+    const mk = f.markets?.[market]
+    const before = betslipCount()
+    toggleLeg({ fixtureId: f.id, market, selection: selKey, odds, line: mk?.line ?? null, book: mk?.book ?? null, label: selectionLabel(selKey, f) })
+    // auto-open the slip only when the FIRST selection is added; later adds don't reopen it
+    if (before === 0 && betslipCount() === 1) setSlipOpen(true)
   }
 
   return (
@@ -544,7 +738,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                                 return (
                                   <button
                                     key={sel.key}
-                                    className="coin-odds-btn"
+                                    className={'coin-odds-btn' + (hasLeg(f.id, '1x2', sel.key) ? ' on' : '')}
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
                                     onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
                                   >
@@ -573,7 +767,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
           {/* My bets tab */}
           {tab === 'bets' && (
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={wallet.bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
+              <MyBets bets={wallet.bets} parlays={wallet.parlays} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           )}
 
@@ -583,16 +777,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
         </div>
       </div>
 
-      {/* Bet sheet */}
-      {betSheet && (
-        <BetSheet
-          f={betSheet.f}
-          market={betSheet.market}
-          selection={betSheet.selection}
-          odds={betSheet.odds}
-          onClose={() => setBetSheet(null)}
-        />
-      )}
+      {/* Accumulating betslip — floating pill opens the slip sheet */}
+      <BetslipPill onOpen={() => setSlipOpen(true)} />
+      {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
       {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}
     </div>

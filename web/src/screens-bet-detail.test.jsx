@@ -3,10 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BetDetail } from './screens-bet-detail.jsx'
 import { setWalletData } from './coins.js'
+import { clearBetslip } from './betslip.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  clearBetslip()
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
   S.flag = (c) => `/flags/${c}.png`
   S.team = (c) => ({ code: c, name: c.toUpperCase(), color: '#123', flagCode: c })
@@ -27,13 +29,12 @@ test('bet detail lists every market for the fixture', () => {
   expect(screen.getByText('Correct Score')).toBeInTheDocument()
 })
 
-test('tapping a selection opens the bet sheet with a stake entry', () => {
+test('tapping a selection adds it to the betslip; opening the slip shows the keypad', () => {
   render(<BetDetail fixtureId="f1" onBack={() => {}} />)
   fireEvent.click(screen.getAllByTestId('mkt-sel')[0])
-  // jsdom reports a mobile viewport → the in-sheet keypad (not the OS keyboard).
+  fireEvent.click(screen.getByRole('button', { name: /open bet slip/i }))
   expect(screen.getByRole('button', { name: 'Max stake' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Backspace' })).toBeInTheDocument()
 })
 
 test('the Statement tab shows the Yowie Dollars statement', () => {

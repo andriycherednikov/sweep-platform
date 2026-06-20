@@ -3,10 +3,12 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoinsScreen } from './screens-coins.jsx'
 import { setWalletData, canWager } from './coins.js'
+import { clearBetslip } from './betslip.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
+  clearBetslip()
   localStorage.clear()
   S.people = [{ id: 'pn_a', name: 'Ann', initials: 'AN', av: '#ccc' }]
   S.flag = (c) => `/flags/${c}.png`
@@ -34,6 +36,13 @@ test('tapping the row opens the bet detail', () => {
   expect(openBet).toHaveBeenCalledWith('f1')
 })
 
+test('tapping an odds button adds the selection to the betslip (pill appears)', () => {
+  clearBetslip()
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /home odds 2/i }))
+  expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
+})
+
 test('My bets lists open and settled bets and filters', () => {
   setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
     open: [{ id: 'b1', fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 100, odds: 1.9, potentialPayout: 190, status: 'open' }],
@@ -53,6 +62,18 @@ test('My bets lists open and settled bets and filters', () => {
   expect(screen.getByText('won')).toBeInTheDocument()
 })
 
+test('My bets renders a parlay card with leg count and payout', () => {
+  setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: { open: [], settled: [] }, parlays: {
+    open: [{ id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', placedAt: '2026-07-01T18:00:00Z', legs: [
+      { id: 'l1', fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2, line: null, status: 'open' },
+      { id: 'l2', fixtureId: 'f1', market: 'ou25', selection: 'OVER', odds: 1.9, line: 2.5, status: 'open' }] }],
+    settled: [] } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
+  expect(screen.getByText(/2 legs/i)).toBeInTheDocument()
+  expect(screen.getByText('380')).toBeInTheDocument()
+})
+
 test('the Statement tab shows the Yowie Dollars statement', () => {
   // CoinsScreen renders <StatementList/> for this tab, which fetches via TanStack Query —
   // wrap in a provider and pre-seed the ledger so it renders synchronously.
@@ -69,6 +90,18 @@ test('the Statement tab shows the Yowie Dollars statement', () => {
   fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
   expect(screen.getByText('Starting bankroll')).toBeInTheDocument()
   expect(screen.getByText('Balance')).toBeInTheDocument()
+})
+
+test('the Statement tab labels a parlay stake as a Multi', () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  qc.setQueryData(['coins', 'ledger', 'pn_a'], {
+    balance: 900,
+    entries: [{ id: 2, type: 'stake', amount: -100, balanceAfter: 900, createdAt: '2026-07-01T18:00:00.000Z', bet: null,
+      parlay: { id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', legs: [{ id: 'l1' }, { id: 'l2' }] } }],
+  })
+  render(<QueryClientProvider client={qc}><CoinsScreen go={() => {}} openBet={() => {}} /></QueryClientProvider>)
+  fireEvent.click(screen.getByRole('button', { name: /^statement$/i }))
+  expect(screen.getByText(/Multi · 2 legs/i)).toBeInTheDocument()
 })
 
 test('the About sheet shield hands off to the opt-out sheet', () => {

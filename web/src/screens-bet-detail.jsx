@@ -4,7 +4,8 @@
 import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
 import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
-import { BetSheet, WalletHeader, MyBets, WagersInfoSheet } from './screens-coins.jsx'
+import { WalletHeader, MyBets, WagersInfoSheet, BetslipSheet, BetslipPill } from './screens-coins.jsx'
+import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
@@ -23,7 +24,7 @@ function selLabel(mkKey, sel, f) {
 
 export function BetDetail({ fixtureId, onBack, openMatch }) {
   const f = S.fixture(fixtureId)
-  const [sheet, setSheet] = useState(null) // { market, selection, odds } | null
+  const [slipOpen, setSlipOpen] = useState(false)
   const [csOpen, setCsOpen] = useState(false)
   const [tab, setTab] = useState('place')
   const [info, setInfo] = useState(false)
@@ -31,6 +32,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   const scrollRef = useRef(null)
   const { scrolled, onScroll } = useScrolled(scrollRef)
   useCoins() // re-render My bets on store changes
+  useBetslip() // re-render on slip changes (pill count + selected-state highlight)
   const helpBtn = (
     <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
   )
@@ -59,7 +61,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
         <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
           <div className="wrap" style={{ marginTop: 14 }}>
             <div className="block" style={{ padding: '14px 14px' }}>
-              <MyBets bets={myWallet().bets} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
+              <MyBets bets={myWallet().bets} parlays={myWallet().parlays} onMatch={(fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx) }} />
             </div>
           </div>
         </div>
@@ -104,9 +106,13 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
                     return (
                       <button
                         key={s.key}
-                        className="coin-mkt-sel"
+                        className={'coin-mkt-sel' + (hasLeg(f.id, k, s.key) ? ' on' : '')}
                         data-testid="mkt-sel"
-                        onClick={() => setSheet({ market: k, selection: s.key, odds: s.odds })}
+                        onClick={() => {
+                          const before = betslipCount()
+                          toggleLeg({ fixtureId: f.id, market: k, selection: s.key, odds: s.odds, line: mk.line ?? null, book: mk.book ?? null, label: selLabel(k, s, f) })
+                          if (before === 0 && betslipCount() === 1) setSlipOpen(true) // open only on the first selection
+                        }}
                       >
                         {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
                         <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>
@@ -128,15 +134,8 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
       </div>
       )}
 
-      {sheet && (
-        <BetSheet
-          f={f}
-          market={sheet.market}
-          selection={sheet.selection}
-          odds={sheet.odds}
-          onClose={() => setSheet(null)}
-        />
-      )}
+      <BetslipPill onOpen={() => setSlipOpen(true)} />
+      {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
     </div>
   )

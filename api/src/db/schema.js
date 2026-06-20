@@ -68,6 +68,8 @@ export const fixture = pgTable('fixture', {
   status: text('status').notNull(),
   score1: integer('score1'),
   score2: integer('score2'),
+  regScore1: integer('reg_score1'),
+  regScore2: integer('reg_score2'),
   minute: integer('minute'),
   probA: integer('prob_a'),
   probD: integer('prob_d'),
@@ -143,6 +145,21 @@ export const coinLedger = pgTable('coin_ledger', {
   entryUq: unique('coin_ledger_entry_uq').on(t.sweepId, t.personId, t.type, t.refId),
 }))
 
+export const parlay = pgTable('parlay', {
+  id: text('id').primaryKey(),
+  sweepId: text('sweep_id').notNull(),
+  personId: text('person_id').notNull(),
+  stake: integer('stake').notNull(),
+  combinedOdds: numeric('combined_odds').notNull(),
+  potentialPayout: integer('potential_payout').notNull(),
+  status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost' | 'refunded'
+  placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
+  settledAt: timestamp('settled_at', { withTimezone: true }),
+}, (t) => ({
+  sweepIdx: index('parlay_sweep_id_idx').on(t.sweepId),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'parlay_person_sweep_fk' }),
+}))
+
 export const bet = pgTable('bet', {
   id: text('id').primaryKey(),
   sweepId: text('sweep_id').notNull(),
@@ -158,9 +175,11 @@ export const bet = pgTable('bet', {
   status: text('status').notNull().default('open'), // 'open' | 'won' | 'lost' | 'refunded'
   placedAt: timestamp('placed_at', { withTimezone: true }).notNull().defaultNow(),
   settledAt: timestamp('settled_at', { withTimezone: true }),
+  parlayId: text('parlay_id').references(() => parlay.id, { onDelete: 'cascade' }),
 }, (t) => ({
   sweepIdx: index('bet_sweep_id_idx').on(t.sweepId),
   fixtureIdx: index('bet_fixture_id_idx').on(t.fixtureId),
+  parlayIdx: index('bet_parlay_id_idx').on(t.parlayId),
   personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'bet_person_sweep_fk' }),
 }))
 

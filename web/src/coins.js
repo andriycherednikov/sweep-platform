@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe, toast } from './social.js'
-import { postBet } from './api/client.js'
+import { postBet, postParlay } from './api/client.js'
 import { trackEvent } from './lib/analytics.js'
 import { isOptedOut } from './optout.js'
 
@@ -9,12 +9,13 @@ const listeners = new Set()
 function notify() { listeners.forEach((fn) => fn()) }
 let pendingSeq = 0  // unique-ifies optimistic bet ids so rapid placeBets never collide
 
-let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] } }
+let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }
 let board = []  // [{ personId, balance }]
 
 export function setWalletData(server) {
   if (!server) return
-  wallet = { balance: server.balance ?? 0, weeklyGrant: server.weeklyGrant ?? 1000, bets: server.bets ?? { open: [], settled: [] } }
+  wallet = { balance: server.balance ?? 0, weeklyGrant: server.weeklyGrant ?? 1000,
+    bets: server.bets ?? { open: [], settled: [] }, parlays: server.parlays ?? { open: [], settled: [] } }
   board = server.leaderboard ?? []
   notify()
 }
@@ -64,6 +65,33 @@ export async function placeBet(fixtureId, market, selection, stake) {
     // and credit its stake back, so a failed bet can't clobber a concurrent one's update.
     wallet = { ...wallet, balance: wallet.balance + stake, bets: { ...wallet.bets, open: wallet.bets.open.filter((b) => b.id !== pending.id) } }
     notify(); toast("Couldn't place bet — try again")
+  }
+}
+
+let pendingParlaySeq = 0
+/** Optimistically debit + add a pending parlay; reconcile/rollback against the server.
+ *  Returns { ok } so the betslip sheet only clears on success. */
+export async function placeParlay(legs, stake) {
+  const me = getMe()
+  if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return { ok: false } }
+  if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return { ok: false } }
+  const combinedOdds = legs.reduce((acc, l) => acc * l.odds, 1)
+  const pendingLegs = legs.map((l, i) => ({ id: `pending_leg_${i}`, fixtureId: l.fixtureId, market: l.market,
+    selection: l.selection, line: l.line ?? null, odds: l.odds, stake: 0, potentialPayout: 0, status: 'open' }))
+  const pending = { id: `pending_par_${Date.now()}_${pendingParlaySeq++}`, stake, combinedOdds,
+    potentialPayout: Math.round(stake * combinedOdds), status: 'open', placedAt: new Date().toISOString(), legs: pendingLegs }
+  wallet = { ...wallet, balance: wallet.balance - stake, parlays: { ...wallet.parlays, open: [pending, ...wallet.parlays.open] } }
+  notify()
+  trackEvent('parlay_placed', { legs: legs.length, stake })
+  try {
+    const res = await postParlay({ personId: me.id, stake, legs: legs.map((l) => ({ fixtureId: l.fixtureId, market: l.market, selection: l.selection })) })
+    wallet = { ...wallet, balance: res.balance, parlays: { ...wallet.parlays, open: wallet.parlays.open.map((p) => p.id === pending.id ? res.parlay : p) } }
+    notify()
+    return { ok: true }
+  } catch (e) {
+    wallet = { ...wallet, balance: wallet.balance + stake, parlays: { ...wallet.parlays, open: wallet.parlays.open.filter((p) => p.id !== pending.id) } }
+    notify(); toast("Couldn't place multi — try again")
+    return { ok: false, error: e }
   }
 }
 

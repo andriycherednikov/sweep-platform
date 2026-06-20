@@ -36,6 +36,7 @@ export const postSupport = (fixtureId, personId, teamCode) => post('/api/support
 export const fetchWallet = (personId) => get(`/api/coins?personId=${encodeURIComponent(personId)}`)
 export const fetchLedger = (personId) => get(`/api/coins/ledger?personId=${encodeURIComponent(personId)}`)
 export const postBet = ({ fixtureId, personId, market, selection, stake }) => post('/api/bet', { fixtureId, personId, market, selection, stake })
+export const postParlay = ({ personId, stake, legs }) => post('/api/parlay', { personId, stake, legs })
 
 async function getCreds(path) {
   const res = await fetch(path, { credentials: 'include' })

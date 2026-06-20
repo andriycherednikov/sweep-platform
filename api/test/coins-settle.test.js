@@ -31,7 +31,7 @@ test('settleBets pays winners, busts losers, and is idempotent', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
   const [f] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code }).where(eq(fixture.id, f.id))
+  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
   const startBal = await balanceOf(db, 'default', p.id)
   await placeRaw(f, p, 'HOME', 100, 2)  // wins → +200
   await placeRaw(f, p, 'AWAY', 100, 4)  // loses
@@ -48,20 +48,31 @@ test('settleBets pays winners, busts losers, and is idempotent', async () => {
   expect(await balanceOf(db, 'default', p.id)).toBe(startBal - 200 + 200)
 })
 
-import { resolveBet } from '../src/coins/settle.js'
+import { resolveBet, regulationResult } from '../src/coins/settle.js'
 
 const fx = (over = {}) => ({ t1Code: 'arg', t2Code: 'bra', winnerCode: null, score1: null, score2: null,
-  htScore1: null, htScore2: null, events: [], ...over })
+  regScore1: null, regScore2: null, htScore1: null, htScore2: null, events: [], ...over })
 
-test('resolveBet 1x2 from final result', () => {
-  expect(resolveBet('1x2', 'HOME', null, fx({ score1: 2, score2: 0 }))).toBe('won')
-  expect(resolveBet('1x2', 'DRAW', null, fx({ score1: 1, score2: 1 }))).toBe('won')
-  expect(resolveBet('1x2', 'AWAY', null, fx({ score1: 1, score2: 1 }))).toBe('lost')
+test('regulationResult reads the 90-minute score, ignoring winnerCode', () => {
+  // 1-1 at 90', won on penalties (winnerCode=arg) → the Match Winner market is a DRAW
+  expect(regulationResult({ regScore1: 1, regScore2: 1, winnerCode: 'arg', t1Code: 'arg', t2Code: 'bra' })).toBe('DRAW')
+  expect(regulationResult({ regScore1: 2, regScore2: 0 })).toBe('HOME')
+  expect(regulationResult({ regScore1: 0, regScore2: 1 })).toBe('AWAY')
+  expect(regulationResult({ regScore1: null, regScore2: null })).toBeNull()
 })
 
-test('resolveBet ou25 from total goals', () => {
-  expect(resolveBet('ou25', 'OVER', 2.5, fx({ score1: 2, score2: 1 }))).toBe('won')
-  expect(resolveBet('ou25', 'UNDER', 2.5, fx({ score1: 1, score2: 1 }))).toBe('won')
+test('resolveBet 1x2 from the regulation result', () => {
+  expect(resolveBet('1x2', 'HOME', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('won')
+  expect(resolveBet('1x2', 'DRAW', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('won')
+  // knockout: 1-1 at 90', won on pens → DRAW wins, HOME loses (ET-inclusive score1/score2 ignored)
+  expect(resolveBet('1x2', 'DRAW', null, fx({ regScore1: 1, regScore2: 1, score1: 2, score2: 1, winnerCode: 'arg' }))).toBe('won')
+  expect(resolveBet('1x2', 'HOME', null, fx({ regScore1: 1, regScore2: 1, score1: 2, score2: 1, winnerCode: 'arg' }))).toBe('lost')
+})
+
+test('resolveBet ou25 from regulation goals (not extra time)', () => {
+  expect(resolveBet('ou25', 'OVER', 2.5, fx({ regScore1: 2, regScore2: 1 }))).toBe('won')
+  // 1-1 at 90' (UNDER) that becomes 3-2 in ET still settles on the 90' total
+  expect(resolveBet('ou25', 'UNDER', 2.5, fx({ regScore1: 1, regScore2: 1, score1: 3, score2: 2 }))).toBe('won')
 })
 
 test('resolveBet cards from card-event count vs line', () => {
@@ -70,15 +81,22 @@ test('resolveBet cards from card-event count vs line', () => {
   expect(resolveBet('cards', 'UNDER', 3.5, fx({ events }))).toBe('lost')
 })
 
+test('resolveBet cards counts only regulation (minute <= 90) cards', () => {
+  const events = [{ type: 'card', minute: 30 }, { type: 'card', minute: 80 }, { type: 'card', minute: 90 },
+    { type: 'card', minute: 105 }, { type: 'card', minute: 118 }] // 3 in regulation, 2 in ET
+  expect(resolveBet('cards', 'OVER', 3.5, fx({ events }))).toBe('lost') // 3 cards, not > 3.5
+  expect(resolveBet('cards', 'UNDER', 3.5, fx({ events }))).toBe('won')
+})
+
 test('resolveBet fh1x2 from half-time score (or goal-events fallback)', () => {
   expect(resolveBet('fh1x2', 'HOME', null, fx({ htScore1: 1, htScore2: 0 }))).toBe('won')
   expect(resolveBet('fh1x2', 'HOME', null, fx({ events: [{ type: 'goal', teamCode: 'arg', minute: 20 }] }))).toBe('won')
   expect(resolveBet('fh1x2', 'HOME', null, { ...fx(), events: null })).toBeNull()
 })
 
-test('resolveBet cs exact final score', () => {
-  expect(resolveBet('cs', '2:1', null, fx({ score1: 2, score2: 1 }))).toBe('won')
-  expect(resolveBet('cs', '2:1', null, fx({ score1: 1, score2: 1 }))).toBe('lost')
+test('resolveBet cs from the regulation score', () => {
+  expect(resolveBet('cs', '2:1', null, fx({ regScore1: 2, regScore2: 1 }))).toBe('won')
+  expect(resolveBet('cs', '2:1', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('lost')
 })
 
 test('settleStaleBets grades open bets left on already-final fixtures', async () => {
@@ -86,7 +104,7 @@ test('settleStaleBets grades open bets left on already-final fixtures', async ()
   await ensureGrants(db, 'default', p.id)
   const [f] = await db.select().from(fixture).limit(1)
   // fixture is final, but its bet was never settled (worker missed it → stale)
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code }).where(eq(fixture.id, f.id))
+  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
   const startBal = await balanceOf(db, 'default', p.id)
   await placeRaw(f, p, 'HOME', 100, 2) // should win → +200
   const published = []
