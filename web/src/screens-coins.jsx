@@ -795,7 +795,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
       </div>
 
       {/* Accumulating betslip — floating pill opens the slip sheet */}
-      {!slipOpen && <BetslipPill onOpen={() => setSlipOpen(true)} />}
+      {!slipOpen && tab === 'place' && <BetslipPill onOpen={() => setSlipOpen(true)} />}
       {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
       {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}
