@@ -134,7 +134,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
       </div>
       )}
 
-      <BetslipPill onOpen={() => setSlipOpen(true)} />
+      {!slipOpen && <BetslipPill onOpen={() => setSlipOpen(true)} />}
       {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} />}
     </div>

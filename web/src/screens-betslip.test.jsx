@@ -23,6 +23,13 @@ beforeEach(() => {
 
 const homeLeg = (fixtureId, odds) => ({ fixtureId, market: '1x2', selection: 'HOME', odds, line: null, book: null, label: 'Home' })
 
+test('BetslipSheet shows the combined total odds for a multi', () => {
+  toggleLeg(homeLeg('f1', 2)); toggleLeg(homeLeg('f2', 1.9)) // 2 × 1.9 = 3.80
+  render(<BetslipSheet onClose={() => {}} />)
+  expect(screen.getByText(/total odds/i)).toBeInTheDocument()
+  expect(screen.getByText(/@ 3\.80/)).toBeInTheDocument()
+})
+
 test('BetslipSheet places a 2-leg parlay via placeParlay', async () => {
   vi.spyOn(client, 'postParlay').mockResolvedValueOnce({ parlay: { id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', legs: [] }, balance: 900 })
   toggleLeg(homeLeg('f1', 2)); toggleLeg(homeLeg('f2', 1.9))

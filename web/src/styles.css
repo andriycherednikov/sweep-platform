@@ -1221,6 +1221,10 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .betslip-empty-ico svg { width: 26px; height: 26px; }
 .betslip-empty-title { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 17px; letter-spacing: .3px; text-transform: uppercase; color: var(--navy); margin: 4px 0 0; }
 .betslip-empty-sub { font-size: 12.5px; line-height: 1.45; color: var(--muted2); max-width: 280px; }
+.betslip-total { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 2px;
+  padding: 11px 14px; border-radius: 12px; background: var(--line2); border: 1px solid var(--line); }
+.betslip-total-lbl { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.betslip-total-val { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 21px; line-height: 1; color: var(--gold); letter-spacing: .3px; }
 
 /* --- Parlay (multi) card in My bets --- */
 .coin-betslip.coin-parlay { padding: 14px 4px; }

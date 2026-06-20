@@ -36,11 +36,13 @@ test('tapping the row opens the bet detail', () => {
   expect(openBet).toHaveBeenCalledWith('f1')
 })
 
-test('tapping an odds button adds the selection to the betslip (pill appears)', () => {
+test('tapping an odds button adds the selection and auto-opens the slip (tab hides while open)', () => {
   clearBetslip()
   render(<CoinsScreen go={() => {}} openBet={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: /home odds 2/i }))
-  expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
+  // first selection auto-opens the sheet; the side tab is hidden while the sheet is open
+  expect(screen.getByRole('button', { name: /place bet/i })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: /open bet slip/i })).not.toBeInTheDocument()
 })
 
 test('the bet slip tab is visible even with no selections', () => {
