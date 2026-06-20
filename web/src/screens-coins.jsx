@@ -458,6 +458,13 @@ export function BetslipSheet({ onClose }) {
             ))}
           </div>
 
+          {legs.length > 1 && (
+            <div className="betslip-total">
+              <span className="betslip-total-lbl">Total odds · {legs.length} legs</span>
+              <span className="betslip-total-val">@ {combined.toFixed(2)}</span>
+            </div>
+          )}
+
           <div className="stake-chips">
             {QUICK.map((a) => (
               <button key={a} type="button" className="stake-chip" onClick={() => addAmt(a)} disabled={(parseInt(stake, 10) || 0) >= balance}>+{a}</button>
@@ -788,7 +795,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
       </div>
 
       {/* Accumulating betslip — floating pill opens the slip sheet */}
-      <BetslipPill onOpen={() => setSlipOpen(true)} />
+      {!slipOpen && <BetslipPill onOpen={() => setSlipOpen(true)} />}
       {slipOpen && <BetslipSheet onClose={() => setSlipOpen(false)} />}
       {info && <WagersInfoSheet onClose={() => setInfo(false)} onOptOut={() => { setInfo(false); setOptOutOpen(true) }} />}
       {optOutOpen && <OptOutSheet onClose={() => setOptOutOpen(false)} />}

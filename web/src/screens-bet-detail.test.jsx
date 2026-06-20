@@ -29,10 +29,10 @@ test('bet detail lists every market for the fixture', () => {
   expect(screen.getByText('Correct Score')).toBeInTheDocument()
 })
 
-test('tapping a selection adds it to the betslip; opening the slip shows the keypad', () => {
+test('tapping a selection adds it to the betslip and auto-opens the slip (keypad shows)', () => {
   render(<BetDetail fixtureId="f1" onBack={() => {}} />)
   fireEvent.click(screen.getAllByTestId('mkt-sel')[0])
-  fireEvent.click(screen.getByRole('button', { name: /open bet slip/i }))
+  // the first selection auto-opens the sheet, so the keypad is shown without tapping the tab
   expect(screen.getByRole('button', { name: 'Max stake' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
 })
