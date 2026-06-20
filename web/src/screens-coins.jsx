@@ -366,14 +366,14 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
   )
 }
 
-/* Floating pill — leg count + combined odds; opens the betslip sheet. Hidden when empty. */
+/* Floating right-edge tab — opens the betslip sheet. ALWAYS visible (even with 0
+   selections) so people discover the slip; the count badge shows only when non-empty. */
 export function BetslipPill({ onOpen }) {
   const { legs } = useBetslip()
-  if (legs.length === 0) return null
   return (
     <button className="betslip-pill" onClick={onOpen}
-      aria-label={`Open bet slip, ${legs.length} selection${legs.length > 1 ? 's' : ''}`}>
-      <span className="betslip-pill-count">{legs.length}</span>
+      aria-label={legs.length ? `Open bet slip, ${legs.length} selection${legs.length > 1 ? 's' : ''}` : 'Open bet slip'}>
+      {legs.length > 0 && <span className="betslip-pill-count">{legs.length}</span>}
       <span className="betslip-pill-label">Betslip</span>
     </button>
   )
@@ -435,6 +435,15 @@ export function BetslipSheet({ onClose }) {
           )}
           {drifted && <div className="betslip-note">Odds updated — your payout has been refreshed.</div>}
 
+          {legs.length === 0 && (
+            <div className="betslip-empty">
+              <span className="betslip-empty-ico"><Icon.tickets /></span>
+              <p className="betslip-empty-title">Your bet slip is empty</p>
+              <span className="betslip-empty-sub">Tap the odds on any match to add a selection. Pick 2+ across different matches to build a multi.</span>
+            </div>
+          )}
+
+          {legs.length > 0 && (<>
           <div className="betslip-legs">
             {legState.map(({ leg, f, bettable }) => (
               <div key={leg.fixtureId + leg.market + leg.selection} className={'betslip-leg' + (bettable ? '' : ' closed')}>
@@ -475,6 +484,7 @@ export function BetslipSheet({ onClose }) {
               <Icon.coin /> {submitting ? 'Placing…' : legs.length > 1 ? 'Place multi' : 'Place bet'}
             </button>
           </div>
+          </>)}
         </div>
       </div>
     </div>
