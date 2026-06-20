@@ -1192,13 +1192,13 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 
 /* --- Multi-bet betslip --- */
 .betslip-pill { position: fixed; right: 0; top: 42%; left: auto; bottom: auto; transform: translateY(-50%); z-index: 40;
-  display: inline-flex; flex-direction: column; align-items: center; gap: 9px; padding: 15px 8px 17px; border: none;
-  border-radius: 14px 0 0 14px; background: var(--gold, #d9a441); color: #1a1205; font-weight: 800;
-  box-shadow: -5px 6px 18px rgba(11,31,58,.3); cursor: pointer; transition: padding-right .12s ease, box-shadow .12s ease; }
-.betslip-pill:hover { padding-right: 12px; box-shadow: -7px 8px 22px rgba(11,31,58,.4); }
-.betslip-pill-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px;
-  border-radius: 999px; background: rgba(11,31,58,.22); color: #fff; font-size: 12px; font-weight: 800; }
-.betslip-pill-label { writing-mode: vertical-rl; text-transform: uppercase; letter-spacing: 1.5px; font-size: 12px; font-weight: 800; }
+  display: inline-flex; flex-direction: column; align-items: center; gap: 7px; padding: 12px 6px 13px; border: none;
+  border-radius: 12px 0 0 12px; background: var(--navy); color: #fff; font-weight: 800;
+  box-shadow: -4px 5px 15px rgba(11,31,58,.32); cursor: pointer; transition: padding-right .12s ease, box-shadow .12s ease; }
+.betslip-pill:hover { padding-right: 9px; box-shadow: -6px 7px 19px rgba(11,31,58,.42); }
+.betslip-pill-count { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px;
+  border-radius: 999px; background: rgba(255,255,255,.2); color: #fff; font-size: 11px; font-weight: 800; }
+.betslip-pill-label { writing-mode: vertical-rl; text-transform: uppercase; letter-spacing: 1.2px; font-size: 11px; font-weight: 800; }
 .betslip-notice { background: #fdeae6; color: var(--accent); border-radius: 10px; padding: 10px 12px; font-size: 13px; margin-bottom: 10px; }
 .betslip-note { color: var(--muted2, #9aa); font-size: 12px; margin-bottom: 10px; }
 .betslip-legs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
@@ -1224,7 +1224,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .betslip-total { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 6px 0 2px;
   padding: 11px 14px; border-radius: 12px; background: var(--line2); border: 1px solid var(--line); }
 .betslip-total-lbl { font-family: 'Barlow Semi Condensed'; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
-.betslip-total-val { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 21px; line-height: 1; color: var(--gold); letter-spacing: .3px; }
+.betslip-total-val { font-family: 'Barlow Condensed'; font-weight: 800; font-size: 21px; line-height: 1; color: var(--ink); letter-spacing: .3px; }
 
 /* --- Parlay (multi) card in My bets --- */
 .coin-betslip.coin-parlay { padding: 14px 4px; }

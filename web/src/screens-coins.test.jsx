@@ -51,6 +51,13 @@ test('the bet slip tab is visible even with no selections', () => {
   expect(screen.getByRole('button', { name: /open bet slip/i })).toBeInTheDocument()
 })
 
+test('the bet slip tab is hidden on the My bets tab', () => {
+  clearBetslip()
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
+  expect(screen.queryByRole('button', { name: /open bet slip/i })).not.toBeInTheDocument()
+})
+
 test('My bets lists open and settled bets and filters', () => {
   setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
     open: [{ id: 'b1', fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 100, odds: 1.9, potentialPayout: 190, status: 'open' }],
