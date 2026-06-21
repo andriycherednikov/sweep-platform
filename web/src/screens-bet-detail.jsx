@@ -43,17 +43,16 @@ function scorerGroups(gs, f) {
   }
   const t1 = toksFor(f.t1), t2 = toksFor(f.t2)
   const score = (toks, set) => toks.reduce((n, t) => n + (set.has(t) ? 1 : 0), 0)
-  const g1 = [], g2 = [], other = []
+  const g1 = [], g2 = []
   for (const s of sels) {
     const toks = nameToks(s.key)
     const a = score(toks, t1), b = score(toks, t2)
-    if (a === 0 && b === 0) other.push(s)
-    else if (a >= b) g1.push(s); else g2.push(s)
+    if (a === 0 && b === 0) continue // unmatched against either squad → hidden (no "Other")
+    if (a >= b) g1.push(s); else g2.push(s)
   }
   return [
     { code: f.t1, name: S.team(f.t1)?.name || f.t1, sels: g1 },
     { code: f.t2, name: S.team(f.t2)?.name || f.t2, sels: g2 },
-    { code: null, name: 'Other', sels: other },
   ].filter((grp) => grp.sels.length)
 }
 
