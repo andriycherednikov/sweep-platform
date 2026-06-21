@@ -404,7 +404,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           )}
         </div>
       </div>
-      <div className="id-full"><IdentityControl dark style={{marginTop:20}}/></div>
+      {home && <div className="id-full"><IdentityControl dark style={{marginTop:20}}/></div>}
     </header>
   );
 }
@@ -414,15 +414,25 @@ export function HomeHeader(props) { return <AppHeader home {...props} />; }
 
 /* shrink-on-scroll helper: attach `ref` to a scroll container + `onScroll`.
    Returns a continuous `progress` (0..1, linear in scrollTop over SHRINK_PX) that
-   drives the Home header's GRADUAL collapse, plus a derived `scrolled` boolean the
-   sibling page/coins headers still use for their binary `.shrunk` class. progress
-   is computed from the CLAMPED scrollTop so the shrink tracks the finger with no
-   lag and iOS rubber-band/overscroll can never push it out of [0,1]. The gradual
-   shrink (vs the old instant collapse) is what makes the home-header feedback loop
-   stable; the bottom spacer in HomeScreen severs it entirely (constant scrollHeight). */
+   drives the Home header's GRADUAL collapse, plus a latched `scrolled` boolean the
+   sibling page/coins headers use for their binary `.shrunk` class. progress is
+   computed from the CLAMPED scrollTop so the shrink tracks the finger with no lag
+   and iOS rubber-band/overscroll can never push it out of [0,1]. The gradual shrink
+   (vs the old instant collapse) is what makes the home-header feedback loop stable;
+   the bottom spacer in HomeScreen severs it entirely (constant scrollHeight).
+
+   The sibling headers sit OUTSIDE the flex scroller, so collapsing them grows the
+   scroller's clientHeight and the browser re-clamps scrollTop downward — a single
+   0.5 threshold would re-cross itself and oscillate ("spaz"). `scrolled` instead
+   latches with HYSTERESIS: collapse at/above SHRINK_HI, re-expand only at/below
+   SHRINK_LO. The dead-band (≈44px) exceeds the sibling collapse delta (≈26px once
+   the identity chip is dropped), so the post-collapse re-clamp can never flip it back. */
 export const SHRINK_PX = 220; // D: scroll distance for a full Home-header collapse
+export const SHRINK_HI = 0.55; // collapse the sibling header at/above this progress
+export const SHRINK_LO = 0.35; // re-expand at/below this; latch in the dead-band between
 export function useScrolled(scrollRef, distance = SHRINK_PX) {
   const [progress, setProgress] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
@@ -435,8 +445,9 @@ export function useScrolled(scrollRef, distance = SHRINK_PX) {
     const y = Math.max(0, Math.min(el.scrollTop, max));
     const p = distance > 0 ? Math.min(1, y / distance) : (y > 0 ? 1 : 0);
     setProgress((prev) => (prev === p ? prev : p));
+    setScrolled((prev) => (p >= SHRINK_HI ? true : (p <= SHRINK_LO ? false : prev)));
   };
-  return { progress, scrolled: progress > 0.5, onScroll };
+  return { progress, scrolled, onScroll };
 }
 
 /* page header w/ back. On tab screens (no onBack) a trophy logo takes you home.

@@ -136,8 +136,12 @@ a{color:inherit; text-decoration:none;}
    The header sticks to the top of the scroll area and collapses to a compact
    bar once scrolled: brand shrinks, the full identity chip + date drop out, and
    a mini avatar+name appears inline. The brand button scrolls back to the top. */
-.home-top{ position:sticky; top:0; z-index:20; transition:padding .18s ease; }
-.home-top .brand .mark, .home-top .brand b, .home-top .brand small{ transition:all .18s ease; }
+.home-top{ position:sticky; top:0; z-index:20; }
+/* Non-home siblings (Wagers/Schedule/People/Teams/Table) collapse in ONE reflow:
+   no animated layout (padding/size), so the header height can't change frame-by-frame
+   and re-clamp scrollTop mid-transition → no jitter. Only the brand sub opacity-fades.
+   Home (.home-flow) overrides the sizes to transition:none anyway (see below). */
+.home-top .brand small{ transition:opacity .12s linear; }
 .home-top .id-full{ overflow:hidden; transition:max-height .22s ease, opacity .18s ease, margin .18s ease; max-height:120px; opacity:1; }
 /* mini identity: avatar + short name, only shown in the collapsed bar */
 .home-top .id-mini{ display:none; align-items:center; gap:7px; min-width:0; flex:1; margin:0 8px; padding:4px 6px; background:transparent; border:0; }

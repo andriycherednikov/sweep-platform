@@ -9,7 +9,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, BottomNav, OptOutButton } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
@@ -723,13 +723,27 @@ test('useScrolled is gradual & monotonic — a small scroll moves progress a sma
   expect(b - a).toBeCloseTo(10 / SHRINK_PX, 5)    // exactly linear, no dead-band snap
 })
 
-test('useScrolled derives a binary `scrolled` (progress>0.5) for the sibling headers', () => {
+test('useScrolled latches `scrolled` with hysteresis (collapse ≥ HI, re-expand ≤ LO) for the sibling headers', () => {
+  // The sibling headers sit OUTSIDE the flex scroller, so collapsing them grows the
+  // scroller's clientHeight and the browser re-clamps scrollTop — a single 0.5 threshold
+  // would oscillate. Two thresholds with a dead-band latch the state so a small re-clamp
+  // can't flip it back.
   const ref = { current: { scrollTop: 0, scrollHeight: 10000, clientHeight: 800 } }
   const { result } = renderHook(() => useScrolled(ref))
   const at = (y) => { ref.current.scrollTop = y; act(() => result.current.onScroll()); return result.current.scrolled }
   expect(at(0)).toBe(false)
-  expect(at(SHRINK_PX * 0.4)).toBe(false)         // below half → not yet "scrolled"
-  expect(at(SHRINK_PX * 0.6)).toBe(true)          // past half → siblings snap to .shrunk
+  expect(at(SHRINK_PX * 0.45)).toBe(false)        // between LO and HI, from rest → no latch yet
+  expect(at(SHRINK_PX * 0.55)).toBe(true)         // reaches HI (0.55) → collapse
+  expect(at(SHRINK_PX * 0.45)).toBe(true)         // back in the dead-band → STAYS collapsed (latched)
+  expect(at(SHRINK_PX * 0.35)).toBe(false)        // drops to LO (0.35) → re-expand
+})
+
+test('useScrolled hysteresis dead-band exceeds the sibling collapse delta (~26px) → no re-clamp oscillation', () => {
+  // Invariant the fix relies on: the post-collapse native scrollTop re-clamp (≈ the header's
+  // ~26px shrink, with the identity chip removed) is smaller than the dead-band, so it can
+  // never drop progress from ≥HI back below LO.
+  expect((SHRINK_HI - SHRINK_LO) * SHRINK_PX).toBeGreaterThan(26)
+  expect(SHRINK_HI).toBeGreaterThan(SHRINK_LO)
 })
 
 test('useScrolled clamps iOS rubber-band/overscroll input so progress stays in [0,1]', () => {
@@ -761,6 +775,16 @@ test('useScrolled tolerates a bare {scrollTop} ref (no scrollHeight/clientHeight
   act(() => result.current.onScroll())
   expect(result.current.progress).toBe(1)
   expect(Number.isNaN(result.current.progress)).toBe(false)
+})
+
+test('AppHeader renders the identity chip only on the home variant (not on tab/Wagers headers)', () => {
+  // The "viewing as" chip is the dominant collapse fuel for the sibling headers and is
+  // redundant there (identity-switching lives on Home), so it's dropped on non-home headers.
+  const home = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(home.container.querySelector('.id-full')).toBeTruthy()
+  home.unmount()
+  const tab = render(<AppHeader title="Wagers" go={() => {}} />)
+  expect(tab.container.querySelector('.id-full')).toBeNull()
 })
 
 test('BottomNav hides the Wagers tab once opted out', () => {
