@@ -177,9 +177,12 @@ a{color:inherit; text-decoration:none;}
 /* mini chip reveals as a whole only past halfway (.on @ progress>0.5): fade via opacity,
    snap the width open — never animate the width from 0, which clipped the round avatar
    into a half-moon. Avatar stays a full 26px circle. */
-.home-flow .id-mini{ display:flex; align-items:center; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
-.home-flow .id-mini.on{ opacity:1; max-width:170px; pointer-events:auto; }
+.home-flow .id-mini{ display:flex; align-items:center; flex:0 1 auto; margin:0 0 0 12px; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
+.home-flow .id-mini.on{ opacity:1; max-width:200px; pointer-events:auto; }
 .home-flow .id-mini .av{ width:26px; height:26px; flex-shrink:0; }
+/* tuck the mini chip next to THE SWEEP; push the action buttons to the right edge
+   (overrides the row's space-between, which otherwise floats the chip to centre) */
+.home-flow .brandrow > div:last-child{ margin-left:auto; }
 /* compensating spacer at the BOTTOM of the Home scroll: height = the exact measured
    px the header has collapsed, so total scrollHeight stays constant. */
 .home-shrink-spacer{ flex-shrink:0; width:100%; pointer-events:none; }
