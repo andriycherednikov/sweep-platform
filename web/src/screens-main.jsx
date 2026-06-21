@@ -227,16 +227,6 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       </>
   );
 
-  // desktop keeps the original grouped order in the sidebar
-  const statPanels = (
-    <>
-      {panelMostWins}
-      {panelResults}
-      {panelBestPredictions}
-      {panelTopWagering}
-    </>
-  );
-
   const nextGames = (
     <>
       <div className="sec-h"><h2>Next games</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
@@ -336,9 +326,12 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         </div>
 
         <div className="deskhome-side">
-        {statPanels}
-        {standings}
+        {panelResults}
         {community}
+        {panelBestPredictions}
+        {panelMostWins}
+        {standings}
+        {panelTopWagering}
         </div>
         </> : (
         // mobile order: latest scores → community → best predictions → most wins → next games → standings → wagering
