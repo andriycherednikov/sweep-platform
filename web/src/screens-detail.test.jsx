@@ -515,7 +515,8 @@ test('PeopleAdmin allocation sheet renames via patchPerson on apply (name always
   fireEvent.click(getByText('Ann'))            // open allocation sheet
   fireEvent.change(getByLabelText('Name'), { target: { value: 'Annie' } })
   fireEvent.click(getByText('Apply changes'))  // single Apply commits the rename
-  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+  // a rename also refreshes the derived short-name + avatar initials so they never drift
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie', short: 'Annie', initials: 'AN' }))
 })
 
 test('PeopleAdmin allocation sheet applies a rename + team change together', async () => {
@@ -526,7 +527,7 @@ test('PeopleAdmin allocation sheet applies a rename + team change together', asy
   fireEvent.change(getByLabelText('Name'), { target: { value: 'Annie' } })
   fireEvent.click(getByText('+1'))             // allocate a random team too
   fireEvent.click(getByText('Apply changes'))
-  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie' }))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { name: 'Annie', short: 'Annie', initials: 'AN' }))
   await waitFor(() => expect(bulkPostOwnership).toHaveBeenCalledTimes(1))
 })
 
@@ -698,4 +699,29 @@ test('PeopleScreen Coins toggle ranks people by coin balance descending', () => 
   expect(statFor(container, 'Alice Anders')).toBe('900')
   expect(statFor(container, 'Carol Clark')).toBe('0') // adult with 0 still shows "0"
   expect(getByText(/sorted by Yowie Dollars balance/i)).toBeInTheDocument()
+})
+
+test('PeopleScreen Yowie Dollars view omits minors entirely (present in Wins)', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'a', name: 'Atlas', group: 'L', pool: 'P', color: '#111', strength: 90 }],
+      people: [
+        { id: 'alice', name: 'Alice Anders', short: 'Alice' },
+        { id: 'kid', name: 'Kid Kelly', short: 'Kid', adult: false }, // minor — no wagers
+      ],
+      ownership: { alice: ['a'], kid: ['a'] }, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+  setMe('alice')
+  setWalletData({ balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] }, leaderboard: [{ personId: 'alice', balance: 900 }] })
+  const { container, getByText, queryByText } = render(<PeopleScreen openPerson={noop} />)
+  // Wins view shows everyone, including the minor
+  expect(rowNames(container)).toContain('Kid Kelly')
+  // Switch to Yowie Dollars → the minor is gone, and the count reads "adults"
+  act(() => { fireEvent.click(getByText('Yowie Dollars')) })
+  expect(queryByText('Kid Kelly')).not.toBeInTheDocument()
+  expect(rowNames(container)).toEqual(['Alice Anders'])
+  expect(getByText(/1 adult · sorted by Yowie Dollars balance/i)).toBeInTheDocument()
 })

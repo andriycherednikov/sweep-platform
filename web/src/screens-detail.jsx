@@ -46,14 +46,19 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   let list = ql
     ? S.money.filter(m => m.person.name.toLowerCase().includes(ql) || m.person.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.money;
+  // Yowie Dollars is 18+ — minors have no wagers at all, so showing them here (even at
+  // the bottom with no pill) just reads as confusing dead rows. Drop them from this view.
+  if (av === "coins") list = list.filter(m => m.person.adult !== false);
   if (av === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
-  else if (av === "coins") // re-sort by Yowie Dollars balance descending (minors last)
+  else if (av === "coins") // re-sort by Yowie Dollars balance descending
     list = list.slice().sort((a,b) => coinsVal(b) - coinsVal(a));
+  // headcount reflects the active view — adults only for the 18+ Yowie Dollars board
+  const headCount = av === "coins" ? S.people.filter(p => p.adult !== false).length : S.people.length;
   const subLabel = av === "predictions"
     ? " in the sweep · sorted by correct predictions"
     : av === "coins"
-    ? " in the sweep · sorted by Yowie Dollars balance"
+    ? ` adult${headCount === 1 ? "" : "s"} · sorted by Yowie Dollars balance`
     : " in the sweep · sorted by team wins";
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -67,7 +72,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
               <button className={"statseg-opt"+(av==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
               {wager && <button className={"statseg-opt"+(av==="coins"?" on":"")} onClick={()=>setView("coins")}>Yowie Dollars</button>}
             </div>
-            <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:"8px 2px 0"}}>{S.people.length}{subLabel}</p>
+            <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:"8px 2px 0"}}>{headCount}{subLabel}</p>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
           <div className="plist">
@@ -903,6 +908,11 @@ function ownerCounts() {
   for (const t of S.teamList) m[t.code] = t.owners ? t.owners.length : 0;
   return m;
 }
+// Derive the display short-name + avatar initials from a person's name. Used both when
+// creating a person and when renaming one, so short/initials never drift from the name.
+function identityFromName(nm) {
+  return { short: nm, initials: nm.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??" };
+}
 // Derive a stable avatar colour from a name (av is required server-side).
 function avFor(nm) {
   return AV_PALETTE[Math.abs([...nm].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) % AV_PALETTE.length];
@@ -962,8 +972,7 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
     if (!nm || busy) return;
     setBusy(true);
     try {
-      const initials = nm.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??";
-      const created = await createPerson({ name: nm, short: nm, initials, av: avFor(nm) });
+      const created = await createPerson({ name: nm, ...identityFromName(nm), av: avFor(nm) });
       if (sel.size) await bulkPostOwnership([...sel].map((tc) => ({ personId: created.id, teamCode: tc })));
       onToast("Person added"); await refresh(); onClose();
     } catch { onToast("Couldn't add — try again"); setBusy(false); }
@@ -1045,7 +1054,7 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
     if (busy || !dirty) return;
     setBusy(true);
     try {
-      if (nameChanged || adultChanged) await patchPerson(person.id, { ...(nameChanged ? { name: nm } : {}), ...(adultChanged ? { adult } : {}) });
+      if (nameChanged || adultChanged) await patchPerson(person.id, { ...(nameChanged ? { name: nm, ...identityFromName(nm) } : {}), ...(adultChanged ? { adult } : {}) });
       const addItems = [...adds].map((tc) => ({ personId: person.id, teamCode: tc }));
       const removeItems = [...removes].map((tc) => ({ personId: person.id, teamCode: tc }));
       if (addItems.length) await bulkPostOwnership(addItems);
