@@ -196,6 +196,48 @@ test('mapMarkets returns null when no usable book/markets', () => {
   expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toBeNull()
 })
 
+test('mapMarkets reads anytime goalscorer from Bet365 even when main lines come from Pinnacle', () => {
+  const bet365 = { name: 'Bet365', bets: [
+    { name: 'Match Winner', values: [ov('Home', 2.1), ov('Draw', 3.4), ov('Away', 3.9)] },
+    { name: 'Anytime Goal Scorer', values: [ov('Lionel Messi', 2.5), ov('Julian Alvarez', 3.0), ov('No Goalscorer', 1.0)] },
+  ] }
+  const r = mapMarkets(oddsResp([pinnacleBook, bet365]))
+  expect(r.book).toBe('Pinnacle')                 // main lines still from the best-ranked book
+  expect(r.markets['1x2'].book).toBe('Pinnacle')
+  expect(r.markets['gs'].book).toBe('Bet365')     // player props pulled from Bet365
+  expect(r.markets['gs'].selections.map(s => s.key)).toEqual(['Lionel Messi', 'Julian Alvarez']) // odds<=1 dropped
+})
+
+test('mapMarkets has no goalscorer market when no book carries it', () => {
+  const r = mapMarkets(oddsResp([pinnacleBook]))
+  expect(r.markets['gs']).toBeUndefined()
+})
+
+test('mapMarkets falls back to another book for BTTS/DC/Odd-Even when the main book lacks them', () => {
+  const pinnacleMain = { name: 'Pinnacle', bets: [
+    { name: 'Match Winner', values: [ov('Home', 2.0), ov('Draw', 3.5), ov('Away', 4.0)] },
+  ] }
+  const bet365 = { name: 'Bet365', bets: [
+    { name: 'Both Teams Score', values: [ov('Yes', 1.7), ov('No', 2.1)] },
+    { name: 'Double Chance', values: [ov('Home/Draw', 1.25), ov('Home/Away', 1.2), ov('Draw/Away', 1.9)] },
+    { name: 'Goals Odd/Even', values: [ov('Odd', 1.95), ov('Even', 1.85)] }, // name-variant alias
+    { name: 'Goals Over/Under', values: [ov('Over 2.5', 1.9), ov('Under 2.5', 1.9)] },
+    { name: 'Goals Over/Under First Half', values: [ov('Over 0.5', 1.5), ov('Under 0.5', 2.4)] },
+    { name: 'Exact Score', values: [ov('1:0', 6.0), ov('1:1', 7.0)] },
+  ] }
+  const r = mapMarkets(oddsResp([pinnacleMain, bet365]))
+  expect(r.book).toBe('Pinnacle')                  // 1x2 (+ prob) still from Pinnacle
+  expect(r.markets['1x2'].book).toBe('Pinnacle')
+  // every OTHER market falls back to the book that carries it
+  expect(r.markets['btts'].book).toBe('Bet365')
+  expect(r.markets['dc'].book).toBe('Bet365')
+  expect(r.markets['oe'].book).toBe('Bet365')
+  expect(r.markets['oe'].selections.find(s => s.key === 'ODD').odds).toBe(1.95)
+  expect(r.markets['ou25'].book).toBe('Bet365')
+  expect(r.markets['fhou'].book).toBe('Bet365')
+  expect(r.markets['cs'].book).toBe('Bet365')
+})
+
 test('mapFixture captures the half-time score', () => {
   const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },

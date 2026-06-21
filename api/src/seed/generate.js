@@ -164,6 +164,20 @@ function marketsFor(prob) {
       { key: "OVER", label: "Over 0.5", odds: 1.55 }, { key: "UNDER", label: "Under 0.5", odds: 2.3 } ] },
   };
 }
+// dev-only synthetic anytime-goalscorer odds: a few generic "scorers" per side so the
+// market renders + is placeable locally. In prod these come from Bet365 via the worker.
+function goalscorersFor(a, b) {
+  function side(code, base) {
+    var nm = team(code).name;
+    return [
+      { key: nm + " — Striker", label: nm + " — Striker", odds: base },
+      { key: nm + " — Forward", label: nm + " — Forward", odds: Math.round((base + 1.4) * 100) / 100 },
+      { key: nm + " — Winger", label: nm + " — Winger", odds: Math.round((base + 2.6) * 100) / 100 },
+      { key: nm + " — Midfielder", label: nm + " — Midfielder", odds: Math.round((base + 4.2) * 100) / 100 },
+    ];
+  }
+  return { label: "Anytime Goalscorer", book: "Bet365", selections: side(a, 2.6).concat(side(b, 3.0)) };
+}
 
 let fid = 0;
 const fixtures = [];
@@ -181,7 +195,7 @@ Object.keys(GROUPS).forEach(function (g) {
         t1: a, t2: b,
         ko: ko, venue: venue[0], city: venue[1],
         status: "upcoming", score: null, minute: null,
-        prob: prob, markets: marketsFor(prob)
+        prob: prob, markets: Object.assign(marketsFor(prob), { gs: goalscorersFor(a, b) })
       };
       fixtures.push(f);
     });

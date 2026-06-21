@@ -174,9 +174,12 @@ a{color:inherit; text-decoration:none;}
 .home-flow .brand small{ opacity:calc(1 - var(--p, 0)); }
 .home-flow .id-full{ overflow:hidden; max-height:calc(120px * (1 - var(--p, 0))); opacity:calc(1 - var(--p, 0)); margin:0; transition:opacity .12s linear; }
 .home-flow .tz{ opacity:calc(1 - var(--p, 0)); transition:opacity .12s linear; }
-.home-flow .id-mini{ display:flex; opacity:var(--p, 0); max-width:calc(160px * var(--p, 0)); overflow:hidden; pointer-events:none; transition:opacity .12s linear; }
-.home-flow .id-mini.on{ pointer-events:auto; }
-.home-flow .id-mini .av{ width:calc(26px * var(--p, 0)); height:26px; }
+/* mini chip reveals as a whole only past halfway (.on @ progress>0.5): fade via opacity,
+   snap the width open — never animate the width from 0, which clipped the round avatar
+   into a half-moon. Avatar stays a full 26px circle. */
+.home-flow .id-mini{ display:flex; align-items:center; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
+.home-flow .id-mini.on{ opacity:1; max-width:170px; pointer-events:auto; }
+.home-flow .id-mini .av{ width:26px; height:26px; flex-shrink:0; }
 /* compensating spacer at the BOTTOM of the Home scroll: height = the exact measured
    px the header has collapsed, so total scrollHeight stays constant. */
 .home-shrink-spacer{ flex-shrink:0; width:100%; pointer-events:none; }
@@ -1037,7 +1040,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-bet-grid .coin-match-row{margin-bottom:0;}
 .coin-mkt-list{display:grid; grid-template-columns:1fr; gap:12px; align-items:start;}
 .coin-mkt-list .coin-mkt{margin-bottom:0 !important;}
-.coin-mkt-list .coin-mkt.cs{grid-column:1 / -1;}
+.coin-mkt-list .coin-mkt.cs, .coin-mkt-list .coin-mkt.gs{grid-column:1 / -1;}
 .coin-vs{font-size:11px; color:var(--muted2); font-weight:700; flex-shrink:0;}
 .coin-book{font-size:10.5px; color:var(--muted2); font-weight:700; letter-spacing:.5px; margin-bottom:8px; text-transform:uppercase;}
 .coin-odds-row{display:flex; gap:7px;}
@@ -1164,6 +1167,15 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-grid.cs .coin-mkt-sel{padding:8px 4px; gap:2px;}
 .coin-mkt-grid.cs .coin-mkt-lbl{font-family:'Barlow Condensed'; font-size:15px; font-weight:800; color:var(--navy); text-transform:none; letter-spacing:0;}
 .coin-mkt-grid.cs .coin-mkt-odds{font-size:14px; color:var(--gold);}
+/* goalscorer: one selection per line (player name left, odds right) — names are long,
+   so the centered chip grid truncates them. Full-width rows keep them readable. */
+.coin-mkt-grid.gs{grid-template-columns:1fr; gap:7px;}
+.coin-mkt-grid.gs .coin-mkt-sel{flex-direction:row; justify-content:space-between; align-items:center; padding:11px 14px; gap:12px;}
+.coin-mkt-grid.gs .coin-mkt-lbl{flex:1; min-width:0; justify-content:flex-start; text-align:left; font-family:'Barlow Semi Condensed'; font-size:13.5px; font-weight:700; color:var(--navy); text-transform:none; letter-spacing:0;}
+.coin-mkt-grid.gs .coin-mkt-odds{flex:0 0 auto; font-size:17px; color:var(--gold);}
+/* goalscorer is grouped by team: a small team sub-header above each team's players */
+.coin-gs-group + .coin-gs-group{margin-top:13px;}
+.coin-gs-team{display:flex; align-items:center; gap:7px; margin:2px 2px 8px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:11.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted);}
 .coin-more{margin-top:11px; width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--muted); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:border-color .14s, color .14s;}
 .coin-more:hover{border-color:var(--gold); color:var(--navy);}
 

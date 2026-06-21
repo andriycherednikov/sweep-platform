@@ -136,6 +136,21 @@ test('resolveBet fhou (first-half O/U) from HT score, with goal-event fallback',
   expect(resolveBet('fhou', 'OVER', null, fx({ htScore1: 1, htScore2: 0 }))).toBeNull() // no line
 })
 
+test('resolveBet gs (anytime goalscorer) — v1 all-bets-stand; own goals never count', () => {
+  const events = [
+    { type: 'goal', player: 'Lionel Messi', minute: 23, detail: 'Normal Goal' },
+    { type: 'goal', player: 'Nicolás Otamendi', minute: 60, detail: 'Own Goal' }, // own goal: doesn't count
+    { type: 'card', player: 'Whoever', minute: 70 },
+  ]
+  expect(resolveBet('gs', 'Lionel Messi', null, fx({ events }))).toBe('won')
+  expect(resolveBet('gs', 'lionel  messi', null, fx({ events }))).toBe('won')   // case/space-insensitive
+  expect(resolveBet('gs', 'Nicolás Otamendi', null, fx({ events }))).toBe('lost') // only an own goal → no
+  expect(resolveBet('gs', 'Someone Else', null, fx({ events }))).toBe('lost')     // didn't score → lost (bets stand)
+  // goals after 90' don't count toward anytime scorer
+  expect(resolveBet('gs', 'Late Sub', null, fx({ events: [{ type: 'goal', player: 'Late Sub', minute: 105, detail: 'Normal Goal' }] }))).toBe('lost')
+  expect(resolveBet('gs', 'Lionel Messi', null, { ...fx(), events: null })).toBeNull() // events not polled → leave open
+})
+
 test('settleStaleBets grades open bets left on already-final fixtures', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
