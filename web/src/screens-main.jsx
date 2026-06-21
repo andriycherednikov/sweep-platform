@@ -1,7 +1,7 @@
 /* ============================================================
    THE SWEEP — main screens: Home, Schedule, Standings, Knockouts
    ============================================================ */
-import { useState, useEffect, useRef, useMemo, useLayoutEffect, useCallback } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, AppHeader, PageHeader,
@@ -71,12 +71,8 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const nextMatches = S.fixtures
     .filter(f => f.status !== "final" && f.id !== next.id)
     .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
-    .slice(0,8);
+    .slice(0,16);
   const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,6);
-  // pick a random group for the side standings — chosen once per mount so it stays stable across re-renders
-  const groupKeys = Object.keys(S.standings);
-  const grpKey = useMemo(() => groupKeys.length ? groupKeys[Math.floor(Math.random()*groupKeys.length)] : "A", [groupKeys.join(",")]);
-  const groupStand = S.standings[grpKey] || [];
 
   // top 4 people by team wins (across finished matches)
   const finals = S.fixtures.filter(f => f.status === "final" && f.score);
@@ -234,26 +230,6 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     </>
   );
 
-  const standings = (
-    <>
-      <div className="sec-h"><h2>Standings · Group {grpKey}</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
-      <div className="stand">
-        <div className="strow compact" style={{paddingBottom:2}}>
-          <span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">GD</span><span className="hd">PTS</span>
-        </div>
-        {groupStand.map((t,i)=>(
-          <div className={"strow compact" + (i<2?" q":i===2?" q3":"") + (me && me.teams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
-            <span className="pos">{i+1}</span>
-            <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
-            <span className="num">{t.played}</span>
-            <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
-            <span className="pts">{t.pts}</span>
-          </div>
-        ))}
-      </div>
-    </>
-  );
-
   const community = (
     <>
       <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
@@ -330,18 +306,16 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
         {community}
         {panelBestPredictions}
         {panelMostWins}
-        {standings}
         {panelTopWagering}
         </div>
         </> : (
-        // mobile order: latest scores → community → best predictions → most wins → next games → standings → wagering
+        // mobile order: latest scores → community → best predictions → most wins → next games → wagering
         <div className="deskhome-main">
         {panelResults}
         {community}
         {panelBestPredictions}
         {panelMostWins}
         {nextGames}
-        {standings}
         {panelTopWagering}
         </div>
         )}
