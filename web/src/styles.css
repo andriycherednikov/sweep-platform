@@ -137,23 +137,20 @@ a{color:inherit; text-decoration:none;}
    bar once scrolled: brand shrinks, the full identity chip + date drop out, and
    a mini avatar+name appears inline. The brand button scrolls back to the top. */
 .home-top{ position:sticky; top:0; z-index:20; }
-/* Non-home siblings (Wagers/Schedule/People/Teams/Table) collapse in ONE reflow:
-   no animated layout (padding/size), so the header height can't change frame-by-frame
-   and re-clamp scrollTop mid-transition → no jitter. Only the brand sub opacity-fades.
-   Home (.home-flow) overrides the sizes to transition:none anyway (see below). */
 .home-top .brand small{ transition:opacity .12s linear; }
-.home-top .id-full{ overflow:hidden; transition:max-height .22s ease, opacity .18s ease, margin .18s ease; max-height:120px; opacity:1; }
-/* mini identity: avatar + short name, only shown in the collapsed bar */
+/* id-full (selector) + id-mini (avatar+name) render ONLY on the home variant; base
+   rules here, the gradual --p sizing is in the .home-flow block below. */
+.home-top .id-full{ overflow:hidden; max-height:120px; opacity:1; }
 .home-top .id-mini{ display:none; align-items:center; gap:7px; min-width:0; flex:1; margin:0 8px; padding:4px 6px; background:transparent; border:0; }
 .home-top .id-mini b{ font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
-.home-top.shrunk{ padding-top:9px; padding-bottom:9px; }
-.home-top.shrunk .brand .mark{ width:20px; height:34px; }
-.home-top.shrunk .brand b{ font-size:16px; }
-.home-top.shrunk .brand small{ font-size:0; letter-spacing:0; opacity:0; height:0; }
-.home-top.shrunk .tz{ display:none; }
-.home-top.shrunk .id-full{ max-height:0; opacity:0; margin:0; }
-.home-top.shrunk .id-mini{ display:flex; }
+/* ===== Non-home tab headers (Schedule/People/Teams/Table/Wagers): a small FIXED bar.
+   No scroll-shrink, no identity chip, no date — just trophy + title + the screen's
+   action buttons, kept compact and consistent. The full info header + identity
+   selector lives only on Home (.home-flow). */
+.tab-mini.home-top{ padding-top:10px; padding-bottom:11px; }
+.tab-mini .brand .mark{ width:20px; height:34px; }
+.tab-mini .brand-tx.alt b{ font-size:18px; }
 
 /* ===== Home in-flow header: GRADUAL scroll-linked shrink driven by --p (0..1).
    ONLY .home-flow (the single in-scroll Home header) gets these — the sibling

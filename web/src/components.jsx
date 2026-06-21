@@ -341,13 +341,14 @@ export function MatchCard({ f, onOpen, onToast }) {
 }
 
 /* unified mobile app header — one header for every screen, hidden on desktop
-   (the sidebar carries nav there). Home-size trophy that taps to Today (scrolls
-   to top on home), a title, the privacy toggle, and the "viewing as" identity
-   chip. Sticky; shrinks to a compact bar with a mini avatar once scrolled.
-   Variants:
-     home  → THE SWEEP / WORLD CUP 2026 + date + sweeps + admin
-     page  → menu name (pass `title`)
-     coins → balance + "COINS" (pass `coins`) */
+   (the sidebar carries nav there). Two distinct shapes:
+     home (`home`)  → the FULL info header: THE SWEEP wordmark + date + the
+                      "viewing as" identity selector + sweeps/admin. Sticky,
+                      gradually shrinks on scroll (`.home-flow`, --p driven).
+     tabs (else)    → a small FIXED bar (`.tab-mini`): trophy + title + the
+                      screen's actions (coins/help/spoiler/admin). NO identity
+                      chip, NO date, NO scroll-shrink — keeps every non-home tab
+                      compact and consistent; the selector lives only on Home. */
 export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef, replaceSpoiler }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
@@ -362,7 +363,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
   return (
     <header
       ref={headRef}
-      className={"top home-top" + (home ? " home-flow" : (scrolled ? " shrunk" : ""))}
+      className={"top home-top" + (home ? " home-flow" : " tab-mini")}
       style={home ? { "--p": progress ?? 0 } : undefined}
     >
       <div className="brandrow">
@@ -380,7 +381,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           </div>
         </button>
         )}
-        {me && (
+        {home && me && (
           <button className={"id-mini" + ((progress ?? 0) > 0.5 ? " on" : "")} onClick={viewMe} aria-label="View your profile">
             <PersonAvatar p={me} cls="av" style={{width:26,height:26,border:0,margin:0,fontSize:11}}/>
             <b>{me.short}</b>
@@ -388,7 +389,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
         )}
         <div style={{display:"flex",alignItems:"center",gap:10}}>
           {coins != null && <span className="hdr-coins"><Icon.coin/>{coins.toLocaleString()}</span>}
-          <div className="tz"><b>{fmtDate(new Date())}</b></div>
+          {home && <div className="tz"><b>{fmtDate(new Date())}</b></div>}
           {replaceSpoiler != null ? replaceSpoiler : <SpoilerToggle compact/>}
           {right}
           {onSweeps && sweeps.length > 1 && (

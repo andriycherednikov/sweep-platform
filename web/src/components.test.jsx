@@ -777,14 +777,20 @@ test('useScrolled tolerates a bare {scrollTop} ref (no scrollHeight/clientHeight
   expect(Number.isNaN(result.current.progress)).toBe(false)
 })
 
-test('AppHeader renders the identity chip only on the home variant (not on tab/Wagers headers)', () => {
-  // The "viewing as" chip is the dominant collapse fuel for the sibling headers and is
-  // redundant there (identity-switching lives on Home), so it's dropped on non-home headers.
+test('AppHeader: tab headers are a compact fixed bar with no identity/date; only home carries the selector', () => {
+  setMe('p1') // so the identity chips WOULD render if the variant allowed them
   const home = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
-  expect(home.container.querySelector('.id-full')).toBeTruthy()
+  expect(home.container.querySelector('header.home-flow')).toBeTruthy()   // full home header
+  expect(home.container.querySelector('.id-full')).toBeTruthy()           // identity selector on home
+  expect(home.container.querySelector('.id-mini')).toBeTruthy()           // mini chip exists on home
   home.unmount()
   const tab = render(<AppHeader title="Wagers" go={() => {}} />)
-  expect(tab.container.querySelector('.id-full')).toBeNull()
+  expect(tab.container.querySelector('header.tab-mini')).toBeTruthy()     // compact fixed bar
+  expect(tab.container.querySelector('header.shrunk')).toBeNull()         // never scroll-shrinks
+  expect(tab.container.querySelector('.id-full')).toBeNull()              // no selector
+  expect(tab.container.querySelector('.id-mini')).toBeNull()              // no mini identity chip
+  expect(tab.container.querySelector('.tz')).toBeNull()                   // no date
+  setMe(null)
 })
 
 test('BottomNav hides the Wagers tab once opted out', () => {
