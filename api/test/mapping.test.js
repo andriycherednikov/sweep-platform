@@ -213,6 +213,24 @@ test('mapMarkets has no goalscorer market when no book carries it', () => {
   expect(r.markets['gs']).toBeUndefined()
 })
 
+test('mapMarkets falls back to another book for BTTS/DC/Odd-Even when the main book lacks them', () => {
+  const pinnacleMain = { name: 'Pinnacle', bets: [
+    { name: 'Match Winner', values: [ov('Home', 2.0), ov('Draw', 3.5), ov('Away', 4.0)] },
+  ] }
+  const bet365 = { name: 'Bet365', bets: [
+    { name: 'Both Teams Score', values: [ov('Yes', 1.7), ov('No', 2.1)] },
+    { name: 'Double Chance', values: [ov('Home/Draw', 1.25), ov('Home/Away', 1.2), ov('Draw/Away', 1.9)] },
+    { name: 'Goals Odd/Even', values: [ov('Odd', 1.95), ov('Even', 1.85)] }, // name-variant alias
+  ] }
+  const r = mapMarkets(oddsResp([pinnacleMain, bet365]))
+  expect(r.book).toBe('Pinnacle')                  // main lines (1x2) still from Pinnacle
+  expect(r.markets['1x2'].book).toBe('Pinnacle')
+  expect(r.markets['btts'].book).toBe('Bet365')    // secondary markets fall back to Bet365
+  expect(r.markets['dc'].book).toBe('Bet365')
+  expect(r.markets['oe'].book).toBe('Bet365')
+  expect(r.markets['oe'].selections.find(s => s.key === 'ODD').odds).toBe(1.95)
+})
+
 test('mapFixture captures the half-time score', () => {
   const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },

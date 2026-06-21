@@ -1170,6 +1170,9 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-grid.gs .coin-mkt-sel{flex-direction:row; justify-content:space-between; align-items:center; padding:11px 14px; gap:12px;}
 .coin-mkt-grid.gs .coin-mkt-lbl{flex:1; min-width:0; justify-content:flex-start; text-align:left; font-family:'Barlow Semi Condensed'; font-size:13.5px; font-weight:700; color:var(--navy); text-transform:none; letter-spacing:0;}
 .coin-mkt-grid.gs .coin-mkt-odds{flex:0 0 auto; font-size:17px; color:var(--gold);}
+/* goalscorer is grouped by team: a small team sub-header above each team's players */
+.coin-gs-group + .coin-gs-group{margin-top:13px;}
+.coin-gs-team{display:flex; align-items:center; gap:7px; margin:2px 2px 8px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:11.5px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted);}
 .coin-more{margin-top:11px; width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--muted); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:border-color .14s, color .14s;}
 .coin-more:hover{border-color:var(--gold); color:var(--navy);}
 

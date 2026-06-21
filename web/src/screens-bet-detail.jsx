@@ -9,9 +9,11 @@ import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
-const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'gs', 'fh1x2', 'fhou', 'cards', 'cs']
-// markets with long selection lists collapse behind a "show more" toggle
-const LONG_MARKETS = { cs: 12, gs: 8 }
+// Ordering: all full-match markets, then 1st-half markets, then novelty markets.
+const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'cards', 'fh1x2', 'fhou', 'cs', 'gs']
+// correct score collapses behind a "show more" toggle (goalscorer has its own grouped path)
+const LONG_MARKETS = { cs: 12 }
+const GS_PER_TEAM = 6 // goalscorer players shown per team before "show more"
 
 // team-aware label for 1x2/fh1x2 Home/Away; passthrough otherwise
 function selLabel(mkKey, sel, f) {
@@ -21,6 +23,23 @@ function selLabel(mkKey, sel, f) {
     if (sel.key === 'DRAW') return 'Draw'
   }
   return sel.label
+}
+
+// normalise a player name for squad matching (accent/case/space-insensitive)
+const normName = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase()
+// split goalscorer selections into [{code,name,sels}] grouped by team (then "Other"),
+// matching each player's name against the two teams' stored squads.
+function scorerGroups(gs, f) {
+  const sels = [...(gs?.selections || [])].sort((a, b) => a.odds - b.odds)
+  const setFor = (code) => new Set((S.team(code)?.squad || []).map((p) => normName(p.name)))
+  const s1 = setFor(f.t1), s2 = setFor(f.t2)
+  const g1 = [], g2 = [], other = []
+  for (const s of sels) { const n = normName(s.key); if (s1.has(n)) g1.push(s); else if (s2.has(n)) g2.push(s); else other.push(s) }
+  return [
+    { code: f.t1, name: S.team(f.t1)?.name || f.t1, sels: g1 },
+    { code: f.t2, name: S.team(f.t2)?.name || f.t2, sels: g2 },
+    { code: null, name: 'Other', sels: other },
+  ].filter((grp) => grp.sels.length)
 }
 
 export function BetDetail({ fixtureId, onBack, openMatch }) {
@@ -86,15 +105,61 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           <div className="coin-mkt-list">
           {keys.map((k) => {
             const mk = markets[k]
-            let sels = mk.selections
-            const limit = LONG_MARKETS[k]            // cs / gs render as a vertical list w/ show-more
+            const teamFlag = (k === '1x2' || k === 'fh1x2')
+            const toggle = () => setOpenMkts((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
+            // one selection button (also reused by the grouped goalscorer path)
+            const selBtn = (s) => {
+              const fc = teamFlag ? (s.key === 'HOME' ? f.t1 : s.key === 'AWAY' ? f.t2 : null) : null
+              return (
+                <button
+                  key={s.key}
+                  className={'coin-mkt-sel' + (hasLeg(f.id, k, s.key) ? ' on' : '')}
+                  data-testid="mkt-sel"
+                  onClick={() => {
+                    const before = betslipCount()
+                    toggleLeg({ fixtureId: f.id, market: k, selection: s.key, odds: s.odds, line: mk.line ?? null, book: mk.book ?? null, label: selLabel(k, s, f) })
+                    if (before === 0 && betslipCount() === 1) setSlipOpen(true) // open only on the first selection
+                  }}
+                >
+                  {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
+                  <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>
+                  <span className="coin-mkt-odds">{s.odds}</span>
+                </button>
+              )
+            }
+
+            // Goalscorer: grouped by team (then "Other"), each a full-width player list.
+            if (k === 'gs') {
+              const groups = scorerGroups(mk, f)
+              const open = openMkts.has('gs')
+              return (
+                <div className="block coin-mkt gs" key="gs">
+                  <div className="coin-mkt-head"><span className="blocktitle">{mk.label}</span></div>
+                  {groups.map((grp) => (
+                    <div className="coin-gs-group" key={grp.code || 'other'}>
+                      <div className="coin-gs-team">
+                        {grp.code && <Flag code={grp.code} w={20} h={14} />}<span>{grp.name}</span>
+                      </div>
+                      <div className="coin-mkt-grid gs">
+                        {(open ? grp.sels : grp.sels.slice(0, GS_PER_TEAM)).map(selBtn)}
+                      </div>
+                    </div>
+                  ))}
+                  {groups.some((grp) => grp.sels.length > GS_PER_TEAM) && (
+                    <button className="coin-more" onClick={toggle}>{open ? 'Show less' : 'Show more'}</button>
+                  )}
+                </div>
+              )
+            }
+
+            const limit = LONG_MARKETS[k]            // correct score: vertical list w/ show-more
             const isLong = limit != null
             const open = openMkts.has(k)
+            let sels = mk.selections
             if (isLong) {
               sels = [...sels].sort((a, b) => a.odds - b.odds)
               if (!open) sels = sels.slice(0, limit)
             }
-            const teamFlag = (k === '1x2' || k === 'fh1x2')
             return (
               <div className={'block coin-mkt' + (isLong ? ' ' + k : '')} key={k}>
                 <div className="coin-mkt-head">
@@ -104,32 +169,10 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
                   className={'coin-mkt-grid' + (isLong ? ' ' + k : '')}
                   style={isLong ? undefined : { gridTemplateColumns: `repeat(${sels.length}, 1fr)` }}
                 >
-                  {sels.map((s) => {
-                    const fc = teamFlag ? (s.key === 'HOME' ? f.t1 : s.key === 'AWAY' ? f.t2 : null) : null
-                    return (
-                      <button
-                        key={s.key}
-                        className={'coin-mkt-sel' + (hasLeg(f.id, k, s.key) ? ' on' : '')}
-                        data-testid="mkt-sel"
-                        onClick={() => {
-                          const before = betslipCount()
-                          toggleLeg({ fixtureId: f.id, market: k, selection: s.key, odds: s.odds, line: mk.line ?? null, book: mk.book ?? null, label: selLabel(k, s, f) })
-                          if (before === 0 && betslipCount() === 1) setSlipOpen(true) // open only on the first selection
-                        }}
-                      >
-                        {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
-                        <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>
-                        <span className="coin-mkt-odds">{s.odds}</span>
-                      </button>
-                    )
-                  })}
+                  {sels.map(selBtn)}
                 </div>
                 {isLong && mk.selections.length > limit && (
-                  <button className="coin-more" onClick={() => setOpenMkts((s) => {
-                    const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n
-                  })}>
-                    {open ? 'Show less' : 'Show more'}
-                  </button>
+                  <button className="coin-more" onClick={toggle}>{open ? 'Show less' : 'Show more'}</button>
                 )}
               </div>
             )

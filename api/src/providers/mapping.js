@@ -122,10 +122,23 @@ const threeWay = (bet, label) => {
  * is omitted. `prob` is the implied 1X2 win % (for the ProbBar). Returns null if no markets.
  */
 export function mapMarkets(rawResponse) {
-  const bk = pickBook(rawResponse?.response?.[0]?.bookmakers ?? [])
+  const allBooks = rawResponse?.response?.[0]?.bookmakers ?? []
+  const bk = pickBook(allBooks)
   if (!bk) return null
   const markets = {}
   let prob = null
+
+  // Find a bet across ALL books, by preference rank — secondary markets (BTTS, Double
+  // Chance, Odd/Even) and player props aren't carried by every book (Pinnacle has few),
+  // so we don't restrict them to the main-line book. `names` may list name variants.
+  // Returns { book, bet } or null.
+  const acrossBooks = (names, rank = BOOK_RANK) => {
+    const list = Array.isArray(names) ? names : [names]
+    return [...allBooks]
+      .sort((x, y) => ((rank.indexOf(x.name) + 1 || Infinity) - (rank.indexOf(y.name) + 1 || Infinity)))
+      .map((b) => { for (const n of list) { const bet = findBet(b, n); if (bet) return { book: b, bet } } return { book: b, bet: null } })
+      .find((r) => r.bet) || null
+  }
 
   const mw = threeWay(findBet(bk, 'Match Winner'), 'Match Winner')
   if (mw) {
@@ -159,20 +172,26 @@ export function mapMarkets(rawResponse) {
     if (sels.length) markets['cs'] = { label: 'Correct Score', book: bk.name, selections: sels }
   }
 
-  const bts = findBet(bk, 'Both Teams Score')
-  const by = oddOf(bts, 'Yes'), bn = oddOf(bts, 'No')
-  if (by && bn) markets['btts'] = { label: 'Both Teams to Score', book: bk.name,
-    selections: [{ key: 'YES', label: 'Yes', odds: by }, { key: 'NO', label: 'No', odds: bn }] }
+  const btsR = acrossBooks(['Both Teams Score', 'Both Teams To Score'])
+  if (btsR) {
+    const by = oddOf(btsR.bet, 'Yes'), bn = oddOf(btsR.bet, 'No')
+    if (by && bn) markets['btts'] = { label: 'Both Teams to Score', book: btsR.book.name,
+      selections: [{ key: 'YES', label: 'Yes', odds: by }, { key: 'NO', label: 'No', odds: bn }] }
+  }
 
-  const dc = findBet(bk, 'Double Chance')
-  const d1x = oddOf(dc, 'Home/Draw'), d12 = oddOf(dc, 'Home/Away'), dx2 = oddOf(dc, 'Draw/Away')
-  if (d1x && d12 && dx2) markets['dc'] = { label: 'Double Chance', book: bk.name,
-    selections: [{ key: '1X', label: 'Home or Draw', odds: d1x }, { key: '12', label: 'Home or Away', odds: d12 }, { key: 'X2', label: 'Draw or Away', odds: dx2 }] }
+  const dcR = acrossBooks('Double Chance')
+  if (dcR) {
+    const d1x = oddOf(dcR.bet, 'Home/Draw'), d12 = oddOf(dcR.bet, 'Home/Away'), dx2 = oddOf(dcR.bet, 'Draw/Away')
+    if (d1x && d12 && dx2) markets['dc'] = { label: 'Double Chance', book: dcR.book.name,
+      selections: [{ key: '1X', label: 'Home or Draw', odds: d1x }, { key: '12', label: 'Home or Away', odds: d12 }, { key: 'X2', label: 'Draw or Away', odds: dx2 }] }
+  }
 
-  const oe = findBet(bk, 'Odd/Even')
-  const oo = oddOf(oe, 'Odd'), oev = oddOf(oe, 'Even')
-  if (oo && oev) markets['oe'] = { label: 'Odd/Even Goals', book: bk.name,
-    selections: [{ key: 'ODD', label: 'Odd', odds: oo }, { key: 'EVEN', label: 'Even', odds: oev }] }
+  const oeR = acrossBooks(['Odd/Even', 'Goals Odd/Even'])
+  if (oeR) {
+    const oo = oddOf(oeR.bet, 'Odd'), oev = oddOf(oeR.bet, 'Even')
+    if (oo && oev) markets['oe'] = { label: 'Odd/Even Goals', book: oeR.book.name,
+      selections: [{ key: 'ODD', label: 'Odd', odds: oo }, { key: 'EVEN', label: 'Even', odds: oev }] }
+  }
 
   const fhg = findBet(bk, 'Goals Over/Under First Half')
   for (const line of [0.5, 1.5]) {
@@ -181,17 +200,13 @@ export function mapMarkets(rawResponse) {
       selections: [{ key: 'OVER', label: `Over ${line}`, odds: fo }, { key: 'UNDER', label: `Under ${line}`, odds: fu }] }; break }
   }
 
-  // Anytime Goalscorer: player props are usually only on Bet365, not the main-line
-  // book — so scan ALL bookmakers (Bet365-first) for it, independent of `bk`.
-  const allBooks = rawResponse?.response?.[0]?.bookmakers ?? []
-  const gsBook = [...allBooks]
-    .sort((x, y) => (GS_BOOK_RANK.indexOf(x.name) + 1 || Infinity) - (GS_BOOK_RANK.indexOf(y.name) + 1 || Infinity))
-    .find((b) => findBet(b, 'Anytime Goal Scorer'))
-  if (gsBook) {
-    const sels = (findBet(gsBook, 'Anytime Goal Scorer').values ?? [])
+  // Anytime Goalscorer: player props are usually only on Bet365, not the main-line book.
+  const gsR = acrossBooks('Anytime Goal Scorer', GS_BOOK_RANK)
+  if (gsR) {
+    const sels = (gsR.bet.values ?? [])
       .map((v) => ({ key: v.value, label: v.value, odds: Number(v.odd) }))
       .filter((s) => s.key && Number.isFinite(s.odds) && s.odds > 1)
-    if (sels.length) markets['gs'] = { label: 'Anytime Goalscorer', book: gsBook.name, selections: sels }
+    if (sels.length) markets['gs'] = { label: 'Anytime Goalscorer', book: gsR.book.name, selections: sels }
   }
 
   if (Object.keys(markets).length === 0) return null
