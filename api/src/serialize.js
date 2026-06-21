@@ -1,8 +1,10 @@
+import { isExcluded } from './optout.js'
+
 export function serializeTeam(t) {
   return { code: t.code, name: t.name, group: t.group, pool: t.pool, color: t.color, strength: t.strength, squad: t.squad ?? null }
 }
 export function serializePerson(p) {
-  return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath, adult: p.adult, createdAt: p.createdAt }
+  return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath, adult: p.adult, excluded: isExcluded(p), createdAt: p.createdAt }
 }
 export function serializeFixture(f) {
   return {

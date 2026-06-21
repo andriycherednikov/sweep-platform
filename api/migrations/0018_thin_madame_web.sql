@@ -1,0 +1,1 @@
+ALTER TABLE "person" ADD COLUMN "excluded_until" timestamp with time zone;

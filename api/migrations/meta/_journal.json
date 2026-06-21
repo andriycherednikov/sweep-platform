@@ -127,6 +127,13 @@
       "when": 1781849043087,
       "tag": "0017_rainy_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782042751168,
+      "tag": "0018_thin_madame_web",
+      "breakpoints": true
     }
   ]
 }
