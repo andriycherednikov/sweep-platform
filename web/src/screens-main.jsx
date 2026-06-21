@@ -147,10 +147,10 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const onFanClick = () => { if (fanTouch.current.moved) { fanTouch.current.moved = false; return; } openPhoto(photo); };
   const photoFx = photo ? S.fixture(photo.fixtureId) : null;
 
-  // people-centric stat panels — shown in the sidebar on desktop, above Next games on mobile
-  const statPanels = (
-    <>
-      {topWinners.length>0 && <>
+  // people-centric stat panels — split into individual blocks so mobile can interleave them
+  // (results → community → best predictions → most wins …) while desktop keeps them grouped in the sidebar.
+  const panelMostWins = (
+    topWinners.length>0 && <>
         <div className="sec-h"><h2>Most wins</h2><span className="lnk" onClick={()=>go("people")}>People →</span></div>
         <div className="ranklist">{topWinners.map((r,i)=>(
           <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
@@ -160,9 +160,11 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <b className="rval">{r.wins}<i>W</i></b>
           </div>
         ))}</div>
-      </>}
+      </>
+  );
 
-      {results.length>0 && <>
+  const panelResults = (
+      results.length>0 && <>
         <div className="sec-h"><h2>Latest scores</h2><span className="lnk" onClick={()=>go("schedule")}>All →</span></div>
         <div className="sidescores">{results.map(f=>{
           const ta=S.team(f.t1), tb=S.team(f.t2);
@@ -194,9 +196,11 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             </div>
           );
         })}</div>
-      </>}
+      </>
+  );
 
-      {accurate.length>0 && <>
+  const panelBestPredictions = (
+      accurate.length>0 && <>
         <div className="sec-h"><h2>Best predictions</h2><span className="lnk" onClick={()=>go("people",{view:"predictions"})}>People →</span></div>
         <div className="ranklist">{accurate.map((r,i)=>(
           <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
@@ -206,9 +210,11 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <b className="rval">{r.correct}</b>
           </div>
         ))}</div>
-      </>}
+      </>
+  );
 
-      {showWagers && topWagers.length>0 && <>
+  const panelTopWagering = (
+      showWagers && topWagers.length>0 && <>
         <div className="sec-h"><h2>Top wagering</h2><span className="lnk" onClick={()=>go("people",{view:"coins"})}>People →</span></div>
         <div className="ranklist">{topWagers.map((r,i)=>(
           <div className="rankrow" key={r.person.id} onClick={()=>openPerson(r.person)}>
@@ -218,7 +224,57 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <b className="rval rval-coin"><Icon.coin/>{r.balance.toLocaleString()}</b>
           </div>
         ))}</div>
-      </>}
+      </>
+  );
+
+  // desktop keeps the original grouped order in the sidebar
+  const statPanels = (
+    <>
+      {panelMostWins}
+      {panelResults}
+      {panelBestPredictions}
+      {panelTopWagering}
+    </>
+  );
+
+  const nextGames = (
+    <>
+      <div className="sec-h"><h2>Next games</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
+      <div className="mgrid">{nextMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
+    </>
+  );
+
+  const standings = (
+    <>
+      <div className="sec-h"><h2>Standings · Group {grpKey}</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
+      <div className="stand">
+        <div className="strow compact" style={{paddingBottom:2}}>
+          <span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">GD</span><span className="hd">PTS</span>
+        </div>
+        {groupStand.map((t,i)=>(
+          <div className={"strow compact" + (i<2?" q":i===2?" q3":"") + (me && me.teams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
+            <span className="pos">{i+1}</span>
+            <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
+            <span className="num">{t.played}</span>
+            <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
+            <span className="pts">{t.pts}</span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+
+  const community = (
+    <>
+      <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
+      {photo ? <>
+      <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
+        {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
+        {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
+        <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader}</small></div>
+      </div>
+      <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
+      </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
     </>
   );
 
@@ -274,41 +330,28 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
       <div className="wrap">
        <div className="deskhome">
+        {isDesktop ? <>
         <div className="deskhome-main">
-        {!isDesktop && statPanels}
-        <div className="sec-h"><h2>Next games</h2><span className="lnk" onClick={()=>go("schedule")}>Full schedule →</span></div>
-        <div className="mgrid">{nextMatches.map(f=> <MatchCard key={f.id} f={f} onOpen={openMatch} />)}</div>
+        {nextGames}
         </div>
 
         <div className="deskhome-side">
-        {isDesktop && statPanels}
-
-        <div className="sec-h"><h2>Standings · Group {grpKey}</h2><span className="lnk" onClick={()=>go("standings")}>All groups →</span></div>
-        <div className="stand">
-          <div className="strow compact" style={{paddingBottom:2}}>
-            <span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">GD</span><span className="hd">PTS</span>
-          </div>
-          {groupStand.map((t,i)=>(
-            <div className={"strow compact" + (i<2?" q":i===2?" q3":"") + (me && me.teams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
-              <span className="pos">{i+1}</span>
-              <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
-              <span className="num">{t.played}</span>
-              <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
-              <span className="pts">{t.pts}</span>
-            </div>
-          ))}
+        {statPanels}
+        {standings}
+        {community}
         </div>
-
-        <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
-        {photo ? <>
-        <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
-          {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
-          {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
-          <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader}</small></div>
+        </> : (
+        // mobile order: latest scores → community → best predictions → most wins → next games → standings → wagering
+        <div className="deskhome-main">
+        {panelResults}
+        {community}
+        {panelBestPredictions}
+        {panelMostWins}
+        {nextGames}
+        {standings}
+        {panelTopWagering}
         </div>
-        <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
-        </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
-        </div>
+        )}
        </div>
       </div>
       {/* compensating spacer: keeps scrollHeight constant as the header collapses,
