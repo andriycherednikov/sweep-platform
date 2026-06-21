@@ -99,6 +99,43 @@ test('resolveBet cs from the regulation score', () => {
   expect(resolveBet('cs', '2:1', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('lost')
 })
 
+test('resolveBet btts from regulation goals (both teams scored at 90)', () => {
+  expect(resolveBet('btts', 'YES', null, fx({ regScore1: 1, regScore2: 2 }))).toBe('won')
+  expect(resolveBet('btts', 'YES', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('lost')
+  expect(resolveBet('btts', 'NO', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('won')
+  // 0-0 at 90' that becomes 1-1 in ET still settles NO on the 90' score
+  expect(resolveBet('btts', 'NO', null, fx({ regScore1: 0, regScore2: 0, score1: 1, score2: 1 }))).toBe('won')
+  expect(resolveBet('btts', 'YES', null, fx())).toBeNull()
+})
+
+test('resolveBet dc (double chance) from the regulation result', () => {
+  expect(resolveBet('dc', '1X', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('won') // home
+  expect(resolveBet('dc', '1X', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('won') // draw
+  expect(resolveBet('dc', '1X', null, fx({ regScore1: 0, regScore2: 1 }))).toBe('lost') // away
+  expect(resolveBet('dc', '12', null, fx({ regScore1: 0, regScore2: 1 }))).toBe('won') // away
+  expect(resolveBet('dc', '12', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('lost') // draw
+  expect(resolveBet('dc', 'X2', null, fx({ regScore1: 1, regScore2: 1 }))).toBe('won') // draw
+  expect(resolveBet('dc', 'X2', null, fx())).toBeNull()
+})
+
+test('resolveBet oe (odd/even total goals); 0-0 counts as even', () => {
+  expect(resolveBet('oe', 'ODD', null, fx({ regScore1: 2, regScore2: 1 }))).toBe('won')  // 3
+  expect(resolveBet('oe', 'EVEN', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('won')  // 2
+  expect(resolveBet('oe', 'EVEN', null, fx({ regScore1: 0, regScore2: 0 }))).toBe('won')  // 0 = even
+  expect(resolveBet('oe', 'ODD', null, fx({ regScore1: 0, regScore2: 0 }))).toBe('lost')
+  expect(resolveBet('oe', 'EVEN', null, fx())).toBeNull()
+})
+
+test('resolveBet fhou (first-half O/U) from HT score, with goal-event fallback', () => {
+  expect(resolveBet('fhou', 'OVER', 0.5, fx({ htScore1: 1, htScore2: 0 }))).toBe('won')
+  expect(resolveBet('fhou', 'UNDER', 0.5, fx({ htScore1: 0, htScore2: 0 }))).toBe('won')
+  expect(resolveBet('fhou', 'OVER', 1.5, fx({ htScore1: 1, htScore2: 0 }))).toBe('lost')
+  // fallback: count goal events at minute <= 45 when HT score is absent
+  expect(resolveBet('fhou', 'OVER', 0.5, fx({ events: [{ type: 'goal', teamCode: 'arg', minute: 20 }] }))).toBe('won')
+  expect(resolveBet('fhou', 'OVER', 0.5, { ...fx(), events: null })).toBeNull()
+  expect(resolveBet('fhou', 'OVER', null, fx({ htScore1: 1, htScore2: 0 }))).toBeNull() // no line
+})
+
 test('settleStaleBets grades open bets left on already-final fixtures', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)

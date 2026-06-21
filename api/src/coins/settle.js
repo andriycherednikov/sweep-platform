@@ -12,7 +12,9 @@ export function fixtureResult(f) {
   return f.score1 > f.score2 ? 'HOME' : f.score1 < f.score2 ? 'AWAY' : 'DRAW'
 }
 
-function htResult(f) {
+/** Half-time [home, away] goals from the stored HT score, falling back to counting goal
+ *  events at minute <= 45. null when neither is available (events never polled). */
+function htScores(f) {
   let h = f.htScore1, a = f.htScore2
   if (h == null || a == null) {
     if (!Array.isArray(f.events)) return null // never polled — can't know the HT score
@@ -20,6 +22,11 @@ function htResult(f) {
     h = fh.filter((e) => e.teamCode === f.t1Code).length
     a = fh.filter((e) => e.teamCode === f.t2Code).length
   }
+  return [h, a]
+}
+function htResult(f) {
+  const s = htScores(f); if (!s) return null
+  const [h, a] = s
   return h > a ? 'HOME' : h < a ? 'AWAY' : 'DRAW'
 }
 
@@ -43,6 +50,27 @@ export function resolveBet(market, selection, line, f) {
     return (selection === 'OVER' ? over : !over) ? 'won' : 'lost'
   }
   if (market === 'cs') { if (f.regScore1 == null || f.regScore2 == null) return null; return `${f.regScore1}:${f.regScore2}` === selection ? 'won' : 'lost' }
+  if (market === 'btts') {
+    if (f.regScore1 == null || f.regScore2 == null) return null
+    const yes = f.regScore1 > 0 && f.regScore2 > 0
+    return (selection === 'YES' ? yes : !yes) ? 'won' : 'lost'
+  }
+  if (market === 'dc') {
+    const r = regulationResult(f); if (r == null) return null
+    const pair = { '1X': ['HOME', 'DRAW'], '12': ['HOME', 'AWAY'], 'X2': ['DRAW', 'AWAY'] }[selection]
+    return pair && pair.includes(r) ? 'won' : 'lost'
+  }
+  if (market === 'oe') {
+    if (f.regScore1 == null || f.regScore2 == null) return null
+    const even = (f.regScore1 + f.regScore2) % 2 === 0
+    return (selection === 'EVEN' ? even : !even) ? 'won' : 'lost'
+  }
+  if (market === 'fhou') {
+    if (line == null) return null
+    const s = htScores(f); if (!s) return null
+    const over = (s[0] + s[1]) > line
+    return (selection === 'OVER' ? over : !over) ? 'won' : 'lost'
+  }
   return null
 }
 

@@ -157,6 +157,28 @@ export function mapMarkets(rawResponse) {
     if (sels.length) markets['cs'] = { label: 'Correct Score', book: bk.name, selections: sels }
   }
 
+  const bts = findBet(bk, 'Both Teams Score')
+  const by = oddOf(bts, 'Yes'), bn = oddOf(bts, 'No')
+  if (by && bn) markets['btts'] = { label: 'Both Teams to Score', book: bk.name,
+    selections: [{ key: 'YES', label: 'Yes', odds: by }, { key: 'NO', label: 'No', odds: bn }] }
+
+  const dc = findBet(bk, 'Double Chance')
+  const d1x = oddOf(dc, 'Home/Draw'), d12 = oddOf(dc, 'Home/Away'), dx2 = oddOf(dc, 'Draw/Away')
+  if (d1x && d12 && dx2) markets['dc'] = { label: 'Double Chance', book: bk.name,
+    selections: [{ key: '1X', label: 'Home or Draw', odds: d1x }, { key: '12', label: 'Home or Away', odds: d12 }, { key: 'X2', label: 'Draw or Away', odds: dx2 }] }
+
+  const oe = findBet(bk, 'Odd/Even')
+  const oo = oddOf(oe, 'Odd'), oev = oddOf(oe, 'Even')
+  if (oo && oev) markets['oe'] = { label: 'Odd/Even Goals', book: bk.name,
+    selections: [{ key: 'ODD', label: 'Odd', odds: oo }, { key: 'EVEN', label: 'Even', odds: oev }] }
+
+  const fhg = findBet(bk, 'Goals Over/Under First Half')
+  for (const line of [0.5, 1.5]) {
+    const fo = oddOf(fhg, `Over ${line}`), fu = oddOf(fhg, `Under ${line}`)
+    if (fo && fu) { markets['fhou'] = { label: `1st Half O/U ${line}`, line, book: bk.name,
+      selections: [{ key: 'OVER', label: `Over ${line}`, odds: fo }, { key: 'UNDER', label: `Under ${line}`, odds: fu }] }; break }
+  }
+
   if (Object.keys(markets).length === 0) return null
   return { markets, book: bk.name, prob }
 }
