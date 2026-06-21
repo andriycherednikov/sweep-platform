@@ -172,14 +172,19 @@ a{color:inherit; text-decoration:none;}
 .home-flow .brand .mark{ width:calc(26px - 6px * var(--p, 0)); height:calc(50px - 16px * var(--p, 0)); }
 .home-flow .brand b{ font-size:calc(20px - 4px * var(--p, 0)); }
 .home-flow .brand small{ opacity:calc(1 - var(--p, 0)); }
-.home-flow .id-full{ overflow:hidden; max-height:calc(120px * (1 - var(--p, 0))); opacity:calc(1 - var(--p, 0)); margin:0; transition:opacity .12s linear; }
-.home-flow .tz{ opacity:calc(1 - var(--p, 0)); transition:opacity .12s linear; }
-/* mini chip reveals as a whole only past halfway (.on @ progress>0.5): fade via opacity,
-   snap the width open — never animate the width from 0, which clipped the round avatar
-   into a half-moon. Avatar stays a full 26px circle. */
-.home-flow .id-mini{ display:flex; align-items:center; flex:0 1 auto; margin:0 0 0 12px; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
+/* fade the full identity (+ date) to 0 EARLY (by ~⅓ scroll) so the avatar is already
+   invisible before max-height clips it into a half-moon; height keeps collapsing unseen. */
+.home-flow .id-full{ overflow:hidden; max-height:calc(120px * (1 - var(--p, 0))); opacity:calc(1 - var(--p, 0) * 3); margin:0; transition:opacity .1s linear; }
+.home-flow .tz{ opacity:calc(1 - var(--p, 0) * 3); transition:opacity .1s linear; }
+/* mini chip reveals as a whole only past halfway (.on @ progress>0.5) via opacity.
+   CRITICAL: min-width:auto (overriding the base min-width:0) stops flexbox shrinking the
+   chip below its avatar when the right cluster is crowded (3 buttons) — that shrink + the
+   chip's overflow:hidden is what sliced the avatar into a half-moon and hid the name. The
+   avatar is flex-shrink:0 (always full); only the NAME (min-width:0 below) truncates. */
+.home-flow .id-mini{ display:flex; align-items:center; gap:7px; flex:0 1 auto; min-width:auto; margin:0 0 0 11px; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
 .home-flow .id-mini.on{ opacity:1; max-width:200px; pointer-events:auto; }
 .home-flow .id-mini .av{ width:26px; height:26px; flex-shrink:0; }
+.home-flow .id-mini b{ min-width:0; }   /* name ellipsis-truncates instead of clipping the avatar */
 /* tuck the mini chip next to THE SWEEP; push the action buttons to the right edge
    (overrides the row's space-between, which otherwise floats the chip to centre) */
 .home-flow .brandrow > div:last-child{ margin-left:auto; }
