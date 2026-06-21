@@ -96,12 +96,12 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
             }
             const teamFlag = (k === '1x2' || k === 'fh1x2')
             return (
-              <div className={'block coin-mkt' + (isLong ? ' cs' : '')} key={k}>
+              <div className={'block coin-mkt' + (isLong ? ' ' + k : '')} key={k}>
                 <div className="coin-mkt-head">
                   <span className="blocktitle">{mk.label}</span>
                 </div>
                 <div
-                  className={'coin-mkt-grid' + (isLong ? ' cs' : '')}
+                  className={'coin-mkt-grid' + (isLong ? ' ' + k : '')}
                   style={isLong ? undefined : { gridTemplateColumns: `repeat(${sels.length}, 1fr)` }}
                 >
                   {sels.map((s) => {

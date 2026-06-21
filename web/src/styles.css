@@ -1037,7 +1037,7 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-bet-grid .coin-match-row{margin-bottom:0;}
 .coin-mkt-list{display:grid; grid-template-columns:1fr; gap:12px; align-items:start;}
 .coin-mkt-list .coin-mkt{margin-bottom:0 !important;}
-.coin-mkt-list .coin-mkt.cs{grid-column:1 / -1;}
+.coin-mkt-list .coin-mkt.cs, .coin-mkt-list .coin-mkt.gs{grid-column:1 / -1;}
 .coin-vs{font-size:11px; color:var(--muted2); font-weight:700; flex-shrink:0;}
 .coin-book{font-size:10.5px; color:var(--muted2); font-weight:700; letter-spacing:.5px; margin-bottom:8px; text-transform:uppercase;}
 .coin-odds-row{display:flex; gap:7px;}
@@ -1164,6 +1164,12 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .coin-mkt-grid.cs .coin-mkt-sel{padding:8px 4px; gap:2px;}
 .coin-mkt-grid.cs .coin-mkt-lbl{font-family:'Barlow Condensed'; font-size:15px; font-weight:800; color:var(--navy); text-transform:none; letter-spacing:0;}
 .coin-mkt-grid.cs .coin-mkt-odds{font-size:14px; color:var(--gold);}
+/* goalscorer: one selection per line (player name left, odds right) — names are long,
+   so the centered chip grid truncates them. Full-width rows keep them readable. */
+.coin-mkt-grid.gs{grid-template-columns:1fr; gap:7px;}
+.coin-mkt-grid.gs .coin-mkt-sel{flex-direction:row; justify-content:space-between; align-items:center; padding:11px 14px; gap:12px;}
+.coin-mkt-grid.gs .coin-mkt-lbl{flex:1; min-width:0; justify-content:flex-start; text-align:left; font-family:'Barlow Semi Condensed'; font-size:13.5px; font-weight:700; color:var(--navy); text-transform:none; letter-spacing:0;}
+.coin-mkt-grid.gs .coin-mkt-odds{flex:0 0 auto; font-size:17px; color:var(--gold);}
 .coin-more{margin-top:11px; width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent; color:var(--muted); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer; transition:border-color .14s, color .14s;}
 .coin-more:hover{border-color:var(--gold); color:var(--navy);}
 
