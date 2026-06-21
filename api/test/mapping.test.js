@@ -166,18 +166,28 @@ const pinnacleBook = {
     { name: 'Goals Over/Under', values: [ov('Over 1.5', 1.4), ov('Under 1.5', 3.0), ov('Over 2.5', 2.25), ov('Under 2.5', 1.7), ov('Over 3.5', 4.0), ov('Under 3.5', 1.25)] },
     { name: 'Cards Over/Under', values: [ov('Over 2.5', 1.3), ov('Under 2.5', 3.4), ov('Over 3.5', 1.6), ov('Under 3.5', 2.3)] },
     { name: 'Exact Score', values: [ov('1:0', 5.0), ov('2:1', 8.5), ov('1:1', 8.5), ov('bad', 1.0)] },
+    { name: 'Both Teams Score', values: [ov('Yes', 1.8), ov('No', 1.95)] },
+    { name: 'Double Chance', values: [ov('Home/Draw', 1.3), ov('Home/Away', 1.25), ov('Draw/Away', 2.1)] },
+    { name: 'Odd/Even', values: [ov('Odd', 1.9), ov('Even', 1.9)] },
+    { name: 'Goals Over/Under First Half', values: [ov('Over 0.5', 1.5), ov('Under 0.5', 2.4), ov('Over 1.5', 3.2), ov('Under 1.5', 1.3)] },
   ],
 }
 
-test('mapMarkets builds all five markets from the best-ranked book', () => {
+test('mapMarkets builds all markets from the best-ranked book', () => {
   const r = mapMarkets(oddsResp([{ name: 'SomeBook', bets: [] }, pinnacleBook]))
   expect(r.book).toBe('Pinnacle')
-  expect(Object.keys(r.markets).sort()).toEqual(['1x2', 'cards', 'cs', 'fh1x2', 'ou25'])
+  expect(Object.keys(r.markets).sort()).toEqual(['1x2', 'btts', 'cards', 'cs', 'dc', 'fh1x2', 'fhou', 'oe', 'ou25'])
   expect(r.markets['1x2'].selections.map(s => s.key)).toEqual(['HOME', 'DRAW', 'AWAY'])
   expect(r.markets['ou25']).toMatchObject({ line: 2.5 })
   expect(r.markets['ou25'].selections.find(s => s.key === 'OVER').odds).toBe(2.25)
   expect(r.markets['cards'].line).toBe(3.5)
   expect(r.markets['cs'].selections.map(s => s.key)).toEqual(['1:0', '2:1', '1:1'])
+  expect(r.markets['btts'].selections.map(s => s.key)).toEqual(['YES', 'NO'])
+  expect(r.markets['dc'].selections.map(s => s.key)).toEqual(['1X', '12', 'X2'])
+  expect(r.markets['dc'].selections.find(s => s.key === '1X').odds).toBe(1.3)
+  expect(r.markets['oe'].selections.map(s => s.key)).toEqual(['ODD', 'EVEN'])
+  expect(r.markets['fhou']).toMatchObject({ line: 0.5 })
+  expect(r.markets['fhou'].selections.find(s => s.key === 'OVER').odds).toBe(1.5)
   expect(r.prob.a + r.prob.d + r.prob.b).toBe(100)
 })
 

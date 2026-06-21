@@ -6,7 +6,7 @@ import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, seria
 
 const member = requireSweep(['member', 'admin'])
 
-const MARKETS = ['1x2', 'ou25', 'cards', 'fh1x2', 'cs']
+const MARKETS = ['1x2', 'ou25', 'cards', 'fh1x2', 'cs', 'btts', 'dc', 'oe', 'fhou']
 const betBody = {
   type: 'object', required: ['fixtureId', 'personId', 'selection', 'stake'], additionalProperties: false,
   properties: {

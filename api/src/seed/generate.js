@@ -152,6 +152,16 @@ function marketsFor(prob) {
       { key: "1:0", label: "1-0", odds: 7 }, { key: "2:0", label: "2-0", odds: 9 }, { key: "2:1", label: "2-1", odds: 8 },
       { key: "1:1", label: "1-1", odds: 7.5 }, { key: "0:0", label: "0-0", odds: 11 }, { key: "0:1", label: "0-1", odds: 12 },
       { key: "1:2", label: "1-2", odds: 14 }, { key: "0:2", label: "0-2", odds: 21 } ] },
+    "btts":  { label: "Both Teams to Score", book: book, selections: [
+      { key: "YES", label: "Yes", odds: 1.8 }, { key: "NO", label: "No", odds: 1.95 } ] },
+    "dc":    { label: "Double Chance", book: book, selections: [
+      { key: "1X", label: "Home or Draw", odds: decFor(prob.a + prob.d) },
+      { key: "12", label: "Home or Away", odds: decFor(prob.a + prob.b) },
+      { key: "X2", label: "Draw or Away", odds: decFor(prob.d + prob.b) } ] },
+    "oe":    { label: "Odd/Even Goals", book: book, selections: [
+      { key: "ODD", label: "Odd", odds: 1.9 }, { key: "EVEN", label: "Even", odds: 1.9 } ] },
+    "fhou":  { label: "1st Half O/U 0.5", line: 0.5, book: book, selections: [
+      { key: "OVER", label: "Over 0.5", odds: 1.55 }, { key: "UNDER", label: "Under 0.5", odds: 2.3 } ] },
   };
 }
 

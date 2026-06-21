@@ -9,7 +9,7 @@ import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
-const MARKET_ORDER = ['1x2', 'fh1x2', 'ou25', 'cards', 'cs']
+const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'fh1x2', 'fhou', 'cards', 'cs']
 const CS_VISIBLE = 12
 
 // team-aware label for 1x2/fh1x2 Home/Away; passthrough otherwise
