@@ -451,6 +451,26 @@ test('PeopleAdmin lists existing sweep people with a team count', () => {
   expect(getAllByText('teams').length).toBeGreaterThan(0)
 })
 
+test('PeopleAdmin flags a self-excluded person with an "Excluded" badge', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 }],
+      people: [
+        { id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN', excluded: true },
+        { id: 'p2', name: 'Cara', short: 'Cara', initials: 'CA' },
+      ],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ watch: {}, support: {} })
+  const { container, getAllByText } = render(<PeopleAdmin onToast={noop} />)
+  const badges = getAllByText('Excluded')
+  expect(badges.length).toBe(1) // only the excluded person is flagged
+  const annRow = [...container.querySelectorAll('.prow')].find((r) => r.querySelector('.pi b')?.textContent === 'Ann')
+  expect(annRow.querySelector('.excl-badge')).toBeTruthy()
+})
+
 test('PeopleAdmin sorts newest-added first by default', () => {
   seedPeople()
   const { container } = render(<PeopleAdmin onToast={noop} />)

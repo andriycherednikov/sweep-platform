@@ -67,6 +67,20 @@ test('postSupport POSTs fixtureId+personId+teamCode', async () => {
   expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'm1', personId: 'p1', teamCode: 'hr' })
 })
 
+test('postOptout POSTs personId+duration to /api/optout', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
+    calls.push({ url, opts })
+    return { ok: true, status: 200, json: async () => ({ personId: 'p1', excluded: true }) }
+  }))
+  const { postOptout } = await import('./client.js')
+  const res = await postOptout('p1', '7d')
+  expect(res.excluded).toBe(true)
+  expect(calls[0].url).toMatch(/\/api\/optout$/)
+  expect(calls[0].opts.method).toBe('POST')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ personId: 'p1', duration: '7d' })
+})
+
 test('a non-ok POST throws', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 400, json: async () => ({}) })))
   const { postWatch } = await import('./client.js')

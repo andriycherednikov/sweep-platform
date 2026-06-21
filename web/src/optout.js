@@ -6,6 +6,8 @@
 // Mirrors the localStorage-backed module-store pattern in spoiler.js.
 import { useState, useEffect } from 'react'
 import { getMe } from './social.js'
+import { SWEEP as S } from './data.js'
+import { postOptout } from './api/client.js'
 
 const KEY = 'sweep.wagers.optout.v2' // map { personId: 'forever' | expiryMs }
 const listeners = new Set()
@@ -36,6 +38,10 @@ function writeMap(map) {
 export function isOptedOut(personId) {
   const id = personId ?? getMe()?.id
   if (!id) return false
+  // The server-recorded exclusion is authoritative across devices: if any device
+  // opted this person out, honour it here too. (Only ever ADDS a lock — a person the
+  // server says is excluded can never be un-excluded by the absence of a local entry.)
+  if (S.peopleById?.[id]?.excluded) return true
   const v = readMap()[id]
   if (!v) return false
   if (v === 'forever') return true
@@ -56,6 +62,10 @@ export function optOut(durationKey, personId) {
   const map = readMap()
   map[id] = v
   writeMap(map)
+  // Record it centrally too, so it survives across devices and is visible to admins.
+  // Fire-and-forget: the local write above is the immediate, offline-safe gate, so a
+  // network/parse failure here is swallowed (IIFE also catches a synchronous throw).
+  ;(async () => { try { await postOptout(id, durationKey) } catch { /* offline — local gate holds */ } })()
   notify()
 }
 
