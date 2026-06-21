@@ -249,8 +249,14 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
 /* ---------------- TEAMS ---------------- */
 export function TeamsScreen({ go, openTeam }) {
   const [mode, setMode] = useState("group"); // group | pool
+  const [q, setQ] = useState("");
   const scrollRef = useRef(null);
   const { scrolled, onScroll } = useScrolled(scrollRef);
+  const ql = q.trim().toLowerCase();
+  const matches = ql
+    ? S.teamList.filter(t => t.name.toLowerCase().includes(ql) || t.code.toLowerCase().includes(ql))
+                .sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name))
+    : null;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title="Teams" go={go} scrolled={scrolled} />
@@ -260,7 +266,14 @@ export function TeamsScreen({ go, openTeam }) {
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
-          {mode==="group" ? S.groups.map(g=>(
+          <div style={{maxWidth:440,margin:"2px 0 12px"}}>
+            <SearchInput value={q} onChange={setQ} placeholder="Search teams…" />
+          </div>
+          {matches ? (
+            matches.length === 0
+              ? <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams match “{q}”.</p>
+              : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} />
+          ) : mode==="group" ? S.groups.map(g=>(
             <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank />
           )) : ["A","B"].map(pool=>(
             <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} />
