@@ -145,12 +145,15 @@ a{color:inherit; text-decoration:none;}
 .home-top .id-mini b{ font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* ===== Non-home tab headers (Schedule/People/Teams/Table/Wagers): a small FIXED bar.
-   No scroll-shrink, no identity chip, no date — just trophy + title + the screen's
-   action buttons, kept compact and consistent. The full info header + identity
-   selector lives only on Home (.home-flow). */
+   No scroll-shrink, no date — just trophy + title + the "viewing as" chip + the
+   screen's action buttons, kept compact and consistent. The full identity SELECTOR
+   (id-full) lives only on Home (.home-flow); the tabs keep the read-only mini chip. */
 .tab-mini.home-top{ padding-top:10px; padding-bottom:11px; }
 .tab-mini .brand .mark{ width:20px; height:34px; }
 .tab-mini .brand-tx.alt b{ font-size:18px; }
+/* the "viewing as" chip (avatar + name) stays on the tab headers, like the old
+   collapsed bar — a read-only indicator of whose perspective you're viewing. */
+.tab-mini .id-mini{ display:flex; }
 
 /* ===== Home in-flow header: GRADUAL scroll-linked shrink driven by --p (0..1).
    ONLY .home-flow (the single in-scroll Home header) gets these — the sibling

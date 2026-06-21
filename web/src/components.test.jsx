@@ -777,8 +777,8 @@ test('useScrolled tolerates a bare {scrollTop} ref (no scrollHeight/clientHeight
   expect(Number.isNaN(result.current.progress)).toBe(false)
 })
 
-test('AppHeader: tab headers are a compact fixed bar with no identity/date; only home carries the selector', () => {
-  setMe('p1') // so the identity chips WOULD render if the variant allowed them
+test('AppHeader: tab headers are a compact fixed bar that shows the viewing-as chip but not the full selector/date', () => {
+  setMe('p1') // selected identity → the chips render where the variant allows
   const home = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(home.container.querySelector('header.home-flow')).toBeTruthy()   // full home header
   expect(home.container.querySelector('.id-full')).toBeTruthy()           // identity selector on home
@@ -787,9 +787,9 @@ test('AppHeader: tab headers are a compact fixed bar with no identity/date; only
   const tab = render(<AppHeader title="Wagers" go={() => {}} />)
   expect(tab.container.querySelector('header.tab-mini')).toBeTruthy()     // compact fixed bar
   expect(tab.container.querySelector('header.shrunk')).toBeNull()         // never scroll-shrinks
-  expect(tab.container.querySelector('.id-full')).toBeNull()              // no selector
-  expect(tab.container.querySelector('.id-mini')).toBeNull()              // no mini identity chip
-  expect(tab.container.querySelector('.tz')).toBeNull()                   // no date
+  expect(tab.container.querySelector('.id-mini')).toBeTruthy()            // shows who you're viewing as
+  expect(tab.container.querySelector('.id-full')).toBeNull()              // but NOT the full selector
+  expect(tab.container.querySelector('.tz')).toBeNull()                   // and no date
   setMe(null)
 })
 

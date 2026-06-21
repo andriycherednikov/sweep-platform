@@ -381,8 +381,8 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           </div>
         </button>
         )}
-        {home && me && (
-          <button className={"id-mini" + ((progress ?? 0) > 0.5 ? " on" : "")} onClick={viewMe} aria-label="View your profile">
+        {me && (
+          <button className={"id-mini" + (!home || (progress ?? 0) > 0.5 ? " on" : "")} onClick={viewMe} aria-label="View your profile">
             <PersonAvatar p={me} cls="av" style={{width:26,height:26,border:0,margin:0,fontSize:11}}/>
             <b>{me.short}</b>
           </button>
