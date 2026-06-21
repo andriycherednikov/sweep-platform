@@ -15,6 +15,7 @@ export const MARKET_LABELS = {
   dc: 'Double Chance',
   oe: 'Odd/Even Goals',
   fhou: 'First Half O/U',
+  gs: 'Anytime Goalscorer',
 }
 
 /** Human selection wording for a bet, e.g. a team name, "Over 2.5", or "2-1". */

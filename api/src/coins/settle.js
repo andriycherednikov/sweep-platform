@@ -71,6 +71,15 @@ export function resolveBet(market, selection, line, f) {
     const over = (s[0] + s[1]) > line
     return (selection === 'OVER' ? over : !over) ? 'won' : 'lost'
   }
+  if (market === 'gs') {
+    if (!Array.isArray(f.events)) return null // events not polled yet → leave open
+    // v1 "all bets stand": won iff the named player scored a non-own goal in regulation;
+    // otherwise lost (no DNP void). Match on a normalised name (both sides are API-Football).
+    const norm = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase()
+    const target = norm(selection)
+    const scored = f.events.some((e) => e.type === 'goal' && e.detail !== 'Own Goal' && (e.minute ?? 0) <= 90 && norm(e.player) === target)
+    return scored ? 'won' : 'lost'
+  }
   return null
 }
 

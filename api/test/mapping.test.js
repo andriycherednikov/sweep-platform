@@ -196,6 +196,23 @@ test('mapMarkets returns null when no usable book/markets', () => {
   expect(mapMarkets(oddsResp([{ name: 'X', bets: [{ name: 'Match Winner', values: [ov('Home', 2)] }] }]))).toBeNull()
 })
 
+test('mapMarkets reads anytime goalscorer from Bet365 even when main lines come from Pinnacle', () => {
+  const bet365 = { name: 'Bet365', bets: [
+    { name: 'Match Winner', values: [ov('Home', 2.1), ov('Draw', 3.4), ov('Away', 3.9)] },
+    { name: 'Anytime Goal Scorer', values: [ov('Lionel Messi', 2.5), ov('Julian Alvarez', 3.0), ov('No Goalscorer', 1.0)] },
+  ] }
+  const r = mapMarkets(oddsResp([pinnacleBook, bet365]))
+  expect(r.book).toBe('Pinnacle')                 // main lines still from the best-ranked book
+  expect(r.markets['1x2'].book).toBe('Pinnacle')
+  expect(r.markets['gs'].book).toBe('Bet365')     // player props pulled from Bet365
+  expect(r.markets['gs'].selections.map(s => s.key)).toEqual(['Lionel Messi', 'Julian Alvarez']) // odds<=1 dropped
+})
+
+test('mapMarkets has no goalscorer market when no book carries it', () => {
+  const r = mapMarkets(oddsResp([pinnacleBook]))
+  expect(r.markets['gs']).toBeUndefined()
+})
+
 test('mapFixture captures the half-time score', () => {
   const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },

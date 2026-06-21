@@ -91,6 +91,8 @@ function roundTo100(parts) {
 
 // Preferred bookmakers, most-credible first; any book with a complete 1X2 market is the last resort.
 const BOOK_RANK = ['Pinnacle', 'Bet365']
+// Player props (anytime goalscorer) are typically only on Bet365 — scanned separately.
+const GS_BOOK_RANK = ['Bet365', 'Pinnacle']
 
 
 const PREF_CARD_LINES = [3.5, 4.5, 2.5]
@@ -177,6 +179,19 @@ export function mapMarkets(rawResponse) {
     const fo = oddOf(fhg, `Over ${line}`), fu = oddOf(fhg, `Under ${line}`)
     if (fo && fu) { markets['fhou'] = { label: `1st Half O/U ${line}`, line, book: bk.name,
       selections: [{ key: 'OVER', label: `Over ${line}`, odds: fo }, { key: 'UNDER', label: `Under ${line}`, odds: fu }] }; break }
+  }
+
+  // Anytime Goalscorer: player props are usually only on Bet365, not the main-line
+  // book — so scan ALL bookmakers (Bet365-first) for it, independent of `bk`.
+  const allBooks = rawResponse?.response?.[0]?.bookmakers ?? []
+  const gsBook = [...allBooks]
+    .sort((x, y) => (GS_BOOK_RANK.indexOf(x.name) + 1 || Infinity) - (GS_BOOK_RANK.indexOf(y.name) + 1 || Infinity))
+    .find((b) => findBet(b, 'Anytime Goal Scorer'))
+  if (gsBook) {
+    const sels = (findBet(gsBook, 'Anytime Goal Scorer').values ?? [])
+      .map((v) => ({ key: v.value, label: v.value, odds: Number(v.odd) }))
+      .filter((s) => s.key && Number.isFinite(s.odds) && s.odds > 1)
+    if (sels.length) markets['gs'] = { label: 'Anytime Goalscorer', book: gsBook.name, selections: sels }
   }
 
   if (Object.keys(markets).length === 0) return null

@@ -9,8 +9,9 @@ import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
-const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'fh1x2', 'fhou', 'cards', 'cs']
-const CS_VISIBLE = 12
+const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'gs', 'fh1x2', 'fhou', 'cards', 'cs']
+// markets with long selection lists collapse behind a "show more" toggle
+const LONG_MARKETS = { cs: 12, gs: 8 }
 
 // team-aware label for 1x2/fh1x2 Home/Away; passthrough otherwise
 function selLabel(mkKey, sel, f) {
@@ -25,7 +26,7 @@ function selLabel(mkKey, sel, f) {
 export function BetDetail({ fixtureId, onBack, openMatch }) {
   const f = S.fixture(fixtureId)
   const [slipOpen, setSlipOpen] = useState(false)
-  const [csOpen, setCsOpen] = useState(false)
+  const [openMkts, setOpenMkts] = useState(() => new Set())
   const [tab, setTab] = useState('place')
   const [info, setInfo] = useState(false)
   const desktop = useIsDesktop()
@@ -86,20 +87,22 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
           {keys.map((k) => {
             const mk = markets[k]
             let sels = mk.selections
-            const isCS = k === 'cs'
-            if (isCS) {
+            const limit = LONG_MARKETS[k]            // cs / gs render as a vertical list w/ show-more
+            const isLong = limit != null
+            const open = openMkts.has(k)
+            if (isLong) {
               sels = [...sels].sort((a, b) => a.odds - b.odds)
-              if (!csOpen) sels = sels.slice(0, CS_VISIBLE)
+              if (!open) sels = sels.slice(0, limit)
             }
             const teamFlag = (k === '1x2' || k === 'fh1x2')
             return (
-              <div className={'block coin-mkt' + (isCS ? ' cs' : '')} key={k}>
+              <div className={'block coin-mkt' + (isLong ? ' cs' : '')} key={k}>
                 <div className="coin-mkt-head">
                   <span className="blocktitle">{mk.label}</span>
                 </div>
                 <div
-                  className={'coin-mkt-grid' + (isCS ? ' cs' : '')}
-                  style={isCS ? undefined : { gridTemplateColumns: `repeat(${sels.length}, 1fr)` }}
+                  className={'coin-mkt-grid' + (isLong ? ' cs' : '')}
+                  style={isLong ? undefined : { gridTemplateColumns: `repeat(${sels.length}, 1fr)` }}
                 >
                   {sels.map((s) => {
                     const fc = teamFlag ? (s.key === 'HOME' ? f.t1 : s.key === 'AWAY' ? f.t2 : null) : null
@@ -121,9 +124,11 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
                     )
                   })}
                 </div>
-                {isCS && mk.selections.length > CS_VISIBLE && (
-                  <button className="coin-more" onClick={() => setCsOpen((v) => !v)}>
-                    {csOpen ? 'Show less' : 'Show more'}
+                {isLong && mk.selections.length > limit && (
+                  <button className="coin-more" onClick={() => setOpenMkts((s) => {
+                    const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n
+                  })}>
+                    {open ? 'Show less' : 'Show more'}
                   </button>
                 )}
               </div>
