@@ -22,6 +22,10 @@ export const person = pgTable('person', {
   avatarPath: text('avatar_path'),
   // wagers are 18+; admins flag minors so they can't see/use the coins feature
   adult: boolean('adult').notNull().default(true),
+  // Wagers self-exclusion (responsible-gambling). NULL = active. A future timestamp =
+  // excluded until then (auto-clears). The FOREVER sentinel (year 9999) = indefinite.
+  // Binding: the opt-out endpoint only ever extends this, never shortens it.
+  excludedUntil: timestamp('excluded_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   sweepIdx: index('person_sweep_id_idx').on(t.sweepId),

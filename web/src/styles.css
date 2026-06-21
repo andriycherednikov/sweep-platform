@@ -849,6 +849,11 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .agetoggle:active{transform:scale(.96);}
 /* "Minor" tag pinned to the top-right of a people row (matches the blue toggle) */
 .minor-badge{position:absolute; top:8px; right:10px; padding:1px 7px; border-radius:7px; background:#e8f1fc; border:1px solid #cdddf2; color:#2563b0; font-family:'Barlow Condensed'; font-weight:800; font-size:11px; letter-spacing:.4px; text-transform:uppercase;}
+/* "Excluded" tag — a person who self-excluded from Wagers (responsible-gambling) */
+.excl-badge{position:absolute; top:8px; right:10px; display:inline-flex; align-items:center; gap:3px; padding:1px 7px 1px 5px; border-radius:7px; background:#fde7e3; border:1px solid #f4c7bb; color:#b23c1e; font-family:'Barlow Condensed'; font-weight:800; font-size:11px; letter-spacing:.4px; text-transform:uppercase;}
+.excl-badge svg{width:11px; height:11px; stroke:currentColor;}
+/* if a row were somehow both a minor and excluded, tuck Excluded left of the Minor tag */
+.minor-badge ~ .excl-badge{right:64px;}
 .alloc-rand{display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:6px 0 4px;}
 .allocbtn{flex:0 0 auto; min-width:46px; display:inline-flex; align-items:center; justify-content:center; padding:8px 16px; border-radius:10px; border:1px solid var(--line); background:var(--card); font-family:'Barlow Condensed'; font-weight:800; font-size:15px; letter-spacing:.3px; color:var(--navy); cursor:pointer; transition:all .12s;}
 .allocbtn:hover{border-color:var(--navy);}

@@ -1,11 +1,16 @@
-import { expect, test, beforeEach } from 'vitest'
+import { expect, test, beforeEach, vi } from 'vitest'
 import { isOptedOut, optOut, OPT_OUT_DAYS } from './optout.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
+import { postOptout } from './api/client.js'
+
+vi.mock('./api/client.js', () => ({ postOptout: vi.fn(async () => ({ ok: true })) }))
 
 beforeEach(() => {
   localStorage.clear()
+  vi.clearAllMocks()
   S.people = [{ id: 'pn_a', name: 'Ann' }, { id: 'pn_b', name: 'Bob' }]
+  S.peopleById = Object.fromEntries(S.people.map((p) => [p.id, p]))
   setMe('pn_a')
 })
 
@@ -55,4 +60,16 @@ test('no identity → never opted out, optOut is a no-op', () => {
   setMe(null)
   optOut('7d')
   expect(isOptedOut()).toBe(false)
+  expect(postOptout).not.toHaveBeenCalled()
+})
+
+test('optOut records the exclusion server-side (personId + duration)', () => {
+  optOut('forever', 'pn_a')
+  expect(postOptout).toHaveBeenCalledWith('pn_a', 'forever')
+})
+
+test('a server-recorded exclusion locks the person even with no local entry (cross-device)', () => {
+  S.peopleById.pn_b.excluded = true
+  expect(isOptedOut('pn_b')).toBe(true) // honoured despite an empty local map
+  expect(isOptedOut('pn_a')).toBe(false)
 })

@@ -1154,6 +1154,7 @@ export function PeopleAdmin({ onToast, queryClient }) {
           {sorted.map((p) => (
             <button className="prow prow-click" key={p.id} onClick={() => setAllocId(p.id)}>
               {p.adult === false && <span className="minor-badge">Minor</span>}
+              {p.excluded && <span className="excl-badge" title="Self-excluded from Wagers"><Icon.shield />Excluded</span>}
               <PersonAvatar p={p} cls="pav" />
               <div className="pi" style={{ flex: 1, minWidth: 0 }}>
                 <b>{p.name}</b>

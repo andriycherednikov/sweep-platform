@@ -48,6 +48,14 @@ test('people carry their team codes', () => {
   expect(S.people.find((p) => p.id === 'p2').teams).toEqual(['hr', 'br'])
 })
 
+test('people carry the server-recorded Wagers self-exclusion flag (default false)', () => {
+  const S = assembleSweep(api)
+  expect(S.people.find((p) => p.id === 'p1').excluded).toBe(false)
+  const S2 = assembleSweep({ ...api, bootstrap: { ...api.bootstrap, people: api.bootstrap.people.map((p) => p.id === 'p1' ? { ...p, excluded: true } : p) } })
+  expect(S2.peopleById.p1.excluded).toBe(true)
+  expect(S2.peopleById.p2.excluded).toBe(false)
+})
+
 test('fixtures get Date kickoff, time labels, and derby/owners from ownership', () => {
   const S = assembleSweep(api)
   const f = S.fixtures[0]

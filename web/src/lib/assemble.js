@@ -59,6 +59,8 @@ export function assembleSweep(api) {
     createdAt: p.createdAt ?? null,
     // age gate for wagers — everyone is an adult unless an admin flags otherwise
     adult: p.adult !== false,
+    // server-recorded Wagers self-exclusion (responsible-gambling) — surfaced in admin
+    excluded: p.excluded === true,
     teams: ownership[p.id] ? ownership[p.id].slice() : [],
   }))
   const peopleById = Object.fromEntries(people.map((p) => [p.id, p]))

@@ -8,6 +8,7 @@ import { photoRoutes } from './routes/photos.js'
 import { syncStatusRoutes } from './routes/sync-status.js'
 import { streamRoutes } from './routes/stream.js'
 import { socialRoutes } from './routes/social.js'
+import { optoutRoutes } from './routes/optout.js'
 import { coinsRoutes } from './routes/coins.js'
 import { createBus } from './events/bus.js'
 import multipart from '@fastify/multipart'
@@ -61,6 +62,7 @@ export function buildApp(db, opts = {}) {
   app.register(syncStatusRoutes)
   app.register(streamRoutes)
   app.register(socialRoutes)
+  app.register(optoutRoutes)
   app.register(coinsRoutes)
   app.register(adminRoutes)
   app.register(sweepsRoutes)
