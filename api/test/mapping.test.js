@@ -221,14 +221,21 @@ test('mapMarkets falls back to another book for BTTS/DC/Odd-Even when the main b
     { name: 'Both Teams Score', values: [ov('Yes', 1.7), ov('No', 2.1)] },
     { name: 'Double Chance', values: [ov('Home/Draw', 1.25), ov('Home/Away', 1.2), ov('Draw/Away', 1.9)] },
     { name: 'Goals Odd/Even', values: [ov('Odd', 1.95), ov('Even', 1.85)] }, // name-variant alias
+    { name: 'Goals Over/Under', values: [ov('Over 2.5', 1.9), ov('Under 2.5', 1.9)] },
+    { name: 'Goals Over/Under First Half', values: [ov('Over 0.5', 1.5), ov('Under 0.5', 2.4)] },
+    { name: 'Exact Score', values: [ov('1:0', 6.0), ov('1:1', 7.0)] },
   ] }
   const r = mapMarkets(oddsResp([pinnacleMain, bet365]))
-  expect(r.book).toBe('Pinnacle')                  // main lines (1x2) still from Pinnacle
+  expect(r.book).toBe('Pinnacle')                  // 1x2 (+ prob) still from Pinnacle
   expect(r.markets['1x2'].book).toBe('Pinnacle')
-  expect(r.markets['btts'].book).toBe('Bet365')    // secondary markets fall back to Bet365
+  // every OTHER market falls back to the book that carries it
+  expect(r.markets['btts'].book).toBe('Bet365')
   expect(r.markets['dc'].book).toBe('Bet365')
   expect(r.markets['oe'].book).toBe('Bet365')
   expect(r.markets['oe'].selections.find(s => s.key === 'ODD').odds).toBe(1.95)
+  expect(r.markets['ou25'].book).toBe('Bet365')
+  expect(r.markets['fhou'].book).toBe('Bet365')
+  expect(r.markets['cs'].book).toBe('Bet365')
 })
 
 test('mapFixture captures the half-time score', () => {

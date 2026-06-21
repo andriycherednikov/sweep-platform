@@ -174,9 +174,12 @@ a{color:inherit; text-decoration:none;}
 .home-flow .brand small{ opacity:calc(1 - var(--p, 0)); }
 .home-flow .id-full{ overflow:hidden; max-height:calc(120px * (1 - var(--p, 0))); opacity:calc(1 - var(--p, 0)); margin:0; transition:opacity .12s linear; }
 .home-flow .tz{ opacity:calc(1 - var(--p, 0)); transition:opacity .12s linear; }
-.home-flow .id-mini{ display:flex; opacity:var(--p, 0); max-width:calc(160px * var(--p, 0)); overflow:hidden; pointer-events:none; transition:opacity .12s linear; }
-.home-flow .id-mini.on{ pointer-events:auto; }
-.home-flow .id-mini .av{ width:calc(26px * var(--p, 0)); height:26px; }
+/* mini chip reveals as a whole only past halfway (.on @ progress>0.5): fade via opacity,
+   snap the width open — never animate the width from 0, which clipped the round avatar
+   into a half-moon. Avatar stays a full 26px circle. */
+.home-flow .id-mini{ display:flex; align-items:center; opacity:0; max-width:0; overflow:hidden; pointer-events:none; transition:opacity .14s linear; }
+.home-flow .id-mini.on{ opacity:1; max-width:170px; pointer-events:auto; }
+.home-flow .id-mini .av{ width:26px; height:26px; flex-shrink:0; }
 /* compensating spacer at the BOTTOM of the Home scroll: height = the exact measured
    px the header has collapsed, so total scrollHeight stays constant. */
 .home-shrink-spacer{ flex-shrink:0; width:100%; pointer-events:none; }

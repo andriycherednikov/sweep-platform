@@ -117,9 +117,11 @@ const threeWay = (bet, label) => {
 }
 
 /**
- * /odds response → { markets, book, prob:{a,d,b} } or null. All markets come from one
- * bookmaker (BOOK_RANK order, else first present). A market the book doesn't fully carry
- * is omitted. `prob` is the implied 1X2 win % (for the ProbBar). Returns null if no markets.
+ * /odds response → { markets, book, prob:{a,d,b} } or null. 1x2 (and its implied `prob`
+ * for the ProbBar) comes from the preferred main book (BOOK_RANK); every OTHER market is
+ * sourced cross-book — the best-ranked book that actually carries it — since no single
+ * book carries them all (Pinnacle lacks BTTS/DC/Odd-Even, Bet365 lacks 1st-half O/U, only
+ * Bet365 has goalscorer). A market no book carries is omitted. Returns null if no markets.
  */
 export function mapMarkets(rawResponse) {
   const allBooks = rawResponse?.response?.[0]?.bookmakers ?? []
@@ -149,27 +151,30 @@ export function mapMarkets(rawResponse) {
     const [a, d, b] = roundTo100(implied.map((p) => p / sum))
     prob = { a, d, b }
   }
-  const fh = threeWay(findBet(bk, 'First Half Winner'), 'First Half Result')
-  if (fh) markets['fh1x2'] = { ...fh, book: bk.name }
+  const fhR = acrossBooks('First Half Winner')
+  const fh = fhR && threeWay(fhR.bet, 'First Half Result')
+  if (fh) markets['fh1x2'] = { ...fh, book: fhR.book.name }
 
-  const gou = findBet(bk, 'Goals Over/Under')
-  const go = oddOf(gou, 'Over 2.5'), gu = oddOf(gou, 'Under 2.5')
-  if (go && gu) markets['ou25'] = { label: 'Over/Under 2.5', line: 2.5, book: bk.name,
-    selections: [{ key: 'OVER', label: 'Over 2.5', odds: go }, { key: 'UNDER', label: 'Under 2.5', odds: gu }] }
+  const gouR = acrossBooks('Goals Over/Under')
+  if (gouR) {
+    const go = oddOf(gouR.bet, 'Over 2.5'), gu = oddOf(gouR.bet, 'Under 2.5')
+    if (go && gu) markets['ou25'] = { label: 'Over/Under 2.5', line: 2.5, book: gouR.book.name,
+      selections: [{ key: 'OVER', label: 'Over 2.5', odds: go }, { key: 'UNDER', label: 'Under 2.5', odds: gu }] }
+  }
 
-  const cou = findBet(bk, 'Cards Over/Under')
-  if (cou) for (const line of PREF_CARD_LINES) {
-    const co = oddOf(cou, `Over ${line}`), cu = oddOf(cou, `Under ${line}`)
-    if (co && cu) { markets['cards'] = { label: 'Cards Over/Under', line, book: bk.name,
+  const couR = acrossBooks('Cards Over/Under')
+  if (couR) for (const line of PREF_CARD_LINES) {
+    const co = oddOf(couR.bet, `Over ${line}`), cu = oddOf(couR.bet, `Under ${line}`)
+    if (co && cu) { markets['cards'] = { label: 'Cards Over/Under', line, book: couR.book.name,
       selections: [{ key: 'OVER', label: `Over ${line}`, odds: co }, { key: 'UNDER', label: `Under ${line}`, odds: cu }] }; break }
   }
 
-  const es = findBet(bk, 'Exact Score')
-  if (es) {
-    const sels = (es.values ?? [])
+  const esR = acrossBooks('Exact Score')
+  if (esR) {
+    const sels = (esR.bet.values ?? [])
       .map((v) => ({ key: v.value, label: String(v.value).replace(':', '-'), odds: Number(v.odd) }))
       .filter((s) => /^\d+:\d+$/.test(s.key) && Number.isFinite(s.odds) && s.odds > 1)
-    if (sels.length) markets['cs'] = { label: 'Correct Score', book: bk.name, selections: sels }
+    if (sels.length) markets['cs'] = { label: 'Correct Score', book: esR.book.name, selections: sels }
   }
 
   const btsR = acrossBooks(['Both Teams Score', 'Both Teams To Score'])
@@ -193,10 +198,10 @@ export function mapMarkets(rawResponse) {
       selections: [{ key: 'ODD', label: 'Odd', odds: oo }, { key: 'EVEN', label: 'Even', odds: oev }] }
   }
 
-  const fhg = findBet(bk, 'Goals Over/Under First Half')
-  for (const line of [0.5, 1.5]) {
-    const fo = oddOf(fhg, `Over ${line}`), fu = oddOf(fhg, `Under ${line}`)
-    if (fo && fu) { markets['fhou'] = { label: `1st Half O/U ${line}`, line, book: bk.name,
+  const fhgR = acrossBooks('Goals Over/Under First Half')
+  if (fhgR) for (const line of [0.5, 1.5]) {
+    const fo = oddOf(fhgR.bet, `Over ${line}`), fu = oddOf(fhgR.bet, `Under ${line}`)
+    if (fo && fu) { markets['fhou'] = { label: `1st Half O/U ${line}`, line, book: fhgR.book.name,
       selections: [{ key: 'OVER', label: `Over ${line}`, odds: fo }, { key: 'UNDER', label: `Under ${line}`, odds: fu }] }; break }
   }
 
