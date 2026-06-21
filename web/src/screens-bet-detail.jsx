@@ -25,16 +25,31 @@ function selLabel(mkKey, sel, f) {
   return sel.label
 }
 
-// normalise a player name for squad matching (accent/case/space-insensitive)
-const normName = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase()
-// split goalscorer selections into [{code,name,sels}] grouped by team (then "Other"),
-// matching each player's name against the two teams' stored squads.
+// Tokenise a player name for squad matching. The odds feed and the squad feed format
+// names differently (accents, hyphens, "Al-" vs "Al ", common-name vs full-name), so we
+// match on overlapping NAME WORDS rather than the exact string. Drop short connectors.
+const NAME_STOP = new Set(['al', 'el', 'de', 'da', 'do', 'di', 'la', 'le', 'bin', 'ibn', 'van', 'der', 'den', 'dos', 'das'])
+const nameToks = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(' ')
+  .filter((t) => t.length >= 3 && !NAME_STOP.has(t))
+// split goalscorer selections into [{code,name,sels}] grouped by team (then "Other"):
+// assign each odds player to whichever team's squad shares more name words.
 function scorerGroups(gs, f) {
   const sels = [...(gs?.selections || [])].sort((a, b) => a.odds - b.odds)
-  const setFor = (code) => new Set((S.team(code)?.squad || []).map((p) => normName(p.name)))
-  const s1 = setFor(f.t1), s2 = setFor(f.t2)
+  const toksFor = (code) => {
+    const set = new Set()
+    for (const p of (S.team(code)?.squad || [])) for (const t of nameToks(p.name)) set.add(t)
+    return set
+  }
+  const t1 = toksFor(f.t1), t2 = toksFor(f.t2)
+  const score = (toks, set) => toks.reduce((n, t) => n + (set.has(t) ? 1 : 0), 0)
   const g1 = [], g2 = [], other = []
-  for (const s of sels) { const n = normName(s.key); if (s1.has(n)) g1.push(s); else if (s2.has(n)) g2.push(s); else other.push(s) }
+  for (const s of sels) {
+    const toks = nameToks(s.key)
+    const a = score(toks, t1), b = score(toks, t2)
+    if (a === 0 && b === 0) other.push(s)
+    else if (a >= b) g1.push(s); else g2.push(s)
+  }
   return [
     { code: f.t1, name: S.team(f.t1)?.name || f.t1, sels: g1 },
     { code: f.t2, name: S.team(f.t2)?.name || f.t2, sels: g2 },
