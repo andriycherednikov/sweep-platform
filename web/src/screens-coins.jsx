@@ -96,6 +96,16 @@ function SingleBetRow({ b, onMatch }) {
 /* One parlay (multi) card — placed-date column + a header (leg count, combined odds),
    each leg's flag/pick/market/odds (with won/lost styling), and the stake/payout footer.
    Mirrors the single-bet card's layout vocabulary so the two read as one list. */
+// Always order parlay legs by kickoff (start date), regardless of settlement
+// status — resulted legs stay in chronological place, not bumped around.
+function legsByKickoff(legs) {
+  const ko = (l) => {
+    const f = S.fixture(l.fixtureId)
+    return f?.ko ? new Date(f.ko).getTime() : Infinity
+  }
+  return [...legs].sort((a, b) => ko(a) - ko(b))
+}
+
 function ParlayCard({ p }) {
   const isWon = p.status === 'won'
   const isLost = p.status === 'lost'
@@ -116,7 +126,7 @@ function ParlayCard({ p }) {
           <span className="coin-parlay-tag"><span className="coin-parlay-ico"><Icon.tickets /></span>Multi · {p.legs.length} legs</span>
         </div>
         <div className="coin-parlay-legs">
-          {p.legs.map((l) => {
+          {legsByKickoff(p.legs).map((l) => {
             const lw = l.status === 'won', ll = l.status === 'lost'
             const lf = S.fixture(l.fixtureId)
             const legFlag = betSelectionFlag(l)
