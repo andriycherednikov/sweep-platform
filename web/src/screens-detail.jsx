@@ -17,7 +17,7 @@ import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
 import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchOpenBets, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
-import { MARKET_LABELS, betSelectionLabel } from "./lib/betLabels.js";
+import { SingleBetRow, ParlayCard } from "./screens-coins.jsx";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
@@ -1194,54 +1194,19 @@ export function PeopleAdmin({ onToast, queryClient }) {
     </div>
   );
 }
-// One open (unresolved) single bet in the admin audit list. Bets stuck on an
-// already-finished match are flagged red so the admin knows to settle them.
-function OpenBetRow({ b }) {
-  const f = S.fixture(b.fixtureId);
+// Wraps a My-Bets card so the admin audit reads identically to the player's own
+// bet list, but adds a red "Needs settling" banner on bets the settler can resolve now.
+function OpenItem({ stale, children }) {
   return (
-    <div className={"ob-row"+(b.stale?" ob-stale":"")}>
-      <div className="ob-line">
-        {f ? <>
-          <img className="flag" src={S.flag(f.t1,40)} alt=""/>
-          <span className="ob-teams">{S.team(f.t1)?.name||f.t1} v {S.team(f.t2)?.name||f.t2}</span>
-          <img className="flag" src={S.flag(f.t2,40)} alt=""/>
-        </> : <span className="ob-teams">{b.fixtureId}</span>}
-      </div>
-      <div className="ob-pick"><span className="ob-mkt">{MARKET_LABELS[b.market]||b.market}</span><span className="ob-sel">{betSelectionLabel(b)}</span></div>
-      <div className="ob-foot">
-        <span className="ob-stake"><Icon.coin/> {b.stake} @ {Number(b.odds).toFixed(2)}</span>
-        {b.stale
-          ? <span className="ob-flag">Needs settling</span>
-          : b.fixtureStatus==="final"
-          ? <span className="ob-when">Final · awaiting result data</span>
-          : <span className="ob-when">{b.fixtureStatus==="live" ? "Live" : (f?.dateTimeLabel||"")}</span>}
-      </div>
-    </div>
-  );
-}
-
-// One open multi (parlay) in the audit list; legs whose match is done show "done".
-function OpenParlayRow({ p }) {
-  return (
-    <div className={"ob-row ob-parlay"+(p.stale?" ob-stale":"")}>
-      <div className="ob-line"><span className="ob-multi"><Icon.tickets/> Multi · {p.legs.length} legs</span></div>
-      <div className="ob-legs">
-        {p.legs.map(l=>{ const f=S.fixture(l.fixtureId); return (
-          <div key={l.id} className="ob-leg">
-            <span>{f ? `${S.team(f.t1)?.name||f.t1} v ${S.team(f.t2)?.name||f.t2}` : l.fixtureId} · {betSelectionLabel(l)}</span>
-            {l.fixtureStatus==="final" && <span className="ob-leg-done">done</span>}
-          </div>
-        ); })}
-      </div>
-      <div className="ob-foot">
-        <span className="ob-stake"><Icon.coin/> {p.stake} @ {Number(p.combinedOdds).toFixed(2)}</span>
-        {p.stale && <span className="ob-flag">Needs settling</span>}
-      </div>
+    <div className={"ob-item"+(stale?" ob-item-stale":"")}>
+      {stale && <div className="ob-needs"><Icon.bolt/> Needs settling</div>}
+      {children}
     </div>
   );
 }
 
 // A person's open bets, headed by their avatar/name with open + stale counts.
+// Reuses the exact My-Bets cards (placed date, stake @ odds, To win) for a 1:1 look.
 function OpenBetsPerson({ g }) {
   const p = S.peopleById[g.person.id] || g.person;
   return (
@@ -1252,8 +1217,8 @@ function OpenBetsPerson({ g }) {
         <span className="ob-count">{g.openCount} open</span>
         {g.staleCount>0 && <span className="ct ct-warn">{g.staleCount} stale</span>}
       </div>
-      {g.singles.map(b=><OpenBetRow key={b.id} b={b}/>)}
-      {g.parlays.map(p=><OpenParlayRow key={p.id} p={p}/>)}
+      {g.singles.map(b=><OpenItem key={b.id} stale={b.stale}><SingleBetRow b={b}/></OpenItem>)}
+      {g.parlays.map(p=><OpenItem key={p.id} stale={p.stale}><ParlayCard p={p}/></OpenItem>)}
     </div>
   );
 }

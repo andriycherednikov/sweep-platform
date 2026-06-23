@@ -780,32 +780,22 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .admin-maint-btn{width:auto; flex:0 0 auto; padding:11px 14px; font-size:13.5px;}
 
 /* ---- Open-bets audit (Moderation › Open bets) ---- */
+/* Reuses the My-Bets cards (.coin-betslip); these styles only add the per-person
+   grouping header and the "needs settling" highlight on top of those cards. */
 .admintab .ct.ct-warn{background:#e23b3b; color:#fff;}
-.ob-person{margin-bottom:16px;}
+.ob-person{margin-bottom:18px;}
 .ob-person-head{display:flex; align-items:center; gap:8px; margin:0 2px 8px;}
 .ob-person-head b{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:15px; color:var(--navy);}
 .ob-person-head .ob-count{font-size:11.5px; color:var(--muted2); font-weight:700; margin-left:2px;}
 .ob-person-head .ct{margin-left:auto; background:#eef1f5; color:var(--muted2); font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; white-space:nowrap;}
 .ob-person-head .ct.ct-warn{background:#fde6e6; color:#c62b2b;}
-.ob-row{background:var(--card); border:1px solid var(--line); border-radius:13px; padding:10px 12px; margin-bottom:8px;}
-.ob-row.ob-stale{border-color:#f3b6b6; background:#fdf3f3;}
-.ob-line{display:flex; align-items:center; gap:7px; min-width:0;}
-.ob-line .flag{width:19px; height:14px; border-radius:2px; flex:0 0 auto;}
-.ob-teams{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:13.5px; color:var(--navy); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.ob-multi{display:inline-flex; align-items:center; gap:5px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:13px; color:var(--navy);}
-.ob-multi svg{width:15px; height:15px; color:var(--accent);}
+/* the My-Bets card already owns its own bottom margin, so the wrapper is layout-neutral
+   until a bet is stale, when it draws a red ring + banner over the card. */
+.ob-item.ob-item-stale{position:relative; border-radius:16px; box-shadow:0 0 0 2px #e23b3b; margin-bottom:12px;}
+.ob-item.ob-item-stale .coin-betslip{margin-bottom:0;}
+.ob-needs{display:flex; align-items:center; gap:5px; background:#e23b3b; color:#fff; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; padding:4px 10px; border-radius:16px 16px 0 0;}
+.ob-needs svg{width:13px; height:13px;}
 .linklike{background:none; border:0; padding:0; color:var(--accent); font:inherit; font-weight:700; text-decoration:underline; cursor:pointer;}
-.ob-pick{display:flex; align-items:baseline; gap:8px; margin-top:5px;}
-.ob-mkt{font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; color:var(--muted2); font-weight:700;}
-.ob-sel{font-size:13px; font-weight:700; color:var(--accent);}
-.ob-legs{margin-top:5px; display:flex; flex-direction:column; gap:3px;}
-.ob-leg{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted);}
-.ob-leg-done{font-size:9.5px; font-weight:800; text-transform:uppercase; color:#c62b2b; background:#fde6e6; padding:1px 6px; border-radius:999px;}
-.ob-foot{display:flex; align-items:center; justify-content:space-between; margin-top:7px;}
-.ob-stake{display:inline-flex; align-items:center; gap:4px; font-size:12.5px; font-weight:800; color:var(--navy);}
-.ob-stake svg{width:13px; height:13px;}
-.ob-when{font-size:11.5px; color:var(--muted2);}
-.ob-flag{font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.3px; color:#fff; background:#e23b3b; padding:3px 9px; border-radius:999px;}
 .queueitem{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:12px;}
 .queueitem .qimg{aspect-ratio:16/11; position:relative; background:repeating-linear-gradient(45deg,#d4dae2 0 14px,#cdd4dd 14px 28px);}
 .queueitem .qimg .lbl{position:absolute; inset:0; display:grid; place-items:center; font-family:'Barlow Semi Condensed'; font-size:11px; color:#8b94a2; font-weight:700;}

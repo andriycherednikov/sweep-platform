@@ -32,7 +32,7 @@ function betSelectionFlag(b) {
 
 /* One single-bet row. Extracted verbatim from MyBets so single bets render
    identically alongside parlay cards. */
-function SingleBetRow({ b, onMatch }) {
+export function SingleBetRow({ b, onMatch }) {
   const f = S.fixture(b.fixtureId)
   const selLabel = betSelectionLabel(b)
   const selFlag = betSelectionFlag(b)
@@ -106,7 +106,7 @@ function legsByKickoff(legs) {
   return [...legs].sort((a, b) => ko(a) - ko(b))
 }
 
-function ParlayCard({ p }) {
+export function ParlayCard({ p }) {
   const isWon = p.status === 'won'
   const isLost = p.status === 'lost'
   const isRefunded = p.status === 'refunded'
