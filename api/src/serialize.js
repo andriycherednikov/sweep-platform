@@ -16,6 +16,7 @@ export function serializeFixture(f) {
     htScore: f.htScore1 == null ? null : [f.htScore1, f.htScore2],
     lineups: f.lineups ?? null,
     events: f.events ?? [],
+    statistics: f.statistics ?? null,
     stage: f.stage, derby: f.derby, doubleOwner: f.doubleOwner,
   }
 }

@@ -2,7 +2,7 @@ import cron from 'node-cron'
 import { createPool, createDb } from './db/client.js'
 import { createApiFootballProvider } from './providers/api-football-provider.js'
 import { syncBaseline } from './worker/baseline-sync.js'
-import { pollLive, pollEvents, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
+import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
@@ -70,6 +70,9 @@ setInterval(async () => {
       // events poll AFTER scores, so a goal notification carries the just-updated score
       const e = await pollEvents(db, provider, liveIds, await resolveCrosswalk(db), (ev) => publish(db, ev))
       if (e) console.log(`[events] ${e} new`)
+      // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
+      const st = await pollStatistics(db, provider, liveIds, await resolveCrosswalk(db))
+      if (st) console.log(`[stats] updated ${st}`)
       // any polled fixture just go final? recompute the table now + queue an official reconcile
       const after = await db.select({ id: fixture.id, status: fixture.status }).from(fixture).where(inArray(fixture.id, liveIds))
       const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))

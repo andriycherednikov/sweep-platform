@@ -17,6 +17,12 @@ test('serializeFixture coerces null events to an empty array', () => {
   expect(serializeFixture({ ...base, events: null }).events).toEqual([])
 })
 
+test('serializeFixture passes statistics through, null when absent', () => {
+  const statistics = { ar: { shotsOnGoal: 5, totalShots: 12, corners: 7, possession: '58%', fouls: 9 } }
+  expect(serializeFixture({ ...base, statistics }).statistics).toEqual(statistics)
+  expect(serializeFixture({ ...base }).statistics).toBeNull()
+})
+
 test('serializeFixture exposes markets and half-time score', () => {
   const markets = { '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 2 }] } }
   const out = serializeFixture({ id: '1', group: 'A', matchday: 1, t1Code: 'arg', t2Code: 'bra',

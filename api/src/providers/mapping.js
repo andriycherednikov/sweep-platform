@@ -284,3 +284,35 @@ export function mapEvents(rawResponse, crosswalkMap) {
   }
   return out
 }
+
+// API-Football stat `type` → our compact key. Only the handful we display.
+const STAT_KEYS = {
+  'Shots on Goal': 'shotsOnGoal',
+  'Total Shots': 'totalShots',
+  'Corner Kicks': 'corners',
+  'Ball Possession': 'possession',
+  'Fouls': 'fouls',
+}
+
+/**
+ * /fixtures/statistics response + a crosswalk (Map<providerTeamId, teamCode>) →
+ * { [teamCode]: { shotsOnGoal, totalShots, corners, possession, fouls } }. Keeps only the
+ * displayed stat types; preserves raw values (numbers, or "55%" for possession; null when
+ * the provider hasn't reported a stat yet). Teams not in the crosswalk are dropped. Returns
+ * null when nothing resolves, so the poller never wipes a prior snapshot with an empty one.
+ */
+export function mapStatistics(rawResponse, crosswalkMap) {
+  const entries = rawResponse?.response ?? []
+  const out = {}
+  for (const e of entries) {
+    const teamCode = crosswalkMap.get(e.team?.id)
+    if (!teamCode) continue
+    const stats = {}
+    for (const s of (e.statistics ?? [])) {
+      const key = STAT_KEYS[s.type]
+      if (key) stats[key] = s.value ?? null
+    }
+    if (Object.keys(stats).length) out[teamCode] = stats
+  }
+  return Object.keys(out).length ? out : null
+}

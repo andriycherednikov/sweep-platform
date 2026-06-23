@@ -42,7 +42,7 @@ const SQUAD = [
 ]
 
 function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
-  const { status = 'upcoming', score = null } = opts
+  const { status = 'upcoming', score = null, statistics = null } = opts
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -54,7 +54,7 @@ function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
     fixtures: [{
       id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
       venue: 'V', city: 'C', status, score, minute: null,
-      prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups, events,
+      prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups, events, statistics,
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
@@ -656,6 +656,36 @@ test('Moderation › Open bets surfaces an error (not "all settled") when the au
   // must NOT show the green success state that would falsely reassure the admin
   expect(queryByText(/Every wager has been settled/i)).toBeNull()
 })
+
+test('MatchSheet shows per-team match statistics side by side', () => {
+  const statistics = {
+    hr: { shotsOnGoal: 5, totalShots: 12, corners: 7, possession: '58%', fouls: 9 },
+    be: { shotsOnGoal: 2, totalShots: 8, corners: 3, possession: '42%', fouls: 14 },
+  };
+  const f = sheetFixture(null, {}, [], { status: 'live', score: [1, 0], statistics });
+  const { getByText } = renderSheet(f);
+  expect(getByText('Match statistics')).toBeInTheDocument();
+  expect(getByText('Shots on Goal')).toBeInTheDocument();
+  expect(getByText('Possession')).toBeInTheDocument();
+  expect(getByText('58%')).toBeInTheDocument();   // home possession
+  expect(getByText('42%')).toBeInTheDocument();   // away possession
+  expect(getByText('14')).toBeInTheDocument();    // away fouls
+});
+
+test('MatchSheet renders no statistics block when the cache has none', () => {
+  const f = sheetFixture(null, {}, [], { status: 'live', score: [0, 0], statistics: null });
+  const { queryByText } = renderSheet(f);
+  expect(queryByText('Match statistics')).toBeNull();
+});
+
+test('MatchSheet hides match statistics under privacy mode', () => {
+  const statistics = { hr: { possession: '58%' }, be: { possession: '42%' } };
+  const f = sheetFixture(null, {}, [], { status: 'final', score: [1, 0], statistics });
+  setSpoiler(true);
+  const { queryByText } = renderSheet(f);
+  expect(queryByText('Match statistics')).toBeNull();
+  setSpoiler(false);
+});
 
 test('MatchSheet covers a final score under spoiler mode, reveals on tap', () => {
   const f = sheetFixture(null, {}, [], { status: 'final', score: [5, 1] })

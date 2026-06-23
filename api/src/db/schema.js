@@ -84,6 +84,7 @@ export const fixture = pgTable('fixture', {
   htScore2: integer('ht_score2'),
   lineups: jsonb('lineups'),
   events: jsonb('events'),
+  statistics: jsonb('statistics'), // { [teamCode]: { shotsOnGoal, totalShots, corners, possession, fouls } }
   stage: text('stage').notNull().default('group'),
   derby: boolean('derby').notNull().default(false),
   doubleOwner: boolean('double_owner').notNull().default(false),

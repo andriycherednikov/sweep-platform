@@ -807,6 +807,17 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .ob-list .coin-betslip:hover{background:transparent;}
 .coin-leg-click{cursor:pointer;}
 .linklike{background:none; border:0; padding:0; color:var(--accent); font:inherit; font-weight:700; text-decoration:underline; cursor:pointer;}
+
+/* ---- Match statistics (MatchSheet) ---- */
+.mstat{margin-bottom:13px;}
+.mstat:last-child{margin-bottom:0;}
+.mstat-top{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:5px;}
+.mstat-val{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:14px; color:var(--navy); font-variant-numeric:tabular-nums; min-width:38px;}
+.mstat-val.r{text-align:right;}
+.mstat-lbl{flex:1; text-align:center; font-size:11px; font-weight:800; color:var(--muted2); text-transform:uppercase; letter-spacing:.5px;}
+.mstat-bar{display:flex; height:7px; border-radius:5px; overflow:hidden; background:var(--line);}
+.mstat-fill{height:100%; min-width:2px;}
+.mstat-fill:first-child{margin-right:2px;}
 .queueitem{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:12px;}
 .queueitem .qimg{aspect-ratio:16/11; position:relative; background:repeating-linear-gradient(45deg,#d4dae2 0 14px,#cdd4dd 14px 28px);}
 .queueitem .qimg .lbl{position:absolute; inset:0; display:grid; place-items:center; font-family:'Barlow Semi Condensed'; font-size:11px; color:#8b94a2; font-weight:700;}

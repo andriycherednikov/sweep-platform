@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapLineups, mapSquad, mapEvents, mapMarkets } from '../src/providers/mapping.js'
+import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapLineups, mapSquad, mapEvents, mapStatistics, mapMarkets } from '../src/providers/mapping.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 
@@ -131,6 +131,40 @@ test('mapEvents produces a stable id from elapsed/extra/team/player/type/detail'
   const b = mapEvents(raw, XW)[0].id
   expect(a).toBe(b)
   expect(a).toBe('45|2|hr|Modric|goal|Normal Goal')
+})
+
+const rawStats = (list) => ({ response: list })
+test('mapStatistics: keyed by team code, keeps the displayed types, preserves raw values', () => {
+  const out = mapStatistics(rawStats([
+    { team: { id: 3001 }, statistics: [
+      { type: 'Shots on Goal', value: 5 }, { type: 'Total Shots', value: 12 },
+      { type: 'Corner Kicks', value: 7 }, { type: 'Ball Possession', value: '58%' },
+      { type: 'Fouls', value: 9 }, { type: 'Offsides', value: 2 }, // Offsides dropped
+    ] },
+    { team: { id: 3002 }, statistics: [
+      { type: 'Shots on Goal', value: 2 }, { type: 'Total Shots', value: 8 },
+      { type: 'Corner Kicks', value: 3 }, { type: 'Ball Possession', value: '42%' },
+      { type: 'Fouls', value: 14 },
+    ] },
+  ]), XW)
+  expect(out).toEqual({
+    hr: { shotsOnGoal: 5, totalShots: 12, corners: 7, possession: '58%', fouls: 9 },
+    be: { shotsOnGoal: 2, totalShots: 8, corners: 3, possession: '42%', fouls: 14 },
+  })
+})
+
+test('mapStatistics: null value preserved; teams off the crosswalk dropped', () => {
+  const out = mapStatistics(rawStats([
+    { team: { id: 3001 }, statistics: [{ type: 'Shots on Goal', value: null }, { type: 'Fouls', value: 3 }] },
+    { team: { id: 9999 }, statistics: [{ type: 'Fouls', value: 1 }] }, // not in crosswalk
+  ]), XW)
+  expect(out).toEqual({ hr: { shotsOnGoal: null, fouls: 3 } })
+})
+
+test('mapStatistics: null when empty, missing, or all teams unresolved', () => {
+  expect(mapStatistics(rawStats([]), XW)).toBeNull()
+  expect(mapStatistics(null, XW)).toBeNull()
+  expect(mapStatistics(rawStats([{ team: { id: 9999 }, statistics: [{ type: 'Fouls', value: 1 }] }]), XW)).toBeNull()
 })
 
 const oddsResponse = (bookmakers) => ({ response: [{ bookmakers }] })

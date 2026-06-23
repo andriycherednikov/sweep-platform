@@ -134,6 +134,13 @@
       "when": 1782042751168,
       "tag": "0018_thin_madame_web",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782181156673,
+      "tag": "0019_new_vengeance",
+      "breakpoints": true
     }
   ]
 }

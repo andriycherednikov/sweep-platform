@@ -1,6 +1,6 @@
 import { eq, inArray, and, isNull } from 'drizzle-orm'
 import { fixture, syncLog } from '../db/schema.js'
-import { mapLineups, mapEvents } from '../providers/mapping.js'
+import { mapLineups, mapEvents, mapStatistics } from '../providers/mapping.js'
 
 /** True if `now` is within `windowMin` minutes after (or 10 min before) any kickoff. */
 export function isLiveWindow(now, kickoffs, windowMin = 150) {
@@ -146,6 +146,45 @@ export async function pollEvents(db, provider, ids, crosswalk, publish = () => {
   }
   await db.insert(syncLog).values({ source: 'api-football', kind: 'events', status: 'ok', counts: { polled: ids.length, emitted } })
   return emitted
+}
+
+/**
+ * Poll /fixtures/statistics for the given in-window fixtures and store the per-team snapshot
+ * on `fixture.statistics`. Stats aren't notification-worthy (no SSE) — they're a passive
+ * panel refreshed as the cache updates. Best-effort per fixture; a null map (nothing
+ * resolved / not yet published) never overwrites a prior snapshot, and identical maps are
+ * skipped so an unchanged fixture costs no write.
+ * @returns {Promise<number>} count of fixtures whose statistics changed
+ */
+export async function pollStatistics(db, provider, ids, crosswalk) {
+  if (!ids || ids.length === 0) return 0
+  const rows = await db.select({ id: fixture.id, statistics: fixture.statistics })
+    .from(fixture).where(inArray(fixture.id, ids))
+  const byId = new Map(rows.map((r) => [r.id, r]))
+  let updated = 0
+  for (const id of ids) {
+    const row = byId.get(id)
+    if (!row) continue
+    try {
+      const stats = mapStatistics(await provider.fetchStatistics(id), crosswalk)
+      if (!stats) continue // nothing published yet → leave any prior snapshot intact
+      // jsonb doesn't preserve key order, so compare order-insensitively — otherwise an
+      // unchanged snapshot looks "new" on every tick and we'd write needlessly.
+      if (stableStr(stats) === stableStr(row.statistics)) continue
+      await db.update(fixture).set({ statistics: stats, updatedAt: new Date() }).where(eq(fixture.id, id))
+      updated++
+    } catch { /* best-effort per fixture */ }
+  }
+  await db.insert(syncLog).values({ source: 'api-football', kind: 'statistics', status: 'ok', counts: { polled: ids.length, updated } })
+  return updated
+}
+
+// Deterministic JSON with recursively-sorted keys — used to diff snapshots regardless of
+// the key order a jsonb round-trip returns.
+function stableStr(v) {
+  if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null'
+  if (Array.isArray(v)) return '[' + v.map(stableStr).join(',') + ']'
+  return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stableStr(v[k])).join(',') + '}'
 }
 
 /**

@@ -5,7 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, backfillFinalEvents } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, pollStatistics, backfillFinalEvents } from '../src/worker/live-poller.js'
 import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -181,6 +181,44 @@ test('pollEvents isolates a per-fixture fetch error', async () => {
   const provider = { async fetchEvents() { throw new Error('boom') } }
   const n = await pollEvents(db, provider, ['9002'], xw, () => {})
   expect(n).toBe(0) // swallowed, no throw
+})
+
+const statsRaw = (h, a) => [
+  { team: { id: 3001 }, statistics: [{ type: 'Shots on Goal', value: h.sog }, { type: 'Ball Possession', value: h.pos }, { type: 'Fouls', value: h.f }] },
+  { team: { id: 3002 }, statistics: [{ type: 'Shots on Goal', value: a.sog }, { type: 'Ball Possession', value: a.pos }, { type: 'Fouls', value: a.f }] },
+]
+const statsProvider = (list) => ({ async fetchStatistics() { return { response: list } } })
+
+test('pollStatistics stores a per-team snapshot keyed by team code', async () => {
+  await db.update(fixture).set({ statistics: null }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  const n = await pollStatistics(db, statsProvider(statsRaw({ sog: 5, pos: '58%', f: 9 }, { sog: 2, pos: '42%', f: 14 })), ['9002'], xw)
+  expect(n).toBe(1)
+  const [row] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(row.statistics).toEqual({ hr: { shotsOnGoal: 5, possession: '58%', fouls: 9 }, be: { shotsOnGoal: 2, possession: '42%', fouls: 14 } })
+})
+
+test('pollStatistics is a no-op (no write) when the snapshot is unchanged', async () => {
+  const xw = await resolveCrosswalk(db)
+  const provider = statsProvider(statsRaw({ sog: 1, pos: '50%', f: 1 }, { sog: 1, pos: '50%', f: 1 }))
+  await pollStatistics(db, provider, ['9002'], xw)
+  const n = await pollStatistics(db, provider, ['9002'], xw)
+  expect(n).toBe(0)
+})
+
+test('pollStatistics keeps a prior snapshot when nothing is published yet', async () => {
+  const xw = await resolveCrosswalk(db)
+  await pollStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), ['9002'], xw)
+  const n = await pollStatistics(db, statsProvider([]), ['9002'], xw) // empty response → null map, no overwrite
+  expect(n).toBe(0)
+  const [row] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(row.statistics.hr.shotsOnGoal).toBe(3)
+})
+
+test('pollStatistics isolates a per-fixture fetch error', async () => {
+  const xw = await resolveCrosswalk(db)
+  const n = await pollStatistics(db, { async fetchStatistics() { throw new Error('boom') } }, ['9002'], xw)
+  expect(n).toBe(0)
 })
 
 test('backfillFinalEvents pulls events for finished fixtures missing them, skipping ones already polled', async () => {

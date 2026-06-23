@@ -637,6 +637,64 @@ function MatchTimeline({ f }) {
     </>
   );
 }
+// Side-by-side per-team match statistics (shots, possession, corners, fouls), each a
+// proportional two-colour bar. Hidden until the cache has a snapshot and (like the
+// timeline) under privacy mode, since shots/possession telegraph who's on top.
+const STAT_ROWS = [
+  ['shotsOnGoal', 'Shots on Goal'],
+  ['totalShots', 'Total Shots'],
+  ['corners', 'Corner Kicks'],
+  ['possession', 'Possession'],
+  ['fouls', 'Fouls'],
+];
+const statNum = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : 0; };
+const statText = (v) => (v == null ? '–' : String(v));
+
+function MatchStats({ f }) {
+  const [open, setOpen] = useState(true);
+  const s1 = f.statistics?.[f.t1];
+  const s2 = f.statistics?.[f.t2];
+  if ((!s1 && !s2) || spoilerHidden(f)) return null;
+  const rows = STAT_ROWS.filter(([k]) => (s1?.[k] != null) || (s2?.[k] != null));
+  if (rows.length === 0) return null;
+  const c1 = S.team(f.t1)?.color || "var(--navy)";
+  const c2 = S.team(f.t2)?.color || "#9aa6b5";
+  return (
+    <>
+      <button type="button" className="blocktitle squad-toggle" aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ padding: "2px 2px 10px", width: "100%", background: "none", border: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 7, cursor: "pointer" }}>
+        <span>Match statistics</span>
+        <Icon.chev style={{ width: 15, height: 15, marginLeft: "auto", transition: "transform .22s ease", transform: open ? "rotate(90deg)" : "none" }} />
+      </button>
+      <div className={"squad-collapse" + (open ? " open" : "")}>
+        <div className="squad-collapse-inner">
+          <div className="block" style={{ padding: "14px 14px", marginBottom: 16 }}>
+            {rows.map(([k, label]) => {
+              const a = statNum(s1?.[k]), b = statNum(s2?.[k]);
+              const tot = a + b;
+              const pa = tot > 0 ? Math.round((a / tot) * 100) : 50;
+              return (
+                <div key={k} className="mstat">
+                  <div className="mstat-top">
+                    <span className="mstat-val">{statText(s1?.[k])}</span>
+                    <span className="mstat-lbl">{label}</span>
+                    <span className="mstat-val r">{statText(s2?.[k])}</span>
+                  </div>
+                  <div className="mstat-bar">
+                    <div className="mstat-fill" style={{ width: `${pa}%`, background: c1 }} />
+                    <div className="mstat-fill" style={{ width: `${100 - pa}%`, background: c2 }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhoto }) {
   useSocial();
   useSpoiler();
@@ -677,6 +735,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           </div>
 
           <MatchTimeline f={f} />
+
+          <MatchStats f={f} />
 
           {f.hasOdds && (
             <>
