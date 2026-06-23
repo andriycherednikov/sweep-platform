@@ -628,8 +628,9 @@ function MatchTimeline({ f }) {
   );
 }
 // Side-by-side per-team match statistics (shots, possession, corners, fouls), each a
-// proportional two-colour bar. Hidden until the cache has a snapshot and (like the
-// timeline) under privacy mode, since shots/possession telegraph who's on top.
+// proportional bar — home red / away blue, matching the Official prediction bar. Hidden
+// until the cache has a snapshot and (like the timeline) under privacy mode, since
+// shots/possession telegraph who's on top.
 const STAT_ROWS = [
   ['shotsOnGoal', 'Shots on Goal'],
   ['totalShots', 'Total Shots'],
@@ -647,8 +648,6 @@ function MatchStats({ f }) {
   if ((!s1 && !s2) || spoilerHidden(f)) return null;
   const rows = STAT_ROWS.filter(([k]) => (s1?.[k] != null) || (s2?.[k] != null));
   if (rows.length === 0) return null;
-  const c1 = S.team(f.t1)?.color || "var(--navy)";
-  const c2 = S.team(f.t2)?.color || "#9aa6b5";
   return (
     <>
       <button type="button" className="blocktitle squad-toggle" aria-expanded={open}
@@ -672,8 +671,8 @@ function MatchStats({ f }) {
                     <span className="mstat-val r">{statText(s2?.[k])}</span>
                   </div>
                   <div className="mstat-bar">
-                    <div className="mstat-fill" style={{ width: `${pa}%`, background: c1 }} />
-                    <div className="mstat-fill" style={{ width: `${100 - pa}%`, background: c2 }} />
+                    <div className="mstat-fill l" style={{ width: `${pa}%` }} />
+                    <div className="mstat-fill r" style={{ width: `${100 - pa}%` }} />
                   </div>
                 </div>
               );
