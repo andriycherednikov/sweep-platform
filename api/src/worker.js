@@ -68,10 +68,11 @@ setInterval(async () => {
       const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
       if (n) console.log(`[live] updated ${n}`)
       // events poll AFTER scores, so a goal notification carries the just-updated score
-      const e = await pollEvents(db, provider, liveIds, await resolveCrosswalk(db), (ev) => publish(db, ev))
+      const crosswalk = await resolveCrosswalk(db) // static within a match window — resolve once per tick
+      const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
       if (e) console.log(`[events] ${e} new`)
       // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
-      const st = await pollStatistics(db, provider, liveIds, await resolveCrosswalk(db))
+      const st = await pollStatistics(db, provider, liveIds, crosswalk)
       if (st) console.log(`[stats] updated ${st}`)
       // any polled fixture just go final? recompute the table now + queue an official reconcile
       const after = await db.select({ id: fixture.id, status: fixture.status }).from(fixture).where(inArray(fixture.id, liveIds))

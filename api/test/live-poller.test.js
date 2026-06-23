@@ -215,6 +215,19 @@ test('pollStatistics keeps a prior snapshot when nothing is published yet', asyn
   expect(row.statistics.hr.shotsOnGoal).toBe(3)
 })
 
+test('pollStatistics merges a one-team response into the existing snapshot (no wipe)', async () => {
+  await db.update(fixture).set({ statistics: null }).where(eq(fixture.id, '9002'))
+  const xw = await resolveCrosswalk(db)
+  await pollStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), ['9002'], xw)
+  // a later poll only returns the home team — must not drop the away team's stats
+  const onlyHome = statsProvider([{ team: { id: 3001 }, statistics: [{ type: 'Shots on Goal', value: 7 }] }])
+  const n = await pollStatistics(db, onlyHome, ['9002'], xw)
+  expect(n).toBe(1)
+  const [row] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(row.statistics.hr.shotsOnGoal).toBe(7)  // home updated
+  expect(row.statistics.be).toEqual({ shotsOnGoal: 4, possession: '45%', fouls: 6 }) // away preserved
+})
+
 test('pollStatistics isolates a per-fixture fetch error', async () => {
   const xw = await resolveCrosswalk(db)
   const n = await pollStatistics(db, { async fetchStatistics() { throw new Error('boom') } }, ['9002'], xw)

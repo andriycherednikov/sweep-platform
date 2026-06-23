@@ -168,10 +168,13 @@ export async function pollStatistics(db, provider, ids, crosswalk) {
     try {
       const stats = mapStatistics(await provider.fetchStatistics(id), crosswalk)
       if (!stats) continue // nothing published yet → leave any prior snapshot intact
+      // merge per team so a transient one-team response never wipes the other team's stats;
+      // a match's stats only accrue, so the latest value per team always wins.
+      const merged = { ...(row.statistics || {}), ...stats }
       // jsonb doesn't preserve key order, so compare order-insensitively — otherwise an
       // unchanged snapshot looks "new" on every tick and we'd write needlessly.
-      if (stableStr(stats) === stableStr(row.statistics)) continue
-      await db.update(fixture).set({ statistics: stats, updatedAt: new Date() }).where(eq(fixture.id, id))
+      if (stableStr(merged) === stableStr(row.statistics)) continue
+      await db.update(fixture).set({ statistics: merged, updatedAt: new Date() }).where(eq(fixture.id, id))
       updated++
     } catch { /* best-effort per fixture */ }
   }
