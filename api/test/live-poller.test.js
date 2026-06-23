@@ -5,7 +5,7 @@ import { openTestDb } from './helpers/db.js'
 import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
-import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, pollStatistics, backfillFinalEvents } from '../src/worker/live-poller.js'
+import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, pollStatistics, backfillFinalStatistics, backfillFinalEvents } from '../src/worker/live-poller.js'
 import { resolveCrosswalk } from '../src/worker/crosswalk.js'
 import { seed } from '../src/seed/seed.js'
 
@@ -232,6 +232,19 @@ test('pollStatistics isolates a per-fixture fetch error', async () => {
   const xw = await resolveCrosswalk(db)
   const n = await pollStatistics(db, { async fetchStatistics() { throw new Error('boom') } }, ['9002'], xw)
   expect(n).toBe(0)
+})
+
+test('backfillFinalStatistics fills the most recent finals missing stats, respecting the limit', async () => {
+  await db.update(fixture).set({ statistics: {} }) // everything else already has a (non-null) snapshot
+  await db.update(fixture).set({ status: 'final', statistics: null, kickoffUtc: new Date('2026-06-20T00:00:00Z') }).where(eq(fixture.id, '9002'))
+  await db.update(fixture).set({ status: 'final', statistics: null, kickoffUtc: new Date('2026-06-10T00:00:00Z') }).where(eq(fixture.id, '9001'))
+  const xw = await resolveCrosswalk(db)
+  const res = await backfillFinalStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), xw, { limit: 1 })
+  expect(res).toEqual({ checked: 1, updated: 1 }) // newest-first → only 9002
+  const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
+  expect(f2.statistics.hr.shotsOnGoal).toBe(3)
+  const [f1] = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  expect(f1.statistics).toBeNull() // beyond the limit → untouched
 })
 
 test('backfillFinalEvents pulls events for finished fixtures missing them, skipping ones already polled', async () => {

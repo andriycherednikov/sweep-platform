@@ -1,4 +1,4 @@
-import { eq, inArray, and, isNull } from 'drizzle-orm'
+import { eq, inArray, and, isNull, desc } from 'drizzle-orm'
 import { fixture, syncLog } from '../db/schema.js'
 import { mapLineups, mapEvents, mapStatistics } from '../providers/mapping.js'
 
@@ -188,6 +188,24 @@ function stableStr(v) {
   if (v === null || typeof v !== 'object') return JSON.stringify(v) ?? 'null'
   if (Array.isArray(v)) return '[' + v.map(stableStr).join(',') + ']'
   return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stableStr(v[k])).join(',') + '}'
+}
+
+/**
+ * One-off backfill of per-team statistics for already-finished matches that were never
+ * stats-polled (e.g. games that ended before this feature shipped or outside the live
+ * window). Picks the most recent finals lacking a snapshot first, capped by `limit` so a
+ * manual run can populate just a handful. Reuses pollStatistics (idempotent, best-effort).
+ * @returns {Promise<{checked:number, updated:number}>} finals examined and ones that got stats
+ */
+export async function backfillFinalStatistics(db, provider, crosswalk, { limit } = {}) {
+  let q = db.select({ id: fixture.id }).from(fixture)
+    .where(and(eq(fixture.status, 'final'), isNull(fixture.statistics)))
+    .orderBy(desc(fixture.kickoffUtc))
+  if (limit) q = q.limit(limit)
+  const rows = await q
+  if (rows.length === 0) return { checked: 0, updated: 0 }
+  const updated = await pollStatistics(db, provider, rows.map((r) => r.id), crosswalk)
+  return { checked: rows.length, updated }
 }
 
 /**

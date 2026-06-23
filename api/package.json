@@ -15,6 +15,7 @@
     "sync": "node --env-file=../.env src/worker/run-baseline.js",
     "crosswalk:sync": "node --env-file=../.env src/worker/crosswalk-sync.js",
     "squads:sync": "node --env-file=../.env src/worker/run-squads.js",
+    "stats:backfill": "node --env-file=../.env src/worker/run-stats-backfill.js",
     "cutover": "node --env-file=../.env src/worker/cutover.js",
     "admin:hash": "node src/seed/admin-hash.js"
   },
