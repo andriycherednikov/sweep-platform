@@ -113,16 +113,6 @@ export const syncLog = pgTable('sync_log', {
   error: text('error'),
 })
 
-export const watch = pgTable('watch', {
-  sweepId: text('sweep_id').notNull(),
-  fixtureId: text('fixture_id').notNull().references(() => fixture.id),
-  personId: text('person_id').notNull(),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.fixtureId, t.personId] }),
-  sweepIdx: index('watch_sweep_id_idx').on(t.sweepId),
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'watch_person_sweep_fk' }),
-}))
-
 export const support = pgTable('support', {
   sweepId: text('sweep_id').notNull(),
   fixtureId: text('fixture_id').notNull().references(() => fixture.id),

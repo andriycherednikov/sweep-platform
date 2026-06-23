@@ -1,14 +1,10 @@
 import { and, eq } from 'drizzle-orm'
-import { fixture, person, watch, support } from '../db/schema.js'
+import { fixture, person, support } from '../db/schema.js'
 import { requireSweep } from '../sweeps/auth.js'
 
 const DRAW = 'DRAW'
 const member = requireSweep(['member', 'admin'])
 
-const watchBody = {
-  type: 'object', required: ['fixtureId', 'personId'], additionalProperties: false,
-  properties: { fixtureId: { type: 'string' }, personId: { type: 'string' } },
-}
 const supportBody = {
   type: 'object', required: ['fixtureId', 'personId', 'teamCode'], additionalProperties: false,
   properties: { fixtureId: { type: 'string' }, personId: { type: 'string' }, teamCode: { type: 'string' } },
@@ -17,33 +13,10 @@ const supportBody = {
 export async function socialRoutes(app) {
   app.get('/api/social', { preHandler: member }, async (req) => {
     const sweepId = req.sweep.id
-    const [ws, ss] = await Promise.all([
-      app.db.select().from(watch).where(eq(watch.sweepId, sweepId)),
-      app.db.select().from(support).where(eq(support.sweepId, sweepId)),
-    ])
-    const watch_ = {}
-    for (const w of ws) (watch_[w.fixtureId] ??= []).push(w.personId)
+    const ss = await app.db.select().from(support).where(eq(support.sweepId, sweepId))
     const support_ = {}
     for (const s of ss) (support_[s.fixtureId] ??= {})[s.personId] = s.teamCode
-    return { watch: watch_, support: support_ }
-  })
-
-  app.post('/api/watch', { preHandler: member, schema: { body: watchBody } }, async (req, reply) => {
-    const sweepId = req.sweep.id
-    const { fixtureId, personId } = req.body
-    const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
-    if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
-    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-    if (!p) return reply.code(400).send({ error: 'unknown_person' })
-
-    const where = and(eq(watch.fixtureId, fixtureId), eq(watch.personId, personId))
-    const existing = await app.db.select().from(watch).where(where)
-    let watching
-    if (existing.length) { await app.db.delete(watch).where(where); watching = false }
-    else { await app.db.insert(watch).values({ sweepId, fixtureId, personId }); watching = true }
-
-    await app.publish({ type: 'watch', sweepId, fixtureId })
-    return { fixtureId, personId, watching }
+    return { support: support_ }
   })
 
   app.post('/api/support', { preHandler: member, schema: { body: supportBody } }, async (req, reply) => {

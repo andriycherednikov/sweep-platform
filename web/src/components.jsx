@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { SWEEP as S, useSweep, canModerate } from "./data.js";
 import {
-  useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf, toast,
+  useSocial, getMe, setMe, toast,
   supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
@@ -15,7 +15,7 @@ import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
 import { useOptOut } from "./optout.js";
 
-export { useSocial, getMe, setMe, isWatching, toggleWatch, watchersOf };
+export { useSocial, getMe, setMe };
 
 /* ---- icons ---- */
 export const Icon = {
@@ -49,20 +49,6 @@ export const Icon = {
   coin:    (p)=> <svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2"/><path d="M12 7v10M9.5 9.5h4a1.5 1.5 0 010 3h-3a1.5 1.5 0 000 3h4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>,
   tickets: (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" strokeLinecap="round" {...p}><rect x="7" y="3.6" width="13.4" height="9.2" rx="2"/><rect x="3.6" y="9.8" width="13.4" height="10.6" rx="2" fill="var(--card)"/><path d="M10.1 9.8v10.6" strokeDasharray="1.3 1.7"/></svg>
 };
-
-export function WatchBtn({ id, compact }){
-  useSocial();
-  const on = isWatching(id);
-  const n = watchersOf(id).length;
-  function click(e){ e.stopPropagation(); const ok = toggleWatch(id); if (ok) toast(on ? "No longer watching" : "You're watching — visible to the group"); }
-  return (
-    <button className={"watchbtn" + (on?" on":"") + (compact?" compact":"")} onClick={click} title={on?"You're watching":"I'll be watching"} aria-pressed={on}>
-      {on ? <Icon.eyefill/> : <Icon.eye/>}
-      {n>0 && <span className="wn">{n}</span>}
-      {!compact && <span>{on ? "Watching" : "Watch"}</span>}
-    </button>
-  );
-}
 
 /* a person's owned teams — flag + name for ≤2, compact flags + count once there are more */
 export function PersonTeams({ codes }) {
@@ -291,7 +277,7 @@ export function MatchCard({ f, onOpen, onToast }) {
   useSpoiler();
   const me = getMe();
   const myTeam = !!me && (me.teams.indexOf(f.t1)>=0 || me.teams.indexOf(f.t2)>=0);
-  const mine = myTeam || isWatching(f.id); // highlight: your team plays, or you're watching
+  const mine = myTeam; // highlight: your team plays
   const t1 = S.team(f.t1), t2 = S.team(f.t2);
   const o = S.ownersForFixture(f);
   const showScore = f.status === "final" || f.status === "live";
@@ -307,7 +293,6 @@ export function MatchCard({ f, onOpen, onToast }) {
         <div style={{display:"flex",alignItems:"center",gap:9}}>
           {/* StatusPill already conveys live/FT, so show the plain kickoff date (no suffix) */}
           <span className="mc-time">{f.dateTimeLabel}</span>
-          <WatchBtn id={f.id} compact onToast={onToast} />
         </div>
       </div>
       <div className="mc-h">
@@ -723,7 +708,7 @@ export function IdentitySheet({ onClose }){
         <div className="grab"></div>
         <div className="sheet-head"><h3>Who are you?</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
         <div className="sheet-body">
-          <p style={{fontSize:12.5,color:"var(--muted)",lineHeight:1.45,marginBottom:12}}>Pick yourself so the app can lead with your teams, your watch list and your support. Stays on this device — no account.</p>
+          <p style={{fontSize:12.5,color:"var(--muted)",lineHeight:1.45,marginBottom:12}}>Pick yourself so the app can lead with your teams and your support. Stays on this device — no account.</p>
           <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" autoFocus />
           {people.length===0 && <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",padding:"18px 0"}}>No one matches “{q}”.</p>}
           <div className="plist">

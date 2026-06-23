@@ -29,10 +29,10 @@ export function useEventStream() {
     es.onmessage = (e) => {
       let ev
       try { ev = JSON.parse(e.data) } catch { return }
-      if (ev.type === 'watch' || ev.type === 'support') {
+      if (ev.type === 'support') {
         qc.invalidateQueries({ queryKey: ['social'] })
         // ambient floating reaction when someone backs/switches a team (not on remove)
-        if (ev.type === 'support' && ev.supporting) {
+        if (ev.supporting) {
           pushNotification({ personId: ev.personId, teamCode: ev.supporting, fixtureId: ev.fixtureId, action: ev.action })
         }
       } else if (ev.type === 'photo-pending') {

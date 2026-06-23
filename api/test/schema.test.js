@@ -38,7 +38,7 @@ test('reference tables exist', async () => {
   for (const t of ['person', 'team', 'ownership', 'sweep', 'team_crosswalk']) {
     expect(names).toContain(t)
   }
-  for (const t of ['fixture', 'standing', 'sync_log', 'watch', 'support', 'photo']) {
+  for (const t of ['fixture', 'standing', 'sync_log', 'support', 'photo']) {
     expect(names).toContain(t)
   }
 })

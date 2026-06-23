@@ -13,7 +13,6 @@ vi.mock('./lib/analytics.js', () => ({
   initAnalytics: vi.fn(), trackPageview: vi.fn(), trackEvent: vi.fn(),
 }))
 vi.mock('./api/client.js', () => ({
-  postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
   postSuperSession: vi.fn(async () => ({ super: true })),
   fetchSuperSweeps: vi.fn(async () => ([])),
@@ -53,7 +52,7 @@ beforeEach(() => {
     fixtures: [{ id: 'm1', ko: '2026-06-20T18:00:00Z', t1: 'hr', t2: 'br', status: 'upcoming', group: 'A', stage: 'group', prob: null, score: null }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
 })
 
 test('mounts analytics and emits a pageview for the initial route', () => {

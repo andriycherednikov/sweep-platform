@@ -226,8 +226,6 @@ a{color:inherit; text-decoration:none;}
 /* ===== section heads ===== */
 .sec-h{display:flex; align-items:baseline; justify-content:space-between; margin:18px 2px 9px;}
 .sec-h h2{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.6px; text-transform:uppercase; color:var(--navy); white-space:nowrap;}
-.sec-h h2 .watch-eye{display:inline-flex; vertical-align:-2px; margin-right:3px;}
-.sec-h h2 .watch-eye svg{width:15px; height:15px; fill:var(--accent); stroke:var(--accent);}
 .sec-h .lnk{font-size:11.5px; font-weight:700; color:var(--accent); letter-spacing:.3px;}
 .sec-h .lnk.cd-lnk{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.5px;}
 /* Clickable content elements (native <button>s already get cursor:pointer via button{}).
@@ -336,7 +334,7 @@ a{color:inherit; text-decoration:none;}
 .card:active{transform:scale(.985);}
 .card .tcbar{position:absolute; left:0; top:0; bottom:0; width:4px;}
 .card.derby{border-color:#f6c9bf; box-shadow:0 0 0 1px #f6c9bf inset;}
-/* your game (your team plays, or you're watching) — clear blue edge + glow */
+/* your game (your team plays) — clear blue edge + glow */
 .card.mine{border-color:#4071e6; box-shadow:0 0 0 1px #4071e6, 0 6px 18px -8px rgba(64,113,230,.55);}
 .card.mine .tcbar{background:#4071e6 !important; width:5px;}
 .mc-status{display:flex; align-items:center; gap:7px; min-width:0;}
@@ -352,13 +350,6 @@ a{color:inherit; text-decoration:none;}
 @keyframes bl{50%{opacity:.3;}}
 .mc-time{font-size:11px; color:var(--muted); font-weight:600;}
 
-/* watch toggle */
-.watchbtn{display:inline-flex; align-items:center; gap:5px; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:10px; letter-spacing:.6px; text-transform:uppercase; color:var(--muted2); background:#eef1f5; border-radius:999px; padding:4px 9px; transition:background .15s,color .15s; flex-shrink:0;}
-.watchbtn svg{width:13px; height:13px; stroke:currentColor;}
-.watchbtn.compact{padding:5px; gap:0;}
-.watchbtn.on{background:#fdeae6; color:var(--accent);}
-.watchbtn.on svg{fill:var(--accent); stroke:var(--accent);}
-.watchbtn .wn{font-family:'Barlow Condensed'; font-weight:800; font-size:11px; line-height:1;}
 
 /* spoiler protection */
 .spoiler-cover{display:inline-flex; align-items:center; justify-content:center; background:#eef1f5; color:var(--muted2); border:0; border-radius:8px; padding:3px 11px; cursor:pointer; flex-shrink:0;}
@@ -656,8 +647,6 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .cta:active{transform:scale(.98);}
 .cta.ghost{background:var(--card); color:var(--navy); border:1px solid var(--line); box-shadow:none;}
 .cta svg{width:18px; height:18px;}
-.cta.watch-cta.on{background:var(--navy); box-shadow:0 8px 18px -8px rgba(11,31,58,.6);}
-.cta.watch-cta.on svg{fill:#fff; stroke:#fff;}
 
 /* ===== tab bar ===== */
 .tabs{background:rgba(255,255,255,.96); backdrop-filter:blur(12px); border-top:1px solid var(--line); display:grid; grid-auto-flow:column; grid-auto-columns:1fr; padding:8px 6px 12px; padding-bottom:calc(12px + env(safe-area-inset-bottom)); flex-shrink:0; position:absolute; bottom:0; left:0; right:0; z-index:30;}

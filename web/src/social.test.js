@@ -3,14 +3,13 @@ import { SWEEP, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 
 vi.mock('./api/client.js', () => ({
-  postWatch: vi.fn(async () => ({ watching: true })),
   postSupport: vi.fn(async () => ({ supporting: 'hr' })),
 }))
 vi.mock('./lib/analytics.js', () => ({ trackEvent: vi.fn() }))
-import { postWatch, postSupport } from './api/client.js'
+import { postSupport } from './api/client.js'
 import { trackEvent } from './lib/analytics.js'
 import {
-  getMe, setMe, watchersOf, toggleWatch, isWatching,
+  getMe, setMe,
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
   predictionsOf, predictionAccuracy, setCurrentSweepId,
 } from './social.js'
@@ -28,7 +27,7 @@ function seedFixture() {
     fixtures: [{ id: 'm1', ko: '2026-06-20T18:00:00Z', t1: 'hr', t2: 'br', status: 'upcoming', group: 'A', stage: 'group', prob: null, score: null }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
 }
 
 beforeEach(() => {
@@ -43,30 +42,7 @@ beforeEach(() => {
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
-})
-
-test('setSocialData hydrates watchers from the server shape', () => {
-  setSocialData({ watch: { m1: ['p1'] }, support: {} })
-  expect(watchersOf('m1').map((p) => p.id)).toEqual(['p1'])
-})
-
-test('toggleWatch optimistically flips state and POSTs to the server', () => {
-  setMe('p1')
-  expect(isWatching('m1')).toBe(false)
-  const ok = toggleWatch('m1')
-  expect(ok).toBe(true)
-  expect(isWatching('m1')).toBe(true) // optimistic, synchronous
-  expect(postWatch).toHaveBeenCalledWith('m1', 'p1')
-})
-
-test('toggleWatch rolls back when the server write fails', async () => {
-  postWatch.mockRejectedValueOnce(new Error('HTTP 400'))
-  setMe('p1')
-  toggleWatch('m1')
-  expect(isWatching('m1')).toBe(true)        // optimistic on
-  await Promise.resolve(); await Promise.resolve() // let the rejected promise settle
-  expect(isWatching('m1')).toBe(false)       // rolled back
+  setSocialData({ support: {} })
 })
 
 test('setSupport optimistically sets backing and POSTs', () => {
@@ -92,7 +68,7 @@ test('predictionLeaderboard ranks people by correct crowd calls on finished matc
     fixtures: [{ id: 'm1', group: 'A', matchday: 1, t1: 'hr', t2: 'br', ko: '2026-06-10T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: 90, prob: { a: 50, d: 25, b: 25 }, stage: 'group' }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'hr', p2: 'br' } } }) // p1 called the winner, p2 didn't
+  setSocialData({ support: { m1: { p1: 'hr', p2: 'br' } } }) // p1 called the winner, p2 didn't
   const lb = predictionLeaderboard(4)
   expect(lb[0].person.id).toBe('p1')
   expect(lb[0].correct).toBe(1)
@@ -115,7 +91,7 @@ test('predictionLeaderboard credits a DRAW pick on a level final and misses team
     fixtures: [{ id: 'm1', group: 'A', matchday: 1, t1: 'hr', t2: 'br', ko: '2026-06-10T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 1], minute: 90, prob: { a: 33, d: 34, b: 33 }, stage: 'group' }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'DRAW', p2: 'hr' } } })
+  setSocialData({ support: { m1: { p1: 'DRAW', p2: 'hr' } } })
   const lb = predictionLeaderboard(4)
   const p1 = lb.find(x => x.person.id === 'p1')
   const p2 = lb.find(x => x.person.id === 'p2')
@@ -126,8 +102,9 @@ test('predictionLeaderboard credits a DRAW pick on a level final and misses team
 test('writes require identity — no me means no POST', () => {
   // window.__sweepPickMe would normally open the identity sheet; stub it
   window.__sweepPickMe = vi.fn()
-  expect(toggleWatch('m1')).toBe(false)
-  expect(postWatch).not.toHaveBeenCalled()
+  setSupport('m1', 'hr')
+  expect(window.__sweepPickMe).toHaveBeenCalled()
+  expect(postSupport).not.toHaveBeenCalled()
 })
 
 test('setSupport emits vote_cast with home/away/draw pick + match_id when a pick is set', () => {
@@ -172,7 +149,7 @@ function seedPreds(fixtures, support) {
     },
     fixtures, standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support })
+  setSocialData({ support })
 }
 
 const predFx = (id, status, score) => ({

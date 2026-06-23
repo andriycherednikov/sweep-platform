@@ -1,5 +1,5 @@
 import { notInArray, inArray, and, isNull, eq } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog, watch, support, bet, coinLedger, parlay } from '../db/schema.js'
+import { fixture, standing, ownership, syncLog, support, bet, coinLedger, parlay } from '../db/schema.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
@@ -95,11 +95,10 @@ export async function syncBaseline(db, provider, { season }) {
     }
 
     // prune fixtures not in the latest provider set. Clear dependent social rows first —
-    // watch/support FK the fixture (photos already set-null on delete) — or the delete fails.
+    // support FKs the fixture (photos already set-null on delete) — or the delete fails.
     // Guard the whole call: an empty fetch is suspicious — prune nothing rather than wipe the table.
     const keep = fixtures.map((f) => f.id)
     if (keep.length) {
-      await db.delete(watch).where(notInArray(watch.fixtureId, keep))
       await db.delete(support).where(notInArray(support.fixtureId, keep))
       // a parlay with a leg on a dropped fixture can never complete → refund + delete it
       // (ON DELETE CASCADE drops its legs) before we touch single bets below.

@@ -37,23 +37,9 @@ test('fetchAll resolves the whole bundle in parallel', async () => {
 })
 
 test('fetchSocial hits /api/social', async () => {
-  mockJson({ '/api/social': { watch: { m1: ['p1'] }, support: {} } })
+  mockJson({ '/api/social': { support: { m1: { p1: 'hr' } } } })
   const { fetchSocial } = await import('./client.js')
-  expect(await fetchSocial()).toEqual({ watch: { m1: ['p1'] }, support: {} })
-})
-
-test('postWatch POSTs fixtureId+personId and returns the new state', async () => {
-  const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
-    calls.push({ url, opts })
-    return { ok: true, status: 200, json: async () => ({ fixtureId: 'm1', personId: 'p1', watching: true }) }
-  }))
-  const { postWatch } = await import('./client.js')
-  const res = await postWatch('m1', 'p1')
-  expect(res.watching).toBe(true)
-  expect(calls[0].url).toMatch(/\/api\/watch$/)
-  expect(calls[0].opts.method).toBe('POST')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'm1', personId: 'p1' })
+  expect(await fetchSocial()).toEqual({ support: { m1: { p1: 'hr' } } })
 })
 
 test('postSupport POSTs fixtureId+personId+teamCode', async () => {
@@ -83,8 +69,8 @@ test('postOptout POSTs personId+duration to /api/optout', async () => {
 
 test('a non-ok POST throws', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 400, json: async () => ({}) })))
-  const { postWatch } = await import('./client.js')
-  await expect(postWatch('m1', 'p1')).rejects.toThrow(/watch/i)
+  const { postSupport } = await import('./client.js')
+  await expect(postSupport('m1', 'p1', 'hr')).rejects.toThrow(/support/i)
 })
 
 test('uploadPhoto POSTs FormData to /api/photos', async () => {
@@ -148,10 +134,10 @@ test('public post sends credentials:include', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
     calls.push({ url, opts })
-    return { ok: true, status: 200, json: async () => ({ watching: true }) }
+    return { ok: true, status: 200, json: async () => ({ supporting: 'hr' }) }
   }))
-  const { postWatch } = await import('./client.js')
-  await postWatch('m1', 'p1')
+  const { postSupport } = await import('./client.js')
+  await postSupport('m1', 'p1', 'hr')
   expect(calls[0].opts.credentials).toBe('include')
 })
 

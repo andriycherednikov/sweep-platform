@@ -18,13 +18,13 @@ test('GET /api/stream emits SSE frames for events published to the bus', async (
 
   // first read drains the initial retry hint; publish then read the event frame
   await reader.read()
-  app.bus.publish({ type: 'watch', fixtureId: 'm1' })
+  app.bus.publish({ type: 'support', fixtureId: 'm1' })
 
   let buf = ''
   while (!buf.includes('"fixtureId":"m1"')) {
     const { value } = await reader.read()
     buf += new TextDecoder().decode(value)
   }
-  expect(buf).toContain('data: {"type":"watch","fixtureId":"m1"}')
+  expect(buf).toContain('data: {"type":"support","fixtureId":"m1"}')
   await reader.cancel()
 })

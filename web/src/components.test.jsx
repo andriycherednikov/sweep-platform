@@ -3,7 +3,6 @@ import { expect, test, beforeEach, afterEach, vi } from 'vitest'
 import { render, fireEvent, renderHook, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
-  postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
   postSession: vi.fn(async () => ({ sweepId: 'sw_b', role: 'member' })),
   postLogout: vi.fn(async () => ({})),
@@ -52,7 +51,7 @@ beforeEach(() => {
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } })
+  setSocialData({ support: { m1: { p1: 'mx', p2: 'za' } } })
 })
 afterEach(() => localStorage.clear())
 
@@ -69,7 +68,7 @@ test('CrowdPick renders tappable team zones showing each crowd count', () => {
 })
 
 test('CrowdPick zones keep their min-width floor and hide counts before any votes', () => {
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   const { getByLabelText, container } = render(<CrowdPick f={FG} />)
   // all three zones still render (none collapse) when nobody has voted
   expect(container.querySelectorAll('.cz').length).toBe(3)
@@ -103,27 +102,27 @@ test('CrowdPick toasts "voting is closed" when a locked zone is tapped', () => {
 })
 
 test('CrowdPick renders nothing when locked with no calls', () => {
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   const { container } = render(<CrowdPick f={{ ...F, status: 'final' }} locked />)
   expect(container.firstChild).toBeNull()
 })
 
 test('CrowdPick shows a Draw zone (three zones) on a group-stage fixture', () => {
-  setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'DRAW' } } });
+  setSocialData({ support: { m1: { p1: 'mx', p2: 'DRAW' } } });
   const { getByLabelText, container } = render(<CrowdPick f={FG} />);
   expect(getByLabelText(/Call Draw/i)).toBeTruthy();
   expect(container.querySelectorAll('.cz').length).toBe(3);
 });
 
 test('CrowdPick hides the Draw control on a knockout fixture', () => {
-  setSocialData({ watch: {}, support: { m1: { p1: 'mx', p2: 'za' } } });
+  setSocialData({ support: { m1: { p1: 'mx', p2: 'za' } } });
   const { queryByLabelText } = render(<CrowdPick f={{ ...FG, stage: 'r16' }} />);
   expect(queryByLabelText(/Call Draw/i)).toBeNull();
 });
 
 test('CrowdPick knockout empty-state note omits the draw prompt', () => {
   setMe(null);
-  setSocialData({ watch: {}, support: {} });
+  setSocialData({ support: {} });
   const { getByText, queryByText } = render(<CrowdPick f={{ ...FG, stage: 'r16' }} />);
   expect(getByText('Tap a team to call the winner')).toBeInTheDocument();
   expect(queryByText(/or draw/i)).toBeNull();
@@ -131,7 +130,7 @@ test('CrowdPick knockout empty-state note omits the draw prompt', () => {
 
 test('CrowdPick records a DRAW pick and POSTs it', () => {
   setMe('p1');
-  setSocialData({ watch: {}, support: {} });
+  setSocialData({ support: {} });
   const { getByLabelText } = render(<CrowdPick f={FG} />);
   fireEvent.click(getByLabelText(/Call Draw/i));
   expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');

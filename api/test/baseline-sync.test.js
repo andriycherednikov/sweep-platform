@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, fixture, standing, syncLog, watch, support } from '../src/db/schema.js'
+import { teamCrosswalk, fixture, standing, syncLog, support } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
@@ -42,15 +42,13 @@ test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', a
   expect(logs.at(-1).status).toBe('ok')
 })
 
-test('prunes a stale fixture even when it has watch/support rows (no FK error)', async () => {
+test('prunes a stale fixture even when it has support rows (no FK error)', async () => {
   await db.insert(fixture).values({ id: 'stale1', group: 'L', matchday: 1, t1Code: 'hr', t2Code: 'be', kickoffUtc: new Date(), venue: 'V', city: 'C', status: 'upcoming' }).onConflictDoNothing()
-  await db.insert(watch).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4' }).onConflictDoNothing()
   await db.insert(support).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
   // the provider only knows 9001/9002, so stale1 must be pruned along with its social rows
   await syncBaseline(db, provider, { season: 2026 })
   expect((await db.select().from(fixture).where(eq(fixture.id, 'stale1'))).length).toBe(0)
   expect((await db.select().from(support).where(eq(support.fixtureId, 'stale1'))).length).toBe(0)
-  expect((await db.select().from(watch).where(eq(watch.fixtureId, 'stale1'))).length).toBe(0)
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('ok')
 })

@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { sweep, person, ownership, watch, support } from '../src/db/schema.js'
+import { sweep, person, ownership, support, fixture } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()
@@ -27,7 +27,6 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   // Leave the shared test DB as we found it (seed.test.js counts persons globally).
-  await db.delete(watch).where(eq(watch.sweepId, 'sw_b'))
   await db.delete(support).where(eq(support.sweepId, 'sw_b'))
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_b'))
   await db.delete(person).where(eq(person.sweepId, 'sw_b'))
@@ -54,17 +53,18 @@ test('platform host with no cookie is 401 on scoped data', async () => {
   expect(res.statusCode).toBe(401)
 })
 
-test('a watch in sweep B is invisible to the default sweep', async () => {
+test('a support pick in sweep B is invisible to the default sweep', async () => {
   const cookie = await sessionCookie(memberB)
-  await app.inject({ method: 'POST', url: '/api/watch', headers: { host: 'platform.test', cookie },
-    payload: { fixtureId: 'm0', personId: 'pb1' } })
-  // default host social must not contain pb1's watch
+  const [m0] = await db.select().from(fixture).where(eq(fixture.id, 'm0'))
+  await app.inject({ method: 'POST', url: '/api/support', headers: { host: 'platform.test', cookie },
+    payload: { fixtureId: 'm0', personId: 'pb1', teamCode: m0.t1Code } })
+  // default host social must not contain pb1's pick
   const def = (await app.inject({ method: 'GET', url: '/api/social' })).json()
-  const all = Object.values(def.watch).flat()
+  const all = Object.values(def.support).flatMap((m) => Object.keys(m))
   expect(all).not.toContain('pb1')
   // sweep B social shows it
   const b = (await app.inject({ method: 'GET', url: '/api/social', headers: { host: 'platform.test', cookie } })).json()
-  expect(b.watch.m0).toContain('pb1')
+  expect(b.support.m0.pb1).toBe(m0.t1Code)
 })
 
 test('approved photos are scoped per sweep', async () => {

@@ -11,7 +11,7 @@ const bundle = {
   '/api/bootstrap': { teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#000', strength: 80 }], people: [], ownership: {}, scoring: { rule: 'top3' } },
   '/api/fixtures': [], '/api/standings': { L: [] }, '/api/photos': [],
   '/api/sync-status': { stale: true, lastBaselineAt: null, lastLiveAt: null },
-  '/api/social': { watch: {}, support: {} },
+  '/api/social': { support: {} },
   '/api/coins': { balance: 1000, bets: [] },
 }
 

@@ -7,7 +7,7 @@ import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, AppHeader, PageHeader,
   SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams,
 } from "./components.jsx";
-import { useSocial, getMe, isWatching, toast, predictionLeaderboard } from "./social.js";
+import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
@@ -61,7 +61,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const o = S.ownersForFixture(next);
   const cd = useCountdown(Math.max(-KICKOFF_GRACE_SEC, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
 
-  useSocial(); // re-render on identity / watch / support changes
+  useSocial(); // re-render on identity / support changes
   useSpoiler();
   const me = getMe();
   const isDesktop = useIsDesktop(); // mobile is people-centric: stats go above Next games

@@ -47,10 +47,10 @@ test('subscribes to /api/stream on mount', () => {
   expect(es.url).toBe('/api/stream')
 })
 
-test('watch/support events invalidate the social query', () => {
+test('support events invalidate the social query', () => {
   const { spy, es } = setup()
-  es.emit({ type: 'watch', fixtureId: 'm1' })
   es.emit({ type: 'support', fixtureId: 'm1' })
+  es.emit({ type: 'support', fixtureId: 'm2' })
   expect(spy).toHaveBeenCalledWith({ queryKey: ['social'] })
   expect(spy.mock.calls.filter((c) => c[0]?.queryKey?.[0] === 'social')).toHaveLength(2)
 })

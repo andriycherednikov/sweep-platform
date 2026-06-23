@@ -1,0 +1,1 @@
+DROP TABLE "watch" CASCADE;

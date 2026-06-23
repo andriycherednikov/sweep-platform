@@ -1,11 +1,11 @@
 /* ============================================================
    THE SWEEP — social store: identity (localStorage) +
-   watching/support (server-backed, hydrated via setSocialData,
+   support (server-backed, hydrated via setSocialData,
    optimistic writes reconciled by SSE).
    ============================================================ */
 import { useState, useEffect } from "react";
 import { SWEEP as S } from "./data.js";
-import { postWatch, postSupport } from "./api/client.js";
+import { postSupport } from "./api/client.js";
 import { trackEvent } from "./lib/analytics.js";
 
 export const DRAW = 'DRAW';
@@ -44,28 +44,10 @@ export function getMe(){ return meId ? S.people.find(p=>p.id===meId) : null; }
 export function setMe(id){ meId = id; try { localStorage.setItem(meKey(), id || "none"); } catch(e){} notifySocial(); }
 
 /* server-backed state, hydrated by the ['social'] query + kept live by SSE */
-let watchers = {};          // { fixtureId: [personId] }
 let support = {};           // { fixtureId: { personId: teamCode } }
 export function setSocialData(server){
-  watchers = (server && server.watch) ? server.watch : {};
   support  = (server && server.support) ? server.support : {};
   notifySocial();
-}
-
-export function watchersOf(mid){ return (watchers[mid]||[]).map(id=>S.people.find(p=>p.id===id)).filter(Boolean); }
-export function isWatching(mid){ return !!(meId && (watchers[mid]||[]).indexOf(meId) >= 0); }
-export function myWatching(){ if (!meId) return []; return Object.keys(watchers).filter(mid=>watchers[mid].indexOf(meId)>=0); }
-
-export function toggleWatch(mid){
-  if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return false; }
-  const prev = watchers;
-  const arr = watchers[mid] ? watchers[mid].slice() : [];
-  const i = arr.indexOf(meId);
-  if (i>=0) arr.splice(i,1); else arr.push(meId);
-  watchers = Object.assign({}, watchers, { [mid]: arr });
-  notifySocial();
-  postWatch(mid, meId).catch(()=>{ watchers = prev; notifySocial(); toast("Couldn't update — try again"); });
-  return true;
 }
 
 export function supportOf(mid){

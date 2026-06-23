@@ -3,7 +3,6 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import { render, fireEvent, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
-  postWatch: vi.fn(async () => ({})),
   postSupport: vi.fn(async () => ({})),
   uploadPhoto: vi.fn(async () => ({})),
   adminLogin: vi.fn(async () => ({ admin: true })),
@@ -58,7 +57,7 @@ function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   return S.fixture('m1')
 }
 
@@ -80,18 +79,6 @@ test('MatchSheet hides the match-events timeline under privacy mode, shows it on
   expect(queryByText(/Match events/i)).toBeTruthy()  // revealed with the score
   expect(queryByText('L. Modric')).toBeTruthy()
   setSpoiler(false)
-})
-
-test('MatchSheet shows the watch CTA + who\'s-watching for an upcoming game', () => {
-  const { getByText } = renderSheet(sheetFixture(null, {}, [], { status: 'upcoming' }))
-  expect(getByText(/I'll be watching/i)).toBeTruthy()
-  expect(getByText(/Who's watching/i)).toBeTruthy()
-})
-
-test('MatchSheet hides the watch CTA + who\'s-watching once a game is final', () => {
-  const { queryByText } = renderSheet(sheetFixture(null, {}, [], { status: 'final', score: [1, 1] }))
-  expect(queryByText(/I'll be watching/i)).toBeNull()
-  expect(queryByText(/Who's watching/i)).toBeNull()
 })
 
 test('MatchSheet shows the Official prediction through live and final, not just pre-match', () => {
@@ -226,7 +213,7 @@ test('detail sheet omits the Draw backer button on a knockout fixture', () => {
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   const f = S.fixture('m2')
   const { container } = renderSheet(f)
   // On knockout fixtures the Draw backer button must NOT appear
@@ -276,7 +263,7 @@ test('PersonDetail shows a Calls-right accuracy tile', () => {
     ],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  setSocialData({ support: { m1: { p1: 'hr' } } })
   const noop = () => {}
   const { getByText } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
@@ -301,7 +288,7 @@ test('PersonDetail prediction history shows the pick and a correct verdict', () 
     ],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  setSocialData({ support: { m1: { p1: 'hr' } } })
   const noop = () => {}
   const { getByText, container } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
@@ -332,7 +319,7 @@ test('PersonDetail shows a handshake (not a flag) for a draw pick', () => {
     ],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'DRAW' } } })
+  setSocialData({ support: { m1: { p1: 'DRAW' } } })
   const noop = () => {}
   const { container, getByText } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
@@ -359,7 +346,7 @@ test('PersonDetail shows a loading spinner (not text) for an unresolved predicti
     ],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: { m1: { p1: 'hr' } } })
+  setSocialData({ support: { m1: { p1: 'hr' } } })
   const noop = () => {}
   const { container, queryByText } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
@@ -377,7 +364,7 @@ test('PersonDetail hides the Prediction history section when the person made no 
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   const noop = () => {}
   const { queryByText } = render(
     <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
@@ -441,7 +428,7 @@ function seedPeople() {
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
 }
 
 test('PeopleAdmin lists existing sweep people with a team count', () => {
@@ -465,7 +452,7 @@ test('PeopleAdmin flags a self-excluded person with an "Excluded" badge', () => 
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   const { container, getAllByText } = render(<PeopleAdmin onToast={noop} />)
   const badges = getAllByText('Excluded')
   expect(badges.length).toBe(1) // only the excluded person is flagged
@@ -732,7 +719,7 @@ function peopleSweep() {
     ] },
     photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {
+  setSocialData({ support: {
     m1: { alice: 'a', bob: 'a', carol: 'b' }, // winner a → alice ✓, bob ✓, carol ✗
     m2: { bob: 'b', alice: 'c' },             // winner b → bob ✓, alice ✗
     m4: { bob: 'a' },                          // winner a → bob ✓
@@ -826,7 +813,7 @@ test('PeopleScreen Yowie Dollars view omits minors entirely (present in Wins)', 
     },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
-  setSocialData({ watch: {}, support: {} })
+  setSocialData({ support: {} })
   setMe('alice')
   setWalletData({ balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] }, leaderboard: [{ personId: 'alice', balance: 900 }] })
   const { container, getByText, queryByText } = render(<PeopleScreen openPerson={noop} />)

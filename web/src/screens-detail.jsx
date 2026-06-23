@@ -9,8 +9,8 @@ import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import {
-  useSocial, getMe, isWatching, toggleWatch,
-  supportOf, mySupport, setSupport, watchersOf, DRAW,
+  useSocial, getMe,
+  supportOf, mySupport, setSupport, DRAW,
   predictionsOf, predictionAccuracy,
 } from "./social.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
@@ -542,16 +542,6 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
 }
 
 /* ---------------- MATCH DETAIL ---------------- */
-function WatchToggleCTA({ id, onToast }) {
-  useSocial();
-  const on = isWatching(id);
-  return (
-    <button className={"cta watch-cta" + (on?" on":"")} style={{flex:1}}
-      onClick={()=>{ const ok = toggleWatch(id); if(ok && onToast) onToast(on ? "No longer watching" : "You're watching — visible to the group"); }}>
-      {on ? <Icon.eyefill/> : <Icon.eye/>} {on ? "Watching" : "I'll be watching"}
-    </button>
-  );
-}
 /* fan-photo lightbox — opens an approved community photo "closer" */
 export function PhotoLightbox({ photo, onClose, openMatch }) {
   if (!photo) return null;
@@ -704,7 +694,6 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
   const [showSquad, setShowSquad] = useState(!!f.lineups?.length);
   const sup = supportOf(f.id);
   const mySup = mySupport(f.id);
-  const watchPeople = watchersOf(f.id);
   const matchPhotos = S.photos.filter(p=>p.fixtureId===f.id && p.status==="approved");
   return (
     <div className="overlay" onClick={onClose}>
@@ -847,19 +836,6 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </>;
           })()}
 
-          {/* who's watching — only while a game is still open to watch (upcoming) */}
-          {!showScore && <>
-          <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Who's watching{watchPeople.length>0 ? " · "+watchPeople.length : ""}</div>
-          <div className="block" style={{padding:"11px 13px",marginBottom:16}}>
-            {watchPeople.length>0 ? (
-              <div style={{display:"flex",alignItems:"center",gap:11}}>
-                <AvStack people={watchPeople} size={39} max={7}/>
-                <span style={{fontSize:12.5,color:"var(--muted)",fontWeight:600,lineHeight:1.35}}>{watchPeople.map(p=>p.short).join(", ")} {watchPeople.length===1?"is":"are"} tuning in</span>
-              </div>
-            ) : <span style={{fontSize:12.5,color:"var(--muted2)",fontWeight:600}}>Nobody's marked this yet — be the first.</span>}
-          </div>
-          </>}
-
           {matchPhotos.length>0 && <>
             <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>From the stands · {matchPhotos.length}</div>
             <div className="standshot" style={{marginBottom:16}}>
@@ -871,7 +847,6 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             </div>
           </>}
 
-          {!showScore && <WatchToggleCTA id={f.id} onToast={onToast} />}
         </div>
       </div>
     </div>

@@ -31,7 +31,6 @@ async function post(path, body) {
 
 export const fetchSocial = () => get('/api/social')
 export const postOptout = (personId, duration) => post('/api/optout', { personId, duration })
-export const postWatch = (fixtureId, personId) => post('/api/watch', { fixtureId, personId })
 export const postSupport = (fixtureId, personId, teamCode) => post('/api/support', { fixtureId, personId, teamCode })
 
 export const fetchWallet = (personId) => get(`/api/coins?personId=${encodeURIComponent(personId)}`)
