@@ -1,6 +1,8 @@
-import { and, eq, sql, isNull } from 'drizzle-orm'
+import { and, eq, sql, isNull, inArray } from 'drizzle-orm'
 import { fixture, person, coinLedger, bet, parlay } from '../db/schema.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
+import { resolveBet } from './settle.js'
+import { serializePerson } from '../serialize.js'
 
 /** Tournament start = earliest fixture kickoff, or null when there are no fixtures. */
 export async function seasonAnchor(db) {
@@ -51,6 +53,95 @@ async function parlaysFor(db, sweepId, personId) {
     ;(pl.status === 'open' ? open : settled).push(serializeParlay(pl, legs))
   }
   return { open, settled }
+}
+
+/** Grade an open bet exactly as the settler would right now: a definite 'won'/'lost' only
+ *  when its fixture is final AND resolveBet has the data, else null (still unresolvable). */
+function gradeNow(b, f) {
+  if (!f || f.status !== 'final') return null
+  return resolveBet(b.market, b.selection, b.line == null ? null : Number(b.line), f)
+}
+
+/**
+ * Admin audit view: every OPEN bet (singles + parlays) in a sweep, grouped by person and
+ * annotated with the underlying fixture status. A bet is "stale" when the settler could
+ * resolve it *right now* but it's still open — i.e. it would settle on the next "Settle
+ * stale bets" run. For a single that means its final fixture is gradable; for a parlay,
+ * that any leg already grades lost or every leg grades won (mirrors settleParlay). A
+ * final-but-ungradable bet (missing score/event data) is NOT stale — the button can't
+ * touch it. People with stale bets sort first, then by open count, then name.
+ */
+export async function openBetsBySweep(db, sweepId) {
+  const singles = await db.select().from(bet)
+    .where(and(eq(bet.sweepId, sweepId), eq(bet.status, 'open'), isNull(bet.parlayId)))
+  const openParlays = await db.select().from(parlay)
+    .where(and(eq(parlay.sweepId, sweepId), eq(parlay.status, 'open')))
+
+  // one batched leg lookup for all open parlays (index-backed on parlay_id)
+  const legsByParlay = new Map(openParlays.map((pl) => [pl.id, []]))
+  if (openParlays.length) {
+    const legRows = await db.select().from(bet).where(inArray(bet.parlayId, openParlays.map((pl) => pl.id)))
+    for (const l of legRows) legsByParlay.get(l.parlayId)?.push(l)
+  }
+
+  // one full-fixture lookup over everything referenced (need scores/events to grade, not just status)
+  const fxIds = new Set()
+  for (const b of singles) fxIds.add(b.fixtureId)
+  for (const legs of legsByParlay.values()) for (const l of legs) fxIds.add(l.fixtureId)
+  const fxById = new Map()
+  if (fxIds.size) {
+    const fxs = await db.select().from(fixture).where(inArray(fixture.id, [...fxIds]))
+    for (const f of fxs) fxById.set(f.id, f)
+  }
+  const statusOf = (id) => fxById.get(id)?.status ?? null
+
+  const people = await db.select().from(person).where(eq(person.sweepId, sweepId))
+  const peopleById = new Map(people.map((p) => [p.id, p]))
+
+  const groups = new Map()
+  const groupFor = (pid) => {
+    if (!groups.has(pid)) {
+      const p = peopleById.get(pid)
+      groups.set(pid, {
+        person: p ? serializePerson(p) : { id: pid, name: pid, short: pid, initials: '??', av: '#888' },
+        singles: [], parlays: [],
+      })
+    }
+    return groups.get(pid)
+  }
+
+  for (const b of singles) {
+    groupFor(b.personId).singles.push({
+      ...serializeBet(b),
+      fixtureStatus: statusOf(b.fixtureId),
+      stale: gradeNow(b, fxById.get(b.fixtureId)) != null,
+    })
+  }
+  for (const pl of openParlays) {
+    const legs = legsByParlay.get(pl.id) ?? []
+    const grades = legs.map((l) => gradeNow(l, fxById.get(l.fixtureId)))
+    // settleParlay settles the moment any leg loses, or once every leg has won
+    const stale = grades.some((g) => g === 'lost') || (legs.length > 0 && grades.every((g) => g === 'won'))
+    const ser = serializeParlay(pl, legs)
+    ser.legs = ser.legs.map((leg, i) => ({ ...leg, fixtureStatus: statusOf(leg.fixtureId) }))
+    groupFor(pl.personId).parlays.push({ ...ser, stale })
+  }
+
+  const peopleOut = [...groups.values()].map((g) => ({
+    ...g,
+    openCount: g.singles.length + g.parlays.length,
+    staleCount: g.singles.filter((s) => s.stale).length + g.parlays.filter((p) => p.stale).length,
+  }))
+  peopleOut.sort((a, b) =>
+    b.staleCount - a.staleCount ||
+    b.openCount - a.openCount ||
+    a.person.name.localeCompare(b.person.name))
+
+  return {
+    people: peopleOut,
+    totalOpen: peopleOut.reduce((n, g) => n + g.openCount, 0),
+    totalStale: peopleOut.reduce((n, g) => n + g.staleCount, 0),
+  }
 }
 
 /** A person's full ledger: every signed entry, newest-first, with a running balance and

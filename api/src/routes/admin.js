@@ -3,6 +3,7 @@ import { and, eq, desc } from 'drizzle-orm'
 import { photo, person } from '../db/schema.js'
 import { verifyPasscode } from '../auth.js'
 import { settleStaleBets } from '../coins/settle.js'
+import { openBetsBySweep } from '../coins/ledger.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep } from '../sweeps/auth.js'
 import { DEFAULT_SWEEP_ID } from '../sweeps/constants.js'
 
@@ -38,6 +39,12 @@ export async function adminRoutes(app) {
   app.post('/api/admin/settle-stale', { preHandler: admin }, async () => {
     const swept = await settleStaleBets(app.db, app.publish)
     return { swept }
+  })
+
+  // Audit view of every open (unresolved) bet in the sweep, grouped by person, so the admin
+  // can confirm nothing is left unsettled — bets stuck on already-final matches are flagged.
+  app.get('/api/admin/open-bets', { preHandler: admin }, async (req) => {
+    return openBetsBySweep(app.db, req.sweep.id)
   })
 
   app.get('/api/admin/photos', { preHandler: admin }, async (req) => {

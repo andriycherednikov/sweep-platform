@@ -8,6 +8,8 @@ vi.mock('./api/client.js', () => ({
   uploadPhoto: vi.fn(async () => ({})),
   adminLogin: vi.fn(async () => ({ admin: true })),
   fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
+  settleStaleBets: vi.fn(async () => ({ swept: 0 })),
+  fetchOpenBets: vi.fn(async () => ({ people: [], totalOpen: 0, totalStale: 0 })),
   moderatePhoto: vi.fn(async () => ({})),
   fetchWhoami: vi.fn(async () => ({ sweepId: 'default', role: 'member' })),
   createPerson: vi.fn(async () => ({})),
@@ -565,13 +567,61 @@ test('PeopleAdmin allocation sheet: unallocate an owned team → bulk delete', a
   expect(bulkDeleteOwnership.mock.calls[0][0]).toEqual([{ personId: 'p1', teamCode: 'hr' }])
 })
 
-import { AdminConsole } from './screens-detail.jsx'
+import { AdminConsole, AdminQueue } from './screens-detail.jsx'
+import { fetchOpenBets } from './api/client.js'
 
 test('AdminConsole offers People + Moderation tabs but no Draw tab', () => {
   seedPeople()
   const { getByText, queryByText } = render(<AdminConsole onBack={noop} onToast={noop} />)
   expect(getByText('Moderation')).toBeInTheDocument()
   expect(queryByText('Draw')).toBeNull()
+})
+
+test('Moderation › Open bets lists a person\'s open bets and flags stale ones', async () => {
+  // a finished match so a still-open bet on it reads as "stale / needs settling"
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'P', color: '#d8334a', strength: 80 },
+        { code: 'be', name: 'Belgium', group: 'L', pool: 'P', color: '#1f8a4c', strength: 82 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [2, 0], minute: null, prob: { a: 53, d: 26, b: 21 }, stage: 'group' }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  fetchOpenBets.mockResolvedValueOnce({
+    totalOpen: 1, totalStale: 1,
+    people: [{
+      person: { id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN', av: '#000' },
+      openCount: 1, staleCount: 1,
+      singles: [{ id: 'b1', fixtureId: 'm1', market: '1x2', selection: 'HOME', stake: 100, odds: 2, potentialPayout: 200, status: 'open', fixtureStatus: 'final', stale: true }],
+      parlays: [],
+    }],
+  })
+
+  const { getByText, findByText } = render(<AdminQueue embedded onToast={noop} />)
+  // stale total surfaces on the tab, then drill into the list
+  await findByText('Open bets')
+  act(() => { fireEvent.click(getByText('Open bets')) })
+  expect(await findByText('Ann')).toBeInTheDocument()
+  expect(getByText('1 stale')).toBeInTheDocument()
+  expect(getByText('Needs settling')).toBeInTheDocument()
+  expect(getByText('Croatia')).toBeInTheDocument()   // HOME selection → home team name
+  expect(getByText('Match Winner')).toBeInTheDocument()
+})
+
+test('Moderation › Open bets surfaces an error (not "all settled") when the audit fails to load', async () => {
+  seedPeople()
+  fetchOpenBets.mockRejectedValueOnce(new Error('HTTP 500'))
+  const { getByText, findByText, queryByText } = render(<AdminQueue embedded onToast={noop} />)
+  await findByText('Open bets')
+  act(() => { fireEvent.click(getByText('Open bets')) })
+  expect(await findByText(/Couldn’t load open bets/i)).toBeInTheDocument()
+  // must NOT show the green success state that would falsely reassure the admin
+  expect(queryByText(/Every wager has been settled/i)).toBeNull()
 })
 
 test('MatchSheet covers a final score under spoiler mode, reveals on tap', () => {

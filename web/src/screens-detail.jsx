@@ -16,7 +16,8 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchOpenBets, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { MARKET_LABELS, betSelectionLabel } from "./lib/betLabels.js";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
@@ -1193,21 +1194,91 @@ export function PeopleAdmin({ onToast, queryClient }) {
     </div>
   );
 }
+// One open (unresolved) single bet in the admin audit list. Bets stuck on an
+// already-finished match are flagged red so the admin knows to settle them.
+function OpenBetRow({ b }) {
+  const f = S.fixture(b.fixtureId);
+  return (
+    <div className={"ob-row"+(b.stale?" ob-stale":"")}>
+      <div className="ob-line">
+        {f ? <>
+          <img className="flag" src={S.flag(f.t1,40)} alt=""/>
+          <span className="ob-teams">{S.team(f.t1)?.name||f.t1} v {S.team(f.t2)?.name||f.t2}</span>
+          <img className="flag" src={S.flag(f.t2,40)} alt=""/>
+        </> : <span className="ob-teams">{b.fixtureId}</span>}
+      </div>
+      <div className="ob-pick"><span className="ob-mkt">{MARKET_LABELS[b.market]||b.market}</span><span className="ob-sel">{betSelectionLabel(b)}</span></div>
+      <div className="ob-foot">
+        <span className="ob-stake"><Icon.coin/> {b.stake} @ {Number(b.odds).toFixed(2)}</span>
+        {b.stale
+          ? <span className="ob-flag">Needs settling</span>
+          : b.fixtureStatus==="final"
+          ? <span className="ob-when">Final · awaiting result data</span>
+          : <span className="ob-when">{b.fixtureStatus==="live" ? "Live" : (f?.dateTimeLabel||"")}</span>}
+      </div>
+    </div>
+  );
+}
+
+// One open multi (parlay) in the audit list; legs whose match is done show "done".
+function OpenParlayRow({ p }) {
+  return (
+    <div className={"ob-row ob-parlay"+(p.stale?" ob-stale":"")}>
+      <div className="ob-line"><span className="ob-multi"><Icon.tickets/> Multi · {p.legs.length} legs</span></div>
+      <div className="ob-legs">
+        {p.legs.map(l=>{ const f=S.fixture(l.fixtureId); return (
+          <div key={l.id} className="ob-leg">
+            <span>{f ? `${S.team(f.t1)?.name||f.t1} v ${S.team(f.t2)?.name||f.t2}` : l.fixtureId} · {betSelectionLabel(l)}</span>
+            {l.fixtureStatus==="final" && <span className="ob-leg-done">done</span>}
+          </div>
+        ); })}
+      </div>
+      <div className="ob-foot">
+        <span className="ob-stake"><Icon.coin/> {p.stake} @ {Number(p.combinedOdds).toFixed(2)}</span>
+        {p.stale && <span className="ob-flag">Needs settling</span>}
+      </div>
+    </div>
+  );
+}
+
+// A person's open bets, headed by their avatar/name with open + stale counts.
+function OpenBetsPerson({ g }) {
+  const p = S.peopleById[g.person.id] || g.person;
+  return (
+    <div className="ob-person">
+      <div className="ob-person-head">
+        <PersonAvatar p={p} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
+        <b>{p.short||p.name}</b>
+        <span className="ob-count">{g.openCount} open</span>
+        {g.staleCount>0 && <span className="ct ct-warn">{g.staleCount} stale</span>}
+      </div>
+      {g.singles.map(b=><OpenBetRow key={b.id} b={b}/>)}
+      {g.parlays.map(p=><OpenParlayRow key={p.id} p={p}/>)}
+    </div>
+  );
+}
+
 export function AdminQueue({ onBack, onToast, embedded }) {
   const [data, setData] = useState({ pending: [], approved: [] });
+  const [open, setOpen] = useState({ people: [], totalOpen: 0, totalStale: 0 });
+  const [openErr, setOpenErr] = useState(false);
   const [tab, setTab] = useState("pending");
   const [busy, setBusy] = useState(null);
 
   const [staleBusy, setStaleBusy] = useState(false);
 
   async function load(){ try { setData(await fetchAdminPhotos()); } catch { onToast("Couldn't load the queue"); } }
-  useEffect(()=>{ load(); },[]);
+  // A failed audit fetch must NOT look like "all settled" — surface an error so the admin
+  // never gets false reassurance from a reconciliation tool that simply didn't load.
+  async function loadOpen(){ try { setOpenErr(false); setOpen(await fetchOpenBets()); } catch { setOpenErr(true); onToast("Couldn't load the open-bets audit"); } }
+  useEffect(()=>{ load(); loadOpen(); },[]);
 
   async function runSettleStale(){
     setStaleBusy(true);
     try {
       const { swept } = await settleStaleBets();
       onToast(swept>0 ? `Settled stale bets on ${swept} match${swept>1?"es":""}` : "No stale bets to settle");
+      await loadOpen();
     } catch { onToast("Couldn't settle stale bets — try again"); }
     finally { setStaleBusy(false); }
   }
@@ -1231,18 +1302,28 @@ export function AdminQueue({ onBack, onToast, embedded }) {
       <div className="admintabs">
         <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
         <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {data.approved.length}</button>
+        <button className={"admintab"+(tab==="open"?" on":"")} onClick={()=>setTab("open")}>Open bets {open.totalStale>0 ? <span className="ct ct-warn">{open.totalStale}</span> : (open.totalOpen>0 && <span className="ct">{open.totalOpen}</span>)}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:10}}>
         <div className="wrap">
-          <div className="admin-maint">
-            <div className="admin-maint-tx">
-              <b>Wagers upkeep</b>
-              <small>Settle any bets left open on matches that have already finished.</small>
-            </div>
-            <button className="cta ghost admin-maint-btn" disabled={staleBusy} onClick={runSettleStale}>
-              {staleBusy ? "Settling…" : "Settle stale bets"}
-            </button>
-          </div>
+          {tab==="open" ? (
+            <>
+              <div className="admin-maint">
+                <div className="admin-maint-tx">
+                  <b>Wagers upkeep</b>
+                  <small>Settle any bets left open on matches that have already finished.</small>
+                </div>
+                <button className="cta ghost admin-maint-btn" disabled={staleBusy} onClick={runSettleStale}>
+                  {staleBusy ? "Settling…" : "Settle stale bets"}
+                </button>
+              </div>
+              {openErr
+                ? <div className="empty"><div className="ic">⚠️</div><h3>Couldn’t load open bets</h3><p>The audit didn’t load — this isn’t a clean sweep. <button className="linklike" onClick={loadOpen}>Try again</button></p></div>
+                : open.people.length===0
+                ? <div className="empty"><div className="ic">✅</div><h3>No open bets</h3><p>Every wager has been settled.</p></div>
+                : open.people.map(g=><OpenBetsPerson key={g.person.id} g={g}/>)}
+            </>
+          ) : (<>
           {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
           {list.map(p=>(
             <div className="queueitem" key={p.id}>
@@ -1264,6 +1345,7 @@ export function AdminQueue({ onBack, onToast, embedded }) {
               )}
             </div>
           ))}
+          </>)}
         </div>
       </div>
     </div>

@@ -117,6 +117,15 @@ test('fetchAdminPhotos GETs the queue with credentials', async () => {
   expect(calls[0].opts.credentials).toBe('include')
 })
 
+test('fetchOpenBets GETs the open-bets audit with credentials', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ people: [], totalOpen: 0, totalStale: 0 }) } }))
+  const { fetchOpenBets } = await import('./client.js')
+  await fetchOpenBets()
+  expect(calls[0].url).toMatch(/\/api\/admin\/open-bets$/)
+  expect(calls[0].opts.credentials).toBe('include')
+})
+
 test('adminLogin throws on 401', async () => {
   vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })))
   const { adminLogin } = await import('./client.js')
