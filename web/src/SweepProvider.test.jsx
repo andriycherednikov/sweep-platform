@@ -71,6 +71,43 @@ function mock401() {
   }))
 }
 
+test('switching identity refetches the wallet for the newly-viewed person', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  localStorage.setItem('sweep.me.v1.sw_x', 'p1')
+  // per-person balances so we can tell whose wallet is loaded
+  const balByPerson = { p1: 100, p2: 777 }
+  const coinsCalls = []
+  vi.stubGlobal('fetch', vi.fn(async (url) => {
+    const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
+    if (path === '/api/bootstrap') {
+      return { ok: true, status: 200, json: async () => ({
+        teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#000', strength: 80 }],
+        people: [
+          { id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null },
+          { id: 'p2', name: 'B', short: 'B', initials: 'B', av: '#000', avatarPath: null },
+        ],
+        ownership: {}, scoring: { rule: 'top3' }, sweep: { id: 'sw_x', name: 'X Sweep' },
+      }) }
+    }
+    if (path === '/api/coins') {
+      const pid = new URL(url, 'http://x').searchParams.get('personId')
+      coinsCalls.push(pid)
+      return { ok: true, status: 200, json: async () => ({ balance: balByPerson[pid] ?? 0, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }) }
+    }
+    return { ok: true, status: 200, json: async () => bundle[path] }
+  }))
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  const { setMe } = await import('./social.js')
+  const { myWallet } = await import('./coins.js')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(myWallet().balance).toBe(100))
+
+  setMe('p2')
+  await waitFor(() => expect(coinsCalls).toContain('p2'))
+  await waitFor(() => expect(myWallet().balance).toBe(777))
+})
+
 test('a 401 on bootstrap with no stored sweeps → "invite link needed" empty state', async () => {
   vi.resetModules()
   localStorage.clear()

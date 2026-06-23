@@ -1,7 +1,8 @@
+import { useEffect } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchAll, fetchSocial, fetchWallet } from './api/client.js'
 import { setSweepData } from './data.js'
-import { setSocialData, setCurrentSweepId, getMe } from './social.js'
+import { setSocialData, setCurrentSweepId, useSocial } from './social.js'
 import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
@@ -34,6 +35,9 @@ function GateBrand() {
 
 function Gate({ children }) {
   const qc = useQueryClient()
+  // Re-render + re-key the wallet on identity switch so balance/bets/statement
+  // follow whoever you're viewing as.
+  const { me } = useSocial()
   const { data, isLoading, isError, error, refetch, isSuccess } = useQuery({
     queryKey: ['sweep'],
     // Safety-net refresh: SSE pushes live score/standings updates within ~1s while
@@ -65,18 +69,18 @@ function Gate({ children }) {
     },
   })
 
-  useQuery({
-    queryKey: ['coins'],
+  const { data: walletData } = useQuery({
+    // Keyed on identity so switching who you're viewing as refetches the wallet.
+    queryKey: ['coins', me?.id],
     // wait for the sweep query: getMe() resolves against S.people (populated by setSweepData),
     // so running earlier would fetch an empty wallet that never refetches.
     enabled: isSuccess,
-    queryFn: async () => {
-      const me = getMe()
-      const wallet = await fetchWallet(me ? me.id : '')
-      setWalletData(wallet)
-      return wallet
-    },
+    queryFn: () => fetchWallet(me ? me.id : ''),
   })
+  // Bridge the query result into the coins store via an effect (not inside the
+  // queryFn): on identity switch-back a cache-served result skips the queryFn,
+  // so syncing here is what keeps the global wallet tracking the active viewer.
+  useEffect(() => { if (walletData) setWalletData(walletData) }, [walletData])
 
   useEventStream()
 
