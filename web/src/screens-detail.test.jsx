@@ -613,6 +613,39 @@ test('Moderation › Open bets lists a person\'s open bets and flags stale ones'
   expect(getByText('Match Winner')).toBeInTheDocument()
 })
 
+test('Moderation › Open bets collapses non-stale people and the header toggles them', async () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'P', color: '#d8334a', strength: 80 },
+        { code: 'be', name: 'Belgium', group: 'L', pool: 'P', color: '#1f8a4c', strength: 82 },
+      ],
+      people: [{ id: 'p2', name: 'Bob', short: 'Bob', initials: 'BO', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{ id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-07-01T09:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null, prob: { a: 53, d: 26, b: 21 }, stage: 'group' }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  fetchOpenBets.mockResolvedValueOnce({
+    totalOpen: 1, totalStale: 0,
+    people: [{
+      person: { id: 'p2', name: 'Bob', short: 'Bob', initials: 'BO', av: '#000' },
+      openCount: 1, staleCount: 0,
+      singles: [{ id: 'b2', fixtureId: 'm1', market: '1x2', selection: 'AWAY', stake: 50, odds: 3, potentialPayout: 150, status: 'open', fixtureStatus: 'upcoming', stale: false }],
+      parlays: [],
+    }],
+  })
+  const { getByText, findByText, queryByText } = render(<AdminQueue embedded onToast={noop} />)
+  await findByText('Open bets')
+  act(() => { fireEvent.click(getByText('Open bets')) })
+  expect(await findByText('Bob')).toBeInTheDocument()
+  // no stale bets → collapsed by default, so the bet itself isn't rendered yet
+  expect(queryByText('Belgium')).toBeNull()
+  act(() => { fireEvent.click(getByText('Bob')) }) // expand
+  expect(await findByText('Belgium')).toBeInTheDocument() // AWAY selection → away team name
+})
+
 test('Moderation › Open bets surfaces an error (not "all settled") when the audit fails to load', async () => {
   seedPeople()
   fetchOpenBets.mockRejectedValueOnce(new Error('HTTP 500'))

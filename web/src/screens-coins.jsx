@@ -106,7 +106,7 @@ function legsByKickoff(legs) {
   return [...legs].sort((a, b) => ko(a) - ko(b))
 }
 
-export function ParlayCard({ p }) {
+export function ParlayCard({ p, onMatch }) {
   const isWon = p.status === 'won'
   const isLost = p.status === 'lost'
   const isRefunded = p.status === 'refunded'
@@ -131,7 +131,8 @@ export function ParlayCard({ p }) {
             const lf = S.fixture(l.fixtureId)
             const legFlag = betSelectionFlag(l)
             return (
-              <div key={l.id} className={'coin-parlay-leg' + (lw ? ' won' : ll ? ' lost' : '')}>
+              <div key={l.id} className={'coin-parlay-leg' + (lw ? ' won' : ll ? ' lost' : '') + (onMatch && lf ? ' coin-leg-click' : '')}
+                onClick={onMatch && lf ? () => onMatch(l.fixtureId) : undefined}>
                 <div className="coin-parlay-leg-body">
                   {lf && (
                     <div className="coin-bs-event">

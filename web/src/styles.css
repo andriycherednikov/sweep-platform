@@ -780,21 +780,32 @@ img.ph{width:100%; height:100%; object-fit:cover; display:block;}
 .admin-maint-btn{width:auto; flex:0 0 auto; padding:11px 14px; font-size:13.5px;}
 
 /* ---- Open-bets audit (Moderation › Open bets) ---- */
-/* Reuses the My-Bets cards (.coin-betslip); these styles only add the per-person
-   grouping header and the "needs settling" highlight on top of those cards. */
+/* Reuses the My-Bets cards (.coin-betslip); these styles add the per-person
+   accordion header and the "needs settling" highlight on top of those cards. */
 .admintab .ct.ct-warn{background:#e23b3b; color:#fff;}
-.ob-person{margin-bottom:18px;}
-.ob-person-head{display:flex; align-items:center; gap:8px; margin:0 2px 8px;}
+.ob-person{margin-bottom:12px;}
+/* accordion header — full-width button that toggles the person's bet list */
+.ob-person-head{display:flex; align-items:center; gap:8px; width:100%; padding:8px 6px; margin:0; background:none; border:0; border-radius:10px; cursor:pointer; text-align:left;}
+.ob-person-head:hover{background:var(--line2);}
 .ob-person-head b{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:15px; color:var(--navy);}
 .ob-person-head .ob-count{font-size:11.5px; color:var(--muted2); font-weight:700; margin-left:2px;}
-.ob-person-head .ct{margin-left:auto; background:#eef1f5; color:var(--muted2); font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; white-space:nowrap;}
+.ob-person-head .ob-grow{flex:1;}
+.ob-person-head .ct{background:#eef1f5; color:var(--muted2); font-size:10.5px; font-weight:800; padding:2px 8px; border-radius:999px; white-space:nowrap;}
 .ob-person-head .ct.ct-warn{background:#fde6e6; color:#c62b2b;}
-/* the My-Bets card already owns its own bottom margin, so the wrapper is layout-neutral
-   until a bet is stale, when it draws a red ring + banner over the card. */
-.ob-item.ob-item-stale{position:relative; border-radius:16px; box-shadow:0 0 0 2px #e23b3b; margin-bottom:12px;}
-.ob-item.ob-item-stale .coin-betslip{margin-bottom:0;}
-.ob-needs{display:flex; align-items:center; gap:5px; background:#e23b3b; color:#fff; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:10.5px; text-transform:uppercase; letter-spacing:.4px; padding:4px 10px; border-radius:16px 16px 0 0;}
+.ob-chev{width:18px; height:18px; color:var(--muted2); flex:0 0 auto; transition:transform .15s ease;}
+.ob-chev.open{transform:rotate(90deg);}
+/* the bets sit on a white card, exactly like the My-Bets list */
+.ob-list{margin-top:2px; padding:2px 14px;}
+.ob-item-stale{background:#fdf3f3; box-shadow:inset 3px 0 0 #e23b3b; border-radius:8px; margin:4px 0;}
+.ob-item-stale .coin-betslip{border-bottom:0;}
+.ob-needs{display:inline-flex; align-items:center; gap:5px; color:#c62b2b; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:10px; text-transform:uppercase; letter-spacing:.4px; padding:7px 6px 0;}
 .ob-needs svg{width:13px; height:13px;}
+.ob-tail{height:28px;}
+/* clickable bets/legs in the audit stay clickable but without the My-Bets row-hover
+   tint, which reads as a heavy grey block on this white card. */
+.ob-list .coin-betslip{cursor:pointer;}
+.ob-list .coin-betslip:hover{background:transparent;}
+.coin-leg-click{cursor:pointer;}
 .linklike{background:none; border:0; padding:0; color:var(--accent); font:inherit; font-weight:700; text-decoration:underline; cursor:pointer;}
 .queueitem{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:12px;}
 .queueitem .qimg{aspect-ratio:16/11; position:relative; background:repeating-linear-gradient(45deg,#d4dae2 0 14px,#cdd4dd 14px 28px);}

@@ -148,7 +148,7 @@ export default function App() {
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
   else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
-  else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast}/>; ovZ = 60; }
+  else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast} openMatch={openMatch}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
   else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
 

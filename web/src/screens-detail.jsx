@@ -839,7 +839,7 @@ export function adminGateState(whoami) {
   return 'need-link';
 }
 
-export function AdminScreen({ onBack, onToast }) {
+export function AdminScreen({ onBack, onToast, openMatch }) {
   const [code, setCode] = useState("");
   const [gate, setGate] = useState(null); // null = checking; 'unlocked'|'pin'|'need-link'
   const [shake, setShake] = useState(false);
@@ -892,10 +892,10 @@ export function AdminScreen({ onBack, onToast }) {
     );
   }
 
-  return <AdminConsole onBack={onBack} onToast={onToast} />;
+  return <AdminConsole onBack={onBack} onToast={onToast} openMatch={openMatch} />;
 }
 
-export function AdminConsole({ onBack, onToast }) {
+export function AdminConsole({ onBack, onToast, openMatch }) {
   const [tab, setTab] = useState("people"); // 'people' | 'sweep' | 'mod'
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -907,7 +907,7 @@ export function AdminConsole({ onBack, onToast }) {
       </div>
       {tab==="people" && <PeopleAdmin onToast={onToast} />}
       {tab==="sweep" && <SweepDraw onToast={onToast} />}
-      {tab==="mod" && <AdminQueue embedded onToast={onToast} />}
+      {tab==="mod" && <AdminQueue embedded onToast={onToast} openMatch={openMatch} />}
     </div>
   );
 }
@@ -1195,7 +1195,7 @@ export function PeopleAdmin({ onToast, queryClient }) {
   );
 }
 // Wraps a My-Bets card so the admin audit reads identically to the player's own
-// bet list, but adds a red "Needs settling" banner on bets the settler can resolve now.
+// bet list, but tints + labels bets the settler can resolve right now ("stale").
 function OpenItem({ stale, children }) {
   return (
     <div className={"ob-item"+(stale?" ob-item-stale":"")}>
@@ -1205,28 +1205,35 @@ function OpenItem({ stale, children }) {
   );
 }
 
-// A person's open bets, headed by their avatar/name with open + stale counts.
-// Reuses the exact My-Bets cards (placed date, stake @ odds, To win) for a 1:1 look.
-function OpenBetsPerson({ g }) {
+// A person's open bets as an accordion: the header (avatar, name, open + stale
+// counts, chevron) toggles a white card of the exact My-Bets bet cards.
+function OpenBetsPerson({ g, expanded, onToggle, onMatch }) {
   const p = S.peopleById[g.person.id] || g.person;
   return (
     <div className="ob-person">
-      <div className="ob-person-head">
+      <button className="ob-person-head" onClick={onToggle} aria-expanded={expanded}>
         <PersonAvatar p={p} cls="av" style={{width:30,height:30,border:0,margin:0,fontSize:12}}/>
         <b>{p.short||p.name}</b>
         <span className="ob-count">{g.openCount} open</span>
+        <span className="ob-grow" />
         {g.staleCount>0 && <span className="ct ct-warn">{g.staleCount} stale</span>}
-      </div>
-      {g.singles.map(b=><OpenItem key={b.id} stale={b.stale}><SingleBetRow b={b}/></OpenItem>)}
-      {g.parlays.map(p=><OpenItem key={p.id} stale={p.stale}><ParlayCard p={p}/></OpenItem>)}
+        <Icon.chev className={"ob-chev"+(expanded?" open":"")} />
+      </button>
+      {expanded && (
+        <div className="block ob-list">
+          {g.singles.map(b=><OpenItem key={b.id} stale={b.stale}><SingleBetRow b={b} onMatch={onMatch}/></OpenItem>)}
+          {g.parlays.map(p=><OpenItem key={p.id} stale={p.stale}><ParlayCard p={p} onMatch={onMatch}/></OpenItem>)}
+        </div>
+      )}
     </div>
   );
 }
 
-export function AdminQueue({ onBack, onToast, embedded }) {
+export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
   const [data, setData] = useState({ pending: [], approved: [] });
   const [open, setOpen] = useState({ people: [], totalOpen: 0, totalStale: 0 });
   const [openErr, setOpenErr] = useState(false);
+  const [expanded, setExpanded] = useState({}); // personId → open in the accordion
   const [tab, setTab] = useState("pending");
   const [busy, setBusy] = useState(null);
 
@@ -1235,8 +1242,19 @@ export function AdminQueue({ onBack, onToast, embedded }) {
   async function load(){ try { setData(await fetchAdminPhotos()); } catch { onToast("Couldn't load the queue"); } }
   // A failed audit fetch must NOT look like "all settled" — surface an error so the admin
   // never gets false reassurance from a reconciliation tool that simply didn't load.
-  async function loadOpen(){ try { setOpenErr(false); setOpen(await fetchOpenBets()); } catch { setOpenErr(true); onToast("Couldn't load the open-bets audit"); } }
+  async function loadOpen(){
+    try {
+      setOpenErr(false);
+      const d = await fetchOpenBets();
+      setOpen(d);
+      // auto-expand only the people who have something needing attention; collapse the rest.
+      setExpanded(Object.fromEntries(d.people.filter(g=>g.staleCount>0).map(g=>[g.person.id, true])));
+    } catch { setOpenErr(true); onToast("Couldn't load the open-bets audit"); }
+  }
   useEffect(()=>{ load(); loadOpen(); },[]);
+
+  const togglePerson = (id) => setExpanded(e => ({ ...e, [id]: !e[id] }));
+  const openMatchBet = (fid) => { const fx = S.fixture(fid); if (fx && openMatch) openMatch(fx); };
 
   async function runSettleStale(){
     setStaleBusy(true);
@@ -1286,7 +1304,12 @@ export function AdminQueue({ onBack, onToast, embedded }) {
                 ? <div className="empty"><div className="ic">⚠️</div><h3>Couldn’t load open bets</h3><p>The audit didn’t load — this isn’t a clean sweep. <button className="linklike" onClick={loadOpen}>Try again</button></p></div>
                 : open.people.length===0
                 ? <div className="empty"><div className="ic">✅</div><h3>No open bets</h3><p>Every wager has been settled.</p></div>
-                : open.people.map(g=><OpenBetsPerson key={g.person.id} g={g}/>)}
+                : <>
+                    {open.people.map(g=>(
+                      <OpenBetsPerson key={g.person.id} g={g} expanded={!!expanded[g.person.id]} onToggle={()=>togglePerson(g.person.id)} onMatch={openMatchBet}/>
+                    ))}
+                    <div className="ob-tail" aria-hidden="true" />
+                  </>}
             </>
           ) : (<>
           {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
