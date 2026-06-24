@@ -11,16 +11,20 @@ export function combinedOdds() { return legs.reduce((acc, l) => acc * l.odds, 1)
 export function hasLeg(fixtureId, market, selection) {
   return legs.some((l) => l.fixtureId === fixtureId && l.market === market && l.selection === selection)
 }
-export function removeLeg(fixtureId) { legs = legs.filter((l) => l.fixtureId !== fixtureId); notify() }
+export function removeLeg(fixtureId, market, selection) {
+  legs = legs.filter((l) => !(l.fixtureId === fixtureId && l.market === market && l.selection === selection))
+  notify()
+}
 export function clearBetslip() { legs = []; notify() }
 
-/** Toggle a selection in the slip. Re-tapping the same selection removes it; picking another
- *  market/selection on a fixture already in the slip REPLACES that fixture's leg (one per fixture). */
+/** Toggle a selection in the slip. Re-tapping the same selection removes it; any other
+ *  market/selection adds a new leg — including another market on a fixture already in the
+ *  slip (a same-game multi). The server still rejects two selections of the SAME market. */
 export function toggleLeg(leg) {
   if (hasLeg(leg.fixtureId, leg.market, leg.selection)) {
     legs = legs.filter((l) => !(l.fixtureId === leg.fixtureId && l.market === leg.market && l.selection === leg.selection))
   } else {
-    legs = [...legs.filter((l) => l.fixtureId !== leg.fixtureId), leg]
+    legs = [...legs, leg]
   }
   notify()
 }

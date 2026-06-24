@@ -103,10 +103,13 @@ export async function coinsRoutes(app) {
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
     if (legs.length < 2) return reply.code(400).send({ error: 'too_few_legs' })
+    // Same-game multis are allowed (e.g. 1x2 + ou25 on one fixture), but two selections of
+    // the SAME market on the SAME fixture can never both win — dedupe on fixtureId|market.
     const seen = new Set()
     for (const l of legs) {
-      if (seen.has(l.fixtureId)) return reply.code(400).send({ error: 'duplicate_fixture', fixtureId: l.fixtureId })
-      seen.add(l.fixtureId)
+      const key = `${l.fixtureId}|${l.market ?? '1x2'}`
+      if (seen.has(key)) return reply.code(400).send({ error: 'duplicate_market', fixtureId: l.fixtureId, market: l.market ?? '1x2' })
+      seen.add(key)
     }
     const resolved = []
     for (const l of legs) {
