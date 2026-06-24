@@ -450,7 +450,7 @@ export function BetslipSheet({ onClose }) {
             <div className="betslip-empty">
               <span className="betslip-empty-ico"><Icon.tickets /></span>
               <p className="betslip-empty-title">Your bet slip is empty</p>
-              <span className="betslip-empty-sub">Tap the odds on any match to add a selection. Pick 2+ across different matches to build a multi.</span>
+              <span className="betslip-empty-sub">Tap the odds on any match to add a selection. Pick 2+ — across matches or on the same match — to build a multi.</span>
             </div>
           )}
 
@@ -464,7 +464,7 @@ export function BetslipSheet({ onClose }) {
                   {!bettable && <span className="betslip-leg-closed">Closed</span>}
                 </div>
                 <span className="betslip-leg-odds">{leg.odds}</span>
-                <button className="betslip-leg-x" aria-label={`Remove ${leg.label}`} onClick={() => removeLeg(leg.fixtureId)}><Icon.x /></button>
+                <button className="betslip-leg-x" aria-label={`Remove ${leg.label}`} onClick={() => removeLeg(leg.fixtureId, leg.market, leg.selection)}><Icon.x /></button>
               </div>
             ))}
           </div>

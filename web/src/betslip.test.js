@@ -13,19 +13,27 @@ test('toggleLeg adds, and toggling the same selection removes it', () => {
   expect(betslipCount()).toBe(0)
 })
 
-test('one leg per fixture — a different market on the same fixture replaces it', () => {
+test('same-game multi — a different market on the same fixture adds a second leg', () => {
   toggleLeg(leg())
   toggleLeg(leg({ market: 'ou25', selection: 'OVER', odds: 1.9, label: 'Over 2.5' }))
-  expect(betslipCount()).toBe(1)
-  expect(hasLeg('f1', '1x2', 'HOME')).toBe(false)
+  expect(betslipCount()).toBe(2)
+  expect(hasLeg('f1', '1x2', 'HOME')).toBe(true)
   expect(hasLeg('f1', 'ou25', 'OVER')).toBe(true)
 })
 
-test('combinedOdds multiplies the legs; removeLeg drops a fixture', () => {
+test('combinedOdds multiplies the legs; removeLeg drops a single leg by full key', () => {
   toggleLeg(leg())                               // 2
   toggleLeg(leg({ fixtureId: 'f2', odds: 1.9 })) // ×1.9
   expect(combinedOdds()).toBeCloseTo(3.8, 5)
-  removeLeg('f1')
+  removeLeg('f1', '1x2', 'HOME')
   expect(betslipCount()).toBe(1)
   expect(betslipLegs()[0].fixtureId).toBe('f2')
+})
+
+test('removeLeg removes only the targeted same-game leg, not every leg on the fixture', () => {
+  toggleLeg(leg())                                                  // f1 1x2 HOME
+  toggleLeg(leg({ market: 'ou25', selection: 'OVER', odds: 1.9 }))  // f1 ou25 OVER
+  removeLeg('f1', '1x2', 'HOME')
+  expect(betslipCount()).toBe(1)
+  expect(hasLeg('f1', 'ou25', 'OVER')).toBe(true)
 })
