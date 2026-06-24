@@ -17,14 +17,15 @@ export function removeLeg(fixtureId, market, selection) {
 }
 export function clearBetslip() { legs = []; notify() }
 
-/** Toggle a selection in the slip. Re-tapping the same selection removes it; any other
- *  market/selection adds a new leg — including another market on a fixture already in the
- *  slip (a same-game multi). The server still rejects two selections of the SAME market. */
+/** Toggle a selection in the slip. Re-tapping the same selection removes it. One leg per
+ *  (fixture, market): a different selection on a market already in the slip REPLACES it
+ *  (Odd↔Even, Over↔Under can't coexist), but a different market on the same fixture ADDS a
+ *  leg — a same-game multi. Mirrors the server's duplicate_market rule. */
 export function toggleLeg(leg) {
   if (hasLeg(leg.fixtureId, leg.market, leg.selection)) {
     legs = legs.filter((l) => !(l.fixtureId === leg.fixtureId && l.market === leg.market && l.selection === leg.selection))
   } else {
-    legs = [...legs, leg]
+    legs = [...legs.filter((l) => !(l.fixtureId === leg.fixtureId && l.market === leg.market)), leg]
   }
   notify()
 }
