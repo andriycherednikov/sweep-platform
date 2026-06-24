@@ -21,6 +21,14 @@ test('same-game multi — a different market on the same fixture adds a second l
   expect(hasLeg('f1', 'ou25', 'OVER')).toBe(true)
 })
 
+test('one leg per (fixture, market) — a different selection on the same market replaces it', () => {
+  toggleLeg(leg({ market: 'oe', selection: 'ODD', odds: 1.95, label: 'Odd' }))
+  toggleLeg(leg({ market: 'oe', selection: 'EVEN', odds: 1.9, label: 'Even' }))
+  expect(betslipCount()).toBe(1)
+  expect(hasLeg('f1', 'oe', 'ODD')).toBe(false)
+  expect(hasLeg('f1', 'oe', 'EVEN')).toBe(true)
+})
+
 test('combinedOdds multiplies the legs; removeLeg drops a single leg by full key', () => {
   toggleLeg(leg())                               // 2
   toggleLeg(leg({ fixtureId: 'f2', odds: 1.9 })) // ×1.9
