@@ -795,7 +795,7 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .ob-item-stale .coin-betslip{border-bottom:0;}
 .ob-needs{display:inline-flex; align-items:center; gap:5px; color:#c62b2b; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:10px; text-transform:uppercase; letter-spacing:.4px; padding:7px 6px 0;}
 .ob-needs svg{width:13px; height:13px;}
-.ob-tail{height:28px;}
+.ob-tail{height:48px;}
 /* clickable bets/legs in the audit stay clickable but without the My-Bets row-hover
    tint, which reads as a heavy grey block on this white card. */
 .ob-list .coin-betslip{cursor:pointer;}

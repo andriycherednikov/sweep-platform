@@ -967,7 +967,7 @@ export function AdminScreen({ onBack, onToast, openMatch }) {
 export function AdminConsole({ onBack, onToast, openMatch }) {
   const [tab, setTab] = useState("people"); // 'people' | 'sweep' | 'mod'
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    <div style={{display:"flex",flexDirection:"column",height:"100%",flex:1,minHeight:0}}>
       <PageHeader title="Admin" sub="Manage your sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />
       <div className="admintabs">
         <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
@@ -1349,7 +1349,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
   }
 
   return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,height:embedded?"auto":"100%"}}>
       {!embedded && <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
       <div className="admintabs">
         <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
