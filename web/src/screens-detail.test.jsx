@@ -727,9 +727,9 @@ function peopleSweep() {
 }
 // → correct calls: Bob 3, Alice 1, Carol 0
 
-const rowNames = (c) => [...c.querySelectorAll('.prow .pi b')].map((n) => n.textContent)
+const rowNames = (c) => [...c.querySelectorAll('.prow .pi b')].map((n) => n.childNodes[0].textContent.trim())
 const statFor = (c, name) => {
-  const row = [...c.querySelectorAll('.prow')].find((r) => r.querySelector('.pi b')?.textContent === name)
+  const row = [...c.querySelectorAll('.prow')].find((r) => r.querySelector('.pi b')?.childNodes[0].textContent.trim() === name)
   return row?.querySelector('.pp')?.textContent ?? null
 }
 

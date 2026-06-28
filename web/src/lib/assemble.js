@@ -138,10 +138,54 @@ export function assembleSweep(api) {
 
   const todayKey = fmtDayKey(new Date())
 
+  // team elimination tracking: teams eliminated in group stage or losing knockout games
+  const eliminatedTeamCodes = new Set()
+
+  // 1. Group stage elimination based on group standings (when group games finish)
+  for (const g of Object.keys(standings)) {
+    const groupTeams = standings[g]
+    const groupFixtures = fixtures.filter(f => f.group === g)
+    const allDone = groupFixtures.length > 0 && groupFixtures.every(f => f.status === 'final')
+    if (allDone) {
+      for (let i = 2; i < groupTeams.length; i++) {
+        eliminatedTeamCodes.add(groupTeams[i].code)
+      }
+    }
+  }
+
+  // 2. Production World Cup 2026 Round of 32 check
+  const KNOWN_KO_TEAMS = new Set([
+    "de","py","fr","se","za","ca","nl","ma","pt","hr","es","at","us","bih","be","sn",
+    "br","jp","ci","no","mx","ec","gb-eng","cgo","ar","cpv","au","eg","ch","dz","co","gh"
+  ]);
+  const hasRealTeams = bootstrap.teams.some(t => KNOWN_KO_TEAMS.has(t.code))
+  if (hasRealTeams) {
+    for (const t of bootstrap.teams) {
+      if (!KNOWN_KO_TEAMS.has(t.code)) {
+        eliminatedTeamCodes.add(t.code)
+      }
+    }
+  }
+
+  // 3. Finished knockout matches
+  for (const f of fixtures) {
+    if (f.stage === 'knockout' && f.status === 'final' && f.score) {
+      if (f.score[0] > f.score[1]) eliminatedTeamCodes.add(f.t2)
+      else if (f.score[1] > f.score[0]) eliminatedTeamCodes.add(f.t1)
+    }
+  }
+
+  const isTeamEliminated = (code) => eliminatedTeamCodes.has(code)
+  const isPersonEliminated = (id) => {
+    const p = peopleById[id]
+    if (!p || !p.teams || p.teams.length === 0) return false
+    return p.teams.every((code) => eliminatedTeamCodes.has(code))
+  }
+
   return {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
     sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
-    team, fixture, flag, gd, ownersOf, ownersForFixture, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
+    team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }

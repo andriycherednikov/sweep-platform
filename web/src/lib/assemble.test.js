@@ -202,3 +202,32 @@ test('assembleSweep carries fixture events through (defaulting to [])', () => {
   expect(s.fixture('m1').events[0].player).toBe('Messi')
   expect(s.fixture('m2').events).toEqual([]) // missing → []
 })
+
+test('assembleSweep calculates team and person knockout elimination', () => {
+  const s = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: '', pool: 'P', color: '#6cf', strength: 90 },
+        { code: 'mx', name: 'Mexico', group: '', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'br', name: 'Brazil', group: '', pool: 'P', color: '#f3c318', strength: 88 },
+      ],
+      people: [
+        { id: 'p1', name: 'Member 1', short: 'M1', initials: 'M1', av: '#111' },
+        { id: 'p2', name: 'Member 2', short: 'M2', initials: 'M2', av: '#222' },
+      ],
+      ownership: { p1: ['mx'], p2: ['ar', 'mx'] },
+      scoring: null,
+    },
+    fixtures: [
+      { id: 'k1', group: '', matchday: 0, t1: 'ar', t2: 'mx', ko: '2026-06-28T18:00:00Z', venue: 'V', city: 'C', status: 'final', score: [2, 1], minute: 90, prob: null, stage: 'knockout' },
+    ],
+    standings: {}, photos: [],
+  })
+  // mx lost k1 (2-1) → eliminated. ar won → alive.
+  expect(s.isTeamEliminated('mx')).toBe(true)
+  expect(s.isTeamEliminated('ar')).toBe(false)
+  // p1 only owns mx → eliminated. p2 owns ar & mx → still has ar → alive.
+  expect(s.isPersonEliminated('p1')).toBe(true)
+  expect(s.isPersonEliminated('p2')).toBe(false)
+})
+

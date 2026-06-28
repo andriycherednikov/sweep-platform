@@ -56,15 +56,24 @@ export function PersonTeams({ codes }) {
   if (codes.length <= 2) {
     return (
       <div className="tms">
-        {codes.map((tc) => (
-          <span className="t" key={tc}><img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc).name}</span>
-        ))}
+        {codes.map((tc) => {
+          const elim = S.isTeamEliminated(tc);
+          return (
+            <span className={"t" + (elim ? " is-elim" : "")} key={tc}>
+              <img className={"flag" + (elim ? " is-elim" : "")} src={S.flag(tc, 40)} alt="" />
+              {S.team(tc)?.name || tc}
+            </span>
+          );
+        })}
       </div>
     );
   }
   return (
     <div className="tms tms-flags">
-      {codes.map((tc) => <img className="flag" key={tc} src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} />)}
+      {codes.map((tc) => {
+        const elim = S.isTeamEliminated(tc);
+        return <img className={"flag" + (elim ? " is-elim" : "")} key={tc} src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} />;
+      })}
       <span className="tms-count">· {codes.length} teams</span>
     </div>
   );
@@ -469,7 +478,7 @@ export function PageHeader({ title, sub, onBack, right, tall, scrolled, go, desk
 /* bottom nav */
 const TABS = [
   ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],
-  ["people","People",Icon.people],["teams","Teams",Icon.ball],["standings","Table",Icon.bars],
+  ["people","People",Icon.people],["teams","Teams",Icon.ball],["knockouts","Knockouts",Icon.bolt],
   ["coins","Wagers",Icon.coin]
 ];
 export function BottomNav({ tab, go }) {

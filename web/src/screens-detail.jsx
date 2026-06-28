@@ -30,6 +30,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   const { scrolled, onScroll } = useScrolled(scrollRef);
   const [q, setQ] = useState("");
   const [view, setView] = useState(initialView); // 'wins' | 'predictions' | 'coins'
+  const [hideEliminated, setHideEliminated] = useState(false);
   const ql = q.trim().toLowerCase();
   const balances = balanceByPerson();
   // wagers are 18+; minors / not-signed-in can't filter by coin balance
@@ -50,17 +51,20 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // Yowie Dollars is 18+ — minors have no wagers at all, so showing them here (even at
   // the bottom with no pill) just reads as confusing dead rows. Drop them from this view.
   if (av === "coins") list = list.filter(m => m.person.adult !== false);
+  if (hideEliminated) list = list.filter(m => !S.isPersonEliminated(m.person.id));
   if (av === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
   else if (av === "coins") // re-sort by Yowie Dollars balance descending
     list = list.slice().sort((a,b) => coinsVal(b) - coinsVal(a));
   // headcount reflects the active view — adults only for the 18+ Yowie Dollars board
-  const headCount = av === "coins" ? S.people.filter(p => p.adult !== false).length : S.people.length;
+  const activeCount = S.people.filter(p => !S.isPersonEliminated(p.id)).length;
+  const totalCount = S.people.length;
+  const headCount = av === "coins" ? S.people.filter(p => p.adult !== false).length : totalCount;
   const subLabel = av === "predictions"
-    ? " in the sweep · sorted by correct predictions"
+    ? `${headCount} in the sweep · sorted by correct predictions`
     : av === "coins"
-    ? ` adult${headCount === 1 ? "" : "s"} · sorted by Yowie Dollars balance`
-    : " in the sweep · sorted by team wins";
+    ? `${headCount} adult${headCount === 1 ? "" : "s"} · sorted by Yowie Dollars balance`
+    : `${activeCount} out of ${totalCount} are still in the running · sorted by team wins`;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title="People" go={go} scrolled={scrolled} />
@@ -68,23 +72,31 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
-            <div className="statseg" style={{marginTop:10, gridTemplateColumns:`repeat(${wager?3:2}, 1fr)`}}>
-              <button className={"statseg-opt"+(av==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
-              <button className={"statseg-opt"+(av==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
-              {wager && <button className={"statseg-opt"+(av==="coins"?" on":"")} onClick={()=>setView("coins")}>Yowie Dollars</button>}
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, gap:8}}>
+              <div className="statseg" style={{flex:1, gridTemplateColumns:`repeat(${wager?3:2}, 1fr)`}}>
+                <button className={"statseg-opt"+(av==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
+                <button className={"statseg-opt"+(av==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
+                {wager && <button className={"statseg-opt"+(av==="coins"?" on":"")} onClick={()=>setView("coins")}>Yowie Dollars</button>}
+              </div>
             </div>
-            <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:"8px 2px 0"}}>{headCount}{subLabel}</p>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
+              <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{subLabel}</p>
+              <button className={"fchip" + (hideEliminated ? " on accent":"")} onClick={()=>setHideEliminated(!hideEliminated)} style={{fontSize:12,padding:"6px 12px",borderRadius:8,fontWeight:700}}>
+                Hide eliminated
+              </button>
+            </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
           <div className="plist">
             {list.map(m=>{
               const p = m.person;
               const stat = statOf(m);
+              const isElim = av === "wins" && S.isPersonEliminated(p.id);
               return (
                 <div className="prow" key={p.id} onClick={()=>openPerson(p)}>
                   <PersonAvatar p={p} cls="pav"/>
                   <div className="pi">
-                    <b>{p.name}</b>
+                    <b>{p.name}{isElim && <span className="elim-badge elim-badge-red">OUT</span>}</b>
                     <PersonTeams codes={p.teams} />
                   </div>
                   {stat.show && (
@@ -146,7 +158,15 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             </div>
             <div className="dh-id" style={{minWidth:0}}>
               <h2>{person.name}</h2>
-              <div className="meta">In the money: <b style={{color:"#fff"}}>#{money.rank}</b> · {money.tag}</div>
+              {(() => {
+                const isPersonOut = S.isPersonEliminated(person.id);
+                const statusTag = isPersonOut ? "OUT" : money.tag;
+                return (
+                  <div className="meta">
+                    <span style={isPersonOut ? {color:"#ff6b6b",fontWeight:800} : undefined}>{statusTag}</span>
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <div className="dh-stats">
@@ -168,17 +188,20 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
           )}
 
           <div className="sec-h"><h2>Teams drawn</h2></div>
-          {myTeams.map(t=>(
-            <div className="teamtile" key={t.code} onClick={()=>openTeam(t.code)}>
-              <div className="tcbar" style={{background:t.color}}></div>
-              <img className="flag bigflag" src={S.flag(t.code,160)} alt=""/>
-              <div className="ti">
-                <b>{t.name}</b>
-                <div className="sub"><span className="poolbadge">Pool {t.pool}</span><span>Group {t.group}</span><span>{t.outlook}</span></div>
+          {myTeams.map(t=>{
+            const isTeamOut = S.isTeamEliminated(t.code);
+            return (
+              <div className={"teamtile" + (isTeamOut ? " is-eliminated" : "")} key={t.code} onClick={()=>openTeam(t.code)} style={isTeamOut ? {opacity:0.5, filter:"grayscale(0.6)"} : undefined}>
+                <div className="tcbar" style={{background:t.color}}></div>
+                <img className={"flag bigflag" + (isTeamOut ? " is-elim" : "")} src={S.flag(t.code,160)} alt="" style={isTeamOut ? {filter:"grayscale(1)", opacity:0.4} : undefined}/>
+                <div className="ti">
+                  <b>{t.name}{isTeamOut && <span className="elim-badge">OUT</span>}</b>
+                  <div className="sub"><span className="poolbadge">Pool {t.pool}</span><span>Group {t.group}</span><span>{t.outlook}</span></div>
+                </div>
+                <div className="wbox"><b>{t.strength}</b><small>Strength</small></div>
               </div>
-              <div className="wbox"><b>{t.strength}</b><small>Strength</small></div>
-            </div>
-          ))}
+            );
+          })}
 
           <div className="sec-h"><h2>All their matches</h2></div>
           <div className="block">
@@ -292,22 +315,25 @@ export function TeamGroup({ title, teams, openTeam, rank }) {
     <div style={{marginBottom:6}}>
       <div className="sec-h" style={{marginBottom:7}}><h2>{title}</h2></div>
       <div className="plist" style={{marginBottom:12}}>
-        {teams.map((t,i)=>(
-          <div className={"prow"+(myTeams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px"}}>
-            {rank && <span className="pos" style={{width:14,fontFamily:"'Barlow Condensed'",fontWeight:800,color:i<2?"var(--live)":i===2?"var(--gold)":"var(--muted2)"}}>{i+1}</span>}
-            <img className="flag" src={S.flag(t.code,160)} alt="" style={{width:40,height:29,borderRadius:5}}/>
-            <div className="pi">
-              <b>{t.name}</b>
-              <div className="tms">
-                {t.owners.length>0
-                  ? <span className="t"><AvStack people={t.owners} size={30} max={4}/> <span style={{marginLeft:4}}>{t.owners.length} owner{t.owners.length!==1?"s":""}</span></span>
-                  : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
+        {teams.map((t,i)=>{
+          const isTeamOut = S.isTeamEliminated(t.code);
+          return (
+            <div className={"prow"+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px", ...(isTeamOut ? {opacity:0.5, filter:"grayscale(0.6)"} : {})}}>
+              {rank && <span className="pos" style={{width:14,fontFamily:"'Barlow Condensed'",fontWeight:800,color:i<2?"var(--live)":i===2?"var(--gold)":"var(--muted2)"}}>{i+1}</span>}
+              <img className={"flag" + (isTeamOut ? " is-elim" : "")} src={S.flag(t.code,160)} alt="" style={{width:40,height:29,borderRadius:5, ...(isTeamOut ? {filter:"grayscale(1)", opacity:0.4} : {})}}/>
+              <div className="pi">
+                <b>{t.name}{isTeamOut && <span className="elim-badge">OUT</span>}</b>
+                <div className="tms">
+                  {t.owners.length>0
+                    ? <span className="t"><AvStack people={t.owners} size={30} max={4}/> <span style={{marginLeft:4}}>{t.owners.length} owner{t.owners.length!==1?"s":""}</span></span>
+                    : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
+                </div>
               </div>
+              <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>
+              <Icon.chev className="chev"/>
             </div>
-            <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>
-            <Icon.chev className="chev"/>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

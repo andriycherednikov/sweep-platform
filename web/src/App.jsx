@@ -26,7 +26,7 @@ import { BetDetail } from "./screens-bet-detail.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
-const TABS = ["schedule", "people", "teams", "standings", "coins"];
+const TABS = ["schedule", "people", "teams", "knockouts", "standings", "coins"];
 
 /* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
 export function urlFor(v) {
@@ -47,7 +47,7 @@ export function readView(path) {
   const base = { tab: "home", overlay: null, modal: null, identity: false };
   if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
-  if (seg[0] === "knockouts") return { ...base, tab: "standings", overlay: { type: "knockouts" } };
+  if (seg[0] === "knockouts") return { ...base, tab: "knockouts" };
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
   if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
   if (seg[0] === "super") return { ...base, overlay: { type: "super", token: parseSuperRoute(path).token } };
@@ -139,6 +139,7 @@ export default function App() {
   else if (tab==="schedule")  base = <ScheduleScreen go={go} openMatch={openMatch} openPerson={openPerson}/>;
   else if (tab==="people")    base = <PeopleScreen go={go} openPerson={openPerson} initialView={peopleViewRef.current}/>;
   else if (tab==="teams")     base = <TeamsScreen go={go} openTeam={openTeam}/>;
+  else if (tab==="knockouts") base = <KnockoutsScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson}/>;
   else if (tab==="standings") base = <StandingsScreen go={go} openTeam={openTeam} openKnockouts={openKnock}/>;
   else if (tab==="coins")    base = canWager()
     ? <CoinsScreen go={go} openBet={openBet} openMatch={openMatch}/>
@@ -147,7 +148,7 @@ export default function App() {
   let ov = null, ovZ = 25;
   if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
   else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
-  else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack}/>;
+  else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast} openMatch={openMatch}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
   else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
