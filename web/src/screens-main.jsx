@@ -474,18 +474,21 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
       <div className="stand">
         <div className="gh"><b>Group {grp}</b><span className="leg"><i></i> Top 2 advance</span></div>
         <div className="strow"><span className="hd">#</span><span className="hd l">Team</span><span className="hd">P</span><span className="hd">W</span><span className="hd">D</span><span className="hd">L</span><span className="hd">GD</span><span className="hd">PTS</span></div>
-        {table.map((t,i)=>(
-          <div className={"strow"+(i<2?" q":i===2?" q3":"")+(myTeams.indexOf(t.code)>=0?" mine":"")} key={t.code} onClick={()=>openTeam(t.code)}>
-            <span className="pos">{i+1}</span>
-            <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
-            <span className="num">{t.played}</span>
-            <span className="num">{t.win}</span>
-            <span className="num">{t.draw}</span>
-            <span className="num">{t.loss}</span>
-            <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
-            <span className="pts">{t.pts}</span>
-          </div>
-        ))}
+        {table.map((t,i)=>{
+          const isTeamOut = S.isTeamEliminated(t.code);
+          return (
+            <div className={"strow"+(i<2?" q":i===2?" q3":"")+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={isTeamOut ? {opacity:0.45, filter:"grayscale(0.6)"} : {}}>
+              <span className="pos">{i+1}</span>
+              <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
+              <span className="num">{t.played}</span>
+              <span className="num">{t.win}</span>
+              <span className="num">{t.draw}</span>
+              <span className="num">{t.loss}</span>
+              <span className="num">{S.gd(t)>0?"+":""}{S.gd(t)}</span>
+              <span className="pts">{t.pts}</span>
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -799,6 +802,9 @@ function BracketView({ onOpen, openTeam }) {
 
         {/* CENTER FINAL */}
         <div className="bracket-center">
+          <div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:14,letterSpacing:1.5,textTransform:"uppercase",color:"var(--gold,#d97706)",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
+            <span>🏆</span> GRAND FINAL
+          </div>
           <BracketMatchBox team1Code={finalMatch.t1} team2Code={finalMatch.t2} venueDate={finalMatch.venue} onOpen={onOpen} openTeam={openTeam} />
         </div>
 

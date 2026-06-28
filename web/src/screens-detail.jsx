@@ -348,6 +348,8 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
   // a team's photos = approved photos tagged to any game this team plays in
   const photos = S.photos.filter(p=>{ const fx = S.fixture(p.fixtureId); return p.status==="approved" && fx && (fx.t1===code || fx.t2===code); });
 
+  const isTeamOut = S.isTeamEliminated(code);
+
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <header className="top" style={{padding:0,overflow:"visible"}}>
@@ -359,7 +361,14 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
               <button className="backbtn" onClick={onBack}><Icon.back/></button>
               <img className="flag" src={S.flag(code,320)} alt=""/>
               <div className="tb-id" style={{flex:1, minWidth:0}}>
-                <h2>{t.name}</h2>
+                <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <h2 style={{margin:0}}>{t.name}</h2>
+                  {isTeamOut ? (
+                    <span className="elim-badge elim-badge-red" style={{fontSize:10,padding:"2px 7px",fontWeight:800,borderRadius:6,textTransform:"uppercase"}}>OUT</span>
+                  ) : (
+                    <span style={{background:"#dcfce7",color:"#15803d",border:"1px solid #bbf7d0",fontSize:10,padding:"2px 7px",fontWeight:800,borderRadius:6,textTransform:"uppercase"}}>ALIVE</span>
+                  )}
+                </div>
                 <div className="meta">
                   <span className="b">Group {t.group}</span>
                   <span className="b">Pool {t.pool}</span>
