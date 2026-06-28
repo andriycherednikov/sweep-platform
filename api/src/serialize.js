@@ -18,5 +18,6 @@ export function serializeFixture(f) {
     events: f.events ?? [],
     statistics: f.statistics ?? null,
     stage: f.stage, derby: f.derby, doubleOwner: f.doubleOwner,
+    winnerCode: f.winnerCode ?? null,
   }
 }

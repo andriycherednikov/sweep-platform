@@ -41,3 +41,11 @@ test('serializeFixture markets null + htScore null when absent', () => {
   expect(out.markets).toBeNull()
   expect(out.htScore).toBeNull()
 })
+
+test('serializeFixture exposes winnerCode, null when absent', () => {
+  const out1 = serializeFixture({ ...base, winnerCode: 'ar' })
+  expect(out1.winnerCode).toBe('ar')
+  const out2 = serializeFixture({ ...base })
+  expect(out2.winnerCode).toBeNull()
+})
+

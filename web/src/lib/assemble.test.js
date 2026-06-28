@@ -231,3 +231,27 @@ test('assembleSweep calculates team and person knockout elimination', () => {
   expect(s.isPersonEliminated('p2')).toBe(false)
 })
 
+test('assembleSweep calculates knockout elimination from winnerCode on draw scores (penalties)', () => {
+  const s = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: '', pool: 'P', color: '#6cf', strength: 90 },
+        { code: 'mx', name: 'Mexico', group: '', pool: 'P', color: '#0a7', strength: 76 },
+      ],
+      people: [
+        { id: 'p1', name: 'Member 1', short: 'M1', initials: 'M1', av: '#111' },
+      ],
+      ownership: { p1: ['mx'] },
+      scoring: null,
+    },
+    fixtures: [
+      { id: 'k1', group: '', matchday: 0, t1: 'ar', t2: 'mx', ko: '2026-06-28T18:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 1], winnerCode: 'ar', minute: 120, prob: null, stage: 'knockout' },
+    ],
+    standings: {}, photos: [],
+  })
+  expect(s.isTeamEliminated('mx')).toBe(true)
+  expect(s.isTeamEliminated('ar')).toBe(false)
+  expect(s.isPersonEliminated('p1')).toBe(true)
+})
+
+

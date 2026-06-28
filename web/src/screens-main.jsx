@@ -574,8 +574,9 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
   const showScores = f && (isFinal || isLive) && f.score != null;
   const isHidden = f && spoilerHidden(f) && showScores;
 
-  const winnerA = isFinal && scoreA > scoreB;
-  const winnerB = isFinal && scoreB > scoreA;
+  const winCode = isFinal ? (f?.winnerCode && f.winnerCode !== 'DRAW' ? f.winnerCode : (scoreA != null && scoreB != null ? (scoreA > scoreB ? codeA : scoreB > scoreA ? codeB : null) : null)) : null;
+  const winnerA = isFinal && winCode === codeA;
+  const winnerB = isFinal && winCode === codeB;
   const elimA = codeA ? S.isTeamEliminated(codeA) : false;
   const elimB = codeB ? S.isTeamEliminated(codeB) : false;
   const loserA = (isFinal && scoreA != null && !winnerA) || elimA;
@@ -648,7 +649,9 @@ function BracketView({ onOpen, openTeam }) {
   const getWinner = (def) => {
     if (!def) return null;
     const f = S.fixtures.find(x => (x.t1 === def.t1 && x.t2 === def.t2) || (x.t1 === def.t2 && x.t2 === def.t1));
-    if (!f || f.status !== "final" || !f.score) return null;
+    if (!f || f.status !== "final") return null;
+    if (f.winnerCode && f.winnerCode !== 'DRAW') return f.winnerCode;
+    if (!f.score) return null;
     return f.score[0] > f.score[1] ? f.t1 : f.score[1] > f.score[0] ? f.t2 : null;
   };
 

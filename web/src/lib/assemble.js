@@ -108,6 +108,7 @@ export function assembleSweep(api) {
       prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
       markets: f.markets ?? null, htScore: f.htScore ?? null,
       lineups: f.lineups ?? null, events: f.events ?? [], statistics: f.statistics ?? null, stage: f.stage, derby, doubleOwners,
+      winnerCode: f.winnerCode ?? null,
       timeLabel: fmtTime(ko), dayLabel: fmtDate(ko), dayKey: fmtDayKey(ko),
       dateTimeLabel: fmtDateTime(ko),
     }
@@ -169,9 +170,13 @@ export function assembleSweep(api) {
 
   // 3. Finished knockout matches
   for (const f of fixtures) {
-    if (f.stage === 'knockout' && f.status === 'final' && f.score) {
-      if (f.score[0] > f.score[1]) eliminatedTeamCodes.add(f.t2)
-      else if (f.score[1] > f.score[0]) eliminatedTeamCodes.add(f.t1)
+    if (f.stage === 'knockout' && f.status === 'final') {
+      if (f.winnerCode && f.winnerCode !== 'DRAW') {
+        eliminatedTeamCodes.add(f.winnerCode === f.t1 ? f.t2 : f.t1)
+      } else if (f.score) {
+        if (f.score[0] > f.score[1]) eliminatedTeamCodes.add(f.t2)
+        else if (f.score[1] > f.score[0]) eliminatedTeamCodes.add(f.t1)
+      }
     }
   }
 
