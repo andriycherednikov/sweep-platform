@@ -802,9 +802,6 @@ function BracketView({ onOpen, openTeam }) {
 
         {/* CENTER FINAL */}
         <div className="bracket-center">
-          <div style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:14,letterSpacing:1.5,textTransform:"uppercase",color:"var(--gold,#d97706)",marginBottom:6,display:"flex",alignItems:"center",gap:6}}>
-            <span>🏆</span> GRAND FINAL
-          </div>
           <BracketMatchBox team1Code={finalMatch.t1} team2Code={finalMatch.t2} venueDate={finalMatch.venue} onOpen={onOpen} openTeam={openTeam} />
         </div>
 
