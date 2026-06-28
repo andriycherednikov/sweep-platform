@@ -591,7 +591,7 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
   const defaultCity = parts[0] || "TBD";
   const defaultDate = parts[1] || "";
   const dateStr = f ? `${f.dayLabel}${f.timeLabel ? ' · ' + f.timeLabel : ''}` : defaultDate;
-  const stadiumStr = f ? (f.venue ? `${f.city} (${f.venue})` : f.city) : defaultCity;
+  const stadiumStr = f ? (f.venue ? (f.city && !f.venue.toLowerCase().includes(f.city.toLowerCase()) ? `${f.venue} · ${f.city}` : f.venue) : f.city) : defaultCity;
 
   return (
     <div className={"b-match-box" + (isMine ? " mine" : "")} onClick={() => f && onOpen && onOpen(f)} style={{ cursor: f ? "pointer" : "default" }}>
@@ -601,7 +601,10 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
           {isLive && <span className="b-live-dot">● {f.minute ? `${f.minute}' LIVE` : "LIVE"}</span>}
         </div>
         <div className="b-head-row">
-          <span className="b-head-stadium">{stadiumStr}</span>
+          <span className="b-head-stadium">
+            <Icon.pin style={{width:10.5,height:10.5,stroke:"var(--muted2)",flexShrink:0}}/>
+            <span>{stadiumStr}</span>
+          </span>
           {isMine && <span className="mine-tag" style={{fontSize:8.5,padding:"1.5px 5px",borderRadius:4,flexShrink:0}}><Icon.star/> Your team</span>}
         </div>
       </div>

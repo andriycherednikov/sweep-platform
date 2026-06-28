@@ -1456,7 +1456,8 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .b-match-head { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; border-bottom: 1px solid var(--line2); padding-bottom: 5px; min-width: 0; }
 .b-head-row { display: flex; align-items: center; justify-content: space-between; gap: 6px; min-width: 0; }
 .b-head-date { font-size: 10.5px; font-weight: 800; color: var(--navy); text-transform: uppercase; letter-spacing: .4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
-.b-head-stadium { font-size: 9.5px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: .3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.b-head-stadium { display: flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 600; color: var(--muted2); text-transform: uppercase; letter-spacing: .3px; min-width: 0; }
+.b-head-stadium > span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .b-head-tags { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .b-live-dot { color: var(--live, #e53e3e); font-weight: 800; font-size: 10px; white-space: nowrap; }
 
