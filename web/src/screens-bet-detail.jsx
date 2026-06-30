@@ -3,21 +3,24 @@
    ============================================================ */
 import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
-import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
+import { Flag, Icon, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
 import { WalletHeader, MyBets, WagersInfoSheet, BetslipSheet, BetslipPill } from './screens-coins.jsx'
 import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
 
-// Ordering: all full-match markets, then 1st-half markets, then novelty markets.
-const MARKET_ORDER = ['1x2', 'dc', 'ou25', 'btts', 'oe', 'cards', 'fh1x2', 'fhou', 'cs', 'gs']
+// Ordering: To Qualify leads on knockouts (omitted on group games), then the
+// full-match markets, then 1st-half markets, then novelty markets.
+const MARKET_ORDER = ['toq', '1x2', 'dc', 'ou25', 'btts', 'oe', 'cards', 'fh1x2', 'fhou', 'cs', 'gs']
+// markets whose Home/Away selections render as team names + flags (no Draw on toq)
+const TEAM_MARKETS = new Set(['1x2', 'fh1x2', 'toq'])
 // correct score collapses behind a "show more" toggle (goalscorer has its own grouped path)
 const LONG_MARKETS = { cs: 12 }
 const GS_PER_TEAM = 6 // goalscorer players shown per team before "show more"
 
-// team-aware label for 1x2/fh1x2 Home/Away; passthrough otherwise
+// team-aware label for 1x2/fh1x2/toq Home/Away; passthrough otherwise
 function selLabel(mkKey, sel, f) {
-  if (mkKey === '1x2' || mkKey === 'fh1x2') {
+  if (TEAM_MARKETS.has(mkKey)) {
     if (sel.key === 'HOME') return S.team(f.t1)?.name || 'Home'
     if (sel.key === 'AWAY') return S.team(f.t2)?.name || 'Away'
     if (sel.key === 'DRAW') return 'Draw'
@@ -108,18 +111,26 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
       ) : (
       <div className="scroll pad screen-anim" ref={scrollRef} onScroll={onScroll}>
         <div className="wrap" style={{ marginTop: 0 }}>
-          <div className="coin-match-title">
+          {/* tap the title to open the match info sheet (lineups, events, stats) */}
+          <div
+            className={'coin-match-title' + (openMatch ? ' tappable' : '')}
+            {...(openMatch ? {
+              role: 'button', tabIndex: 0, 'aria-label': 'Match info',
+              onClick: () => openMatch(f),
+              onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMatch(f) } },
+            } : {})}
+          >
             <div className="coin-mt-row">
               <span className="coin-mt-team"><Flag code={f.t1} w={24} h={17} />{S.team(f.t1)?.name || f.t1}</span>
               <span className="coin-mt-vs">v</span>
               <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={24} h={17} /></span>
             </div>
-            <span className="coin-mt-ko">{f.dateTimeLabel}</span>
+            <span className="coin-mt-ko">{f.dateTimeLabel}{openMatch && <> · Match info <Icon.chev className="coin-mt-info-chev" /></>}</span>
           </div>
           <div className="coin-mkt-list">
           {keys.map((k) => {
             const mk = markets[k]
-            const teamFlag = (k === '1x2' || k === 'fh1x2')
+            const teamFlag = TEAM_MARKETS.has(k)
             const toggle = () => setOpenMkts((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n })
             // one selection button (also reused by the grouped goalscorer path)
             const selBtn = (s) => {

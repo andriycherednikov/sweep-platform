@@ -1,7 +1,8 @@
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { BetDetail } from './screens-bet-detail.jsx'
+import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
 import { setWalletData } from './coins.js'
 import { clearBetslip } from './betslip.js'
 import { setMe } from './social.js'
@@ -17,6 +18,11 @@ beforeEach(() => {
     '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] },
     ou25: { label: 'Over/Under 2.5', line: 2.5, book: 'Pinnacle', selections: [{ key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
     cs: { label: 'Correct Score', book: 'Pinnacle', selections: [{ key: '2:1', label: '2-1', odds: 8 }, { key: '1:0', label: '1-0', odds: 7 }] } } }]
+  // f2: a knockout fixture that also carries the To Qualify market
+  S.fixtures.push({ id: 'f2', t1: 'arg', t2: 'bra', stage: 'knockout', status: 'upcoming',
+    ko: new Date('2026-07-05T18:00:00Z'), dateTimeLabel: 'Sun 5 Jul, 18:00', markets: {
+    '1x2': { label: 'Match Winner', book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 2 }, { key: 'DRAW', label: 'Draw', odds: 3.5 }, { key: 'AWAY', label: 'Away', odds: 4 }] },
+    toq: { label: 'To Qualify', book: 'Bet365', selections: [{ key: 'HOME', label: 'Home', odds: 1.3 }, { key: 'AWAY', label: 'Away', odds: 3.4 }] } } })
   S.fixture = (id) => S.fixtures.find((f) => f.id === id)
   setMe('pn_a')
   setWalletData({ balance: 1000, weeklyGrant: 1000, bets: { open: [], settled: [] }, leaderboard: [] })
@@ -35,6 +41,30 @@ test('tapping a selection adds it to the betslip and auto-opens the slip (keypad
   // the first selection auto-opens the sheet, so the keypad is shown without tapping the tab
   expect(screen.getByRole('button', { name: 'Max stake' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: '5' })).toBeInTheDocument()
+})
+
+test('To Qualify is the lead market on a knockout fixture, shown with team names', () => {
+  render(<BetDetail fixtureId="f2" onBack={() => {}} />)
+  // present and ordered first (before Match Winner)
+  const titles = screen.getAllByText(/^To Qualify$|^Match Winner$/)
+  expect(titles[0]).toHaveTextContent('To Qualify')
+  // 2-way uses team names (who advances), not "Home"/"Away"
+  const toqBlock = screen.getByText('To Qualify').closest('.coin-mkt')
+  expect(within(toqBlock).getByText('ARG')).toBeInTheDocument()
+  expect(within(toqBlock).getByText('BRA')).toBeInTheDocument()
+})
+
+test('tapping the game name brings up match info', () => {
+  const openMatch = vi.fn()
+  render(<BetDetail fixtureId="f2" onBack={() => {}} openMatch={openMatch} />)
+  fireEvent.click(screen.getByRole('button', { name: /match info/i }))
+  expect(openMatch).toHaveBeenCalledWith(S.fixture('f2'))
+})
+
+test('betLabels expose To Qualify with the advancing team name', () => {
+  expect(MARKET_LABELS.toq).toBe('To Qualify')
+  expect(betSelectionLabel({ fixtureId: 'f2', market: 'toq', selection: 'HOME' })).toBe('ARG')
+  expect(betSelectionLabel({ fixtureId: 'f2', market: 'toq', selection: 'AWAY' })).toBe('BRA')
 })
 
 test('the Statement tab shows the Yowie Dollars statement', () => {
