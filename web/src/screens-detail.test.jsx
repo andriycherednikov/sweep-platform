@@ -933,3 +933,36 @@ test('PeopleScreen Yowie Dollars view omits minors entirely (present in Wins)', 
   expect(rowNames(container)).toEqual(['Alice Anders'])
   expect(getByText(/1 adult · sorted by Yowie Dollars balance/i)).toBeInTheDocument()
 })
+
+// ---------------- TeamsScreen — Hide eliminated ----------------
+import { TeamsScreen } from './screens-detail.jsx'
+
+test('TeamsScreen "Hide eliminated" hides OUT teams and restores them on toggle', () => {
+  // 'de' is a known knockout team (alive); 'kr' is not, so assemble marks it eliminated
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'de', name: 'Germany', group: 'A', pool: 'P', color: '#000', strength: 90 },
+        { code: 'kr', name: 'South Korea', group: 'A', pool: 'P', color: '#c00', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [],
+    standings: { A: [
+      { code: 'de', name: 'Germany', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 },
+      { code: 'kr', name: 'South Korea', played: 3, win: 0, draw: 0, loss: 3, gf: 0, ga: 6, pts: 0 },
+    ] },
+    photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, queryByText } = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(getByText('Germany')).toBeTruthy()
+  expect(getByText('South Korea')).toBeTruthy() // eliminated but shown by default
+
+  act(() => { fireEvent.click(getByText('Hide eliminated')) })
+  expect(getByText('Germany')).toBeTruthy()
+  expect(queryByText('South Korea')).toBeNull() // hidden
+
+  act(() => { fireEvent.click(getByText('Show eliminated')) })
+  expect(queryByText('South Korea')).toBeTruthy() // restored
+})

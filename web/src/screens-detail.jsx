@@ -291,6 +291,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
 /* ---------------- TEAMS ---------------- */
 export function TeamsScreen({ go, openTeam }) {
   const [mode, setMode] = useState("group"); // group | pool
+  const [hideElim, setHideElim] = useState(false);
   const [q, setQ] = useState("");
   const scrollRef = useRef(null);
   const { scrolled, onScroll } = useScrolled(scrollRef);
@@ -305,6 +306,7 @@ export function TeamsScreen({ go, openTeam }) {
       <div className="filterbar">
         <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>By World Cup group</button>
         <button className={"fchip"+(mode==="pool"?" on":"")} onClick={()=>setMode("pool")}>By sweep pool</button>
+        <button className={"fchip"+(hideElim?" on":"")} onClick={()=>setHideElim(v=>!v)} style={{marginLeft:"auto"}} aria-pressed={hideElim}>{hideElim?"Show eliminated":"Hide eliminated"}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
@@ -314,27 +316,30 @@ export function TeamsScreen({ go, openTeam }) {
           {matches ? (
             matches.length === 0
               ? <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams match “{q}”.</p>
-              : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} />
+              : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} hideElim={hideElim} />
           ) : mode==="group" ? S.groups.map(g=>(
-            <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank />
+            <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank hideElim={hideElim} />
           )) : ["A","B"].map(pool=>(
-            <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} />
+            <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} />
           ))}
         </div>
       </div>
     </div>
   );
 }
-export function TeamGroup({ title, teams, openTeam, rank }) {
+export function TeamGroup({ title, teams, openTeam, rank, hideElim }) {
   useSocial();
   const me = getMe();
   const myTeams = me ? me.teams : [];
+  // when hiding eliminated, drop a whole group/pool that has nothing left to show
+  if (hideElim && teams.every(t => S.isTeamEliminated(t.code))) return null;
   return (
     <div style={{marginBottom:6}}>
       <div className="sec-h" style={{marginBottom:7}}><h2>{title}</h2></div>
       <div className="plist" style={{marginBottom:12}}>
         {teams.map((t,i)=>{
           const isTeamOut = S.isTeamEliminated(t.code);
+          if (hideElim && isTeamOut) return null; // skip the row but keep i so ranks don't renumber
           return (
             <div className={"prow"+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px", ...(isTeamOut ? {opacity:0.5, filter:"grayscale(0.6)"} : {})}}>
               {rank && <span className="pos" style={{width:14,fontFamily:"'Barlow Condensed'",fontWeight:800,color:i<2?"var(--live)":i===2?"var(--gold)":"var(--muted2)"}}>{i+1}</span>}
@@ -782,7 +787,7 @@ function PenaltyShootout({ f }) {
                     <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0, justifyContent: "flex-end", textAlign: "right" }}>
                       {e1 ? (
                         <>
-                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e1) ? "var(--muted2)" : "var(--navy)" }}>{e1.player}</span>
+                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e1) ? "var(--muted2)" : "var(--navy)" }}>{e1.player || team1.name}</span>
                           {renderDot(e1)}
                         </>
                       ) : <span style={{ color: "var(--muted2)" }}>—</span>}
@@ -798,7 +803,7 @@ function PenaltyShootout({ f }) {
                       {e2 ? (
                         <>
                           {renderDot(e2)}
-                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e2) ? "var(--muted2)" : "var(--navy)" }}>{e2.player}</span>
+                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e2) ? "var(--muted2)" : "var(--navy)" }}>{e2.player || team2.name}</span>
                         </>
                       ) : <span style={{ color: "var(--muted2)" }}>—</span>}
                     </div>
