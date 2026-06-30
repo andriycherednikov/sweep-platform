@@ -897,7 +897,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <div className="vs-cd" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {showScore
                 ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
-                    <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}<PenScore pen={f.penScore} side={0} size={16} />{f.penScore ? " – " : "–"}{f.score[1]}<PenScore pen={f.penScore} side={1} size={16} /></span>
+                    <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}<PenScore pen={f.penScore} side={0} />{f.penScore ? " – " : "–"}{f.score[1]}<PenScore pen={f.penScore} side={1} /></span>
                   ))
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
               <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>

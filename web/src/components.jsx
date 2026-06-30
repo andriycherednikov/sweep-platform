@@ -218,13 +218,11 @@ export function StatusPill({ f }) {
 }
 
 /* Inline penalty-shootout tally for ONE side, shown right after that team's regulation
-   score so a shootout reads "1 (3) – 1 (4)". Winner's tally in navy. side: 0 = home, 1 = away. */
-export function PenScore({ pen, side, size = 11.5 }) {
+   score so a shootout reads "1 (3) – 1 (4)". Inherits the score's size/colour/weight.
+   side: 0 = home, 1 = away. */
+export function PenScore({ pen, side }) {
   if (!pen) return null;
-  const me = pen[side], opp = pen[side === 0 ? 1 : 0];
-  return (
-    <span style={{ fontSize: size, color: me > opp ? "var(--navy)" : "var(--muted2)", marginLeft: 3, fontWeight: 700, fontFamily: "sans-serif" }}>({me})</span>
-  );
+  return <span style={{ marginLeft: 3 }}>({pen[side]})</span>;
 }
 
 /* W/D/L result pill from a team's perspective */
