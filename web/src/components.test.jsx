@@ -733,6 +733,29 @@ test('HomeScreen latest-scores shows shootout penalty scores and status', () => 
   expect(container.querySelector('.rscore').textContent.replace(/\s/g, '')).toContain('1(3)–1(5)')
 })
 
+test('HomeScreen hero shows the running penalty tally during a live shootout', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'nl', name: 'Netherlands', group: 'A', pool: 'P', color: '#f60', strength: 84 },
+        { code: 'ma', name: 'Morocco', group: 'A', pool: 'P', color: '#c00', strength: 75 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'k1', group: '', matchday: 0, t1: 'nl', t2: 'ma', ko: '2026-06-30T10:00:00Z',
+      venue: 'V', city: 'C', status: 'live', score: [1, 1], penScore: [1, 0], phase: 'P', minute: null, prob: null, stage: 'knockout', events: [],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSpoiler(false)
+  const noop = () => {}
+  const { container, getByText } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  // running shootout tally is rendered inline with the score ("1 (1) – 1 (0)")
+  expect(container.querySelector('.vs-cd .cd').textContent.replace(/\s/g, '')).toContain('1(1)–1(0)')
+  expect(getByText(/Pens · LIVE/)).toBeTruthy() // phase label
+})
+
 test('PersonTeams shows names for <=2 teams, compact flags + count for more', () => {
   setSweepData(assembleSweep({
     bootstrap: {

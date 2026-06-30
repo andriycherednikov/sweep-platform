@@ -266,7 +266,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
           <div className="vs-cd">
             {live
-              ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}–{next.score[1]}</span>}<span className="cdl">{[liveLabel(next), "LIVE"].filter(Boolean).join(" · ")}</span></>
+              ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}<PenScore pen={next.penScore} side={0} />{next.penScore ? " – " : "–"}{next.score[1]}<PenScore pen={next.penScore} side={1} /></span>}<span className="cdl">{[liveLabel(next), "LIVE"].filter(Boolean).join(" · ")}</span></>
               : <><span className="cd">{cd.display}</span><span className="cdl">{cd.unit}</span></>}
           </div>
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
