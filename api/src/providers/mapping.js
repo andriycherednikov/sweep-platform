@@ -155,6 +155,15 @@ export function mapMarkets(rawResponse) {
     const [a, d, b] = roundTo100(implied.map((p) => p / sum))
     prob = { a, d, b }
   }
+  // To Qualify: knockout-only 2-way (which side advances — extra time/penalties included).
+  // Pinnacle doesn't carry it, so source cross-book. Absent for group games → market omitted.
+  const tqR = acrossBooks('To Qualify')
+  if (tqR) {
+    const th = oddOf(tqR.bet, 'Home'), ta = oddOf(tqR.bet, 'Away')
+    if (th && ta) markets['toq'] = { label: 'To Qualify', book: tqR.book.name,
+      selections: [{ key: 'HOME', label: 'Home', odds: th }, { key: 'AWAY', label: 'Away', odds: ta }] }
+  }
+
   const fhR = acrossBooks('First Half Winner')
   const fh = fhR && threeWay(fhR.bet, 'First Half Result')
   if (fh) markets['fh1x2'] = { ...fh, book: fhR.book.name }

@@ -40,6 +40,8 @@ export function regulationResult(f) {
 /** Resolve one bet → 'won' | 'lost' | null (null = data not available yet, leave open). */
 export function resolveBet(market, selection, line, f) {
   if (market === '1x2') { const r = regulationResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
+  // To Qualify grades on who actually advanced (winnerCode → ET/penalties aware), not the 90' result.
+  if (market === 'toq') { const r = fixtureResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
   if (market === 'fh1x2') { const r = htResult(f); return r == null ? null : r === selection ? 'won' : 'lost' }
   if (market === 'ou25' || market === 'cards') {
     if (line == null) return null

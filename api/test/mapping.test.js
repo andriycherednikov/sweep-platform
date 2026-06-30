@@ -284,6 +284,23 @@ test('mapMarkets falls back to another book for BTTS/DC/Odd-Even when the main b
   expect(r.markets['cs'].book).toBe('Bet365')
 })
 
+test('mapMarkets reads To Qualify (knockout advance) cross-book as a 2-way market', () => {
+  const bet365 = { name: 'Bet365', bets: [
+    { name: 'To Qualify', values: [ov('Home', 1.3), ov('Away', 3.4)] },
+  ] }
+  const r = mapMarkets(oddsResp([pinnacleBook, bet365]))
+  expect(r.book).toBe('Pinnacle')               // main lines still from the best-ranked book
+  expect(r.markets['toq'].book).toBe('Bet365')  // To Qualify pulled from the book that carries it
+  expect(r.markets['toq'].label).toBe('To Qualify')
+  expect(r.markets['toq'].selections.map(s => s.key)).toEqual(['HOME', 'AWAY'])
+  expect(r.markets['toq'].selections.find(s => s.key === 'HOME').odds).toBe(1.3)
+})
+
+test('mapMarkets has no To Qualify market for group games (no book carries it)', () => {
+  const r = mapMarkets(oddsResp([pinnacleBook]))
+  expect(r.markets['toq']).toBeUndefined()
+})
+
 test('mapFixture captures the half-time score', () => {
   const raw = { fixture: { id: 7, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1, winner: true }, away: { id: 2, winner: false } },

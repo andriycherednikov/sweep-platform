@@ -118,6 +118,14 @@ test('resolveBet dc (double chance) from the regulation result', () => {
   expect(resolveBet('dc', 'X2', null, fx())).toBeNull()
 })
 
+test('resolveBet toq (to qualify) grades on who advanced — ET/penalties aware', () => {
+  // 1-1 at 90', won on penalties (winnerCode=arg): To Qualify HOME wins though 1x2 is a draw
+  expect(resolveBet('toq', 'HOME', null, fx({ regScore1: 1, regScore2: 1, winnerCode: 'arg' }))).toBe('won')
+  expect(resolveBet('toq', 'AWAY', null, fx({ regScore1: 1, regScore2: 1, winnerCode: 'arg' }))).toBe('lost')
+  expect(resolveBet('toq', 'AWAY', null, fx({ winnerCode: 'bra' }))).toBe('won')
+  expect(resolveBet('toq', 'HOME', null, fx({ winnerCode: null }))).toBeNull() // not final yet
+})
+
 test('resolveBet oe (odd/even total goals); 0-0 counts as even', () => {
   expect(resolveBet('oe', 'ODD', null, fx({ regScore1: 2, regScore2: 1 }))).toBe('won')  // 3
   expect(resolveBet('oe', 'EVEN', null, fx({ regScore1: 2, regScore2: 0 }))).toBe('won')  // 2
