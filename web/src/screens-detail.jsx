@@ -97,7 +97,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
                   <PersonAvatar p={p} cls="pav"/>
                   <div className="pi">
                     <b>{p.name}{isElim && <span className="elim-badge elim-badge-red">OUT</span>}</b>
-                    <PersonTeams codes={p.teams} />
+                    <PersonTeams codes={p.teams} hideEliminated={hideEliminated} />
                   </div>
                   {stat.show && (
                     <div className="stat">
@@ -136,6 +136,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
     const ownsT1 = person.teams.indexOf(f.t1) >= 0, ownsT2 = person.teams.indexOf(f.t2) >= 0;
     if (ownsT1 && ownsT2) {
       if (f.status !== "final") return { myCode: f.t1, r: resultFor(f, f.t1) };
+      if (f.winnerCode) return { myCode: f.winnerCode, r: "w" };
       const draw = f.score[0] === f.score[1], t1Won = f.score[0] > f.score[1];
       return { myCode: (draw || t1Won) ? f.t1 : f.t2, r: draw ? "d" : "w" };
     }
@@ -222,7 +223,24 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                     <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
-                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="sc">{myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}</span>)}
+                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : (
+                      <span className="sc">
+                        {myCode===f.t1?f.score[0]:f.score[1]}–{myCode===f.t1?f.score[1]:f.score[0]}
+                        {f.penScore && (() => {
+                          const pSelf = myCode===f.t1 ? f.penScore[0] : f.penScore[1];
+                          const pOpp = myCode===f.t1 ? f.penScore[1] : f.penScore[0];
+                          return (
+                            <span style={{ fontSize: 10, color: "var(--muted2)", marginLeft: 6, fontWeight: 700, fontFamily: "sans-serif" }}>
+                              (
+                              <span style={{ color: pSelf > pOpp ? "var(--navy)" : "inherit" }}>{pSelf}</span>
+                              –
+                              <span style={{ color: pOpp > pSelf ? "var(--navy)" : "inherit" }}>{pOpp}</span>
+                              )
+                            </span>
+                          );
+                        })()}
+                      </span>
+                    ))}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
                     {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[myCode===f.t1?"pa":"pb"]}%</span>}
                   </div>
@@ -416,7 +434,24 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                     <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
                   </div>
                   <div className="rr">
-                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="sc">{f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}</span>)}
+                    {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : (
+                      <span className="sc">
+                        {f.t1===code?f.score[0]:f.score[1]}–{f.t1===code?f.score[1]:f.score[0]}
+                        {f.penScore && (() => {
+                          const pSelf = f.t1===code ? f.penScore[0] : f.penScore[1];
+                          const pOpp = f.t1===code ? f.penScore[1] : f.penScore[0];
+                          return (
+                            <span style={{ fontSize: 10, color: "var(--muted2)", marginLeft: 6, fontWeight: 700, fontFamily: "sans-serif" }}>
+                              (
+                              <span style={{ color: pSelf > pOpp ? "var(--navy)" : "inherit" }}>{pSelf}</span>
+                              –
+                              <span style={{ color: pOpp > pSelf ? "var(--navy)" : "inherit" }}>{pOpp}</span>
+                              )
+                            </span>
+                          );
+                        })()}
+                      </span>
+                    ))}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
                     {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[f.t1===code?"pa":"pb"]}%</span>}
                   </div>
@@ -614,8 +649,10 @@ function EventIcon({ e }) {
 // against a centre minute spine. Side = which team flag conveys who did what at a glance.
 function MatchTimeline({ f }) {
   const [open, setOpen] = useState(true);
-  const events = (f.events || []).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
-  if (events.length === 0) return null;
+  const allEvents = f.events || [];
+  const isShootoutEvent = (e) => e.minute === 120 && /penalty/i.test(e.detail || "");
+  const normalEvents = allEvents.filter(e => !isShootoutEvent(e)).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
+  if (normalEvents.length === 0) return null;
   if (spoilerHidden(f)) return null; // privacy mode: don't reveal goals/cards until the score is revealed
   const t1 = f.t1, t2 = f.t2;
   const tag = (e) => /penalty/i.test(e.detail || "") ? " (P)" : /own goal/i.test(e.detail || "") ? " (OG)" : "";
@@ -639,7 +676,7 @@ function MatchTimeline({ f }) {
             {/* spine + rows — sides mirror the scoreline above (home left, away right) */}
             <div style={{ position: "relative" }}>
               <div style={{ position: "absolute", left: "50%", top: 0, bottom: 0, width: 2, marginLeft: -1, background: "var(--line)" }} />
-              {events.map((e) => {
+              {normalEvents.map((e) => {
                 const left = e.teamCode === t1;
                 return (
                   <div key={e.id} style={{ position: "relative", display: "flex", alignItems: "flex-start", padding: "6px 0" }}>
@@ -651,6 +688,119 @@ function MatchTimeline({ f }) {
                     </div>
                     <div style={{ flex: 1, display: "flex", justifyContent: "flex-start", alignItems: "flex-start", gap: 7, paddingLeft: 10, minWidth: 0 }}>
                       {!left && <><EventIcon e={e} />{detail(e, "left")}</>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function PenaltyShootout({ f }) {
+  const [open, setOpen] = useState(true);
+  if (spoilerHidden(f)) return null;
+  const allEvents = f.events || [];
+  const isShootoutEvent = (e) => e.minute === 120 && /penalty/i.test(e.detail || "");
+  const shootoutEvents = allEvents.filter(e => isShootoutEvent(e));
+  if (shootoutEvents.length === 0) return null;
+
+  const t1 = f.t1, t2 = f.t2;
+  const team1 = S.team(t1), team2 = S.team(t2);
+  const attempts1 = shootoutEvents.filter(e => e.teamCode === t1);
+  const attempts2 = shootoutEvents.filter(e => e.teamCode === t2);
+  const maxRounds = Math.max(attempts1.length, attempts2.length);
+  
+  const isMiss = (e) => e && /miss|save/i.test(e.detail || "");
+  
+  const renderDot = (e) => {
+    if (!e) return <span style={{ width: 18, height: 18, borderRadius: "50%", background: "var(--line)", opacity: 0.5 }} />;
+    const miss = isMiss(e);
+    return (
+      <span style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        background: miss ? "#e5483d" : "#30a46c",
+        color: "#fff",
+      }}>
+        {miss ? (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ width: 9, height: 9 }}>
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" style={{ width: 10, height: 10 }}>
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        )}
+      </span>
+    );
+  };
+
+  return (
+    <>
+      <button type="button" className="blocktitle squad-toggle" aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        style={{ padding: "2px 2px 10px", width: "100%", background: "none", border: 0, textAlign: "left", display: "flex", alignItems: "center", gap: 7, cursor: "pointer", marginTop: 12 }}>
+        <span>Penalty shootout</span>
+        <Icon.chev style={{ width: 15, height: 15, marginLeft: "auto", transition: "transform .22s ease", transform: open ? "rotate(90deg)" : "none" }} />
+      </button>
+      <div className={"squad-collapse" + (open ? " open" : "")}>
+        <div className="squad-collapse-inner">
+          <div className="block" style={{ padding: "16px 14px", marginBottom: 16 }}>
+            {/* Visual Summary Row */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, paddingBottom: 16, borderBottom: "1px solid var(--line)" }}>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", width: 120, flexShrink: 0 }}>{team1.name}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {attempts1.map((e, idx) => <span key={idx}>{renderDot(e)}</span>)}
+                </div>
+              </div>
+              <div style={{ display: "flex", alignItems: "center" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--navy)", width: 120, flexShrink: 0 }}>{team2.name}</span>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {attempts2.map((e, idx) => <span key={idx}>{renderDot(e)}</span>)}
+                </div>
+              </div>
+            </div>
+
+            {/* Detailed Takers List */}
+            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 8 }}>
+              {Array.from({ length: maxRounds }).map((_, idx) => {
+                const e1 = attempts1[idx];
+                const e2 = attempts2[idx];
+                return (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", fontSize: 12, padding: "4px 0" }}>
+                    {/* Left Taker (Team 1) */}
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0, justifyContent: "flex-end", textAlign: "right" }}>
+                      {e1 ? (
+                        <>
+                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e1) ? "var(--muted2)" : "var(--navy)" }}>{e1.player}</span>
+                          {renderDot(e1)}
+                        </>
+                      ) : <span style={{ color: "var(--muted2)" }}>—</span>}
+                    </div>
+
+                    {/* Round Label */}
+                    <div style={{ width: 60, textAlign: "center", fontWeight: 700, color: "var(--muted)", fontSize: 10, textTransform: "uppercase" }}>
+                      Round {idx + 1}
+                    </div>
+
+                    {/* Right Taker (Team 2) */}
+                    <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, minWidth: 0, justifyContent: "flex-start", textAlign: "left" }}>
+                      {e2 ? (
+                        <>
+                          {renderDot(e2)}
+                          <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", color: isMiss(e2) ? "var(--muted2)" : "var(--navy)" }}>{e2.player}</span>
+                        </>
+                      ) : <span style={{ color: "var(--muted2)" }}>—</span>}
                     </div>
                   </div>
                 );
@@ -744,11 +894,23 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t1.name}</span>
               <span className="mt-str">Strength {t1.strength}</span>
             </div>
-            <div className="vs-cd">
+            <div className="vs-cd" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {showScore
-                ? (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>)
+                ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
+                    <>
+                      <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>
+                      {f.penScore && (
+                        <span style={{ fontSize: 15, color: "var(--muted2)", fontWeight: 700, marginTop: 4, fontFamily: "sans-serif" }}>
+                          Penalties:{" "}
+                          <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
+                          -
+                          <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
+                        </span>
+                      )}
+                    </>
+                  ))
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
-              <span className="cdl" style={{color:"var(--muted2)"}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
+              <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
             </div>
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>
@@ -758,6 +920,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           </div>
 
           <MatchTimeline f={f} />
+          <PenaltyShootout f={f} />
 
           <MatchStats f={f} />
 

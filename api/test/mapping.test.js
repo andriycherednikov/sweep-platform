@@ -301,3 +301,21 @@ test('mapFixture regulation score is null when absent', () => {
     league: { round: 'Group Stage - 1' }, teams: { home: { id: 1 }, away: { id: 2 } }, goals: {} }
   expect(mapFixture(raw).regScore1).toBeNull()
 })
+
+test('mapFixture captures shootout scores from score.penalty', () => {
+  const raw = { fixture: { id: 10, date: '2026-06-20T18:00:00Z', status: { short: 'PEN', elapsed: 120 }, venue: {} },
+    league: { round: 'Round of 16' }, teams: { home: { id: 1, winner: false }, away: { id: 2, winner: true } },
+    goals: { home: 1, away: 1 }, score: { halftime: { home: 0, away: 0 }, fulltime: { home: 1, away: 1 }, extratime: { home: 1, away: 1 }, penalty: { home: 3, away: 5 } } }
+  const f = mapFixture(raw)
+  expect(f.penScore1).toBe(3)
+  expect(f.penScore2).toBe(5)
+  expect(f.winnerSide).toBe('away')
+})
+
+test('mapFixture shootout scores are null when absent', () => {
+  const raw = { fixture: { id: 11, date: '2026-06-20T18:00:00Z', status: { short: 'FT', elapsed: 90 }, venue: {} },
+    league: { round: 'Group Stage - 1' }, teams: { home: { id: 1 }, away: { id: 2 } }, goals: {} }
+  const f = mapFixture(raw)
+  expect(f.penScore1).toBeNull()
+  expect(f.penScore2).toBeNull()
+})

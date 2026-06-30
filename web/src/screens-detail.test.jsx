@@ -181,6 +181,30 @@ test('TeamDetail omits the Squad section when the team has no squad', () => {
   expect(queryByText('Squad')).toBeNull()
 })
 
+test('TeamDetail displays shootout score next to regulation score in fixtures list', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 2, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [4, 3], winnerCode: 'hr', minute: null, prob: null, stage: 'knockout',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const { getByText } = render(
+    <TeamDetail code="hr" onBack={noop} openMatch={noop} openPerson={noop} openUpload={noop} />
+  )
+  expect(getByText(/1–1/)).toBeTruthy()
+  expect(getByText('4')).toBeTruthy()
+  expect(getByText('3')).toBeTruthy()
+})
+
+
 test('MatchSheet official-prediction bar is three-way (home / draw / away)', () => {
   const { container } = renderSheet(sheetFixture(null))
   const segs = container.querySelectorAll('.prob-bar i')
@@ -246,6 +270,40 @@ test('PersonDetail match rows show the one-line local date/time', () => {
   expect(fxWhen).toBeTruthy()
   expect(fxWhen.textContent).toBe('Sun, 14 June · 8:00 AM')
 })
+
+test('PersonDetail match rows show shootout score and track it as W/L instead of D', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 },
+        { code: 'en', name: 'England', group: 'L', pool: 'A', color: '#fff', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: { p1: ['hr'] }, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 2, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [4, 3], winnerCode: 'hr', minute: null, prob: null, stage: 'knockout',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, getAllByText } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  
+  // Verify it displays the shootout score next to the main score
+  expect(getByText(/1–1/)).toBeTruthy()
+  expect(getByText('4')).toBeTruthy()
+  expect(getByText('3')).toBeTruthy()
+  
+  // Verify it displays "W" pill instead of "D" pill
+  expect(getByText('W')).toBeTruthy()
+  
+  // Verify the wins count in stats summary is 1 (multiple elements will render '1')
+  expect(getAllByText('1').length).toBeGreaterThanOrEqual(3)
+})
+
 
 test('PersonDetail shows a Calls-right accuracy tile', () => {
   setSweepData(assembleSweep({
@@ -682,6 +740,54 @@ test('MatchSheet covers a final score under spoiler mode, reveals on tap', () =>
   act(() => { fireEvent.click(getByLabelText(/reveal score/i)) })
   expect(queryByText('5–1')).toBeTruthy()
   setSpoiler(false)
+})
+
+test('MatchSheet renders a Penalty Shootout section and filters it from normal timeline', () => {
+  const events = [
+    { id: 'g1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 15, detail: 'Normal Goal' },
+    // Shootout events (minute 120, detail contains penalty)
+    { id: 'p1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 120, detail: 'Penalty' }, // score
+    { id: 'p2', type: 'goal', teamCode: 'be', player: 'Hazard', assist: null, minute: 120, detail: 'Missed Penalty' }, // miss
+  ];
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
+  setSpoiler(false);
+  const { getByText, queryByText, getAllByText } = renderSheet(f);
+
+  // Normal goal is in the normal events timeline
+  expect(getAllByText('Modric')).toHaveLength(2);
+  expect(getByText("15'")).toBeTruthy();
+
+  // Shootout section and header scores are rendered
+  expect(getByText('Penalty shootout')).toBeTruthy();
+  expect(getByText(/Penalties:/)).toBeTruthy();
+  expect(getByText('FULL TIME')).toBeTruthy();
+  
+  // Scored penalty taker and missed penalty taker are rendered
+  expect(getByText('Round 1')).toBeTruthy();
+  expect(getByText('Hazard')).toBeTruthy();
+  
+  // Shootout minute 120' does not show up as a normal timeline row with a center time tag of 120'
+  expect(queryByText("120'")).toBeNull();
+})
+
+test('MatchSheet hides penalty shootout info under privacy mode', () => {
+  const events = [
+    { id: 'p1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 120, detail: 'Penalty' },
+  ];
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
+  setSpoiler(true);
+  const { getByText, queryByText } = renderSheet(f);
+
+  // Score is covered
+  expect(queryByText('1–1')).toBeNull();
+  // Penalties text is hidden
+  expect(queryByText('Penalties: 1-0')).toBeNull();
+  // Shootout section is hidden
+  expect(queryByText('Penalty shootout')).toBeNull();
+  // Status pill shows FULL TIME instead of FT (PENALTY SHOOTOUT)
+  expect(getByText('FULL TIME')).toBeTruthy();
+  expect(queryByText('FT (PENALTY SHOOTOUT)')).toBeNull();
+  setSpoiler(false);
 })
 
 // ---------------- PeopleScreen — Wins ⇄ Predictions stat toggle ----------------

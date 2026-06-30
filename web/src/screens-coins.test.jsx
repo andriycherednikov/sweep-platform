@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { CoinsScreen } from './screens-coins.jsx'
+import { CoinsScreen, ParlayCard } from './screens-coins.jsx'
 import { setWalletData, canWager } from './coins.js'
 import { clearBetslip } from './betslip.js'
 import { setMe } from './social.js'
@@ -146,3 +146,17 @@ test('the header shield opens the opt-out sheet and a duration locks Wagers', ()
   // opted out → canWager() is now false
   expect(canWager()).toBe(false)
 })
+
+test('clicking an individual parlay leg calls onMatch with fixtureId', () => {
+  const onMatch = vi.fn()
+  const parlay = {
+    id: 'p1', status: 'open', stake: 100, potentialPayout: 400, combinedOdds: 4,
+    legs: [{ id: 'l1', fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2, status: 'open' }]
+  }
+  const { container } = render(<ParlayCard p={parlay} onMatch={onMatch} />)
+  const leg = container.querySelector('.coin-parlay-leg')
+  expect(leg).toBeTruthy()
+  fireEvent.click(leg)
+  expect(onMatch).toHaveBeenCalledWith('f1')
+})
+

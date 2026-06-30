@@ -14,6 +14,7 @@ export function serializeFixture(f) {
     prob: { a: f.probA, d: f.probD, b: f.probB },
     markets: f.markets ?? null,
     htScore: f.htScore1 == null ? null : [f.htScore1, f.htScore2],
+    penScore: f.penScore1 == null ? null : [f.penScore1, f.penScore2],
     lineups: f.lineups ?? null,
     events: f.events ?? [],
     statistics: f.statistics ?? null,

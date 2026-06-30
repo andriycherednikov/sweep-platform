@@ -14,7 +14,7 @@ import { useSpoiler, spoilerHidden } from "./spoiler.js";
 // Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
 // own goal is credited to the team it benefited, tagged "(OG)") and card counts per side.
 function resultSummary(f) {
-  const ev = f.events || [];
+  const ev = (f.events || []).filter(e => !(e.minute === 120 && /penalty/i.test(e.detail || "")));
   const isOG = (e) => /own goal/i.test(e.detail || "");
   const credited = (e) => (isOG(e) ? (e.teamCode === f.t1 ? f.t2 : f.t1) : e.teamCode);
   const surname = (n) => { const p = (n || "").trim().split(/\s+/); return p[p.length - 1] || (n || ""); };
@@ -172,7 +172,19 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                   <Flag code={f.t1} w={22} h={16}/><span className="nm">{ta.name}</span>
                   {(sum.home.yellow || sum.home.red) ? <span className="res-cards"><CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/></span> : null}
                 </div>
-                {spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="rscore">{f.score[0]} – {f.score[1]}</span>}
+                {spoilerHidden(f) ? <ScoreCover f={f}/> : (
+                  <span className="rscore" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", minWidth: 60 }}>
+                    <span>{f.score[0]} – {f.score[1]}</span>
+                    {f.penScore && (
+                      <span style={{ fontSize: 11.5, color: "var(--muted2)", fontWeight: 700, marginTop: 2, letterSpacing: 0.5, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
+                        Penalties:{" "}
+                        <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
+                        -
+                        <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
+                      </span>
+                    )}
+                  </span>
+                )}
                 <div className="rt" style={{justifyContent:"flex-end"}}>
                   {(sum.away.yellow || sum.away.red) ? <span className="res-cards"><CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/></span> : null}
                   <span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/>
@@ -557,15 +569,18 @@ const R32_DEFS = [
 
 function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, openTeam }) {
   useSpoiler();
-  const f = fixture || (team1Code && team2Code ? S.fixtures.find(x => (x.t1 === team1Code && x.t2 === team2Code) || (x.t1 === team2Code && x.t2 === team1Code)) : null);
+  const f = fixture || (team1Code && team2Code && team1Code !== "__DECIDED__" && team2Code !== "__DECIDED__" ? S.fixtures.find(x => (x.t1 === team1Code && x.t2 === team2Code) || (x.t1 === team2Code && x.t2 === team1Code)) : null);
   
   const codeA = f ? f.t1 : team1Code;
   const codeB = f ? f.t2 : team2Code;
-  const teamA = codeA ? S.team(codeA) : null;
-  const teamB = codeB ? S.team(codeB) : null;
+  const isDecidedA = codeA === "__DECIDED__";
+  const isDecidedB = codeB === "__DECIDED__";
+
+  const teamA = (codeA && !isDecidedA) ? S.team(codeA) : null;
+  const teamB = (codeB && !isDecidedB) ? S.team(codeB) : null;
   
-  const oA = codeA ? S.ownersOf(codeA) : [];
-  const oB = codeB ? S.ownersOf(codeB) : [];
+  const oA = (codeA && !isDecidedA) ? S.ownersOf(codeA) : [];
+  const oB = (codeB && !isDecidedB) ? S.ownersOf(codeB) : [];
   
   const scoreA = f?.score ? f.score[0] : null;
   const scoreB = f?.score ? f.score[1] : null;
@@ -574,18 +589,18 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
   const showScores = f && (isFinal || isLive) && f.score != null;
   const isHidden = f && spoilerHidden(f) && showScores;
 
-  const winCode = isFinal ? (f?.winnerCode && f.winnerCode !== 'DRAW' ? f.winnerCode : (scoreA != null && scoreB != null ? (scoreA > scoreB ? codeA : scoreB > scoreA ? codeB : null) : null)) : null;
-  const winnerA = isFinal && winCode === codeA;
-  const winnerB = isFinal && winCode === codeB;
-  const elimA = codeA ? S.isTeamEliminated(codeA) : false;
-  const elimB = codeB ? S.isTeamEliminated(codeB) : false;
-  const loserA = (isFinal && scoreA != null && !winnerA) || elimA;
-  const loserB = (isFinal && scoreB != null && !winnerB) || elimB;
+  const winCode = (isFinal && !isHidden) ? (f?.winnerCode && f.winnerCode !== 'DRAW' ? f.winnerCode : (scoreA != null && scoreB != null ? (scoreA > scoreB ? codeA : scoreB > scoreA ? codeB : null) : null)) : null;
+  const winnerA = (isFinal && !isHidden) && winCode === codeA;
+  const winnerB = (isFinal && !isHidden) && winCode === codeB;
+  const elimA = (codeA && !isDecidedA && !isHidden) ? S.isTeamEliminated(codeA) : false;
+  const elimB = (codeB && !isDecidedB && !isHidden) ? S.isTeamEliminated(codeB) : false;
+  const loserA = !isHidden && ((isFinal && scoreA != null && !winnerA) || elimA);
+  const loserB = !isHidden && ((isFinal && scoreB != null && !winnerB) || elimB);
 
   const me = getMe();
   const myTeams = me ? me.teams : [];
-  const isMineA = codeA && myTeams.indexOf(codeA) >= 0;
-  const isMineB = codeB && myTeams.indexOf(codeB) >= 0;
+  const isMineA = codeA && !isDecidedA && myTeams.indexOf(codeA) >= 0;
+  const isMineB = codeB && !isDecidedB && myTeams.indexOf(codeB) >= 0;
   const isMine = isMineA || isMineB;
 
   const parts = (venueDate || "").split("·").map(s => s.trim());
@@ -599,7 +614,15 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
       <div className="b-match-head">
         <div className="b-head-row">
           <span className="b-head-date">{dateStr || "TBD"}</span>
-          {isLive && <span className="b-live-dot">● {f.minute ? `${f.minute}' LIVE` : "LIVE"}</span>}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            {isLive && <span className="b-live-dot">● {f.minute ? `${f.minute}' LIVE` : "LIVE"}</span>}
+            {isFinal && <span className="b-ft-tag">FT</span>}
+            {showScores && isHidden && (
+              <div onClick={(e) => e.stopPropagation()} style={{display:"inline-flex", scale:"0.85", transformOrigin:"right center"}}>
+                <ScoreCover f={f} />
+              </div>
+            )}
+          </div>
         </div>
         <div className="b-head-row">
           <span className="b-head-stadium">
@@ -610,29 +633,57 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
         </div>
       </div>
       <div className={"b-team-row" + (winnerA ? " winner" : loserA ? " loser" : "")}>
-        <div className="b-team-info" onClick={(e) => { if (codeA && openTeam) { e.stopPropagation(); openTeam(codeA); } }}>
-          {codeA ? <Flag code={codeA} w={20} h={14} /> : <div className="b-flag-ph" />}
-          <span className="b-team-name">{teamA ? teamA.name : (codeA || "TBD")}</span>
-        </div>
-        {oA.length > 0 && <AvStack people={oA} size={24} max={3} />}
-        {showScores && (
-          isHidden ? (
-            <div onClick={(e) => e.stopPropagation()} style={{display:"inline-flex", scale:"0.8", transformOrigin:"right center"}}>
-              <ScoreCover f={f} />
-            </div>
+        <div className="b-team-info" onClick={(e) => { if (codeA && !isDecidedA && openTeam) { e.stopPropagation(); openTeam(codeA); } }}>
+          {isDecidedA ? (
+            <>
+              <div className="b-flag-ph" />
+              <div className="b-team-name-ph" title="Winner decided (hidden by privacy mode)" />
+            </>
+          ) : codeA ? (
+            <>
+              <Flag code={codeA} w={20} h={14} />
+              <span className="b-team-name">{teamA ? teamA.name : codeA}</span>
+            </>
           ) : (
-            <span className="b-score">{scoreA}</span>
-          )
+            <>
+              <div className="b-flag-ph" />
+              <span className="b-team-name">TBD</span>
+            </>
+          )}
+        </div>
+        {!isDecidedA && oA.length > 0 && <AvStack people={oA} size={24} max={3} />}
+        {showScores && !isHidden && (
+          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline", gap: 2 }}>
+            <span>{scoreA}</span>
+            {f?.penScore && <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--muted2)", fontStyle: "italic" }}>({f.penScore[0]})</span>}
+          </span>
         )}
       </div>
       <div className={"b-team-row" + (winnerB ? " winner" : loserB ? " loser" : "")}>
-        <div className="b-team-info" onClick={(e) => { if (codeB && openTeam) { e.stopPropagation(); openTeam(codeB); } }}>
-          {codeB ? <Flag code={codeB} w={20} h={14} /> : <div className="b-flag-ph" />}
-          <span className="b-team-name">{teamB ? teamB.name : (codeB || "TBD")}</span>
+        <div className="b-team-info" onClick={(e) => { if (codeB && !isDecidedB && openTeam) { e.stopPropagation(); openTeam(codeB); } }}>
+          {isDecidedB ? (
+            <>
+              <div className="b-flag-ph" />
+              <div className="b-team-name-ph" title="Winner decided (hidden by privacy mode)" />
+            </>
+          ) : codeB ? (
+            <>
+              <Flag code={codeB} w={20} h={14} />
+              <span className="b-team-name">{teamB ? teamB.name : codeB}</span>
+            </>
+          ) : (
+            <>
+              <div className="b-flag-ph" />
+              <span className="b-team-name">TBD</span>
+            </>
+          )}
         </div>
-        {oB.length > 0 && <AvStack people={oB} size={24} max={3} />}
-        {showScores && (
-          isHidden ? null : <span className="b-score">{scoreB}</span>
+        {!isDecidedB && oB.length > 0 && <AvStack people={oB} size={24} max={3} />}
+        {showScores && !isHidden && (
+          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline", gap: 2 }}>
+            <span>{scoreB}</span>
+            {f?.penScore && <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--muted2)", fontStyle: "italic" }}>({f.penScore[1]})</span>}
+          </span>
         )}
       </div>
     </div>
@@ -640,6 +691,7 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
 }
 
 function BracketView({ onOpen, openTeam }) {
+  useSpoiler();
   const isDesktop = useIsDesktop();
   const headerRef = useRef(null);
   const onHScroll = (e) => {
@@ -648,8 +700,10 @@ function BracketView({ onOpen, openTeam }) {
 
   const getWinner = (def) => {
     if (!def) return null;
+    if (!def.t1 || !def.t2 || def.t1 === "__DECIDED__" || def.t2 === "__DECIDED__") return null;
     const f = S.fixtures.find(x => (x.t1 === def.t1 && x.t2 === def.t2) || (x.t1 === def.t2 && x.t2 === def.t1));
     if (!f || f.status !== "final") return null;
+    if (spoilerHidden(f)) return "__DECIDED__";
     if (f.winnerCode && f.winnerCode !== 'DRAW') return f.winnerCode;
     if (!f.score) return null;
     return f.score[0] > f.score[1] ? f.t1 : f.score[1] > f.score[0] ? f.t2 : null;

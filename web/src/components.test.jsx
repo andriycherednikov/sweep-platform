@@ -11,7 +11,7 @@ import { postSupport, postSession, postLogout } from './api/client.js'
 import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
-import { HomeScreen } from './screens-main.jsx'
+import { HomeScreen, KnockoutsScreen } from './screens-main.jsx'
 import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -575,6 +575,33 @@ test('MatchCard shows the score normally when spoiler mode is off', () => {
   expect(queryByLabelText(/reveal score/i)).toBeNull()
 })
 
+test('MatchCard renders shootout penalty scores and dims the loser', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [3, 5], winnerCode: 'za', minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'knockout',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSpoiler(false)
+  const noop = () => {}
+  const { getByText, container } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
+  expect(getByText(/Penalties:/)).toBeTruthy()
+  expect(getByText('3')).toBeTruthy()
+  expect(getByText('5')).toBeTruthy()
+  const mxContainer = container.querySelector('.mc-h-team:not(.right)')
+  expect(mxContainer.className).toContain('dim')
+  const zaContainer = container.querySelector('.mc-h-team.right')
+  expect(zaContainer.className).not.toContain('dim')
+})
+
 test('HomeScreen latest-scores covers finals under spoiler mode, reveals on tap', () => {
   setSweepData(assembleSweep({
     bootstrap: {
@@ -663,6 +690,30 @@ test('HomeScreen hides goal scorers in Latest scores under privacy mode', () => 
   setSpoiler(false)
   const shown = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
   expect(shown.queryByText(/Quiñones/)).toBeTruthy()  // scorer shown when privacy off
+})
+
+test('HomeScreen latest-scores shows shootout penalty scores and status', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'mx', name: 'Mexico', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'A', matchday: 1, t1: 'mx', t2: 'za', ko: '2026-06-12T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [3, 5], winnerCode: 'za', minute: null, prob: { a: 50, d: 25, b: 25 }, stage: 'knockout', events: [],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  setSpoiler(false)
+  const { getByText } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(getByText(/Penalties:/)).toBeTruthy()
+  expect(getByText('3')).toBeTruthy()
+  expect(getByText('5')).toBeTruthy()
+  expect(getByText('FT')).toBeTruthy()
 })
 
 test('PersonTeams shows names for <=2 teams, compact flags + count for more', () => {
@@ -809,3 +860,32 @@ test('OptOutButton renders a shield and fires onClick', () => {
   fireEvent.click(getByLabelText('Step away from Wagers'))
   expect(onClick).toHaveBeenCalled()
 })
+
+test('KnockoutsScreen renders bracket and respects spoiler protection', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'za', name: 'South Africa', group: 'A', pool: 'P', color: '#0a7', strength: 76 },
+        { code: 'ca', name: 'Canada', group: 'A', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'k1', group: '', matchday: 0, t1: 'za', t2: 'ca', ko: '2026-06-28T18:00:00Z',
+      venue: 'Sofi Stadium', city: 'Inglewood', status: 'final', score: [0, 1], winnerCode: 'ca',
+      minute: 90, prob: null, stage: 'knockout'
+    }],
+    standings: {},
+  }))
+  setSpoiler(true)
+  const { container } = render(<KnockoutsScreen go={() => {}} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} />)
+  expect(container.querySelector('.b-match-box')).toBeTruthy()
+  // Under spoiler mode, the eye cover is in the header, not on team rows, and neither team row is marked loser/winner
+  expect(container.querySelector('.b-head-row .spoiler-cover')).toBeTruthy()
+  expect(container.querySelector('.b-team-row.winner')).toBeFalsy()
+  expect(container.querySelector('.b-team-row.loser')).toBeFalsy()
+  setSpoiler(false)
+})
+
+
+

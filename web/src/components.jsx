@@ -51,12 +51,14 @@ export const Icon = {
 };
 
 /* a person's owned teams — flag + name for ≤2, compact flags + count once there are more */
-export function PersonTeams({ codes }) {
+export function PersonTeams({ codes, hideEliminated }) {
   if (!codes || codes.length === 0) return null;
-  if (codes.length <= 2) {
+  const list = hideEliminated ? codes.filter(tc => !S.isTeamEliminated(tc)) : codes;
+  if (list.length === 0) return null;
+  if (list.length <= 2) {
     return (
       <div className="tms">
-        {codes.map((tc) => {
+        {list.map((tc) => {
           const elim = S.isTeamEliminated(tc);
           return (
             <span className={"t" + (elim ? " is-elim" : "")} key={tc}>
@@ -70,11 +72,11 @@ export function PersonTeams({ codes }) {
   }
   return (
     <div className="tms tms-flags">
-      {codes.map((tc) => {
+      {list.map((tc) => {
         const elim = S.isTeamEliminated(tc);
         return <img className={"flag" + (elim ? " is-elim" : "")} key={tc} src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} />;
       })}
-      <span className="tms-count">· {codes.length} teams</span>
+      <span className="tms-count">· {list.length} teams</span>
     </div>
   );
 }
@@ -218,6 +220,9 @@ export function StatusPill({ f }) {
 /* W/D/L result pill from a team's perspective */
 export function resultFor(f, code) {
   if (f.status !== "final") return null;
+  if (f.winnerCode) {
+    return f.winnerCode === code ? "w" : "l";
+  }
   const isT1 = f.t1 === code;
   const me = isT1 ? f.score[0] : f.score[1];
   const opp = isT1 ? f.score[1] : f.score[0];
@@ -291,6 +296,17 @@ export function MatchCard({ f, onOpen, onToast }) {
   const o = S.ownersForFixture(f);
   const showScore = f.status === "final" || f.status === "live";
   const s1 = f.score ? f.score[0] : null, s2 = f.score ? f.score[1] : null;
+
+  const isFinal = f.status === "final";
+  const winCode = isFinal ? (f.winnerCode && f.winnerCode !== 'DRAW' ? f.winnerCode : (s1 != null && s2 != null ? (s1 > s2 ? f.t1 : s2 > s1 ? f.t2 : null) : null)) : null;
+  const isWinner1 = winCode === f.t1;
+  const isWinner2 = winCode === f.t2;
+  const isLoser1 = isFinal && !isWinner1 && (s1 != null || s2 != null);
+  const isLoser2 = isFinal && !isWinner2 && (s1 != null || s2 != null);
+
+  const dim1 = isFinal ? isLoser1 : (showScore && s1 < s2);
+  const dim2 = isFinal ? isLoser2 : (showScore && s2 < s1);
+
   return (
     <article className={"card" + (mine ? " mine":"")} onClick={()=>onOpen && onOpen(f)}>
       <div className="tcbar" style={{ background:`linear-gradient(${t1.color},${t2.color})` }}></div>
@@ -305,19 +321,33 @@ export function MatchCard({ f, onOpen, onToast }) {
         </div>
       </div>
       <div className="mc-h">
-        <div className={"mc-h-team" + (showScore && s1 < s2 ? " dim":"")}>
+        <div className={"mc-h-team" + (dim1 ? " dim" : "")}>
           <Flag code={f.t1} w={34} h={25} />
           <span className="nm">{t1.name}</span>
           <div className="mc-h-sub">
             {o.t1.length>0 && <AvStack people={o.t1} size={28} max={3} />}
           </div>
         </div>
-        <div className="mc-h-mid">
+        <div className="mc-h-mid" style={{ flexDirection: "column" }}>
           {showScore
-            ? (spoilerHidden(f) ? <ScoreCover f={f}/> : <span className="mc-sc"><span>{s1}</span><i>–</i><span>{s2}</span></span>)
+            ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
+                  <span className="mc-sc" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                      <span>{s1}</span><i>–</i><span>{s2}</span>
+                    </span>
+                    {f.penScore && (
+                      <span style={{ fontSize: 11.5, color: "var(--muted2)", fontWeight: 700, marginTop: 4, letterSpacing: 0.5, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
+                        Penalties:{" "}
+                        <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
+                        -
+                        <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
+                      </span>
+                    )}
+                  </span>
+              ))
             : <span className="mc-vs">VS</span>}
         </div>
-        <div className={"mc-h-team right" + (showScore && s2 < s1 ? " dim":"")}>
+        <div className={"mc-h-team right" + (dim2 ? " dim" : "")}>
           <Flag code={f.t2} w={34} h={25} />
           <span className="nm">{t2.name}</span>
           <div className="mc-h-sub">

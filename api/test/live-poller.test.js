@@ -52,19 +52,28 @@ test('pollLive publishes a score event for each changed fixture', async () => {
 })
 
 test('pollLive finalizes a match that has ended — the key fix vs live=all', async () => {
-  await db.update(fixture).set({ status: 'live', score1: 1, score2: 0, minute: 90 }).where(eq(fixture.id, '9002'))
+  await db.update(fixture).set({ status: 'live', score1: 1, score2: 0, minute: 90, winnerCode: null }).where(eq(fixture.id, '9002'))
   // id polling still returns the fixture once it's FT (live=all would have dropped it)
-  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 2, score2: 0, minute: null }] : [] } }
+  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 2, score2: 0, minute: null, winnerSide: 'home' }] : [] } }
   const events = []
   const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))
   expect(n).toBe(1)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
-  expect(f).toMatchObject({ status: 'final', score1: 2, score2: 0 })
+  expect(f).toMatchObject({ status: 'final', score1: 2, score2: 0, winnerCode: 'hr' })
   expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'final', score: [2, 0], minute: null })
 })
 
+test('pollLive persists winnerCode and shootout score on penalty final', async () => {
+  await db.update(fixture).set({ status: 'live', score1: 1, score2: 1, minute: 120, winnerCode: null, penScore1: null, penScore2: null }).where(eq(fixture.id, '9002'))
+  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 1, score2: 1, minute: null, winnerSide: 'away', penScore1: 3, penScore2: 5 }] : [] } }
+  const n = await pollLive(db, provider, ['9002'])
+  expect(n).toBe(1)
+  const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
+  expect(f).toMatchObject({ status: 'final', score1: 1, score2: 1, winnerCode: 'gh', penScore1: 3, penScore2: 5 })
+})
+
 test('pollLive makes no update and publishes nothing when nothing changed', async () => {
-  await db.update(fixture).set({ status: 'upcoming', score1: null, score2: null, minute: null }).where(eq(fixture.id, '9002'))
+  await db.update(fixture).set({ status: 'upcoming', score1: null, score2: null, minute: null, winnerCode: null, penScore1: null, penScore2: null }).where(eq(fixture.id, '9002'))
   const provider = { async fetchFixturesByIds() { return [{ id: '9002', status: 'upcoming', score1: null, score2: null, minute: null }] } }
   const events = []
   const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))

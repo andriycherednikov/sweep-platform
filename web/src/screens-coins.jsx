@@ -206,7 +206,7 @@ export function MyBets({ bets, parlays = { open: [], settled: [] }, onMatch }) {
         <div style={{ color: 'var(--muted2)', fontSize: 13, padding: '10px 2px' }}>{emptyMsg}</div>
       ) : (
         list.map((item) => item.kind === 'parlay'
-          ? <ParlayCard key={item.data.id} p={item.data} />
+          ? <ParlayCard key={item.data.id} p={item.data} onMatch={onMatch} />
           : <SingleBetRow key={item.data.id} b={item.data} onMatch={onMatch} />)
       )}
     </div>

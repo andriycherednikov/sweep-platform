@@ -102,11 +102,21 @@ export function assembleSweep(api) {
     const o1 = ownersOf(f.t1), o2 = ownersOf(f.t2)
     const derby = o1.length > 0 && o2.length > 0
     const doubleOwners = o1.filter((p) => o2.indexOf(p) >= 0)
+    // Derive penScore fallback from events if DB column is null
+    let penScore = f.penScore ?? null;
+    if (!penScore && f.events && f.events.length > 0) {
+      const p1 = f.events.filter(e => e.teamCode === f.t1 && e.minute === 120 && e.type === 'goal' && /penalty/i.test(e.detail || "") && !/miss|save/i.test(e.detail || "")).length;
+      const p2 = f.events.filter(e => e.teamCode === f.t2 && e.minute === 120 && e.type === 'goal' && /penalty/i.test(e.detail || "") && !/miss|save/i.test(e.detail || "")).length;
+      if (p1 > 0 || p2 > 0) {
+        penScore = [p1, p2];
+      }
+    }
+
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
       prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
-      markets: f.markets ?? null, htScore: f.htScore ?? null,
+      markets: f.markets ?? null, htScore: f.htScore ?? null, penScore,
       lineups: f.lineups ?? null, events: f.events ?? [], statistics: f.statistics ?? null, stage: f.stage, derby, doubleOwners,
       winnerCode: f.winnerCode ?? null,
       timeLabel: fmtTime(ko), dayLabel: fmtDate(ko), dayKey: fmtDayKey(ko),
