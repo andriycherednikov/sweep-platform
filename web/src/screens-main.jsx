@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react
 import { SWEEP as S } from "./data.js";
 import {
   Icon, Flag, Av, AvStack, PersonAvatar, ProbBar, MatchCard, CrowdPick, HomeHeader, AppHeader, PageHeader,
-  SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams,
+  SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams, PenScore,
 } from "./components.jsx";
 import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
 import { winnerCodeOf } from "./lib/assemble.js";
@@ -173,16 +173,9 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                   {(sum.home.yellow || sum.home.red) ? <span className="res-cards"><CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/></span> : null}
                 </div>
                 {spoilerHidden(f) ? <ScoreCover f={f}/> : (
-                  <span className="rscore" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", minWidth: 60 }}>
+                  <span className="rscore" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 60 }}>
                     <span>{f.score[0]} – {f.score[1]}</span>
-                    {f.penScore && (
-                      <span style={{ fontSize: 11.5, color: "var(--muted2)", fontWeight: 700, marginTop: 2, letterSpacing: 0.5, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
-                        Penalties:{" "}
-                        <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
-                        -
-                        <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
-                      </span>
-                    )}
+                    <PenScore pen={f.penScore} />
                   </span>
                 )}
                 <div className="rt" style={{justifyContent:"flex-end"}}>

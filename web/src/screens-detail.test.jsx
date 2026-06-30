@@ -751,7 +751,7 @@ test('MatchSheet renders a Penalty Shootout section and filters it from normal t
   ];
   const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
   setSpoiler(false);
-  const { getByText, queryByText, getAllByText } = renderSheet(f);
+  const { getByText, queryByText, getAllByText, container } = renderSheet(f);
 
   // Normal goal is in the normal events timeline
   expect(getAllByText('Modric')).toHaveLength(2);
@@ -759,7 +759,8 @@ test('MatchSheet renders a Penalty Shootout section and filters it from normal t
 
   // Shootout section and header scores are rendered
   expect(getByText('Penalty shootout')).toBeTruthy();
-  expect(getByText(/Penalties:/)).toBeTruthy();
+  expect(queryByText(/Penalties:/)).toBeNull(); // pens now inline after the score, not a stacked label
+  expect(container.querySelector('.cd').textContent.replace(/\s/g, '')).toContain('(1'); // "1–1 (1–0)"
   expect(getByText('FULL TIME')).toBeTruthy();
   
   // Scored penalty taker and missed penalty taker are rendered
@@ -776,12 +777,12 @@ test('MatchSheet hides penalty shootout info under privacy mode', () => {
   ];
   const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
   setSpoiler(true);
-  const { getByText, queryByText } = renderSheet(f);
+  const { getByText, queryByText, container } = renderSheet(f);
 
   // Score is covered
   expect(queryByText('1–1')).toBeNull();
-  // Penalties text is hidden
-  expect(queryByText('Penalties: 1-0')).toBeNull();
+  // Inline penalty tally is hidden too (whole score cell is replaced by the cover)
+  expect(container.querySelector('.cd')).toBeNull();
   // Shootout section is hidden
   expect(queryByText('Penalty shootout')).toBeNull();
   // Status pill shows FULL TIME instead of FT (PENALTY SHOOTOUT)

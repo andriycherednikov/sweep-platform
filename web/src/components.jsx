@@ -217,6 +217,17 @@ export function StatusPill({ f }) {
   return <span className="pill up">Upcoming</span>;
 }
 
+/* Inline penalty-shootout tally, shown right after a combined regulation score: "1 – 1 (4–3)".
+   Winner's tally in navy. Replaces the old stacked "Penalties: x-y" line. */
+export function PenScore({ pen, size = 11.5 }) {
+  if (!pen) return null;
+  return (
+    <span style={{ fontSize: size, color: "var(--muted2)", marginLeft: 5, fontWeight: 700, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
+      (<span style={{ color: pen[0] > pen[1] ? "var(--navy)" : "inherit" }}>{pen[0]}</span>–<span style={{ color: pen[1] > pen[0] ? "var(--navy)" : "inherit" }}>{pen[1]}</span>)
+    </span>
+  );
+}
+
 /* W/D/L result pill from a team's perspective */
 export function resultFor(f, code) {
   if (f.status !== "final") return null;
@@ -333,18 +344,9 @@ export function MatchCard({ f, onOpen, onToast }) {
         <div className="mc-h-mid" style={{ flexDirection: "column" }}>
           {showScore
             ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
-                  <span className="mc-sc" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                      <span>{s1}</span><i>–</i><span>{s2}</span>
-                    </span>
-                    {f.penScore && (
-                      <span style={{ fontSize: 11.5, color: "var(--muted2)", fontWeight: 700, marginTop: 4, letterSpacing: 0.5, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
-                        Penalties:{" "}
-                        <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
-                        -
-                        <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
-                      </span>
-                    )}
+                  <span className="mc-sc" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
+                    <span>{s1}</span><i>–</i><span>{s2}</span>
+                    <PenScore pen={f.penScore} />
                   </span>
               ))
             : <span className="mc-vs">VS</span>}

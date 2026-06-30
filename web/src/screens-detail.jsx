@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel } from "./lib/format.js";
 import {
-  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams,
+  Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams, PenScore,
 } from "./components.jsx";
 import {
   useSocial, getMe,
@@ -897,17 +897,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <div className="vs-cd" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {showScore
                 ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
-                    <>
-                      <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}</span>
-                      {f.penScore && (
-                        <span style={{ fontSize: 15, color: "var(--muted2)", fontWeight: 700, marginTop: 4, fontFamily: "sans-serif" }}>
-                          Penalties:{" "}
-                          <span style={{ color: f.penScore[0] > f.penScore[1] ? "var(--navy)" : "inherit" }}>{f.penScore[0]}</span>
-                          -
-                          <span style={{ color: f.penScore[1] > f.penScore[0] ? "var(--navy)" : "inherit" }}>{f.penScore[1]}</span>
-                        </span>
-                      )}
-                    </>
+                    <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}–{f.score[1]}<PenScore pen={f.penScore} size={16} /></span>
                   ))
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
               <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
