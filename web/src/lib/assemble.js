@@ -194,29 +194,35 @@ export function assembleSweep(api) {
   // team elimination tracking: teams eliminated in group stage or losing knockout games
   const eliminatedTeamCodes = new Set()
 
-  // 1. Group stage elimination based on group standings (when group games finish)
+  // Teams that reached the knockout — from the real KO fixtures, plus the known WC2026
+  // R32 line-up. The 8 best 3rd-placed teams advance, so a 3rd-place group finish is NOT
+  // elimination; only teams that reached neither are out after the group stage.
+  const KNOWN_KO_TEAMS = new Set([
+    "de","py","fr","se","za","ca","nl","ma","pt","hr","es","at","us","bih","be","sn",
+    "br","jp","ci","no","mx","ec","gb-eng","cgo","ar","cpv","au","eg","ch","dz","co","gh"
+  ]);
+  const hasRealTeams = bootstrap.teams.some(t => KNOWN_KO_TEAMS.has(t.code))
+  const koFixtureTeams = new Set()
+  for (const f of fixtures) if (f.stage === 'knockout') { koFixtureTeams.add(f.t1); koFixtureTeams.add(f.t2) }
+  const reachedKnockout = (code) => koFixtureTeams.has(code) || (hasRealTeams && KNOWN_KO_TEAMS.has(code))
+
+  // 1. Group stage: once a group's games are all final, everyone from position 3 down who
+  //    did NOT reach the knockout is out (top 2 always advance; best 3rd-placed teams may).
   for (const g of Object.keys(standings)) {
     const groupTeams = standings[g]
     const groupFixtures = fixtures.filter(f => f.group === g)
     const allDone = groupFixtures.length > 0 && groupFixtures.every(f => f.status === 'final')
     if (allDone) {
       for (let i = 2; i < groupTeams.length; i++) {
-        eliminatedTeamCodes.add(groupTeams[i].code)
+        if (!reachedKnockout(groupTeams[i].code)) eliminatedTeamCodes.add(groupTeams[i].code)
       }
     }
   }
 
-  // 2. Production World Cup 2026 Round of 32 check
-  const KNOWN_KO_TEAMS = new Set([
-    "de","py","fr","se","za","ca","nl","ma","pt","hr","es","at","us","bih","be","sn",
-    "br","jp","ci","no","mx","ec","gb-eng","cgo","ar","cpv","au","eg","ch","dz","co","gh"
-  ]);
-  const hasRealTeams = bootstrap.teams.some(t => KNOWN_KO_TEAMS.has(t.code))
+  // 2. When the real R32 line-up is known, any team that did not reach the knockout is out.
   if (hasRealTeams) {
     for (const t of bootstrap.teams) {
-      if (!KNOWN_KO_TEAMS.has(t.code)) {
-        eliminatedTeamCodes.add(t.code)
-      }
+      if (!reachedKnockout(t.code)) eliminatedTeamCodes.add(t.code)
     }
   }
 

@@ -437,4 +437,35 @@ test('placementOf places a multi-team person by deepest team; crowns the lone su
   expect(S.placementOf('soon')).toEqual({ start: 3, end: 3, champion: false })
 })
 
+// A 3rd-placed team can advance (WC2026 takes the 8 best thirds). A completed group
+// must NOT eliminate a team that reached the knockout — even at standings position 3+.
+test('a 3rd-placed team that reached the knockout is NOT eliminated; a non-qualifier still is', () => {
+  const row = (code, pts) => ({ code, name: code, played: 3, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts })
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'g1', name: 'g1', group: 'F', pool: 'P', color: '#000', strength: 80 },
+        { code: 'g2', name: 'g2', group: 'F', pool: 'P', color: '#000', strength: 80 },
+        { code: 'q3', name: 'q3', group: 'F', pool: 'P', color: '#000', strength: 80 }, // 3rd → advances
+        { code: 'd4', name: 'd4', group: 'F', pool: 'P', color: '#000', strength: 80 }, // 4th → out
+        { code: 'opp', name: 'opp', group: 'G', pool: 'P', color: '#000', strength: 80 },
+      ],
+      people: [{ id: 'p1', name: 'P1', short: 'P1', initials: 'P', av: '#000' }],
+      ownership: { p1: ['q3'] }, scoring: null,
+    },
+    fixtures: [
+      // group F complete → step-1 fires
+      { id: 'gf', group: 'F', matchday: 3, t1: 'g1', t2: 'g2', ko: '2026-06-26T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'group' },
+      // q3's R32 game is live (not final) — q3 reached the knockout
+      { id: 'ko1', group: '', matchday: 0, t1: 'opp', t2: 'q3', ko: '2026-07-01T07:00:00Z', venue: 'V', city: 'C', status: 'live', score: [0, 0], minute: 33, prob: null, stage: 'knockout' },
+    ],
+    standings: { F: [row('g1', 9), row('g2', 6), row('q3', 4), row('d4', 1)] },
+    photos: [],
+  })
+  expect(S.isTeamEliminated('q3')).toBe(false) // 3rd, but reached the knockout
+  expect(S.isTeamEliminated('d4')).toBe(true)  // 4th, no knockout game → out
+  expect(S.isTeamEliminated('g1')).toBe(false)
+  expect(S.isPersonEliminated('p1')).toBe(false) // owns q3, still alive
+})
+
 
