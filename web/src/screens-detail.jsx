@@ -333,14 +333,14 @@ export function TeamsScreen({ go, openTeam }) {
           ) : mode==="group" ? S.groups.map(g=>(
             <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank hideElim={hideElim} />
           )) : ["A","B"].map(pool=>(
-            <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} />
+            <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} hidePts />
           ))}
         </div>
       </div>
     </div>
   );
 }
-export function TeamGroup({ title, teams, openTeam, rank, hideElim }) {
+export function TeamGroup({ title, teams, openTeam, rank, hideElim, hidePts }) {
   useSocial();
   const me = getMe();
   const myTeams = me ? me.teams : [];
@@ -365,7 +365,7 @@ export function TeamGroup({ title, teams, openTeam, rank, hideElim }) {
                     : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
                 </div>
               </div>
-              <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>
+              {!hidePts && <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>}
               <Icon.chev className="chev"/>
             </div>
           );

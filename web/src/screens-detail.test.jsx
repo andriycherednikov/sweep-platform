@@ -967,3 +967,27 @@ test('TeamsScreen "Hide eliminated" hides OUT teams and restores them on toggle'
   act(() => { fireEvent.click(getByText('Hide eliminated')) }) // static label → click again to restore
   expect(queryByText('South Korea')).toBeTruthy() // restored
 })
+
+test('TeamsScreen "By sweep pool" omits the PTS column (points are group-only)', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'ar', name: 'Argentina', group: 'C', pool: 'A', color: '#0a7', strength: 90 },
+        { code: 'fr', name: 'France', group: 'D', pool: 'A', color: '#00f', strength: 88 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [],
+    standings: {
+      C: [{ code: 'ar', name: 'Argentina', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 }],
+      D: [{ code: 'fr', name: 'France', played: 3, win: 3, draw: 0, loss: 0, gf: 5, ga: 1, pts: 9 }],
+    },
+    photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { getByText, queryAllByText } = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(queryAllByText('pts').length).toBeGreaterThan(0)  // group view shows points
+  act(() => { fireEvent.click(getByText('By sweep pool')) })
+  expect(queryAllByText('pts').length).toBe(0)             // pool view hides points
+  expect(getByText('Argentina')).toBeTruthy()              // teams still listed
+})
