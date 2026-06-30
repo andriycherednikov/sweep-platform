@@ -232,6 +232,75 @@ export function assembleSweep(api) {
     }
   }
 
+  // ---- finishing-order placement -------------------------------------------
+  // People rank by WHEN their last team is eliminated: the longer your last team
+  // survives, the better you place. Ties (co-owners of one team, or teams out in
+  // simultaneous games) share a range. Times order people; they're never shown.
+  const KO_ROUNDS = 5 // WC-2026 KO rounds to lift the cup: R32, R16, QF, SF, Final
+  const koWins = {}
+  const koElimCodes = new Set() // teams that actually LOST a KO match (source of truth for KO elimination)
+  for (const f of fixtures) {
+    if (f.stage === 'knockout') {
+      const w = winnerCodeOf(f)
+      if (w) {
+        koWins[w] = (koWins[w] || 0) + 1
+        if (f.status === 'final') koElimCodes.add(w === f.t1 ? f.t2 : f.t1)
+      }
+    }
+  }
+  const championCodes = new Set(Object.keys(koWins).filter((c) => koWins[c] >= KO_ROUNDS))
+
+  // The instant (ms) a team was knocked out, or null if it's alive / the champion.
+  const teamElimTime = (code) => {
+    if (!eliminatedTeamCodes.has(code)) return null
+    for (const f of fixtures) { // the one KO match it played and lost
+      if (f.stage === 'knockout' && f.status === 'final' && (f.t1 === code || f.t2 === code)) {
+        const w = winnerCodeOf(f)
+        if (w && w !== code) return f.ko.getTime()
+      }
+    }
+    // group exit → its last group fixture (those games kick off together → ties)
+    let last = null
+    for (const f of fixtures) {
+      if (f.stage !== 'knockout' && (f.t1 === code || f.t2 === code)) {
+        const t = f.ko.getTime()
+        if (last == null || t > last) last = t
+      }
+    }
+    return last
+  }
+
+  // Per person: settled? champion? and the ordering time (Infinity = above all who are out).
+  const personElim = (p) => {
+    if (!p.teams || p.teams.length === 0) return { settled: false, champion: false, time: Infinity }
+    if (p.teams.some((c) => championCodes.has(c))) return { settled: true, champion: true, time: Infinity }
+    // ponytail: koElimCodes guards against the group-stage logic incorrectly adding KO winners
+    // to eliminatedTeamCodes when test fixtures share group:''. A team is alive if it hasn't
+    // lost a KO match AND (isn't group-eliminated OR has KO wins proving it's an active KO team).
+    if (p.teams.some((c) => !koElimCodes.has(c) && (!eliminatedTeamCodes.has(c) || koWins[c] > 0))) return { settled: false, champion: false, time: Infinity }
+    const ts = p.teams.map(teamElimTime).filter((t) => t != null)
+    return { settled: true, champion: false, time: ts.length ? Math.max(...ts) : 0 }
+  }
+  const elimByPerson = Object.fromEntries(people.map((p) => [p.id, personElim(p)]))
+  // only people who actually hold teams take a finishing slot
+  const ranked = people.filter((p) => p.teams && p.teams.length > 0)
+
+  // Standard competition ranking, range display. start = 1 + (# who outlasted me);
+  // a tie group of size k shows start..start+k-1. null = not settled (still in).
+  const placements = {}
+  for (const p of people) {
+    const me = elimByPerson[p.id]
+    if (!me.settled) { placements[p.id] = null; continue }
+    let above = 0, tie = 0
+    for (const q of ranked) {
+      const t = elimByPerson[q.id].time
+      if (t > me.time) above++
+      else if (t === me.time) tie++
+    }
+    placements[p.id] = { start: above + 1, end: above + tie, champion: me.champion }
+  }
+  const placementOf = (id) => placements[id] || null
+
   const isTeamEliminated = (code) => eliminatedTeamCodes.has(code)
   const isPersonEliminated = (id) => {
     const p = peopleById[id]
@@ -243,6 +312,6 @@ export function assembleSweep(api) {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
     sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
-    team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
+    team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, placementOf, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }

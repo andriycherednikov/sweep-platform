@@ -326,4 +326,115 @@ test('assembleSweep calculates knockout elimination from winnerCode on draw scor
   expect(s.isPersonEliminated('p1')).toBe(true)
 })
 
+// ---------------- placement (finishing order) ----------------
+
+// Two semi-finals: semi-A (earlier) and semi-B (later). The two finalists are
+// still alive (no final played yet), so they're "still in" and occupy the top
+// slots. The LATER semi's losers place better than the EARLIER semi's losers,
+// even though both lost in the semis. Each losing team is co-owned by 2 people.
+test('placementOf ranks by elimination time — later game beats earlier; ties share a range', () => {
+  const ko = (id, t1, t2, when, winnerCode) => ({
+    id, group: '', matchday: 0, t1, t2, ko: when, venue: 'V', city: 'C',
+    status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'knockout', winnerCode,
+  })
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'f1', name: 'Fin1', group: '', pool: 'P', color: '#111', strength: 90 },
+        { code: 'f2', name: 'Fin2', group: '', pool: 'P', color: '#222', strength: 88 },
+        { code: 'sa', name: 'SemiA', group: '', pool: 'P', color: '#333', strength: 80 },
+        { code: 'sb', name: 'SemiB', group: '', pool: 'P', color: '#444', strength: 80 },
+      ],
+      people: [
+        { id: 'champ', name: 'Champ', short: 'C', initials: 'C', av: '#000' },
+        { id: 'runner', name: 'Runner', short: 'R', initials: 'R', av: '#000' },
+        { id: 'sa1', name: 'Sam', short: 'Sam', initials: 'S', av: '#000' },
+        { id: 'sa2', name: 'Sid', short: 'Sid', initials: 'S', av: '#000' },
+        { id: 'sb1', name: 'Bea', short: 'Bea', initials: 'B', av: '#000' },
+        { id: 'sb2', name: 'Ben', short: 'Ben', initials: 'B', av: '#000' },
+      ],
+      ownership: { champ: ['f1'], runner: ['f2'], sa1: ['sa'], sa2: ['sa'], sb1: ['sb'], sb2: ['sb'] },
+      scoring: null,
+    },
+    fixtures: [
+      ko('semiA', 'f1', 'sa', '2026-07-14T18:00:00Z', 'f1'), // earlier
+      ko('semiB', 'f2', 'sb', '2026-07-15T18:00:00Z', 'f2'), // later
+    ],
+    standings: {}, photos: [],
+  })
+  // finalists still alive → no placement
+  expect(S.placementOf('champ')).toBeNull()
+  expect(S.placementOf('runner')).toBeNull()
+  // later semi (sb) losers beat earlier semi (sa) losers; co-owners share a range
+  expect(S.placementOf('sb1')).toEqual({ start: 3, end: 4, champion: false })
+  expect(S.placementOf('sb2')).toEqual({ start: 3, end: 4, champion: false })
+  expect(S.placementOf('sa1')).toEqual({ start: 5, end: 6, champion: false })
+  expect(S.placementOf('sa2')).toEqual({ start: 5, end: 6, champion: false })
+})
+
+// A team that wins all 5 KO rounds is the champion (placement 1, champion:true).
+// With the final played, nobody is "still in", so positions are contiguous 1..N.
+test('placementOf marks the champion (5 KO wins) as 1 and yields contiguous positions', () => {
+  const ko = (id, opp, when) => ({
+    id, group: '', matchday: 0, t1: 'w', t2: opp, ko: when, venue: 'V', city: 'C',
+    status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'knockout', winnerCode: 'w',
+  })
+  const S = assembleSweep({
+    bootstrap: {
+      teams: ['w', 'o1', 'o2', 'o3', 'o4', 'o5'].map((c, i) => ({ code: c, name: c, group: '', pool: 'P', color: '#000', strength: 90 - i })),
+      people: [
+        { id: 'pc', name: 'PC', short: 'PC', initials: 'P', av: '#000' },
+        { id: 'p1', name: 'P1', short: 'P1', initials: 'P', av: '#000' },
+        { id: 'p2', name: 'P2', short: 'P2', initials: 'P', av: '#000' },
+        { id: 'p3', name: 'P3', short: 'P3', initials: 'P', av: '#000' },
+        { id: 'p4', name: 'P4', short: 'P4', initials: 'P', av: '#000' },
+        { id: 'p5', name: 'P5', short: 'P5', initials: 'P', av: '#000' },
+      ],
+      ownership: { pc: ['w'], p1: ['o1'], p2: ['o2'], p3: ['o3'], p4: ['o4'], p5: ['o5'] },
+      scoring: null,
+    },
+    fixtures: [
+      ko('k1', 'o1', '2026-06-28T18:00:00Z'),
+      ko('k2', 'o2', '2026-07-04T18:00:00Z'),
+      ko('k3', 'o3', '2026-07-10T18:00:00Z'),
+      ko('k4', 'o4', '2026-07-15T18:00:00Z'),
+      ko('k5', 'o5', '2026-07-19T18:00:00Z'), // final
+    ],
+    standings: {}, photos: [],
+  })
+  expect(S.placementOf('pc')).toEqual({ start: 1, end: 1, champion: true }) // won all 5
+  expect(S.placementOf('p5')).toEqual({ start: 2, end: 2, champion: false }) // out last (final)
+  expect(S.placementOf('p1')).toEqual({ start: 6, end: 6, champion: false }) // out first
+})
+
+// A person owning a deep + a shallow team is placed by the deep one (last to fall).
+test('placementOf places a multi-team person by their deepest (last-out) team', () => {
+  const ko = (id, t1, t2, when, winnerCode) => ({
+    id, group: '', matchday: 0, t1, t2, ko: when, venue: 'V', city: 'C',
+    status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'knockout', winnerCode,
+  })
+  const S = assembleSweep({
+    bootstrap: {
+      teams: ['win', 'early', 'late'].map((c) => ({ code: c, name: c, group: '', pool: 'P', color: '#000', strength: 80 })),
+      people: [
+        { id: 'alive', name: 'Alive', short: 'A', initials: 'A', av: '#000' },
+        { id: 'mix', name: 'Mix', short: 'M', initials: 'M', av: '#000' },
+        { id: 'soon', name: 'Soon', short: 'S', initials: 'S', av: '#000' },
+      ],
+      ownership: { alive: ['win'], mix: ['early', 'late'], soon: ['early'] },
+      scoring: null,
+    },
+    fixtures: [
+      ko('e', 'win', 'early', '2026-07-04T18:00:00Z', 'win'), // early out
+      ko('l', 'win', 'late', '2026-07-12T18:00:00Z', 'win'),  // late out
+    ],
+    standings: {}, photos: [],
+  })
+  // alive (owns 'win', not eliminated) → still in
+  expect(S.placementOf('alive')).toBeNull()
+  // mix owns early+late; last team out is 'late' (Jul 12) → ranked above 'soon'
+  expect(S.placementOf('mix')).toEqual({ start: 2, end: 2, champion: false })
+  expect(S.placementOf('soon')).toEqual({ start: 3, end: 3, champion: false })
+})
+
 
