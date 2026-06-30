@@ -69,7 +69,8 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // Yowie Dollars is 18+ — minors have no wagers at all, so showing them here (even at
   // the bottom with no pill) just reads as confusing dead rows. Drop them from this view.
   if (av === "coins") list = list.filter(m => m.person.adult !== false);
-  if (hideEliminated) list = list.filter(m => !S.isPersonEliminated(m.person.id));
+  // "Hide eliminated" is meaningless in the Placement view (it hides exactly the people who have a placement)
+  if (hideEliminated && av !== "placement") list = list.filter(m => !S.isPersonEliminated(m.person.id));
   if (av === "predictions") // S.money is pre-sorted by wins; re-sort by correct calls
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
   else if (av === "coins") // re-sort by Yowie Dollars balance descending
@@ -105,7 +106,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
             </div>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
               <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{subLabel}</p>
-              <HideEliminatedToggle on={hideEliminated} onToggle={()=>setHideEliminated(!hideEliminated)} />
+              {av !== "placement" && <HideEliminatedToggle on={hideEliminated} onToggle={()=>setHideEliminated(!hideEliminated)} />}
             </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}

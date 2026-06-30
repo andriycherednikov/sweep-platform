@@ -1052,3 +1052,11 @@ test('PeopleScreen Placement tab orders still-in at top, then best placement dow
   expect(names.indexOf('Champ Player')).toBeLessThan(names.indexOf('Bea Bell'))
   expect(names.indexOf('Runner Player')).toBeLessThan(names.indexOf('Bea Bell'))
 })
+
+test('PeopleScreen hides the "Hide eliminated" toggle in the Placement view', () => {
+  placementSweep()
+  const { getByText, queryByText } = render(<PeopleScreen openPerson={noop} />)
+  expect(queryByText('Hide eliminated')).toBeInTheDocument() // shown in the Wins view
+  act(() => { fireEvent.click(getByText('Placement')) })
+  expect(queryByText('Hide eliminated')).not.toBeInTheDocument() // meaningless here → hidden
+})
