@@ -174,6 +174,23 @@ test('predictionsOf scores a DRAW pick correct on a level final', () => {
   expect(predictionsOf('p1')[0].verdict).toBe('correct')
 })
 
+test('predictionsOf grades a penalty shootout by winnerCode, not the tied score', () => {
+  // 1-1 knockout decided on penalties (winnerCode: hr). Picking the shootout winner is
+  // correct; picking DRAW is wrong — matching the server, which pays out the hr backer.
+  const koFx = { ...predFx('k1', 'final', [1, 1]), winnerCode: 'hr', penScore: [4, 3], stage: 'knockout' }
+  seedPreds([koFx], { k1: { p1: 'hr' } })
+  expect(predictionsOf('p1')[0].verdict).toBe('correct')
+  setSocialData({ support: { k1: { p1: 'DRAW' } } })
+  expect(predictionsOf('p1')[0].verdict).toBe('wrong')
+})
+
+test('predictionLeaderboard grades a penalty shootout by winnerCode', () => {
+  const koFx = { ...predFx('k1', 'final', [1, 1]), winnerCode: 'hr', penScore: [4, 3], stage: 'knockout' }
+  seedPreds([koFx], { k1: { p1: 'hr' } })
+  const lb = predictionLeaderboard(4)
+  expect(lb.find((x) => x.person.id === 'p1')).toMatchObject({ correct: 1, total: 1 })
+})
+
 test('predictionsOf is empty for a person who picked nothing', () => {
   seedPreds([predFx('m1', 'final', [2, 1])], { m1: { p1: 'hr' } })
   expect(predictionsOf('pX')).toEqual([])

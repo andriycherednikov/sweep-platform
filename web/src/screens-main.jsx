@@ -8,6 +8,7 @@ import {
   SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams,
 } from "./components.jsx";
 import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
+import { winnerCodeOf } from "./lib/assemble.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
@@ -74,11 +75,10 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
     .slice(0,16);
   const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,6);
 
-  // top 4 people by team wins (across finished matches)
+  // top 4 people by wins across finished matches (winnerCodeOf → counts knockout & shootout wins)
   const finals = S.fixtures.filter(f => f.status === "final" && f.score);
-  const winnerOf = (f) => f.score[0] > f.score[1] ? f.t1 : f.score[1] > f.score[0] ? f.t2 : null;
   const topWinners = S.people
-    .map(p => ({ person: p, wins: finals.reduce((n,f)=> n + (p.teams.indexOf(winnerOf(f))>=0 ? 1 : 0), 0) }))
+    .map(p => ({ person: p, wins: finals.reduce((n,f)=> n + (p.teams.indexOf(winnerCodeOf(f))>=0 ? 1 : 0), 0) }))
     .filter(r => r.wins > 0)
     .sort((a,b)=> b.wins - a.wins)
     .slice(0,4);

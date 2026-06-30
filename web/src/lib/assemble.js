@@ -7,6 +7,24 @@ function titleOddsFor(s) {
   return Math.max(1, Math.round(Math.pow(Math.max(0, s - 50), 2) / 14))
 }
 
+/**
+ * The team code that WON a final fixture, or null (a draw, or not yet final).
+ * Honors f.winnerCode — which the worker derives from the provider's actual result,
+ * so it covers penalty shootouts and any decided knockout (the 'DRAW' sentinel means
+ * no winner) — and falls back to the goal score only when winnerCode is absent.
+ *
+ * Single source of truth for "who won": every person-win tally must go through this,
+ * otherwise group standings (group-stage only) silently drop all knockout/shootout wins.
+ */
+export function winnerCodeOf(f) {
+  if (!f || f.status !== 'final') return null
+  if (f.winnerCode) return f.winnerCode === 'DRAW' ? null : f.winnerCode
+  if (!f.score) return null
+  if (f.score[0] > f.score[1]) return f.t1
+  if (f.score[1] > f.score[0]) return f.t2
+  return null
+}
+
 // API-Football returns degenerate placeholder percentages for far-future
 // fixtures it can't model yet — all-equal (33/33/33) or the draw tying a win
 // side (50/50/0, 0/50/50). A real model never ties the draw to a win outcome,
@@ -133,11 +151,16 @@ export function assembleSweep(api) {
   const liveMatch = fixtures.find((f) => f.status === 'live') || null
   const nextMatch = fixtures.find((f) => f.status === 'upcoming') || fixtures[0] || null
 
-  // people ranked by their teams' combined wins (tiebreak: best-team strength)
+  // people ranked by their wins across ALL their final fixtures (tiebreak: best-team
+  // strength). Counted per-fixture via winnerCodeOf — NOT summed from group standings,
+  // which only tally the group stage and so drop every knockout and penalty-shootout win.
   const money = people.map((p) => {
     const myTeams = p.teams.map((c) => teams[c]).filter(Boolean)
     const best = myTeams.slice().sort((a, b) => b.strength - a.strength)[0]
-    const wins = myTeams.reduce((n, t) => n + (t.win || 0), 0)
+    const wins = fixtures.reduce((n, f) => {
+      const w = winnerCodeOf(f)
+      return n + (w && p.teams.indexOf(w) >= 0 ? 1 : 0)
+    }, 0)
     return { person: p, team: best || null, odds: best ? best.titleOdds : 0, strength: best ? best.strength : 0, wins }
   }).sort((a, b) => (b.wins - a.wins) || (b.strength - a.strength))
   money.forEach((m, i) => { m.rank = i + 1; m.tag = i === 0 ? 'Title fav' : m.strength >= 70 ? 'Alive' : 'Outside' })

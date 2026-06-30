@@ -220,7 +220,9 @@ export function StatusPill({ f }) {
 /* W/D/L result pill from a team's perspective */
 export function resultFor(f, code) {
   if (f.status !== "final") return null;
-  if (f.winnerCode) {
+  // winnerCode wins (incl. penalty shootouts), but 'DRAW' is the no-winner sentinel —
+  // fall through to the score compare so a level final reads as a draw, not a loss for both.
+  if (f.winnerCode && f.winnerCode !== "DRAW") {
     return f.winnerCode === code ? "w" : "l";
   }
   const isT1 = f.t1 === code;

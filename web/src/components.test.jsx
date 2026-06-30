@@ -8,7 +8,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton } from './components.jsx'
+import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen, KnockoutsScreen } from './screens-main.jsx'
@@ -18,6 +18,20 @@ import { setMe, setSocialData } from './social.js'
 import { optOut } from './optout.js'
 
 const S = SWEEP
+
+// resultFor: W/D/L from a team's perspective — must honor winnerCode (shootouts) while
+// treating the 'DRAW' sentinel as a draw, not a loss for both sides.
+test('resultFor reads winnerCode for shootouts and treats DRAW sentinel as a draw', () => {
+  const ko = { status: 'final', t1: 'py', t2: 'de', score: [1, 1], winnerCode: 'py' }
+  expect(resultFor(ko, 'py')).toBe('w') // shootout winner
+  expect(resultFor(ko, 'de')).toBe('l')
+  const drawn = { status: 'final', t1: 'nl', t2: 'jp', score: [2, 2], winnerCode: 'DRAW' }
+  expect(resultFor(drawn, 'nl')).toBe('d') // NOT a loss for both
+  expect(resultFor(drawn, 'jp')).toBe('d')
+  // no winnerCode → score fallback
+  expect(resultFor({ status: 'final', t1: 'a', t2: 'b', score: [2, 0] }, 'a')).toBe('w')
+  expect(resultFor({ status: 'final', t1: 'a', t2: 'b', score: [1, 1] }, 'a')).toBe('d')
+})
 
 test('Av renders the initials chip when no avatarPath', () => {
   const { container } = render(<Av p={{ initials: 'AB', av: '#123456' }} size={24} />)

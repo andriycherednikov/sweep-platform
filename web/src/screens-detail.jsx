@@ -136,7 +136,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
     const ownsT1 = person.teams.indexOf(f.t1) >= 0, ownsT2 = person.teams.indexOf(f.t2) >= 0;
     if (ownsT1 && ownsT2) {
       if (f.status !== "final") return { myCode: f.t1, r: resultFor(f, f.t1) };
-      if (f.winnerCode) return { myCode: f.winnerCode, r: "w" };
+      if (f.winnerCode && f.winnerCode !== "DRAW") return { myCode: f.winnerCode, r: "w" };
       const draw = f.score[0] === f.score[1], t1Won = f.score[0] > f.score[1];
       return { myCode: (draw || t1Won) ? f.t1 : f.t2, r: draw ? "d" : "w" };
     }

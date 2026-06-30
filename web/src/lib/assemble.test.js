@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { assembleSweep, twoWayProb, threeWayProb } from './assemble.js'
+import { assembleSweep, twoWayProb, threeWayProb, winnerCodeOf } from './assemble.js'
 
 const api = {
   bootstrap: {
@@ -120,7 +120,8 @@ test('standings are grouped and money is ranked by best-team strength (no wins y
   expect(S.money[0].person).toBeTruthy()
 })
 
-test('money sorts people by combined team wins (overrides strength) and reports the total', () => {
+test('money sorts people by wins across final fixtures (overrides strength) and reports the total', () => {
+  const fx = (id, t1, t2, score) => ({ id, group: 'X', matchday: 1, t1, t2, ko: `2026-06-1${id.slice(1)}T12:00:00Z`, venue: 'V', city: 'C', status: 'final', score, minute: 90, prob: null, stage: 'group' })
   const S = assembleSweep({
     bootstrap: {
       teams: [
@@ -134,16 +135,79 @@ test('money sorts people by combined team wins (overrides strength) and reports 
       ownership: { p1: ['b'], p2: ['a'] }, // p1 has the stronger team, p2 has more wins
       scoring: null,
     },
-    fixtures: [],
-    standings: { X: [
-      { code: 'a', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 },
-      { code: 'b', played: 3, win: 1, draw: 0, loss: 2, gf: 2, ga: 4, pts: 3 },
-    ] },
+    // a wins three, b wins one → p2 (owns a) outranks p1 (owns b) despite the weaker team
+    fixtures: [fx('m1', 'a', 'b', [1, 0]), fx('m2', 'a', 'b', [2, 0]), fx('m3', 'a', 'b', [3, 1]), fx('m4', 'b', 'a', [2, 1])],
+    standings: {},
     photos: [],
   })
   expect(S.money[0].person.id).toBe('p2') // 3 wins ranks above 1 win, despite weaker team
   expect(S.money[0].wins).toBe(3)
   expect(S.money[1].wins).toBe(1)
+})
+
+test('money counts a knockout penalty-shootout win (winnerCode on a tied score)', () => {
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'py', name: 'Paraguay', group: 'D', pool: 'A', color: '#c00', strength: 68 },
+        { code: 'de', name: 'Germany', group: 'D', pool: 'A', color: '#000', strength: 90 },
+      ],
+      people: [{ id: 'p1', name: 'Havill', short: 'Havill', initials: 'H', av: '#0a0', avatarPath: null }],
+      ownership: { p1: ['py'] }, scoring: null,
+    },
+    fixtures: [
+      { id: 'g1', group: 'D', matchday: 1, t1: 'py', t2: 'de', ko: '2026-06-20T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'group' },
+      { id: 'k1', group: '', matchday: 0, t1: 'py', t2: 'de', ko: '2026-06-30T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [4, 3], winnerCode: 'py', minute: 120, prob: null, stage: 'knockout' },
+    ],
+    standings: {}, photos: [],
+  })
+  // regulation group win + penalty-shootout knockout win; the shootout win was previously dropped
+  expect(S.money.find((x) => x.person.id === 'p1').wins).toBe(2)
+})
+
+test('money does not count a draw, even when the worker stamps winnerCode="DRAW"', () => {
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'nl', name: 'Netherlands', group: 'F', pool: 'A', color: '#f60', strength: 84 },
+        { code: 'jp', name: 'Japan', group: 'F', pool: 'A', color: '#fff', strength: 75 },
+      ],
+      people: [{ id: 'p1', name: 'Havill', short: 'Havill', initials: 'H', av: '#0a0', avatarPath: null }],
+      ownership: { p1: ['nl'] }, scoring: null,
+    },
+    fixtures: [
+      { id: 'g1', group: 'F', matchday: 1, t1: 'nl', t2: 'jp', ko: '2026-06-15T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [2, 2], winnerCode: 'DRAW', minute: 90, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [],
+  })
+  expect(S.money.find((x) => x.person.id === 'p1').wins).toBe(0)
+})
+
+test('money counts a co-owned derby win exactly once', () => {
+  const S = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'a', name: 'A', group: 'X', pool: 'P', color: '#000', strength: 70 },
+        { code: 'b', name: 'B', group: 'X', pool: 'P', color: '#000', strength: 60 },
+      ],
+      people: [{ id: 'p1', name: 'Both', short: 'Both', initials: 'B', av: '#000', avatarPath: null }],
+      ownership: { p1: ['a', 'b'] }, scoring: null,
+    },
+    fixtures: [
+      { id: 'd1', group: 'X', matchday: 1, t1: 'a', t2: 'b', ko: '2026-06-10T12:00:00Z', venue: 'V', city: 'C', status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'group' },
+    ],
+    standings: {}, photos: [],
+  })
+  expect(S.money.find((x) => x.person.id === 'p1').wins).toBe(1)
+})
+
+test('winnerCodeOf honors winnerCode (shootout) and the DRAW sentinel, falling back to score', () => {
+  expect(winnerCodeOf({ status: 'final', t1: 'py', t2: 'de', score: [1, 1], winnerCode: 'py' })).toBe('py')
+  expect(winnerCodeOf({ status: 'final', t1: 'nl', t2: 'jp', score: [2, 2], winnerCode: 'DRAW' })).toBe(null)
+  expect(winnerCodeOf({ status: 'final', t1: 'a', t2: 'b', score: [2, 0] })).toBe('a')
+  expect(winnerCodeOf({ status: 'final', t1: 'a', t2: 'b', score: [0, 1] })).toBe('b')
+  expect(winnerCodeOf({ status: 'final', t1: 'a', t2: 'b', score: [0, 0] })).toBe(null)
+  expect(winnerCodeOf({ status: 'live', t1: 'a', t2: 'b', score: [1, 0] })).toBe(null)
 })
 
 test('derby true when both sides owned by different people', () => {

@@ -793,8 +793,9 @@ test('MatchSheet hides penalty shootout info under privacy mode', () => {
 // ---------------- PeopleScreen — Wins ⇄ Predictions stat toggle ----------------
 import { PeopleScreen } from './screens-detail.jsx'
 
-// Wins come from standings win counts; correct predictions from support picks on finals.
-// Designed so the two orderings differ: wins → Alice(3), Bob(1); predictions → Bob(3), Alice(1).
+// Wins come from actual final-fixture results (winnerCode-aware); correct predictions from
+// support picks on finals. Atlas (alice) wins m1+m4 → 2; Bravo (bob) wins m2 → 1.
+// Designed so the two orderings differ: wins → Alice(2), Bob(1); predictions → Bob(3), Alice(1).
 function peopleSweep() {
   setSweepData(assembleSweep({
     bootstrap: {
@@ -843,8 +844,8 @@ test('PeopleScreen defaults to the Wins view (team wins, sorted by wins)', () =>
   peopleSweep()
   const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
   expect(rowNames(container)).toEqual(['Alice Anders', 'Bob Brown', 'Carol Clark'])
-  expect(statFor(container, 'Alice Anders')).toBe('3')
-  expect(statFor(container, 'Bob Brown')).toBe('1')
+  expect(statFor(container, 'Alice Anders')).toBe('2') // Atlas won m1 + m4
+  expect(statFor(container, 'Bob Brown')).toBe('1')    // Bravo won m2
   expect(statFor(container, 'Carol Clark')).toBeNull() // 0 wins → no pill
   expect(getByText(/sorted by team wins/i)).toBeInTheDocument()
 })
