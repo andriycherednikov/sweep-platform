@@ -76,10 +76,23 @@ export function resolveBet(market, selection, line, f) {
   if (market === 'gs') {
     if (!Array.isArray(f.events)) return null // events not polled yet → leave open
     // v1 "all bets stand": won iff the named player scored a non-own goal in regulation;
-    // otherwise lost (no DNP void). Match on a normalised name (both sides are API-Football).
-    const norm = (s) => String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim().toLowerCase()
-    const target = norm(selection)
-    const scored = f.events.some((e) => e.type === 'goal' && e.detail !== 'Own Goal' && (e.minute ?? 0) <= 90 && norm(e.player) === target)
+    // otherwise lost (no DNP void). API-Football names the same player differently per feed:
+    // the odds value is a full name ("Erling Haaland") but a fixture event is initial+surname
+    // ("E. Haaland"). Match on surname + first-initial, not exact string.
+    // ponytail: surname+initial heuristic — two scorers sharing both in one match would
+    // collide; rare, and the UI groups goalscorers by the same key. Upgrade to player ids if it bites.
+    const parse = (s) => {
+      const t = String(s ?? '').normalize('NFD').replace(/\p{Diacritic}/gu, '')
+        .toLowerCase().replace(/[^a-z\s]/g, ' ').trim().split(/\s+/).filter(Boolean)
+      return t.length ? { last: t[t.length - 1], first: t.length > 1 ? t[0][0] : null } : null
+    }
+    const want = parse(selection)
+    const samePlayer = (p) => {
+      const got = parse(p)
+      if (!want || !got || want.last !== got.last) return false
+      return !(want.first && got.first) || want.first === got.first
+    }
+    const scored = f.events.some((e) => e.type === 'goal' && e.detail !== 'Own Goal' && (e.minute ?? 0) <= 90 && samePlayer(e.player))
     return scored ? 'won' : 'lost'
   }
   return null

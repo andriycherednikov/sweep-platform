@@ -159,6 +159,18 @@ test('resolveBet gs (anytime goalscorer) — v1 all-bets-stand; own goals never 
   expect(resolveBet('gs', 'Lionel Messi', null, { ...fx(), events: null })).toBeNull() // events not polled → leave open
 })
 
+test('resolveBet gs matches across API-Football name formats (odds full name vs event initial)', () => {
+  // The odds feed names the bet selection "Erling Haaland"; the events feed records the
+  // scorer as "E. Haaland". Same player — must settle WON, not LOST.
+  const events = [{ type: 'goal', player: 'E. Haaland', minute: 86, detail: 'Normal Goal' }]
+  expect(resolveBet('gs', 'Erling Haaland', null, fx({ events }))).toBe('won')
+  expect(resolveBet('gs', 'Haaland', null, fx({ events }))).toBe('won')          // surname-only odds value
+  // surname matches but the first initial doesn't → different player, still LOST
+  expect(resolveBet('gs', 'Mohamed Haaland', null, fx({ events }))).toBe('lost')
+  // wrong surname → LOST even if an initial coincides
+  expect(resolveBet('gs', 'Erling Solbakken', null, fx({ events }))).toBe('lost')
+})
+
 test('settleStaleBets grades open bets left on already-final fixtures', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
