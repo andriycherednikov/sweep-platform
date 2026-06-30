@@ -49,8 +49,16 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // minors have no wagers → treated as 0 (sorts to the bottom, no pill); adults
   // always show their balance, including 0 once they've spent it all
   const coinsVal = (m) => m.person.adult === false ? 0 : (balances[m.person.id] ?? 0);
+  // placement sort key: still-in (no placement) → 0 (top); placed → its position
+  const placeKey = (m) => { const pl = S.placementOf(m.person.id); return pl ? pl.start : 0 };
   // per-person stat for the active view: { value, label, show }
   const statOf = (m) => {
+    if (av === "placement") {
+      const pl = S.placementOf(m.person.id);
+      if (!pl) return { value: null, label: null, show: false };
+      const range = pl.end > pl.start ? `${pl.start}–${pl.end}` : `${pl.start}`;
+      return { value: pl.champion ? `🏆 ${range}` : range, label: "place", show: true };
+    }
     if (av === "predictions") { const v = predictionAccuracy(m.person.id).correct; return { value: v, label: "correct", show: v > 0 }; }
     if (av === "coins") return { value: coinsVal(m), label: "Yowie Dollars", show: m.person.adult !== false };
     return { value: m.wins, label: m.wins === 1 ? "win" : "wins", show: m.wins > 0 };
@@ -66,14 +74,19 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
     list = list.slice().sort((a,b) => predictionAccuracy(b.person.id).correct - predictionAccuracy(a.person.id).correct);
   else if (av === "coins") // re-sort by Yowie Dollars balance descending
     list = list.slice().sort((a,b) => coinsVal(b) - coinsVal(a));
+  else if (av === "placement") // still-in (0) at top, then by finishing position ascending
+    list = list.slice().sort((a,b) => (placeKey(a) - placeKey(b)) || (b.wins - a.wins));
   // headcount reflects the active view — adults only for the 18+ Yowie Dollars board
   const activeCount = S.people.filter(p => !S.isPersonEliminated(p.id)).length;
   const totalCount = S.people.length;
   const headCount = av === "coins" ? S.people.filter(p => p.adult !== false).length : totalCount;
+  const placedCount = S.people.filter(p => S.placementOf(p.id)).length;
   const subLabel = av === "predictions"
     ? `${headCount} in the sweep · sorted by correct predictions`
     : av === "coins"
     ? `${headCount} adult${headCount === 1 ? "" : "s"} · sorted by Yowie Dollars balance`
+    : av === "placement"
+    ? `${placedCount} of ${totalCount} placed · by finishing position`
     : `${activeCount} out of ${totalCount} are still in the running · sorted by team wins`;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -83,10 +96,11 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" />
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:10, gap:8}}>
-              <div className="statseg" style={{flex:1, gridTemplateColumns:`repeat(${wager?3:2}, 1fr)`}}>
+              <div className="statseg" style={{flex:1, gridTemplateColumns:`repeat(${wager?4:3}, 1fr)`}}>
                 <button className={"statseg-opt"+(av==="wins"?" on":"")} onClick={()=>setView("wins")}>Wins</button>
                 <button className={"statseg-opt"+(av==="predictions"?" on":"")} onClick={()=>setView("predictions")}>Predictions</button>
                 {wager && <button className={"statseg-opt"+(av==="coins"?" on":"")} onClick={()=>setView("coins")}>Yowie Dollars</button>}
+                <button className={"statseg-opt"+(av==="placement"?" on":"")} onClick={()=>setView("placement")}>Placement</button>
               </div>
             </div>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
@@ -109,7 +123,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
                   </div>
                   {stat.show && (
                     <div className="stat">
-                      <div className="pp">{stat.value.toLocaleString()}</div>
+                      <div className="pp">{typeof stat.value === "number" ? stat.value.toLocaleString() : stat.value}</div>
                       <small style={{color:"var(--muted2)"}}>{stat.label}</small>
                     </div>
                   )}

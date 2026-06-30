@@ -13,6 +13,7 @@ function emptySweep() {
     ownersForFixture: (f) => ({ t1: SWEEP.ownersOf(f.t1), t2: SWEEP.ownersOf(f.t2) }),
     isTeamEliminated: (code) => false,
     isPersonEliminated: (id) => false,
+    placementOf: (id) => null,
     flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday,
     todayKey: fmtDayKey(new Date()),
   }
@@ -38,6 +39,7 @@ export function setSweepData(assembled) {
   SWEEP.ownersForFixture = assembled.ownersForFixture
   SWEEP.isTeamEliminated = assembled.isTeamEliminated
   SWEEP.isPersonEliminated = assembled.isPersonEliminated
+  SWEEP.placementOf = assembled.placementOf
   socialListeners.forEach((fn) => fn())
 }
 

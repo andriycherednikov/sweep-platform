@@ -991,3 +991,64 @@ test('TeamsScreen "By sweep pool" omits the PTS column (points are group-only)',
   expect(queryAllByText('pts').length).toBe(0)             // pool view hides points
   expect(getByText('Argentina')).toBeTruthy()              // teams still listed
 })
+
+// ---------------- PeopleScreen — Placement tab ----------------
+// Two semis already played, finalists still alive. Later semi (sb) losers place
+// 3–4, earlier semi (sa) losers place 5–6, finalists (still in) show nothing.
+// NOTE: a QF-stage person (Que) sits at position 4 (between Bea=3 and Sam=5) so
+// that the standard competition ranking produces the expected positions.
+function placementSweep() {
+  const ko = (id, t1, t2, when, winnerCode) => ({
+    id, group: '', matchday: 0, t1, t2, ko: when, venue: 'V', city: 'C',
+    status: 'final', score: [1, 0], minute: 90, prob: { a: 50, d: 25, b: 25 }, stage: 'knockout', winnerCode,
+  })
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'f1', name: 'Fin1', group: '', pool: 'P', color: '#111', strength: 90 },
+        { code: 'f2', name: 'Fin2', group: '', pool: 'P', color: '#222', strength: 88 },
+        { code: 'sa', name: 'SemiA', group: '', pool: 'P', color: '#333', strength: 80 },
+        { code: 'sb', name: 'SemiB', group: '', pool: 'P', color: '#444', strength: 80 },
+        { code: 'qf', name: 'QF', group: '', pool: 'P', color: '#555', strength: 70 },
+      ],
+      people: [
+        { id: 'champ', name: 'Champ Player', short: 'Champ' },
+        { id: 'runner', name: 'Runner Player', short: 'Runner' },
+        { id: 'sa1', name: 'Sam Stone', short: 'Sam' },
+        { id: 'sb1', name: 'Bea Bell', short: 'Bea' },
+        { id: 'qf1', name: 'Que Frida', short: 'Que' },
+      ],
+      ownership: { champ: ['f1'], runner: ['f2'], sa1: ['sa'], sb1: ['sb'], qf1: ['qf'] },
+      scoring: null,
+    },
+    fixtures: [
+      ko('semiA', 'f1', 'sa', '2026-07-14T18:00:00Z', 'f1'),
+      ko('qfMatch', 'f2', 'qf', '2026-07-14T22:00:00Z', 'f2'), // between semiA and semiB → position 4
+      ko('semiB', 'f2', 'sb', '2026-07-15T18:00:00Z', 'f2'),
+    ],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ support: {} })
+}
+
+test('PeopleScreen Placement tab shows finishing positions and nothing for still-in', () => {
+  placementSweep()
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
+  act(() => { fireEvent.click(getByText('Placement')) })
+  expect(statFor(container, 'Bea Bell')).toBe('3')   // sb out later → 3 (single owner)
+  expect(statFor(container, 'Sam Stone')).toBe('5')  // sa out earlier → 5
+  expect(statFor(container, 'Champ Player')).toBeNull() // still in → blank
+  expect(statFor(container, 'Runner Player')).toBeNull()
+  expect(getByText(/placed · by finishing position/i)).toBeInTheDocument()
+})
+
+test('PeopleScreen Placement tab orders still-in at top, then best placement down', () => {
+  placementSweep()
+  const { container, getByText } = render(<PeopleScreen openPerson={noop} />)
+  act(() => { fireEvent.click(getByText('Placement')) })
+  const names = rowNames(container)
+  // still-in (no number) above placed; among placed, 3 (Bea) above 5 (Sam)
+  expect(names.indexOf('Bea Bell')).toBeLessThan(names.indexOf('Sam Stone'))
+  expect(names.indexOf('Champ Player')).toBeLessThan(names.indexOf('Bea Bell'))
+  expect(names.indexOf('Runner Player')).toBeLessThan(names.indexOf('Bea Bell'))
+})
