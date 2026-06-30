@@ -269,7 +269,7 @@ export function assembleSweep(api) {
   // Per person: settled? champion? and the ordering time (Infinity = above all who are out).
   const personElim = (p) => {
     if (!p.teams || p.teams.length === 0) return { settled: false, champion: false, time: Infinity }
-    // ponytail: a champion (5 KO wins) exists only once the final is played, when no one is still-in — so the Infinity tie-group below is champions only, never widened by still-in people.
+    // ponytail: champions (the cup winner here, or the lone survivor crowned below) coexist with no still-in people — so the Infinity tie-group below is champions only, never widened.
     if (p.teams.some((c) => championCodes.has(c))) return { settled: true, champion: true, time: Infinity }
     if (p.teams.some((c) => !eliminatedTeamCodes.has(c))) return { settled: false, champion: false, time: Infinity }
     const ts = p.teams.map(teamElimTime).filter((t) => t != null)
@@ -279,6 +279,11 @@ export function assembleSweep(api) {
   const elimByPerson = Object.fromEntries(people.map((p) => [p.id, personElim(p)]))
   // only people who actually hold teams take a finishing slot
   const ranked = people.filter((p) => p.teams && p.teams.length > 0)
+
+  // Lone survivor: if exactly one person is still in the running, they've clinched the
+  // sweep (they'll outlast everyone left) → crown them 1st now, before the actual final.
+  const stillIn = ranked.filter((p) => !elimByPerson[p.id].settled)
+  if (stillIn.length === 1) elimByPerson[stillIn[0].id] = { settled: true, champion: true, time: Infinity }
 
   // Standard competition ranking, range display. start = 1 + (# who outlasted me);
   // a tie group of size k shows start..start+k-1. null = not settled (still in).

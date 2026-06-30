@@ -408,7 +408,7 @@ test('placementOf marks the champion (5 KO wins) as 1 and yields contiguous posi
 })
 
 // A person owning a deep + a shallow team is placed by the deep one (last to fall).
-test('placementOf places a multi-team person by their deepest (last-out) team', () => {
+test('placementOf places a multi-team person by deepest team; crowns the lone survivor 1st', () => {
   const ko = (id, t1, t2, when, winnerCode) => ({
     id, group: '', matchday: 0, t1, t2, ko: when, venue: 'V', city: 'C',
     status: 'final', score: [1, 0], minute: 90, prob: null, stage: 'knockout', winnerCode,
@@ -430,8 +430,8 @@ test('placementOf places a multi-team person by their deepest (last-out) team', 
     ],
     standings: {}, photos: [],
   })
-  // alive (owns 'win', not eliminated) → still in
-  expect(S.placementOf('alive')).toBeNull()
+  // alive (owns 'win', not eliminated) is the ONLY person left in → crowned 1st
+  expect(S.placementOf('alive')).toEqual({ start: 1, end: 1, champion: true })
   // mix owns early+late; last team out is 'late' (Jul 12) → ranked above 'soon'
   expect(S.placementOf('mix')).toEqual({ start: 2, end: 2, champion: false })
   expect(S.placementOf('soon')).toEqual({ start: 3, end: 3, champion: false })
