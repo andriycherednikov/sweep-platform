@@ -1,9 +1,9 @@
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CoinsScreen, ParlayCard } from './screens-coins.jsx'
 import { setWalletData, canWager } from './coins.js'
-import { clearBetslip } from './betslip.js'
+import { clearBetslip, betslipLegs } from './betslip.js'
 import { setMe } from './social.js'
 import { SWEEP as S } from './data.js'
 
@@ -27,6 +27,25 @@ test('place-a-bet shows a day header, flags, and inline 1X2 odds', () => {
   // Flag renders <img class="flag ..."> with alt="" (decorative); query via DOM
   expect(container.querySelectorAll('img.flag').length).toBeGreaterThan(0)
   expect(screen.getByText('2')).toBeInTheDocument()
+})
+
+test('place-a-bet headlines To Qualify when available, else the match result', () => {
+  clearBetslip()
+  S.fixtures.push({ id: 'f2', t1: 'fra', t2: 'swe', stage: 'knockout', status: 'upcoming',
+    ko: new Date('2026-07-02T18:00:00Z'), dayKey: '2026-07-02', dayLabel: 'Wed 2 Jul', markets: {
+      '1x2': { book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 1.3 }, { key: 'DRAW', label: 'Draw', odds: 6 }, { key: 'AWAY', label: 'Away', odds: 9 }] },
+      toq: { book: 'Bet365', selections: [{ key: 'HOME', label: 'Home', odds: 1.14 }, { key: 'AWAY', label: 'Away', odds: 5.5 }] } } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  // knockout row shows To Qualify odds (1.14 / 5.5), no Draw — not the 1x2 line
+  const row2 = screen.getByTestId('bet-row-f2')
+  expect(within(row2).getByText('1.14')).toBeInTheDocument()
+  expect(within(row2).getByText('5.5')).toBeInTheDocument()
+  expect(within(row2).queryByText('Draw')).not.toBeInTheDocument()
+  // the group fixture still headlines the 3-way match result (has a Draw)
+  expect(within(screen.getByTestId('bet-row-f1')).getByText('Draw')).toBeInTheDocument()
+  // tapping the knockout headline stakes a 'toq' leg, not '1x2'
+  fireEvent.click(within(row2).getByRole('button', { name: /home odds 1.14/i }))
+  expect(betslipLegs().find((l) => l.fixtureId === 'f2')?.market).toBe('toq')
 })
 
 test('tapping the row opens the bet detail', () => {

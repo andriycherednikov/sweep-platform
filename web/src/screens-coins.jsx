@@ -666,9 +666,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
     <button className="hdr-help" onClick={() => setInfo(true)} aria-label="About wagers" title="About wagers">?</button>
   )
 
-  // Upcoming bettable matches with a 1x2 market — full tournament. Fixtures arrive chronological.
+  // Upcoming bettable matches with a headline market — full tournament. Fixtures arrive chronological.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && f.markets?.['1x2'])
+    .filter(f => f.status === 'upcoming' && (f.markets?.['toq'] || f.markets?.['1x2']))
 
   // Group by dayKey (same pattern as ScheduleScreen in screens-main.jsx)
   const days = []
@@ -740,7 +740,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                       {fs.map(f => {
                         const t1 = S.team(f.t1)
                         const t2 = S.team(f.t2)
-                        const mkt = f.markets['1x2']
+                        // knockouts headline "To Qualify" (who advances); else the match result
+                        const mktKey = f.markets.toq ? 'toq' : '1x2'
+                        const mkt = f.markets[mktKey]
                         return (
                           <div
                             key={f.id}
@@ -769,9 +771,9 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                                 return (
                                   <button
                                     key={sel.key}
-                                    className={'coin-odds-btn' + (hasLeg(f.id, '1x2', sel.key) ? ' on' : '')}
+                                    className={'coin-odds-btn' + (hasLeg(f.id, mktKey, sel.key) ? ' on' : '')}
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
-                                    onClick={(e) => openInlineBet(e, f, '1x2', sel.key, sel.odds)}
+                                    onClick={(e) => openInlineBet(e, f, mktKey, sel.key, sel.odds)}
                                   >
                                     {flagCode && <img className="coin-sel-bg" src={S.flag(flagCode, 160)} alt="" />}
                                     <span className="coin-odds-side"><span className="nm">{label}</span></span>
