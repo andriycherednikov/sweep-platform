@@ -647,9 +647,9 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
         </div>
         {!isDecidedA && oA.length > 0 && <AvStack people={oA} size={24} max={3} />}
         {showScores && !isHidden && (
-          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline", gap: 2 }}>
+          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline" }}>
             <span>{scoreA}</span>
-            {f?.penScore && <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--muted2)", fontStyle: "italic" }}>({f.penScore[0]})</span>}
+            <PenScore pen={f?.penScore} side={0} />
           </span>
         )}
       </div>
@@ -674,9 +674,9 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
         </div>
         {!isDecidedB && oB.length > 0 && <AvStack people={oB} size={24} max={3} />}
         {showScores && !isHidden && (
-          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline", gap: 2 }}>
+          <span className="b-score" style={{ display: "inline-flex", alignItems: "baseline" }}>
             <span>{scoreB}</span>
-            {f?.penScore && <span style={{ fontSize: "11px", fontWeight: "600", color: "var(--muted2)", fontStyle: "italic" }}>({f.penScore[1]})</span>}
+            <PenScore pen={f?.penScore} side={1} />
           </span>
         )}
       </div>
