@@ -606,7 +606,8 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
   const parts = (venueDate || "").split("·").map(s => s.trim());
   const defaultCity = parts[0] || "TBD";
   const defaultDate = parts[1] || "";
-  const dateStr = f ? `${f.dayLabel}${f.timeLabel ? ' · ' + f.timeLabel : ''}` : defaultDate;
+  // once a match is live the kickoff time is redundant — the live dot shows the minute instead
+  const dateStr = f ? `${f.dayLabel}${(f.timeLabel && !isLive) ? ' · ' + f.timeLabel : ''}` : defaultDate;
   const stadiumStr = f ? (f.venue ? (f.city && !f.venue.toLowerCase().includes(f.city.toLowerCase()) ? `${f.venue} · ${f.city}` : f.venue) : f.city) : defaultCity;
 
   return (
