@@ -17,6 +17,7 @@
     "squads:sync": "node --env-file=../.env src/worker/run-squads.js",
     "stats:backfill": "node --env-file=../.env src/worker/run-stats-backfill.js",
     "cutover": "node --env-file=../.env src/worker/cutover.js",
+    "regrade:gs": "node --env-file=../.env src/coins/regrade-gs.js",
     "admin:hash": "node src/seed/admin-hash.js"
   },
   "dependencies": {
