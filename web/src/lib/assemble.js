@@ -269,9 +269,11 @@ export function assembleSweep(api) {
   // Per person: settled? champion? and the ordering time (Infinity = above all who are out).
   const personElim = (p) => {
     if (!p.teams || p.teams.length === 0) return { settled: false, champion: false, time: Infinity }
+    // ponytail: a champion (5 KO wins) exists only once the final is played, when no one is still-in — so the Infinity tie-group below is champions only, never widened by still-in people.
     if (p.teams.some((c) => championCodes.has(c))) return { settled: true, champion: true, time: Infinity }
     if (p.teams.some((c) => !eliminatedTeamCodes.has(c))) return { settled: false, champion: false, time: Infinity }
     const ts = p.teams.map(teamElimTime).filter((t) => t != null)
+    // ponytail: time 0 (placed last) is a degenerate fallback for an eliminated team with no fixtures — unreachable in prod since every team has group fixtures.
     return { settled: true, champion: false, time: ts.length ? Math.max(...ts) : 0 }
   }
   const elimByPerson = Object.fromEntries(people.map((p) => [p.id, personElim(p)]))
