@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { assembleSweep, twoWayProb, threeWayProb, winnerCodeOf } from './assemble.js'
+import { assembleSweep, twoWayProb, threeWayProb, progressProb, winnerCodeOf } from './assemble.js'
 
 const api = {
   bootstrap: {
@@ -102,6 +102,14 @@ test('threeWayProb renders home / draw / away summing to 100, draw absorbs round
   const p = threeWayProb({ a: 1, d: 1, b: 1 })
   expect(p.pa + p.pd + p.pb).toBe(100)
   expect(threeWayProb({ a: 0, d: 0, b: 0 })).toEqual({ pa: 34, pd: 33, pb: 33 }) // div-by-zero guard
+})
+
+test('progressProb prefers To Qualify odds (advance prob), else the draw-collapsed 1x2', () => {
+  // toq odds HOME 1.57 / AWAY 2.38 → implied .637/.420, normalised ≈ 60/40 (ignores the 1x2 draw)
+  const f = { markets: { toq: { selections: [{ key: 'HOME', odds: 1.57 }, { key: 'AWAY', odds: 2.38 }] } }, prob: { a: 27, d: 28, b: 45 } }
+  expect(progressProb(f)).toEqual({ pa: 60, pb: 40 })
+  // no toq market → falls back to the two-way 1x2 split
+  expect(progressProb({ prob: { a: 53, d: 26, b: 21 } })).toEqual({ pa: 72, pb: 28 })
 })
 
 test('fixtures carry two-way prob2, three-way prob3, and pass lineups through (null by default)', () => {

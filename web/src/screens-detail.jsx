@@ -250,7 +250,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                       </span>
                     ))}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[myCode===f.t1?"pa":"pb"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{(f.stage==="knockout"?f.prob2:f.prob3)[myCode===f.t1?"pa":"pb"]}%</span>}
                   </div>
                 </div>
               );
@@ -471,7 +471,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                       </span>
                     ))}
                     {r && <span className={"res-pill "+r}>{r.toUpperCase()}</span>}
-                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{f.prob3[f.t1===code?"pa":"pb"]}%</span>}
+                    {f.status==="upcoming" && f.hasOdds && <span className="num" style={{fontSize:12,color:"var(--muted)",fontWeight:700}}>{(f.stage==="knockout"?f.prob2:f.prob3)[f.t1===code?"pa":"pb"]}%</span>}
                   </div>
                 </div>
               );
@@ -936,10 +936,17 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <>
               <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Official prediction</div>
               <div className="block" style={{padding:"15px 16px",marginBottom:16}}>
+                {/* elimination matches: two-way "to progress" odds, no draw */}
                 <div className="prob-bar" style={{background:"#eef1f5",height:12,borderRadius:7}}>
-                  <i className="a" style={{width:f.prob3.pa+"%"}}></i><i className="d" style={{width:f.prob3.pd+"%"}}></i><i className="b" style={{width:f.prob3.pb+"%"}}></i>
+                  {f.stage==="knockout"
+                    ? <><i className="a" style={{width:f.prob2.pa+"%"}}></i><i className="b" style={{width:f.prob2.pb+"%"}}></i></>
+                    : <><i className="a" style={{width:f.prob3.pa+"%"}}></i><i className="d" style={{width:f.prob3.pd+"%"}}></i><i className="b" style={{width:f.prob3.pb+"%"}}></i></>}
                 </div>
-                <div className="prob-key" style={{color:"var(--muted)",marginTop:9}}><span><b style={{color:"var(--navy)"}}>{f.prob3.pa}%</b> {t1.name}</span><span><b style={{color:"var(--navy)"}}>{f.prob3.pd}%</b> Draw</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob3.pb}%</b></span></div>
+                <div className="prob-key" style={{color:"var(--muted)",marginTop:9}}>
+                  {f.stage==="knockout"
+                    ? <><span><b style={{color:"var(--navy)"}}>{f.prob2.pa}%</b> {t1.name}</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob2.pb}%</b></span></>
+                    : <><span><b style={{color:"var(--navy)"}}>{f.prob3.pa}%</b> {t1.name}</span><span><b style={{color:"var(--navy)"}}>{f.prob3.pd}%</b> Draw</span><span>{t2.name} <b style={{color:"var(--navy)"}}>{f.prob3.pb}%</b></span></>}
+                </div>
               </div>
             </>
           )}

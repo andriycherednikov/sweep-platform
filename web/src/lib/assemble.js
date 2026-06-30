@@ -50,6 +50,25 @@ export function twoWayProb(prob) {
 }
 
 /**
+ * Two-way "to progress" probability {pa, pb} for the elimination bars. Prefers the
+ * To Qualify odds (the book's actual P(each side advances) — extra time/penalties
+ * included); falls back to the draw-collapsed 1x2 split when no toq market exists.
+ */
+export function progressProb(f) {
+  const sels = f?.markets?.toq?.selections
+  if (sels) {
+    const h = sels.find((s) => s.key === 'HOME')?.odds
+    const a = sels.find((s) => s.key === 'AWAY')?.odds
+    if (h > 1 && a > 1) {
+      const ih = 1 / h, ia = 1 / a
+      const pa = Math.round((ih / (ih + ia)) * 100)
+      return { pa, pb: 100 - pa }
+    }
+  }
+  return twoWayProb(f?.prob)
+}
+
+/**
  * Three-way prediction for the official-odds bars: home / draw / away,
  * each as a percentage. Win sides are rounded; the draw absorbs the rounding
  * remainder so the three always sum to 100.
@@ -133,7 +152,7 @@ export function assembleSweep(api) {
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
       venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute, phase: f.phase ?? null,
-      prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
+      prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: progressProb(f), prob3: threeWayProb(f.prob),
       markets: f.markets ?? null, htScore: f.htScore ?? null, penScore,
       lineups: f.lineups ?? null, events: f.events ?? [], statistics: f.statistics ?? null, stage: f.stage, derby, doubleOwners,
       winnerCode: f.winnerCode ?? null,

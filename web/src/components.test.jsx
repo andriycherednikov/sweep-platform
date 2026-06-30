@@ -159,6 +159,15 @@ test('ProbBar renders three segments (home / draw / away)', () => {
   expect(segs[2].style.width).toBe('15%')
 })
 
+test('ProbBar renders two segments (no draw) for knockouts via prob2', () => {
+  const { container } = render(<ProbBar prob2={{ pa: 60, pb: 40 }} />)
+  const segs = container.querySelectorAll('.prob-bar i')
+  expect(segs).toHaveLength(2)
+  expect(segs[0].style.width).toBe('60%')
+  expect(segs[1].style.width).toBe('40%')
+  expect(container.querySelector('.prob-bar .d')).toBeNull()
+})
+
 test('useCountdown re-syncs its target when the next match changes (offset jumps)', () => {
   vi.useFakeTimers()
   const { result, rerender } = renderHook(({ off }) => useCountdown(off), { initialProps: { off: 5 } })

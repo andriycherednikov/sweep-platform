@@ -161,8 +161,20 @@ export function AvStack({ people, size, light, max }) {
   );
 }
 
-/* probability bar (hero) — three-way home / draw / away (official odds) */
-export function ProbBar({ prob3 }) {
+/* probability bar (hero) — three-way home/draw/away, or two-way to-progress
+   (no draw) when passed prob2, used for knockout/elimination matches */
+export function ProbBar({ prob3, prob2 }) {
+  if (prob2) {
+    const pa = prob2?.pa ?? 50;
+    return (
+      <div className="prob">
+        <div className="prob-bar">
+          <i className="a" style={{ width: pa+"%" }}></i>
+          <i className="b" style={{ width: Math.max(0, 100 - pa)+"%" }}></i>
+        </div>
+      </div>
+    );
+  }
   const pa = prob3?.pa ?? 34, pd = prob3?.pd ?? 33, pb = Math.max(0, 100 - pa - pd); // last fills remainder
   return (
     <div className="prob">

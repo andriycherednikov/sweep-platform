@@ -274,14 +274,21 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <span className="nm">{t2.name.toUpperCase()}</span>
           </div>
         </div>
-        {!live && next.hasOdds && <>
+        {!live && next.hasOdds && (next.stage === "knockout" ? <>
+        {/* elimination match: two-way "to progress" odds, no draw */}
+        <ProbBar prob2={next.prob2} />
+        <div className="prob-key">
+          <span><b>{next.prob2.pa}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
+          <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob2.pb}%</b></span>
+        </div>
+        </> : <>
         <ProbBar prob3={next.prob3} />
         <div className="prob-key">
           <span><b>{next.prob3.pa}%</b> {next.t1.slice(0,3).toUpperCase()}</span>
           <span><b>{next.prob3.pd}%</b> DRAW</span>
           <span>{next.t2.slice(0,3).toUpperCase()} <b>{next.prob3.pb}%</b></span>
         </div>
-        </>}
+        </>)}
         <div onClick={(e)=>e.stopPropagation()}>
           <CrowdPick f={next} onToast={toast} light locked={next.status !== "upcoming"} />
         </div>
