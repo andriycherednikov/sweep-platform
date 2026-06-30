@@ -222,7 +222,8 @@ export function StatusPill({ f }) {
    side: 0 = home, 1 = away. */
 export function PenScore({ pen, side }) {
   if (!pen) return null;
-  return <span style={{ marginLeft: 3 }}>({pen[side]})</span>;
+  // same size as the score, but a touch lighter (faded tone, not a hard grey) so it reads as secondary
+  return <span style={{ marginLeft: 3, opacity: 0.55 }}>({pen[side]})</span>;
 }
 
 /* W/D/L result pill from a team's perspective */
