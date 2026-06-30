@@ -606,15 +606,15 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
   const parts = (venueDate || "").split("·").map(s => s.trim());
   const defaultCity = parts[0] || "TBD";
   const defaultDate = parts[1] || "";
-  // once a match is live the kickoff time is redundant — the live dot shows the minute instead
-  const dateStr = f ? `${f.dayLabel}${(f.timeLabel && !isLive) ? ' · ' + f.timeLabel : ''}` : defaultDate;
+  const dateStr = f ? `${f.dayLabel}${f.timeLabel ? ' · ' + f.timeLabel : ''}` : defaultDate;
   const stadiumStr = f ? (f.venue ? (f.city && !f.venue.toLowerCase().includes(f.city.toLowerCase()) ? `${f.venue} · ${f.city}` : f.venue) : f.city) : defaultCity;
 
   return (
     <div className={"b-match-box" + (isMine ? " mine" : "")} onClick={() => f && onOpen && onOpen(f)} style={{ cursor: f ? "pointer" : "default" }}>
       <div className="b-match-head">
         <div className="b-head-row">
-          <span className="b-head-date">{dateStr || "TBD"}</span>
+          {/* once live, the whole date line is redundant — the live dot carries the status */}
+          {!isLive && <span className="b-head-date">{dateStr || "TBD"}</span>}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
             {isLive && <span className="b-live-dot">● {f.minute ? `${f.minute}' LIVE` : "LIVE"}</span>}
             {isFinal && <span className="b-ft-tag">FT</span>}

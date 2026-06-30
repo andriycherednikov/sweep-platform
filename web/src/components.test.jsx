@@ -901,7 +901,7 @@ test('KnockoutsScreen renders bracket and respects spoiler protection', () => {
   setSpoiler(false)
 })
 
-test('BracketMatchBox drops the kickoff time once a match is live (live dot shows the minute)', () => {
+test('BracketMatchBox drops the whole date line once a match is live (live dot carries the status)', () => {
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -921,10 +921,8 @@ test('BracketMatchBox drops the kickoff time once a match is live (live dot show
   const { container } = render(<KnockoutsScreen go={() => {}} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} />)
   const liveBox = [...container.querySelectorAll('.b-match-box')].find(b => b.querySelector('.b-live-dot'))
   expect(liveBox).toBeTruthy()
-  const date = liveBox.querySelector('.b-head-date').textContent
-  expect(date).toMatch(/June/)             // still shows the day
-  expect(date).not.toMatch(/\d{1,2}:\d{2}/) // but not the kickoff time
-  expect(liveBox.querySelector('.b-live-dot').textContent).toContain("51'")
+  expect(liveBox.querySelector('.b-head-date')).toBeNull()           // no date line at all while live
+  expect(liveBox.querySelector('.b-live-dot').textContent).toContain("51'") // live dot carries the status
 })
 
 
