@@ -217,14 +217,13 @@ export function StatusPill({ f }) {
   return <span className="pill up">Upcoming</span>;
 }
 
-/* Inline penalty-shootout tally, shown right after a combined regulation score: "1 – 1 (4–3)".
-   Winner's tally in navy. Replaces the old stacked "Penalties: x-y" line. */
-export function PenScore({ pen, size = 11.5 }) {
+/* Inline penalty-shootout tally for ONE side, shown right after that team's regulation
+   score so a shootout reads "1 (3) – 1 (4)". Winner's tally in navy. side: 0 = home, 1 = away. */
+export function PenScore({ pen, side, size = 11.5 }) {
   if (!pen) return null;
+  const me = pen[side], opp = pen[side === 0 ? 1 : 0];
   return (
-    <span style={{ fontSize: size, color: "var(--muted2)", marginLeft: 5, fontWeight: 700, whiteSpace: "nowrap", fontFamily: "sans-serif" }}>
-      (<span style={{ color: pen[0] > pen[1] ? "var(--navy)" : "inherit" }}>{pen[0]}</span>–<span style={{ color: pen[1] > pen[0] ? "var(--navy)" : "inherit" }}>{pen[1]}</span>)
-    </span>
+    <span style={{ fontSize: size, color: me > opp ? "var(--navy)" : "var(--muted2)", marginLeft: 3, fontWeight: 700, fontFamily: "sans-serif" }}>({me})</span>
   );
 }
 
@@ -345,8 +344,7 @@ export function MatchCard({ f, onOpen, onToast }) {
           {showScore
             ? (spoilerHidden(f) ? <ScoreCover f={f}/> : (
                   <span className="mc-sc" style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
-                    <span>{s1}</span><i>–</i><span>{s2}</span>
-                    <PenScore pen={f.penScore} />
+                    <span>{s1}<PenScore pen={f.penScore} side={0} /></span><i>–</i><span>{s2}<PenScore pen={f.penScore} side={1} /></span>
                   </span>
               ))
             : <span className="mc-vs">VS</span>}

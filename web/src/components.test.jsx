@@ -607,11 +607,11 @@ test('MatchCard renders shootout penalty scores and dims the loser', () => {
   setSpoiler(false)
   const noop = () => {}
   const { getByText, queryByText, container } = render(<MatchCard f={SWEEP.fixture('m1')} onOpen={noop} onToast={noop} />)
-  expect(queryByText(/Penalties:/)).toBeNull() // pens now inline after the score, no stacked label
-  expect(getByText('3')).toBeTruthy()
-  expect(getByText('5')).toBeTruthy()
-  // inline within the score cell: "1 – 1 (3–5)"
-  expect(container.querySelector('.mc-sc').textContent.replace(/\s/g, '')).toContain('(3')
+  expect(queryByText(/Penalties:/)).toBeNull() // pens now inline after each score, no stacked label
+  expect(getByText('(3)')).toBeTruthy()
+  expect(getByText('(5)')).toBeTruthy()
+  // per-side inline within the score cell: "1 (3) – 1 (5)"
+  expect(container.querySelector('.mc-sc').textContent.replace(/\s/g, '')).toContain('1(3)–1(5)')
   const mxContainer = container.querySelector('.mc-h-team:not(.right)')
   expect(mxContainer.className).toContain('dim')
   const zaContainer = container.querySelector('.mc-h-team.right')
@@ -726,11 +726,11 @@ test('HomeScreen latest-scores shows shootout penalty scores and status', () => 
   const noop = () => {}
   setSpoiler(false)
   const { getByText, queryByText, container } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
-  expect(queryByText(/Penalties:/)).toBeNull() // pens now inline after the score
-  expect(getByText('3')).toBeTruthy()
-  expect(getByText('5')).toBeTruthy()
+  expect(queryByText(/Penalties:/)).toBeNull() // pens now inline after each score
+  expect(getByText('(3)')).toBeTruthy()
+  expect(getByText('(5)')).toBeTruthy()
   expect(getByText('FT')).toBeTruthy()
-  expect(container.querySelector('.rscore').textContent.replace(/\s/g, '')).toContain('(3')
+  expect(container.querySelector('.rscore').textContent.replace(/\s/g, '')).toContain('1(3)–1(5)')
 })
 
 test('PersonTeams shows names for <=2 teams, compact flags + count for more', () => {

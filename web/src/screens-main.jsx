@@ -173,9 +173,8 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                   {(sum.home.yellow || sum.home.red) ? <span className="res-cards"><CardChips n={sum.home.yellow}/><CardChips red n={sum.home.red}/></span> : null}
                 </div>
                 {spoilerHidden(f) ? <ScoreCover f={f}/> : (
-                  <span className="rscore" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 60 }}>
-                    <span>{f.score[0]} – {f.score[1]}</span>
-                    <PenScore pen={f.penScore} />
+                  <span className="rscore" style={{ minWidth: 60, textAlign: "center", whiteSpace: "nowrap" }}>
+                    {f.score[0]}<PenScore pen={f.penScore} side={0} /> – {f.score[1]}<PenScore pen={f.penScore} side={1} />
                   </span>
                 )}
                 <div className="rt" style={{justifyContent:"flex-end"}}>

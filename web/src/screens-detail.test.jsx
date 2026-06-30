@@ -759,8 +759,8 @@ test('MatchSheet renders a Penalty Shootout section and filters it from normal t
 
   // Shootout section and header scores are rendered
   expect(getByText('Penalty shootout')).toBeTruthy();
-  expect(queryByText(/Penalties:/)).toBeNull(); // pens now inline after the score, not a stacked label
-  expect(container.querySelector('.cd').textContent.replace(/\s/g, '')).toContain('(1'); // "1–1 (1–0)"
+  expect(queryByText(/Penalties:/)).toBeNull(); // pens now inline after each score, not a stacked label
+  expect(container.querySelector('.cd').textContent.replace(/\s/g, '')).toBe('1(1)–1(0)'); // "1 (1) – 1 (0)"
   expect(getByText('FULL TIME')).toBeTruthy();
   
   // Scored penalty taker and missed penalty taker are rendered
