@@ -8,7 +8,7 @@ import {
   supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
-import { fmtDate } from "./lib/format.js";
+import { fmtDate, liveLabel } from "./lib/format.js";
 import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
@@ -212,7 +212,7 @@ export function SquadList({ players, wide }) {
 
 /* status pill for a fixture */
 export function StatusPill({ f }) {
-  if (f.status === "live") return <span className="pill live"><span className="b"></span> Live · {f.minute}'</span>;
+  if (f.status === "live") return <span className="pill live"><span className="b"></span> Live{liveLabel(f) ? ` · ${liveLabel(f)}` : ""}</span>;
   if (f.status === "final") return <span className="pill final">Full time</span>;
   return <span className="pill up">Upcoming</span>;
 }

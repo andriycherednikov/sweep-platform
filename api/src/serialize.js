@@ -10,7 +10,7 @@ export function serializeFixture(f) {
   return {
     id: f.id, group: f.group, matchday: f.matchday, t1: f.t1Code, t2: f.t2Code,
     ko: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
-    score: f.score1 == null ? null : [f.score1, f.score2], minute: f.minute,
+    score: f.score1 == null ? null : [f.score1, f.score2], minute: f.minute, phase: f.phase ?? null,
     prob: { a: f.probA, d: f.probD, b: f.probB },
     markets: f.markets ?? null,
     htScore: f.htScore1 == null ? null : [f.htScore1, f.htScore2],

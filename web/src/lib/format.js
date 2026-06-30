@@ -35,9 +35,24 @@ export function fmtWeekday(d) {
 
 // One-line fixture label: canonical date+time plus a status suffix.
 // Prefers the precomputed f.dateTimeLabel, falling back to f.ko.
+// Period-aware running clock for a live match: "67'", "ET 95'", "HT", "Pens".
+// Falls back to the bare minute for a normal half (1H/2H) or when phase is absent (older data),
+// and to '' only at the rare moment a live match has no elapsed minute yet — callers pair it
+// with their own "LIVE" badge, so an empty clock just leaves the badge standing alone.
+export function liveLabel(f) {
+  const m = f.minute
+  switch (f.phase) {
+    case 'HT': return 'HT'                              // half-time
+    case 'BT': return 'ET'                              // break between extra-time halves
+    case 'P':  return 'Pens'                            // penalty shootout in progress
+    case 'ET': return m != null ? `ET ${m}'` : 'ET'    // extra time
+    default:   return m != null ? `${m}'` : ''
+  }
+}
+
 export function whenLabel(f) {
   const base = f.dateTimeLabel || fmtDateTime(f.ko)
-  if (f.status === 'live') return `${base} · ${f.minute}'`
+  if (f.status === 'live') return `${base} · ${liveLabel(f) || 'LIVE'}`
   if (f.status === 'final') return `${base} · FT`
   return base
 }

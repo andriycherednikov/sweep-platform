@@ -77,6 +77,7 @@ export const fixture = pgTable('fixture', {
   penScore1: integer('pen_score1'),
   penScore2: integer('pen_score2'),
   minute: integer('minute'),
+  phase: text('phase'), // live period from the provider: 1H/2H/HT/ET/BT/P; null unless live
   probA: integer('prob_a'),
   probD: integer('prob_d'),
   probB: integer('prob_b'),

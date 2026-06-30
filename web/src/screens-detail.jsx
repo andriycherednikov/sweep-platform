@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
-import { whenLabel } from "./lib/format.js";
+import { whenLabel, liveLabel } from "./lib/format.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams, PenScore,
 } from "./components.jsx";
@@ -900,7 +900,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                     <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}<PenScore pen={f.penScore} side={0} />{f.penScore ? " – " : "–"}{f.score[1]}<PenScore pen={f.penScore} side={1} /></span>
                   ))
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
-              <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?f.minute+"' · LIVE":f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
+              <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?[liveLabel(f), "LIVE"].filter(Boolean).join(" · "):f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
             </div>
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>

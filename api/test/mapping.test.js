@@ -190,6 +190,18 @@ test('mapFixture reports a draw when neither side won a final, null otherwise', 
   expect(mapFixture(rawFix({ short: 'NS' })).winnerSide).toBeNull()
 })
 
+test('mapFixture captures the live period (phase) + elapsed minute, and clears them when not live', () => {
+  const et = rawFix({ short: 'ET', gh: 1, ga: 1 }); et.fixture.status.elapsed = 95
+  expect(mapFixture(et)).toMatchObject({ status: 'live', minute: 95, phase: 'ET' })
+
+  const ht = rawFix({ short: 'HT' }); ht.fixture.status.elapsed = 45
+  expect(mapFixture(ht)).toMatchObject({ status: 'live', minute: 45, phase: 'HT' })
+
+  // not live → no running period or minute
+  expect(mapFixture(rawFix({ short: 'FT', gh: 1, ga: 0 }))).toMatchObject({ status: 'final', phase: null, minute: null })
+  expect(mapFixture(rawFix({ short: 'NS' }))).toMatchObject({ status: 'upcoming', phase: null, minute: null })
+})
+
 // mapMarkets tests
 const oddsResp = (bookmakers) => ({ response: [{ bookmakers }] })
 const ov = (value, odd) => ({ value, odd: String(odd) })

@@ -87,18 +87,19 @@ export async function pollLive(db, provider, ids, publish = () => {}) {
       if (!cur) continue
       const winnerCode = f.winnerSide === 'home' ? cur.t1Code : f.winnerSide === 'away' ? cur.t2Code : f.winnerSide === 'draw' ? 'DRAW' : null
       if (cur.status === f.status && cur.score1 === f.score1 && cur.score2 === f.score2 && cur.minute === f.minute
+        && (cur.phase ?? null) === (f.phase ?? null)
         && (cur.htScore1 ?? null) === (f.htScore1 ?? null) && (cur.htScore2 ?? null) === (f.htScore2 ?? null)
         && (cur.regScore1 ?? null) === (f.regScore1 ?? null) && (cur.regScore2 ?? null) === (f.regScore2 ?? null)
         && (cur.penScore1 ?? null) === (f.penScore1 ?? null) && (cur.penScore2 ?? null) === (f.penScore2 ?? null)
         && cur.winnerCode === winnerCode) continue
       await db.update(fixture)
-        .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, htScore1: f.htScore1, htScore2: f.htScore2,
+        .set({ status: f.status, score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase ?? null, htScore1: f.htScore1, htScore2: f.htScore2,
           regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
           penScore1: f.penScore1 ?? null, penScore2: f.penScore2 ?? null,
           winnerCode, updatedAt: new Date() })
         .where(eq(fixture.id, f.id))
       updated++
-      publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute })
+      publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute, phase: f.phase ?? null })
     }
     await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'ok', counts: { polled: ids.length, updated } })
     return updated

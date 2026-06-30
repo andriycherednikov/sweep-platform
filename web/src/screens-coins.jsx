@@ -9,6 +9,7 @@ import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds, b
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
 import { optOut } from './optout.js'
 import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
+import { liveLabel } from './lib/format.js'
 import { StatementList } from './screens-statement.jsx'
 
 /* ---- helpers ---- */
@@ -65,7 +66,7 @@ export function SingleBetRow({ b, onMatch }) {
               <span className="coin-bs-pick">{selLabel}</span>
             </div>
             {f && f.status === 'live' && (
-              <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {f.minute ?? 0}'</div>
+              <div className="coin-bs-when live"><span className="coin-live-dot" />Live{liveLabel(f) ? ` · ${liveLabel(f)}` : ""}</div>
             )}
             {f && f.status === 'upcoming' && (
               <div className="coin-bs-when">{f.dateTimeLabel}</div>
@@ -148,7 +149,7 @@ export function ParlayCard({ p, onMatch }) {
                       <span className="coin-bs-pick">{betSelectionLabel(l)}</span>
                     </div>
                     {lf && lf.status === 'upcoming' && <div className="coin-bs-when">{lf.dateTimeLabel}</div>}
-                    {lf && lf.status === 'live' && <div className="coin-bs-when live"><span className="coin-live-dot" />Live · {lf.minute ?? 0}'</div>}
+                    {lf && lf.status === 'live' && <div className="coin-bs-when live"><span className="coin-live-dot" />Live{liveLabel(lf) ? ` · ${liveLabel(lf)}` : ""}</div>}
                   </div>
                 </div>
                 {(lw || ll) && <span className={`pill coin-status-pill ${lw ? 'coin-won' : 'coin-lost'}`}>{l.status}</span>}

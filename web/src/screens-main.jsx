@@ -9,6 +9,7 @@ import {
 } from "./components.jsx";
 import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
 import { winnerCodeOf } from "./lib/assemble.js";
+import { liveLabel } from "./lib/format.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
@@ -265,7 +266,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
           <div className="vs-cd">
             {live
-              ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}–{next.score[1]}</span>}<span className="cdl">{next.minute}' · LIVE</span></>
+              ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}–{next.score[1]}</span>}<span className="cdl">{[liveLabel(next), "LIVE"].filter(Boolean).join(" · ")}</span></>
               : <><span className="cd">{cd.display}</span><span className="cdl">{cd.unit}</span></>}
           </div>
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
@@ -608,7 +609,7 @@ function BracketMatchBox({ fixture, team1Code, team2Code, venueDate, onOpen, ope
           {/* once live, the whole date line is redundant — the live dot carries the status */}
           {!isLive && <span className="b-head-date">{dateStr || "TBD"}</span>}
           <div style={{display:"flex",alignItems:"center",gap:6}}>
-            {isLive && <span className="b-live-dot">● {f.minute ? `${f.minute}' LIVE` : "LIVE"}</span>}
+            {isLive && <span className="b-live-dot">● {[liveLabel(f), "LIVE"].filter(Boolean).join(" ")}</span>}
             {isFinal && <span className="b-ft-tag">FT</span>}
             {showScores && isHidden && (
               <div onClick={(e) => e.stopPropagation()} style={{display:"inline-flex", scale:"0.85", transformOrigin:"right center"}}>

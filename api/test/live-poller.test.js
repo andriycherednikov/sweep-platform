@@ -48,7 +48,7 @@ test('pollLive publishes a score event for each changed fixture', async () => {
   const provider = createRecordedProvider({ fixtures: load('fixtures-live') })
   const events = []
   await pollLive(db, provider, ['9002'], (e) => events.push(e))
-  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'live', score: [1, 0], minute: 63 })
+  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'live', score: [1, 0], minute: 63, phase: '2H' })
 })
 
 test('pollLive finalizes a match that has ended — the key fix vs live=all', async () => {
@@ -60,7 +60,7 @@ test('pollLive finalizes a match that has ended — the key fix vs live=all', as
   expect(n).toBe(1)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
   expect(f).toMatchObject({ status: 'final', score1: 2, score2: 0, winnerCode: 'hr' })
-  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'final', score: [2, 0], minute: null })
+  expect(events).toContainEqual({ type: 'score', fixtureId: '9002', status: 'final', score: [2, 0], minute: null, phase: null })
 })
 
 test('pollLive persists winnerCode and shootout score on penalty final', async () => {

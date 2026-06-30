@@ -73,7 +73,7 @@ export async function syncBaseline(db, provider, { season }) {
       await db.insert(fixture).values({
         id: f.id, group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
         kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
-        score1: f.score1, score2: f.score2, minute: f.minute,
+        score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase ?? null,
         probA: prob?.a ?? null, probD: prob?.d ?? null, probB: prob?.b ?? null,
         ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
         regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
@@ -84,7 +84,7 @@ export async function syncBaseline(db, provider, { season }) {
         set: {
           group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
           kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
-          score1: f.score1, score2: f.score2, minute: f.minute,
+          score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase ?? null,
           // predictions are best-effort: only overwrite when we got fresh numbers
           ...(prob ? { probA: prob.a, probD: prob.d, probB: prob.b } : {}),
           // markets only overwrite when freshly fetched (marketsSet empty otherwise → preserves prior)

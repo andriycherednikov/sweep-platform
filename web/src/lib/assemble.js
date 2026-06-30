@@ -132,7 +132,7 @@ export function assembleSweep(api) {
 
     return {
       id: f.id, group: f.group, matchday: f.matchday, t1: f.t1, t2: f.t2, ko,
-      venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute,
+      venue: f.venue, city: f.city, status: f.status, score: f.score, minute: f.minute, phase: f.phase ?? null,
       prob: f.prob, hasOdds: hasRealOdds(f.prob), prob2: twoWayProb(f.prob), prob3: threeWayProb(f.prob),
       markets: f.markets ?? null, htScore: f.htScore ?? null, penScore,
       lineups: f.lineups ?? null, events: f.events ?? [], statistics: f.statistics ?? null, stage: f.stage, derby, doubleOwners,

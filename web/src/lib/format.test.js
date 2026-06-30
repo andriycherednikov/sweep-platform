@@ -1,5 +1,21 @@
 import { expect, test } from 'vitest'
-import { flag, gd, fmtTime, fmtDate, fmtDateTime, fmtDayKey, fmtWeekday, whenLabel } from './format.js'
+import { flag, gd, fmtTime, fmtDate, fmtDateTime, fmtDayKey, fmtWeekday, whenLabel, liveLabel } from './format.js'
+
+test('liveLabel labels the live period — extra time, half-time, penalties', () => {
+  expect(liveLabel({ minute: 67, phase: '2H' })).toBe("67'")
+  expect(liveLabel({ minute: 95, phase: 'ET' })).toBe("ET 95'")   // the reported case
+  expect(liveLabel({ minute: 45, phase: 'HT' })).toBe('HT')
+  expect(liveLabel({ minute: 120, phase: 'P' })).toBe('Pens')
+  expect(liveLabel({ minute: 105, phase: 'BT' })).toBe('ET')
+  expect(liveLabel({ minute: 30, phase: null })).toBe("30'")      // older data / no phase
+  expect(liveLabel({ minute: null, phase: null })).toBe('')       // no clock yet → caller shows just LIVE
+})
+
+test('whenLabel uses the period-aware clock for a live match', () => {
+  const base = { dateTimeLabel: 'Tue, 30 June · 11:00 AM', status: 'live' }
+  expect(whenLabel({ ...base, minute: 95, phase: 'ET' })).toBe("Tue, 30 June · 11:00 AM · ET 95'")
+  expect(whenLabel({ ...base, minute: null, phase: null })).toBe('Tue, 30 June · 11:00 AM · LIVE')
+})
 
 test('flag builds flagcdn urls (gb- subteams use svg)', () => {
   expect(flag('hr')).toBe('https://flagcdn.com/w80/hr.png')

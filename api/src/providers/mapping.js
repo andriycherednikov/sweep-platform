@@ -53,6 +53,8 @@ export function mapFixture(raw) {
     penScore1: raw.score?.penalty?.home ?? null,
     penScore2: raw.score?.penalty?.away ?? null,
     minute: status === 'live' ? (raw.fixture?.status?.elapsed ?? null) : null,
+    // provider period (1H/2H/HT/ET/BT/P) so the UI can label extra time, half-time, penalties
+    phase: status === 'live' ? (raw.fixture?.status?.short ?? null) : null,
   }
 }
 
