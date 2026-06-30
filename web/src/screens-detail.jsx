@@ -22,6 +22,16 @@ import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
 import { SweepDraw } from "./SweepDraw.jsx";
 
+/* Shared "Hide eliminated" filter toggle — same look/label on People and Teams. */
+function HideEliminatedToggle({ on, onToggle }) {
+  return (
+    <button className={"fchip" + (on ? " on accent" : "")} onClick={onToggle} aria-pressed={on}
+      style={{fontSize:12,padding:"6px 12px",borderRadius:8,fontWeight:700,whiteSpace:"nowrap"}}>
+      Hide eliminated
+    </button>
+  );
+}
+
 /* ---------------- PEOPLE ---------------- */
 export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   useSocial(); // re-render as picks/support arrive so prediction counts stay live
@@ -81,9 +91,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
             </div>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
               <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{subLabel}</p>
-              <button className={"fchip" + (hideEliminated ? " on accent":"")} onClick={()=>setHideEliminated(!hideEliminated)} style={{fontSize:12,padding:"6px 12px",borderRadius:8,fontWeight:700}}>
-                Hide eliminated
-              </button>
+              <HideEliminatedToggle on={hideEliminated} onToggle={()=>setHideEliminated(!hideEliminated)} />
             </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
@@ -300,18 +308,23 @@ export function TeamsScreen({ go, openTeam }) {
     ? S.teamList.filter(t => t.name.toLowerCase().includes(ql) || t.code.toLowerCase().includes(ql))
                 .sort((a,b)=> b.pts - a.pts || a.name.localeCompare(b.name))
     : null;
+  const totalTeams = S.teamList.length;
+  const aliveTeams = S.teamList.filter(t => !S.isTeamEliminated(t.code)).length;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title="Teams" go={go} scrolled={scrolled} />
       <div className="filterbar">
         <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>By World Cup group</button>
         <button className={"fchip"+(mode==="pool"?" on":"")} onClick={()=>setMode("pool")}>By sweep pool</button>
-        <button className={"fchip"+(hideElim?" on":"")} onClick={()=>setHideElim(v=>!v)} style={{marginLeft:"auto"}} aria-pressed={hideElim}>{hideElim?"Show eliminated":"Hide eliminated"}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search teams…" />
+            <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
+              <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{aliveTeams} out of {totalTeams} teams still in the running</p>
+              <HideEliminatedToggle on={hideElim} onToggle={()=>setHideElim(v=>!v)} />
+            </div>
           </div>
           {matches ? (
             matches.length === 0

@@ -956,6 +956,7 @@ test('TeamsScreen "Hide eliminated" hides OUT teams and restores them on toggle'
   }))
   const noop = () => {}
   const { getByText, queryByText } = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(getByText(/1 out of 2 teams still in the running/i)).toBeTruthy() // running tally
   expect(getByText('Germany')).toBeTruthy()
   expect(getByText('South Korea')).toBeTruthy() // eliminated but shown by default
 
@@ -963,6 +964,6 @@ test('TeamsScreen "Hide eliminated" hides OUT teams and restores them on toggle'
   expect(getByText('Germany')).toBeTruthy()
   expect(queryByText('South Korea')).toBeNull() // hidden
 
-  act(() => { fireEvent.click(getByText('Show eliminated')) })
+  act(() => { fireEvent.click(getByText('Hide eliminated')) }) // static label → click again to restore
   expect(queryByText('South Korea')).toBeTruthy() // restored
 })
