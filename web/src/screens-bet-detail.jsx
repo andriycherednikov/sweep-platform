@@ -3,7 +3,7 @@
    ============================================================ */
 import { useState, useRef } from 'react'
 import { SWEEP as S } from './data.js'
-import { Flag, Icon, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
+import { Flag, AppHeader, useIsDesktop, useScrolled } from './components.jsx'
 import { WalletHeader, MyBets, WagersInfoSheet, BetslipSheet, BetslipPill } from './screens-coins.jsx'
 import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
@@ -125,7 +125,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
               <span className="coin-mt-vs">v</span>
               <span className="coin-mt-team">{S.team(f.t2)?.name || f.t2}<Flag code={f.t2} w={24} h={17} /></span>
             </div>
-            <span className="coin-mt-ko">{f.dateTimeLabel}{openMatch && <> · Match info <Icon.chev className="coin-mt-info-chev" /></>}</span>
+            <span className="coin-mt-ko">{f.dateTimeLabel}</span>
           </div>
           <div className="coin-mkt-list">
           {keys.map((k) => {
