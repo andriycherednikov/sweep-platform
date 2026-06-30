@@ -340,10 +340,10 @@ test('placementOf ranks by elimination time — later game beats earlier; ties s
   const S = assembleSweep({
     bootstrap: {
       teams: [
-        { code: 'f1', name: 'Fin1', group: '', pool: 'P', color: '#111', strength: 90 },
-        { code: 'f2', name: 'Fin2', group: '', pool: 'P', color: '#222', strength: 88 },
-        { code: 'sa', name: 'SemiA', group: '', pool: 'P', color: '#333', strength: 80 },
-        { code: 'sb', name: 'SemiB', group: '', pool: 'P', color: '#444', strength: 80 },
+        { code: 'f1', name: 'Fin1', group: 'A', pool: 'P', color: '#111', strength: 90 },
+        { code: 'f2', name: 'Fin2', group: 'A', pool: 'P', color: '#222', strength: 88 },
+        { code: 'sa', name: 'SemiA', group: 'A', pool: 'P', color: '#333', strength: 80 },
+        { code: 'sb', name: 'SemiB', group: 'A', pool: 'P', color: '#444', strength: 80 },
       ],
       people: [
         { id: 'champ', name: 'Champ', short: 'C', initials: 'C', av: '#000' },
@@ -381,7 +381,7 @@ test('placementOf marks the champion (5 KO wins) as 1 and yields contiguous posi
   })
   const S = assembleSweep({
     bootstrap: {
-      teams: ['w', 'o1', 'o2', 'o3', 'o4', 'o5'].map((c, i) => ({ code: c, name: c, group: '', pool: 'P', color: '#000', strength: 90 - i })),
+      teams: ['w', 'o1', 'o2', 'o3', 'o4', 'o5'].map((c, i) => ({ code: c, name: c, group: 'A', pool: 'P', color: '#000', strength: 90 - i })),
       people: [
         { id: 'pc', name: 'PC', short: 'PC', initials: 'P', av: '#000' },
         { id: 'p1', name: 'P1', short: 'P1', initials: 'P', av: '#000' },
@@ -415,7 +415,7 @@ test('placementOf places a multi-team person by their deepest (last-out) team', 
   })
   const S = assembleSweep({
     bootstrap: {
-      teams: ['win', 'early', 'late'].map((c) => ({ code: c, name: c, group: '', pool: 'P', color: '#000', strength: 80 })),
+      teams: ['win', 'early', 'late'].map((c) => ({ code: c, name: c, group: 'A', pool: 'P', color: '#000', strength: 80 })),
       people: [
         { id: 'alive', name: 'Alive', short: 'A', initials: 'A', av: '#000' },
         { id: 'mix', name: 'Mix', short: 'M', initials: 'M', av: '#000' },

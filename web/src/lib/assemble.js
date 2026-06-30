@@ -238,14 +238,10 @@ export function assembleSweep(api) {
   // simultaneous games) share a range. Times order people; they're never shown.
   const KO_ROUNDS = 5 // WC-2026 KO rounds to lift the cup: R32, R16, QF, SF, Final
   const koWins = {}
-  const koElimCodes = new Set() // teams that actually LOST a KO match (source of truth for KO elimination)
   for (const f of fixtures) {
     if (f.stage === 'knockout') {
       const w = winnerCodeOf(f)
-      if (w) {
-        koWins[w] = (koWins[w] || 0) + 1
-        if (f.status === 'final') koElimCodes.add(w === f.t1 ? f.t2 : f.t1)
-      }
+      if (w) koWins[w] = (koWins[w] || 0) + 1
     }
   }
   const championCodes = new Set(Object.keys(koWins).filter((c) => koWins[c] >= KO_ROUNDS))
@@ -274,10 +270,7 @@ export function assembleSweep(api) {
   const personElim = (p) => {
     if (!p.teams || p.teams.length === 0) return { settled: false, champion: false, time: Infinity }
     if (p.teams.some((c) => championCodes.has(c))) return { settled: true, champion: true, time: Infinity }
-    // ponytail: koElimCodes guards against the group-stage logic incorrectly adding KO winners
-    // to eliminatedTeamCodes when test fixtures share group:''. A team is alive if it hasn't
-    // lost a KO match AND (isn't group-eliminated OR has KO wins proving it's an active KO team).
-    if (p.teams.some((c) => !koElimCodes.has(c) && (!eliminatedTeamCodes.has(c) || koWins[c] > 0))) return { settled: false, champion: false, time: Infinity }
+    if (p.teams.some((c) => !eliminatedTeamCodes.has(c))) return { settled: false, champion: false, time: Infinity }
     const ts = p.teams.map(teamElimTime).filter((t) => t != null)
     return { settled: true, champion: false, time: ts.length ? Math.max(...ts) : 0 }
   }
