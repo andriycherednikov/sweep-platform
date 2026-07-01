@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
 import { whenLabel, liveLabel } from "./lib/format.js";
+import { celebrate } from "./lib/celebrate.js";
 import {
   Icon, Flag, AvStack, PersonAvatar, MatchCard, PageHeader, AppHeader, SearchInput, SquadList, useScrolled, resultFor, useCountdown, ScoreCover, PersonTeams, PenScore,
 } from "./components.jsx";
@@ -46,6 +47,15 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
   // wagers are 18+; minors / not-signed-in can't filter by coin balance
   const wager = canWager();
   const av = (!wager && view === "coins") ? "wins" : view;
+  // Confetti when the winner is on show: fire once each time the Placement tab
+  // is opened while someone has clinched 1st (🏆). Re-arms when you leave the tab.
+  const celebratedRef = useRef(false);
+  const hasChampion = S.people.some(p => S.placementOf(p.id)?.champion);
+  useEffect(() => {
+    if (av === "placement" && hasChampion) {
+      if (!celebratedRef.current) { celebratedRef.current = true; celebrate(); }
+    } else celebratedRef.current = false;
+  }, [av, hasChampion]);
   // minors have no wagers → treated as 0 (sorts to the bottom, no pill); adults
   // always show their balance, including 0 once they've spent it all
   const coinsVal = (m) => m.person.adult === false ? 0 : (balances[m.person.id] ?? 0);

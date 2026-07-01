@@ -12,6 +12,7 @@ import { winnerCodeOf } from "./lib/assemble.js";
 import { liveLabel } from "./lib/format.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
+import { celebrate } from "./lib/celebrate.js";
 
 // Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
 // own goal is credited to the team it benefited, tagged "(OG)") and card counts per side.
@@ -740,6 +741,17 @@ function BracketView({ onOpen, openTeam }) {
   const sfRight = [{ venue: "Atlanta · July 15", t1: getWinner(qfRight[0]), t2: getWinner(qfRight[1]) }];
 
   const finalMatch = { venue: "MetLife Stadium · July 19", t1: getWinner(sfLeft[0]), t2: getWinner(sfRight[0]) };
+
+  // Confetti when the Final is decided (real winner, not spoiler-hidden). Fires
+  // once per mount — mirrors the Placement crown in screens-detail.jsx.
+  const champion = getWinner(finalMatch);
+  const celebratedRef = useRef(false);
+  useEffect(() => {
+    if (champion && champion !== "__DECIDED__" && !celebratedRef.current) {
+      celebratedRef.current = true;
+      celebrate();
+    }
+  }, [champion]);
 
   if (!isDesktop) {
     // 1-Sided Mobile Bracket Tree View
