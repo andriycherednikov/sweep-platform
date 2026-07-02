@@ -1,1 +1,0 @@
-ALTER TABLE "person" ADD COLUMN "adult" boolean DEFAULT true NOT NULL;

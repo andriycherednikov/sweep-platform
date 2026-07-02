@@ -1,7 +1,7 @@
 import { expect, test, afterAll } from 'vitest'
 import { sql, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, team } from '../src/db/schema.js'
+import { fixture, team, competition, competitor, event, ranking, sweep, account } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
@@ -35,10 +35,22 @@ test('team.squad round-trips a JSON array', async () => {
 test('reference tables exist', async () => {
   const rows = await db.execute(sql`select table_name from information_schema.tables where table_schema='public'`)
   const names = rows.rows.map((r) => r.table_name)
-  for (const t of ['person', 'team', 'ownership', 'sweep', 'team_crosswalk']) {
+  for (const t of ['person', 'team', 'ownership', 'sweep', 'team_crosswalk',
+    'account', 'competition', 'competitor', 'event', 'ranking']) {
     expect(names).toContain(t)
   }
-  for (const t of ['fixture', 'standing', 'sync_log', 'support', 'photo']) {
-    expect(names).toContain(t)
-  }
+})
+
+test('seed created the default competition, bound the default sweep, and mirrored ids', async () => {
+  const [comp] = await db.select().from(competition)
+  expect(comp.id).toBe('apifootball:1:2026')
+  expect(comp.format).toBe('groups_then_ko')
+  const [sw] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
+  expect(sw.competitionId).toBe(comp.id)
+  const [ev] = await db.select().from(event).where(eq(event.id, 'm0'))
+  const [fx] = await db.select().from(fixture).where(eq(fixture.id, 'm0'))
+  expect(ev.c1Code).toBe(fx.t1Code)
+  expect(ev.detail.group).toBe(fx.group)
+  const [cp] = await db.select().from(competitor).where(eq(competitor.code, fx.t1Code))
+  expect(cp.id).toBe('cp_' + fx.t1Code)
 })

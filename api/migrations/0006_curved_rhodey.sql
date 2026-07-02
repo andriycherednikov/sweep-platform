@@ -1,1 +1,0 @@
-ALTER TABLE "fixture" ADD COLUMN "events" jsonb;

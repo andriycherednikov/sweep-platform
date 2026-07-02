@@ -10,6 +10,8 @@ export const sweep = pgTable('sweep', {
   coOwners: text('co_owners').notNull().default('all_win'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
+  competitionId: text('competition_id').references(() => competition.id),
+  accountId: text('account_id').references(() => account.id),
 })
 
 export const person = pgTable('person', {
@@ -197,4 +199,73 @@ export const photo = pgTable('photo', {
   moderatedAt: timestamp('moderated_at', { withTimezone: true }),
 }, (t) => ({
   sweepIdx: index('photo_sweep_id_idx').on(t.sweepId),
+}))
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  email: text('email').notNull().unique(),
+  name: text('name'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const competition = pgTable('competition', {
+  id: text('id').primaryKey(), // '<provider>:<leagueId>:<season>'
+  provider: text('provider').notNull(),
+  sport: text('sport').notNull(),
+  leagueId: text('league_id').notNull(),
+  season: text('season').notNull(),
+  format: text('format').notNull(), // 'league' | 'groups_then_ko' | 'knockout'
+  name: text('name').notNull(),
+  logo: text('logo'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  providerUq: unique('competition_provider_uq').on(t.provider, t.sport, t.leagueId, t.season),
+}))
+
+export const competitor = pgTable('competitor', {
+  id: text('id').primaryKey(),
+  competitionId: text('competition_id').notNull().references(() => competition.id),
+  code: text('code').notNull(),
+  name: text('name').notNull(),
+  color: text('color').notNull(),
+  logo: text('logo'),
+  providerId: integer('provider_id'), // replaces team_crosswalk
+  meta: jsonb('meta'), // soccer: {group, pool, strength, squad}; NBA: {conference}
+}, (t) => ({
+  codeUq: unique('competitor_competition_code_uq').on(t.competitionId, t.code),
+  compIdx: index('competitor_competition_id_idx').on(t.competitionId),
+}))
+
+export const event = pgTable('event', {
+  id: text('id').primaryKey(),
+  competitionId: text('competition_id').notNull().references(() => competition.id),
+  c1Code: text('c1_code').notNull(),
+  c2Code: text('c2_code').notNull(),
+  startUtc: timestamp('start_utc', { withTimezone: true }).notNull(),
+  status: text('status').notNull(), // 'upcoming' | 'live' | 'final'
+  score1: integer('score1'),
+  score2: integer('score2'),
+  winnerCode: text('winner_code'), // winning competitor code or 'DRAW', set when final
+  round: text('round'),
+  stage: text('stage').notNull().default('group'),
+  // sport-specific payload: {group, matchday, venue, city, minute, phase, ht:[..], reg:[..],
+  //  pen:[..], prob:{a,d,b}, markets, lineups, events, statistics, derby, doubleOwner}
+  detail: jsonb('detail').notNull().default({}),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  compStartIdx: index('event_competition_start_idx').on(t.competitionId, t.startUtc),
+  c1Fk: foreignKey({ columns: [t.c1Code, t.competitionId], foreignColumns: [competitor.code, competitor.competitionId], name: 'event_c1_fk' }),
+  c2Fk: foreignKey({ columns: [t.c2Code, t.competitionId], foreignColumns: [competitor.code, competitor.competitionId], name: 'event_c2_fk' }),
+}))
+
+export const ranking = pgTable('ranking', {
+  competitionId: text('competition_id').notNull(),
+  competitorCode: text('competitor_code').notNull(),
+  rank: integer('rank'),
+  points: integer('points').notNull().default(0),
+  stats: jsonb('stats'), // soccer: {played,win,draw,loss,gf,ga}
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  pk: primaryKey({ columns: [t.competitionId, t.competitorCode] }),
+  competitorFk: foreignKey({ columns: [t.competitorCode, t.competitionId], foreignColumns: [competitor.code, competitor.competitionId], name: 'ranking_competitor_fk' }),
 }))

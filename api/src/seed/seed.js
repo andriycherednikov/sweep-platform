@@ -23,6 +23,16 @@ async function seedPhotoFiles(g) {
 export async function seed(db) {
   const g = generate()
 
+  const COMPETITION_ID = 'apifootball:1:2026'
+  await db.insert(s.competition).values({
+    id: COMPETITION_ID, provider: 'apifootball', sport: 'football', leagueId: '1',
+    season: '2026', format: 'groups_then_ko', name: 'World Cup 2026',
+  }).onConflictDoNothing()
+  await db.insert(s.sweep).values({
+    id: 'default', name: 'The Sweep', kind: 'default', scoringRule: 'top3',
+    coOwners: 'all_win', competitionId: COMPETITION_ID,
+  }).onConflictDoNothing()
+
   for (const code of Object.keys(g.teams)) {
     const t = g.teams[code]
     await db.insert(s.team).values({
@@ -30,6 +40,10 @@ export async function seed(db) {
       color: t.color, strength: t.strength, flagCode: t.code,
     }).onConflictDoNothing()
     await db.insert(s.teamCrosswalk).values({ teamCode: t.code, providerTeamId: null }).onConflictDoNothing()
+    await db.insert(s.competitor).values({
+      id: `cp_${t.code}`, competitionId: COMPETITION_ID, code: t.code, name: t.name,
+      color: t.color, providerId: null, meta: { group: t.group, pool: t.pool, strength: t.strength },
+    }).onConflictDoNothing()
   }
 
   for (const p of g.people) {
@@ -54,6 +68,21 @@ export async function seed(db) {
       set: { status: f.status, score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null,
         markets: f.markets, htScore1: f.ht?.[0] ?? null, htScore2: f.ht?.[1] ?? null },
     })
+
+    const detail = {
+      group: f.group, matchday: f.matchday, venue: f.venue, city: f.city,
+      prob: f.prob, markets: f.markets ?? null,
+      ht: f.ht ?? null, derby: !!f.derby, doubleOwner: (f.doubleOwners?.length ?? 0) > 0,
+    }
+    await db.insert(s.event).values({
+      id: f.id, competitionId: COMPETITION_ID, c1Code: f.t1, c2Code: f.t2,
+      startUtc: f.ko, status: f.status,
+      score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null,
+      stage: 'group', detail,
+    }).onConflictDoUpdate({
+      target: s.event.id,
+      set: { status: f.status, score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, detail },
+    })
   }
 
   for (const g2 of g.groups) {
@@ -64,6 +93,14 @@ export async function seed(db) {
       }).onConflictDoUpdate({
         target: s.standing.teamCode,
         set: { played: t.played, win: t.win, draw: t.draw, loss: t.loss, gf: t.gf, ga: t.ga, pts: t.pts },
+      })
+
+      await db.insert(s.ranking).values({
+        competitionId: COMPETITION_ID, competitorCode: t.code, points: t.pts,
+        stats: { played: t.played, win: t.win, draw: t.draw, loss: t.loss, gf: t.gf, ga: t.ga },
+      }).onConflictDoUpdate({
+        target: [s.ranking.competitionId, s.ranking.competitorCode],
+        set: { points: t.pts, stats: { played: t.played, win: t.win, draw: t.draw, loss: t.loss, gf: t.gf, ga: t.ga } },
       })
     }
   }
