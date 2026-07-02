@@ -10,7 +10,8 @@ untouched. Provider-registry extraction is Phase 2 — not built here, not
 blocked here.
 
 **Sports in scope for config:** football (reference), basketball/NBA (phase-2
-proof), rugby league/NRL (owner-added 2026-07-03). All head-to-head.
+proof). Both head-to-head. (NRL was considered 2026-07-03 and dropped —
+API-Sports' Rugby API doesn't carry it.)
 
 ---
 
@@ -37,7 +38,7 @@ New feed core (replaces `team`/`fixture`/`standing`/`team_crosswalk`):
 - **`competitor`** — `id` text PK, `competitionId` FK → competition, `code`,
   `name`, `color`, `logo`, `providerId` integer nullable (replaces
   `team_crosswalk`), `meta` jsonb (soccer group/pool/strength/squad, NBA
-  conference, NRL club metadata…). `unique(competitionId, code)`, plus
+  conference…). `unique(competitionId, code)`, plus
   `unique(id, competitionId)` — the target for composite FKs that pin child
   rows to the competitor's competition (same pattern as
   `person_id_sweep_id_uq`).
@@ -50,8 +51,8 @@ New feed core (replaces `team`/`fixture`/`standing`/`team_crosswalk`):
   derby, live phase, win probabilities), `updatedAt`.
   Index on `(competitionId, startUtc)`.
 - **`ranking`** — PK `(competitionId, competitorId)`, `rank` integer,
-  `points` integer, `stats` jsonb (soccer: played/W/D/L/GF/GA; NBA/NRL: their
-  own shapes), `updatedAt`. Composite FK `(competitorId, competitionId)` →
+  `points` integer, `stats` jsonb (soccer: played/W/D/L/GF/GA; NBA: its
+  own shape), `updatedAt`. Composite FK `(competitorId, competitionId)` →
   `competitor(id, competitionId)` so a ranking row can't cross competitions.
 
 Account layer (stub — the seam for phases 3–4, no auth/routes yet):
@@ -76,9 +77,8 @@ Sport config is a **code constant**, not a table:
 ```js
 // api/src/sports.js
 export const SPORTS = {
-  football:     { hasDraws: true },
-  basketball:   { hasDraws: false },
-  rugby_league: { hasDraws: true }, // NRL: draws possible after golden point
+  football:   { hasDraws: true },
+  basketball: { hasDraws: false },
 }
 ```
 
@@ -135,6 +135,6 @@ at the DB, `'DRAW'`/winnerCode contract unchanged end to end.
 
 ## 7. Out of scope (Phase 1)
 
-Provider registry interface (P2), NBA/NRL adapters (P2+), catalog +
+Provider registry interface (P2), NBA adapter (P2), catalog +
 self-serve + auth (P3), Stripe/billing (P4), wagering generalization/market
 spine (P5), web reskin/vocabulary (P6).
