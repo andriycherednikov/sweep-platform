@@ -170,6 +170,8 @@ is commercial (unit economics), not technical.
   No permanent-free code path.
 - **Phase-2 proof sport:** **NBA basketball** (no draws → stresses `hasDraws=false`,
   long season → stresses `league_topN`; API-Basketball shares the API-Sports shape).
+  **NRL rugby league added as an in-scope sport** (2026-07-03): head-to-head,
+  `hasDraws=true`, API-Rugby covers it; rides the same registry after NBA proves it.
 - **Feed-cost model:** **waived by owner decision** — feed cost is assumed
   acceptable; no unit-economics gate before phase 4.
 
