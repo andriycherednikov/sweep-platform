@@ -690,10 +690,14 @@ function EventIcon({ e }) {
 }
 // Two-sided broadcast timeline: home (t1) events on the left, away (t2) on the right,
 // against a centre minute spine. Side = which team flag conveys who did what at a glance.
+// A shootout kick only exists when the provider recorded a shootout (score.penalty →
+// f.penScore). Without that, a minute-120 "Penalty" is an in-play extra-time goal.
+const shootoutEventOf = (f) => (e) => !!f.penScore && e.minute === 120 && /penalty/i.test(e.detail || "");
+
 function MatchTimeline({ f }) {
   const [open, setOpen] = useState(true);
   const allEvents = f.events || [];
-  const isShootoutEvent = (e) => e.minute === 120 && /penalty/i.test(e.detail || "");
+  const isShootoutEvent = shootoutEventOf(f);
   const normalEvents = allEvents.filter(e => !isShootoutEvent(e)).slice().sort((x, y) => (x.minute ?? 0) - (y.minute ?? 0));
   if (normalEvents.length === 0) return null;
   if (spoilerHidden(f)) return null; // privacy mode: don't reveal goals/cards until the score is revealed
@@ -747,7 +751,7 @@ function PenaltyShootout({ f }) {
   const [open, setOpen] = useState(true);
   if (spoilerHidden(f)) return null;
   const allEvents = f.events || [];
-  const isShootoutEvent = (e) => e.minute === 120 && /penalty/i.test(e.detail || "");
+  const isShootoutEvent = shootoutEventOf(f);
   const shootoutEvents = allEvents.filter(e => isShootoutEvent(e));
   if (shootoutEvents.length === 0) return null;
 

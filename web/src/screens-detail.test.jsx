@@ -41,7 +41,7 @@ const SQUAD = [
 ]
 
 function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
-  const { status = 'upcoming', score = null, statistics = null } = opts
+  const { status = 'upcoming', score = null, statistics = null, penScore = null, stage = 'group' } = opts
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -53,7 +53,7 @@ function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
     fixtures: [{
       id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
       venue: 'V', city: 'C', status, score, minute: null,
-      prob: { a: 53, d: 26, b: 21 }, stage: 'group', lineups, events, statistics,
+      prob: { a: 53, d: 26, b: 21 }, stage, penScore, lineups, events, statistics,
     }],
     standings: {}, photos: [], syncStatus: { stale: false },
   }))
@@ -749,7 +749,9 @@ test('MatchSheet renders a Penalty Shootout section and filters it from normal t
     { id: 'p1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 120, detail: 'Penalty' }, // score
     { id: 'p2', type: 'goal', teamCode: 'be', player: 'Hazard', assist: null, minute: 120, detail: 'Missed Penalty' }, // miss
   ];
-  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
+  // penScore present = the provider recorded a shootout (score.penalty). That, not the
+  // bare minute-120 events, is what makes this a shootout.
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], penScore: [1, 0], stage: 'knockout' });
   setSpoiler(false);
   const { getByText, queryByText, getAllByText, container } = renderSheet(f);
 
@@ -771,11 +773,29 @@ test('MatchSheet renders a Penalty Shootout section and filters it from normal t
   expect(queryByText("120'")).toBeNull();
 })
 
+test('MatchSheet shows an extra-time penalty (120, no shootout) as a normal goal, not a shootout', () => {
+  // Belgium 3–2 Senegal: the winner is a penalty converted at 120' in extra time.
+  // The fixture did NOT go to a shootout (no penScore) — so this is a real goal, not a kick.
+  const events = [
+    { id: 'g1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 15, detail: 'Normal Goal' },
+    { id: 'p1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 120, detail: 'Penalty' },
+  ];
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [2, 1], stage: 'knockout' });
+  setSpoiler(false);
+  const { queryByText, getByText, container } = renderSheet(f);
+  // No shootout section for an in-play extra-time penalty
+  expect(queryByText('Penalty shootout')).toBeNull();
+  // The 120' penalty stays in the normal timeline
+  expect(getByText("120'")).toBeTruthy();
+  // Score is the plain 2–1 with no penalty parenthetical
+  expect(container.querySelector('.cd').textContent.replace(/\s/g, '')).toBe('2–1');
+})
+
 test('MatchSheet hides penalty shootout info under privacy mode', () => {
   const events = [
     { id: 'p1', type: 'goal', teamCode: 'hr', player: 'Modric', assist: null, minute: 120, detail: 'Penalty' },
   ];
-  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], stage: 'knockout' });
+  const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 1], penScore: [1, 0], stage: 'knockout' });
   setSpoiler(true);
   const { getByText, queryByText, container } = renderSheet(f);
 
