@@ -158,13 +158,20 @@ is commercial (unit economics), not technical.
 
 ---
 
-## 9. Open questions (decide before a build spec)
+## 9. Open questions — RESOLVED 2026-07-03
 
-- **Billing granularity:** per-sweep vs per-owner subscription? (Affects account model + Stripe product setup.)
-- **Feed vendor lock-in:** commit to the API-Sports family (shared shape = the whole leverage), or keep the provider interface truly vendor-neutral from day one?
-- **Free tier:** is there one (e.g. one sweep, no live sync), or paid-only?
-- **Which non-football sport proves phase 2** — NBA (no draws, clean 2-way) is the recommended first, precisely because it stresses the draw/market abstractions differently from soccer.
-- **Feed-cost model** must be validated (§7) before phase 4 is worth building.
+- **Billing granularity:** **per-sweep.** ~$5/mo × each running sweep. Stripe shape:
+  one subscription per owner with `quantity` = active sweeps. Lapse gates that sweep.
+- **Feed vendor lock-in:** **commit to the API-Sports family.** The §4 registry
+  interface is the seam; `competition.provider` keeps the door open. No day-one
+  vendor-neutral abstraction.
+- **Free tier:** **none — Stripe free trial instead.** Every sweep starts on a
+  full-featured trial; trial end reuses the lapse gating (sync pauses, read-only).
+  No permanent-free code path.
+- **Phase-2 proof sport:** **NBA basketball** (no draws → stresses `hasDraws=false`,
+  long season → stresses `league_topN`; API-Basketball shares the API-Sports shape).
+- **Feed-cost model:** **waived by owner decision** — feed cost is assumed
+  acceptable; no unit-economics gate before phase 4.
 
 ---
 
