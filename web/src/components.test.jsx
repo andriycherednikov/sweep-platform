@@ -274,6 +274,35 @@ test('HomeScreen latest-scores rows show goal scorers and a yellow/red card tall
   expect(getByTitle('1 red card')).toBeTruthy()
 })
 
+test('HomeScreen latest-scores lists an extra-time penalty scorer (120, no shootout)', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'be', name: 'Belgium', group: 'G', pool: 'P', color: '#111', strength: 81 },
+        { code: 'sn', name: 'Senegal', group: 'G', pool: 'P', color: '#093', strength: 74 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'G', matchday: 0, t1: 'be', t2: 'sn', ko: '2026-07-01T18:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [2, 1], penScore: null, minute: null,
+      prob: { a: 50, d: 25, b: 25 }, stage: 'knockout',
+      events: [
+        { id: 'g1', type: 'goal', teamCode: 'be', player: 'R. Lukaku', assist: null, minute: 86, detail: 'Normal Goal' },
+        // in-play extra-time penalty winner (no shootout) — must be listed as a scorer
+        { id: 'g2', type: 'goal', teamCode: 'be', player: 'Y. Tielemans', assist: null, minute: 120, detail: 'Penalty' },
+        { id: 'g3', type: 'goal', teamCode: 'sn', player: 'H. Diarra', assist: null, minute: 25, detail: 'Normal Goal' },
+      ],
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  setSpoiler(false)
+  const { getByText } = render(<HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} openPhoto={noop} onAdmin={noop} />)
+  expect(getByText(/Lukaku/)).toBeTruthy()
+  expect(getByText(/Tielemans/)).toBeTruthy() // the 120' penalty scorer — dropped before the fix
+})
+
 test('HomeScreen latest-scores shows at most 6 finished games (newest first)', () => {
   const finals = Array.from({ length: 7 }, (_, i) => ({
     id: `m${i + 1}`, group: 'A', matchday: 1, t1: 'mx', t2: 'za',

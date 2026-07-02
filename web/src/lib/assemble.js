@@ -25,6 +25,14 @@ export function winnerCodeOf(f) {
   return null
 }
 
+/**
+ * A penalty-SHOOTOUT kick (vs an in-play penalty goal). Single source of truth so the
+ * timeline, the shootout panel and the scorer summary all agree.
+ * A shootout only exists when the provider recorded score.penalty (→ f.penScore); without
+ * that, a minute-120 "Penalty" is an extra-time goal converted in play, not a kick.
+ */
+export const isShootoutKick = (f, e) => !!f.penScore && e.minute === 120 && /penalty/i.test(e.detail || '')
+
 // API-Football returns degenerate placeholder percentages for far-future
 // fixtures it can't model yet — all-equal (33/33/33) or the draw tying a win
 // side (50/50/0, 0/50/50). A real model never ties the draw to a win outcome,

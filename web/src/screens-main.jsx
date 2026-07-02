@@ -8,7 +8,7 @@ import {
   SearchInput, useCountdown, useIsDesktop, useScrolled, ScoreCover, PersonTeams, PenScore,
 } from "./components.jsx";
 import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
-import { winnerCodeOf } from "./lib/assemble.js";
+import { winnerCodeOf, isShootoutKick } from "./lib/assemble.js";
 import { liveLabel } from "./lib/format.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
@@ -17,7 +17,7 @@ import { celebrate } from "./lib/celebrate.js";
 // Latest-scores summary from a finished fixture's events: goal scorers (surnames; an
 // own goal is credited to the team it benefited, tagged "(OG)") and card counts per side.
 function resultSummary(f) {
-  const ev = (f.events || []).filter(e => !(e.minute === 120 && /penalty/i.test(e.detail || "")));
+  const ev = (f.events || []).filter(e => !isShootoutKick(f, e));
   const isOG = (e) => /own goal/i.test(e.detail || "");
   const credited = (e) => (isOG(e) ? (e.teamCode === f.t1 ? f.t2 : f.t1) : e.teamCode);
   const surname = (n) => { const p = (n || "").trim().split(/\s+/); return p[p.length - 1] || (n || ""); };
