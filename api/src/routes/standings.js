@@ -3,6 +3,8 @@ import { competitor, ranking } from '../db/schema.js'
 
 export async function standingsRoutes(app) {
   app.get('/api/standings', async (req) => {
+    // ponytail: no sweep (platform host, no session) → competitionId undefined → {} (fail closed).
+    // Deliberate: standings are per-competition now; a competition picker (P3) gives this a real answer.
     const competitionId = req.sweep?.competitionId
     const [comps, rows] = await Promise.all([
       app.db.select().from(competitor).where(eq(competitor.competitionId, competitionId)),
