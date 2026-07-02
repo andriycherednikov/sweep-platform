@@ -21,7 +21,9 @@ async function superCookie() {
 
 beforeAll(async () => {
   await app.ready()
-  await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, adminToken: newToken() })
+  // competitionId: routes now scope competitor/ranking reads by req.sweep.competitionId (Task 6);
+  // sweep creation doesn't bind one yet (Task 16), so this fixture sets it directly.
+  await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, adminToken: newToken(), competitionId: 'apifootball:1:2026' })
   await db.insert(person).values({ id: 'pb1', sweepId: 'sw_b', name: 'Bee', short: 'Bee', initials: 'B', avColor: '#111' })
   await db.insert(ownership).values({ sweepId: 'sw_b', personId: 'pb1', teamCode: 'hr' })
 })
