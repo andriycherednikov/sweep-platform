@@ -1,6 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm'
-import { fixture, ownership } from '../db/schema.js'
-import { serializeFixture } from '../serialize.js'
+import { event, ownership } from '../db/schema.js'
+import { serializeEvent } from '../serialize.js'
 import { requireSweep } from '../sweeps/auth.js'
 
 export async function fixtureRoutes(app) {
@@ -8,20 +8,21 @@ export async function fixtureRoutes(app) {
 
   app.get('/api/fixtures', { preHandler: member }, async (req) => {
     const { team: teamCode, person: personId } = req.query
-    let rows = await app.db.select().from(fixture).orderBy(asc(fixture.kickoffUtc))
-    if (teamCode) rows = rows.filter((f) => f.t1Code === teamCode || f.t2Code === teamCode)
+    let rows = await app.db.select().from(event)
+      .where(eq(event.competitionId, req.sweep.competitionId)).orderBy(asc(event.startUtc))
+    if (teamCode) rows = rows.filter((f) => f.c1Code === teamCode || f.c2Code === teamCode)
     if (personId) {
       const owns = await app.db.select().from(ownership)
         .where(and(eq(ownership.personId, personId), eq(ownership.sweepId, req.sweep.id)))
       const codes = new Set(owns.map((o) => o.teamCode))
-      rows = rows.filter((f) => codes.has(f.t1Code) || codes.has(f.t2Code))
+      rows = rows.filter((f) => codes.has(f.c1Code) || codes.has(f.c2Code))
     }
-    return rows.map(serializeFixture)
+    return rows.map(serializeEvent)
   })
 
   app.get('/api/fixtures/:id', { preHandler: member }, async (req, reply) => {
-    const rows = await app.db.select().from(fixture).where(eq(fixture.id, req.params.id))
+    const rows = await app.db.select().from(event).where(eq(event.id, req.params.id))
     if (!rows.length) return reply.code(404).send({ error: 'not_found' })
-    return serializeFixture(rows[0])
+    return serializeEvent(rows[0])
   })
 }

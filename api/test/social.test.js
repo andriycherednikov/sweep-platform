@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { support, person, team, fixture } from '../src/db/schema.js'
+import { support, person, team, fixture, event } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const published = []
@@ -68,6 +68,7 @@ test('POST /api/support 400s when teamCode is not one of the fixture teams', asy
 test('POST /api/support accepts a DRAW pick on a group-stage fixture', async () => {
   const f = await aFixture()
   await db.update(fixture).set({ stage: 'group' }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ stage: 'group' }).where(eq(event.id, f.id))
   const [p1] = await twoPeople()
   const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
   expect(res.statusCode).toBe(200)
@@ -80,6 +81,7 @@ test('POST /api/support accepts a DRAW pick on a group-stage fixture', async () 
 test('POST /api/support rejects a DRAW pick on a knockout fixture', async () => {
   const f = await aFixture()
   await db.update(fixture).set({ stage: 'r16' }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ stage: 'r16' }).where(eq(event.id, f.id))
   const [p1] = await twoPeople()
   const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
   expect(res.statusCode).toBe(400)
