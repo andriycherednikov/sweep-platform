@@ -42,18 +42,21 @@ New feed core (replaces `team`/`fixture`/`standing`/`team_crosswalk`):
   `unique(id, competitionId)` — the target for composite FKs that pin child
   rows to the competitor's competition (same pattern as
   `person_id_sweep_id_uq`).
-- **`event`** — `id` text PK, `competitionId` FK, `c1Id`/`c2Id` → competitor
-  via composite FKs `(cNId, competitionId) → competitor(id, competitionId)`
-  (an event can never mix competitors across competitions), `startUtc`, `status`, `score1`, `score2`, `winnerCode` (winning
+- **`event`** — `id` text PK, `competitionId` FK, `c1Code`/`c2Code` → competitor
+  via composite FKs `(cNCode, competitionId) → competitor(code, competitionId)`
+  (an event can never mix competitors across competitions; referencing by **code**
+  rather than surrogate id keeps the winnerCode/code contract identical end to end
+  — plan-time refinement, 2026-07-03), `startUtc`, `status`, `score1`, `score2`, `winnerCode` (winning
   competitor **code** or `'DRAW'` sentinel, set when final — authoritative
   over raw score, same contract as today), `round`, `stage`, `detail` jsonb
   (matchday, venue/city, HT/reg/pen scores, lineups, match events, statistics,
   derby, live phase, win probabilities), `updatedAt`.
   Index on `(competitionId, startUtc)`.
-- **`ranking`** — PK `(competitionId, competitorId)`, `rank` integer,
+- **`ranking`** — PK `(competitionId, competitorCode)`, `rank` integer,
   `points` integer, `stats` jsonb (soccer: played/W/D/L/GF/GA; NBA: its
-  own shape), `updatedAt`. Composite FK `(competitorId, competitionId)` →
-  `competitor(id, competitionId)` so a ranking row can't cross competitions.
+  own shape), `updatedAt`. Composite FK `(competitorCode, competitionId)` →
+  `competitor(code, competitionId)` so a ranking row can't cross competitions
+  (same plan-time code-reference refinement as `event`).
 
 Account layer (stub — the seam for phases 3–4, no auth/routes yet):
 
