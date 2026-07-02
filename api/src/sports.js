@@ -1,0 +1,11 @@
+/** Per-sport config. hasDraws drives 3-way vs 2-way results ('DRAW' sentinel legal or not). */
+export const SPORTS = {
+  football: { hasDraws: true },
+  basketball: { hasDraws: false },
+}
+
+export function sportConfig(sport) {
+  const c = SPORTS[sport]
+  if (!c) throw new Error(`unknown sport: ${sport}`)
+  return c
+}
