@@ -123,5 +123,5 @@ test('retries on a 500 then succeeds', async () => {
 test('throws after exhausting retries', async () => {
   const fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }))
   const p = createApiFootballProvider({ apiKey: 'K', fetch, retries: 2, retryDelayMs: 0 })
-  await expect(p.fetchLive()).rejects.toThrow(/api-football/i)
+  await expect(p.fetchLive()).rejects.toThrow(/api-sports/i)
 })
