@@ -41,3 +41,38 @@ export function mapGame(raw) {
     },
   }
 }
+
+// The feed lists the All-Star squads as teams (and their game as a fixture) — not franchises.
+const ALL_STAR = new Set(['East', 'West'])
+
+/** Raw /teams row → domain team, or null for All-Star squads (filter at the map). */
+export function mapBasketTeam(raw) {
+  if (ALL_STAR.has(raw.name)) return null
+  return { providerTeamId: raw.id, name: raw.name, code: null, country: raw.country?.name ?? null, logo: raw.logo ?? null }
+}
+
+/** Raw /standings row → ranking-shaped domain row (conference rows only; division duplicates → null). */
+export function mapBasketStanding(raw) {
+  const group = raw.group?.name ?? ''
+  if (!group.endsWith('Conference')) return null
+  return {
+    providerTeamId: raw.team.id,
+    group,
+    rank: raw.position,
+    pts: 0, // NBA tables rank by win%, not points
+    stats: {
+      played: raw.games.played,
+      win: raw.games.win.total, loss: raw.games.lose.total,
+      pf: raw.points.for, pa: raw.points.against,
+      pct: Number(raw.games.win.percentage),
+    },
+  }
+}
+
+/** Raw /leagues row → catalog entry. */
+export function mapLeague(raw) {
+  return {
+    providerLeagueId: raw.id, name: raw.name, type: raw.type, logo: raw.logo ?? null,
+    seasons: (raw.seasons ?? []).map((s) => ({ season: String(s.season), start: s.start, end: s.end })),
+  }
+}
