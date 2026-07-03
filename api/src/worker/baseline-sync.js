@@ -103,6 +103,21 @@ export async function syncBaseline(db, provider, competition) {
     const prior = new Map((await db.select({ id: event.id, status: event.status }).from(event)
       .where(eq(event.competitionId, competition.id))).map((r) => [r.id, r.status]))
 
+    // provider ids are raw and unscoped — a fixture id from one sport's feed could collide
+    // with another's. Check GLOBALLY before any upsert: onConflictDoUpdate targets event.id
+    // alone, so a collision would otherwise rewrite another competition's row in place and
+    // die on the composite FK (event_c1_fk) with an opaque error, failing every later sync.
+    const incomingIds = fixtures.map((f) => f.id)
+    if (incomingIds.length) {
+      const owners = await db.select({ id: event.id, competitionId: event.competitionId })
+        .from(event).where(inArray(event.id, incomingIds))
+      for (const row of owners) {
+        if (row.competitionId !== competition.id) {
+          throw new Error(`event id ${row.id} already owned by competition ${row.competitionId} — provider id collision, refusing to sync`)
+        }
+      }
+    }
+
     for (const f of fixtures) {
       const fl = flags.get(f.id)
       const prob = probById.get(f.id)

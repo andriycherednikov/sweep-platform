@@ -37,6 +37,29 @@ afterAll(async () => {
   await pool.end()
 })
 
+test('refuses to sync when an incoming fixture id is already owned by a different competition', async () => {
+  const OTHER_COMP = { id: 'apifootball:999:2026', provider: 'apifootball', sport: 'football', leagueId: '999', season: '2026' }
+  await db.insert(competition).values({ ...OTHER_COMP, format: 'league', name: 'Other Comp' }).onConflictDoNothing()
+  await db.insert(competitor).values({ id: `${OTHER_COMP.id}:x1`, competitionId: OTHER_COMP.id, code: 'x1', name: 'X1', color: '#111' }).onConflictDoNothing()
+  await db.insert(competitor).values({ id: `${OTHER_COMP.id}:x2`, competitionId: OTHER_COMP.id, code: 'x2', name: 'X2', color: '#222' }).onConflictDoNothing()
+  // 9001 is a fixture id the football recorded provider will report below — plant it under a
+  // different competition first so syncBaseline sees a cross-competition id collision.
+  await db.insert(event).values({
+    id: '9001', competitionId: OTHER_COMP.id, c1Code: 'x1', c2Code: 'x2',
+    startUtc: new Date(), status: 'upcoming', detail: {},
+  }).onConflictDoNothing()
+  try {
+    await expect(syncBaseline(db, provider, FOOTBALL_COMP)).rejects.toThrow(/already owned by competition/)
+    const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
+    expect(logs.at(-1).status).toBe('error')
+    expect(logs.at(-1).error).toMatch(/already owned by competition/)
+  } finally {
+    await db.delete(event).where(eq(event.id, '9001'))
+    await db.delete(competitor).where(eq(competitor.competitionId, OTHER_COMP.id))
+    await db.delete(competition).where(eq(competition.id, OTHER_COMP.id))
+  }
+})
+
 test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', async () => {
   const r = await syncBaseline(db, provider, FOOTBALL_COMP)
   expect(r.newlyFinal).toEqual(expect.any(Array))
@@ -63,8 +86,9 @@ test('prunes a stale event even when it has support rows (no FK error)', async (
 })
 
 test('is idempotent — second run changes nothing structural', async () => {
-  await syncBaseline(db, provider, FOOTBALL_COMP)
+  const r = await syncBaseline(db, provider, FOOTBALL_COMP)
   expect((await db.select().from(event)).length).toBe(2)
+  expect(r.newlyFinal).toEqual([]) // 9001 was already final from the prior sync — not newly final again
   const cro = (await db.select().from(ranking).where(and(eq(ranking.competitionId, COMPETITION_ID), eq(ranking.competitorCode, 'hr'))))[0]
   expect(cro.points).toBe(3)
   expect(cro.stats).toMatchObject({ played: 1, win: 1, gf: 2, ga: 1 })

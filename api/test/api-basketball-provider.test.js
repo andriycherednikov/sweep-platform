@@ -5,6 +5,8 @@ import { createRecordedBasketballProvider } from '../src/providers/recorded-bask
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
 const COMP = { id: 'apibasketball:12:2023-2024', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024' }
+// basketball adapters carry no live/odds/predictions/lineups/events/statistics/squad capability
+const FORBIDDEN_CAPS = ['fetchLive', 'fetchOdds', 'fetchPredictions', 'fetchLineups', 'fetchEvents', 'fetchStatistics', 'fetchSquad']
 
 test('live adapter calls the right endpoints with league+season and maps responses', async () => {
   const calls = []
@@ -26,7 +28,7 @@ test('live adapter calls the right endpoints with league+season and maps respons
   const standings = await provider.fetchStandings(COMP)
   expect(standings).toHaveLength(30)
   expect(provider.sport).toBe('basketball')
-  expect(provider.fetchLive).toBeUndefined() // capability gate: no live polling
+  for (const cap of FORBIDDEN_CAPS) expect(provider[cap]).toBeUndefined() // capability gate
 })
 
 test('fetchResults loops single id= requests (no ids= on free tier)', async () => {
@@ -59,4 +61,5 @@ test('recorded provider serves the same interface from parsed JSON', async () =>
   expect(provider.resultToWinnerCode(games.find((g) => g.id === '372186'))).toBe('HOME')
   expect((await provider.fetchResults(['372190']))[0].id).toBe('372190')
   expect(provider.baseDetail(games[0])).toHaveProperty('quarters')
+  for (const cap of FORBIDDEN_CAPS) expect(provider[cap]).toBeUndefined() // capability gate
 })
