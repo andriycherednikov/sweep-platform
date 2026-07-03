@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, competitor, fixture, standing, event, ranking, syncLog, support } from '../src/db/schema.js'
+import { competitor, event, ranking, syncLog, support } from '../src/db/schema.js'
 import { flattenEvent } from '../src/db/event-shape.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { mapPrediction } from '../src/providers/mapping.js'
@@ -19,21 +19,13 @@ const provider = createRecordedProvider({
 
 beforeAll(async () => {
   // wire crosswalk: hr→3001, be→3002, gh→3003 (matches recorded JSON)
-  await db.update(teamCrosswalk).set({ providerTeamId: 3001 }).where(eq(teamCrosswalk.teamCode, 'hr'))
-  await db.update(teamCrosswalk).set({ providerTeamId: 3002 }).where(eq(teamCrosswalk.teamCode, 'be'))
-  await db.update(teamCrosswalk).set({ providerTeamId: 3003 }).where(eq(teamCrosswalk.teamCode, 'gh'))
   await db.update(competitor).set({ providerId: 3001 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'hr')))
   await db.update(competitor).set({ providerId: 3002 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'be')))
   await db.update(competitor).set({ providerId: 3003 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'gh')))
 })
 // This suite prunes `event` (competition-scoped) down to the provider set; restore the
 // Phase-1 seed afterwards so other test files (which depend on the global seed) still pass.
-// fixture/standing are untouched by syncBaseline now but 'stale1' below dual-inserts a
-// fixture row too (bet/support.fixtureId still FKs fixture.id — swap task repoints it),
-// so clean those up as well.
 afterAll(async () => {
-  await db.delete(fixture)
-  await db.delete(standing)
   await db.delete(event)
   await db.delete(ranking)
   await seed(db)
@@ -53,9 +45,6 @@ test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', a
 })
 
 test('prunes a stale event even when it has support rows (no FK error)', async () => {
-  // support/bet.fixtureId still FKs fixture.id (swap task repoints it) — dual-insert so the
-  // FK is satisfied while the prune target (event, competition-scoped) is what's under test.
-  await db.insert(fixture).values({ id: 'stale1', group: 'L', matchday: 1, t1Code: 'hr', t2Code: 'be', kickoffUtc: new Date(), venue: 'V', city: 'C', status: 'upcoming' }).onConflictDoNothing()
   await db.insert(event).values({ id: 'stale1', competitionId: COMPETITION_ID, c1Code: 'hr', c2Code: 'be', startUtc: new Date(), status: 'upcoming', detail: { group: 'L', matchday: 1, venue: 'V', city: 'C' } }).onConflictDoNothing()
   await db.insert(support).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
   // the provider only knows 9001/9002, so stale1 must be pruned along with its social rows

@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { fixture, event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 
 const { pool, db } = openTestDb()
@@ -29,12 +29,9 @@ test('GET /api/admin/open-bets requires admin', async () => {
 
 test('groups open bets by person, annotates fixture status, flags stale, and totals', async () => {
   const [pa, pb] = await db.select().from(person).limit(2)
-  const [ffinal, fup1, fup2] = await db.select().from(fixture).limit(3)
-  await db.update(fixture).set({ status: 'final', regScore1: 1, regScore2: 0 }).where(eq(fixture.id, ffinal.id))
+  const [ffinal, fup1, fup2] = await db.select().from(event).limit(3)
   await db.update(event).set({ status: 'final', detail: detailMerge({ reg: [1, 0] }) }).where(eq(event.id, ffinal.id))
-  await db.update(fixture).set({ status: 'upcoming' }).where(eq(fixture.id, fup1.id))
   await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, fup1.id))
-  await db.update(fixture).set({ status: 'upcoming' }).where(eq(fixture.id, fup2.id))
   await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, fup2.id))
 
   // A: a stale single (open on an already-final fixture)
@@ -79,10 +76,8 @@ test('groups open bets by person, annotates fixture status, flags stale, and tot
 
 test('flags a parlay stale once every leg grades (all legs final and graded)', async () => {
   const [pa] = await db.select().from(person).limit(1)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
-  await db.update(fixture).set({ status: 'final', regScore1: 1, regScore2: 0 }).where(eq(fixture.id, f1.id))
+  const [f1, f2] = await db.select().from(event).limit(2)
   await db.update(event).set({ status: 'final', detail: detailMerge({ reg: [1, 0] }) }).where(eq(event.id, f1.id))
-  await db.update(fixture).set({ status: 'final', regScore1: 0, regScore2: 0 }).where(eq(fixture.id, f2.id))
   await db.update(event).set({ status: 'final', detail: detailMerge({ reg: [0, 0] }) }).where(eq(event.id, f2.id))
   await db.insert(parlay).values({ id: 'par_done', sweepId: 'default', personId: pa.id, stake: 10, combinedOdds: '4', potentialPayout: 40, status: 'open' })
   await db.insert(bet).values({ id: 'dleg1', sweepId: 'default', personId: pa.id, fixtureId: f1.id, parlayId: 'par_done', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
@@ -98,10 +93,8 @@ test('flags a parlay stale once every leg grades (all legs final and graded)', a
 // stale even while other legs are still upcoming — matching what "Settle stale bets" does.
 test('flags a parlay stale when one leg has already lost, even with an upcoming leg', async () => {
   const [pa] = await db.select().from(person).limit(1)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
-  await db.update(fixture).set({ status: 'final', regScore1: 0, regScore2: 2 }).where(eq(fixture.id, f1.id)) // AWAY won
+  const [f1, f2] = await db.select().from(event).limit(2)
   await db.update(event).set({ status: 'final', detail: detailMerge({ reg: [0, 2] }) }).where(eq(event.id, f1.id))
-  await db.update(fixture).set({ status: 'upcoming', regScore1: null, regScore2: null }).where(eq(fixture.id, f2.id))
   await db.update(event).set({ status: 'upcoming', detail: detailMerge({ reg: null }) }).where(eq(event.id, f2.id))
   await db.insert(parlay).values({ id: 'par_lost', sweepId: 'default', personId: pa.id, stake: 10, combinedOdds: '5', potentialPayout: 50, status: 'open' })
   await db.insert(bet).values({ id: 'lleg1', sweepId: 'default', personId: pa.id, fixtureId: f1.id, parlayId: 'par_lost', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' }) // HOME lost
@@ -117,8 +110,7 @@ test('flags a parlay stale when one leg has already lost, even with an upcoming 
 // must NOT be flagged stale — the button can't settle it, so don't tell the admin to.
 test('does not flag a single on a final fixture that has no result data yet', async () => {
   const [pa] = await db.select().from(person).limit(1)
-  const [f1] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'final', winnerCode: null, regScore1: null, regScore2: null }).where(eq(fixture.id, f1.id))
+  const [f1] = await db.select().from(event).limit(1)
   await db.update(event).set({ status: 'final', winnerCode: null, detail: detailMerge({ reg: null }) }).where(eq(event.id, f1.id))
   await db.insert(bet).values({ id: 'b_ungrade', sweepId: 'default', personId: pa.id, fixtureId: f1.id, selection: 'HOME', market: '1x2', stake: 30, oddsDecimal: '2', potentialPayout: 60, status: 'open' })
 

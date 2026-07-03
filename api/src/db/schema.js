@@ -10,7 +10,7 @@ export const sweep = pgTable('sweep', {
   coOwners: text('co_owners').notNull().default('all_win'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
-  competitionId: text('competition_id').references(() => competition.id),
+  competitionId: text('competition_id').notNull().references(() => competition.id),
   accountId: text('account_id').references(() => account.id),
 })
 
@@ -35,17 +35,6 @@ export const person = pgTable('person', {
   idSweepUq: unique('person_id_sweep_id_uq').on(t.id, t.sweepId),
 }))
 
-export const team = pgTable('team', {
-  code: text('code').primaryKey(),
-  name: text('name').notNull(),
-  group: text('group').notNull(),
-  pool: text('pool').notNull(),
-  color: text('color').notNull(),
-  strength: integer('strength').notNull(),
-  flagCode: text('flag_code').notNull(),
-  squad: jsonb('squad'),
-})
-
 export const ownership = pgTable('ownership', {
   sweepId: text('sweep_id').notNull(),
   personId: text('person_id').notNull(),
@@ -56,57 +45,6 @@ export const ownership = pgTable('ownership', {
   // composite FK pins (person, sweep) together — a row can never reference a person in another sweep
   personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'ownership_person_sweep_fk' }),
 }))
-
-export const teamCrosswalk = pgTable('team_crosswalk', {
-  teamCode: text('team_code').primaryKey().references(() => team.code),
-  providerTeamId: integer('provider_team_id'),
-})
-
-export const fixture = pgTable('fixture', {
-  id: text('id').primaryKey(),
-  group: text('group').notNull(),
-  matchday: integer('matchday').notNull(),
-  t1Code: text('t1_code').notNull().references(() => team.code),
-  t2Code: text('t2_code').notNull().references(() => team.code),
-  kickoffUtc: timestamp('kickoff_utc', { withTimezone: true }).notNull(),
-  venue: text('venue').notNull(),
-  city: text('city').notNull(),
-  status: text('status').notNull(),
-  score1: integer('score1'),
-  score2: integer('score2'),
-  regScore1: integer('reg_score1'),
-  regScore2: integer('reg_score2'),
-  penScore1: integer('pen_score1'),
-  penScore2: integer('pen_score2'),
-  minute: integer('minute'),
-  phase: text('phase'), // live period from the provider: 1H/2H/HT/ET/BT/P; null unless live
-  probA: integer('prob_a'),
-  probD: integer('prob_d'),
-  probB: integer('prob_b'),
-  winnerCode: text('winner_code'), // winning team code or 'DRAW', set when final
-  markets: jsonb('markets'),
-  htScore1: integer('ht_score1'),
-  htScore2: integer('ht_score2'),
-  lineups: jsonb('lineups'),
-  events: jsonb('events'),
-  statistics: jsonb('statistics'), // { [teamCode]: { shotsOnGoal, totalShots, corners, possession, fouls } }
-  stage: text('stage').notNull().default('group'),
-  derby: boolean('derby').notNull().default(false),
-  doubleOwner: boolean('double_owner').notNull().default(false),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
-
-export const standing = pgTable('standing', {
-  teamCode: text('team_code').primaryKey().references(() => team.code),
-  played: integer('played').notNull().default(0),
-  win: integer('win').notNull().default(0),
-  draw: integer('draw').notNull().default(0),
-  loss: integer('loss').notNull().default(0),
-  gf: integer('gf').notNull().default(0),
-  ga: integer('ga').notNull().default(0),
-  pts: integer('pts').notNull().default(0),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-})
 
 export const syncLog = pgTable('sync_log', {
   id: serial('id').primaryKey(),
@@ -120,7 +58,7 @@ export const syncLog = pgTable('sync_log', {
 
 export const support = pgTable('support', {
   sweepId: text('sweep_id').notNull(),
-  fixtureId: text('fixture_id').notNull().references(() => fixture.id),
+  fixtureId: text('fixture_id').notNull().references(() => event.id),
   personId: text('person_id').notNull(),
   // a pick: t1Code, t2Code, or the literal 'DRAW' (group-stage draw) — not a team FK
   teamCode: text('team_code').notNull(),
@@ -164,7 +102,7 @@ export const bet = pgTable('bet', {
   id: text('id').primaryKey(),
   sweepId: text('sweep_id').notNull(),
   personId: text('person_id').notNull(),
-  fixtureId: text('fixture_id').notNull().references(() => fixture.id),
+  fixtureId: text('fixture_id').notNull().references(() => event.id),
   selection: text('selection').notNull(), // 'HOME' | 'DRAW' | 'AWAY'
   market: text('market').notNull().default('1x2'),
   line: numeric('line'),
@@ -190,7 +128,7 @@ export const photo = pgTable('photo', {
   uploaderName: text('uploader_name').notNull(),
   // nullable (fan photos have no person), so it keeps single-column FKs rather than a composite tenant FK
   personId: text('person_id').references(() => person.id),
-  fixtureId: text('fixture_id').references(() => fixture.id, { onDelete: 'set null' }),
+  fixtureId: text('fixture_id').references(() => event.id, { onDelete: 'set null' }),
   filePath: text('file_path').notNull(),
   thumbPath: text('thumb_path'),
   caption: text('caption'),

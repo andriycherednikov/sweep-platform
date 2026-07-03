@@ -104,7 +104,7 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
     }
 
     // prune fixtures not in the latest provider set. Clear dependent social rows first —
-    // support FKs the fixture (photos already set-null on delete) — or the delete fails.
+    // support FKs the event (photos already set-null on delete) — or the delete fails.
     // Guard the whole call: an empty fetch is suspicious — prune nothing rather than wipe the table.
     const keep = fixtures.map((f) => f.id)
     if (keep.length) {

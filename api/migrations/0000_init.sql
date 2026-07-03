@@ -76,40 +76,6 @@ CREATE TABLE IF NOT EXISTS "event" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "fixture" (
-	"id" text PRIMARY KEY NOT NULL,
-	"group" text NOT NULL,
-	"matchday" integer NOT NULL,
-	"t1_code" text NOT NULL,
-	"t2_code" text NOT NULL,
-	"kickoff_utc" timestamp with time zone NOT NULL,
-	"venue" text NOT NULL,
-	"city" text NOT NULL,
-	"status" text NOT NULL,
-	"score1" integer,
-	"score2" integer,
-	"reg_score1" integer,
-	"reg_score2" integer,
-	"pen_score1" integer,
-	"pen_score2" integer,
-	"minute" integer,
-	"phase" text,
-	"prob_a" integer,
-	"prob_d" integer,
-	"prob_b" integer,
-	"winner_code" text,
-	"markets" jsonb,
-	"ht_score1" integer,
-	"ht_score2" integer,
-	"lineups" jsonb,
-	"events" jsonb,
-	"statistics" jsonb,
-	"stage" text DEFAULT 'group' NOT NULL,
-	"derby" boolean DEFAULT false NOT NULL,
-	"double_owner" boolean DEFAULT false NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "ownership" (
 	"sweep_id" text NOT NULL,
 	"person_id" text NOT NULL,
@@ -168,18 +134,6 @@ CREATE TABLE IF NOT EXISTS "ranking" (
 	CONSTRAINT "ranking_competition_id_competitor_code_pk" PRIMARY KEY("competition_id","competitor_code")
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "standing" (
-	"team_code" text PRIMARY KEY NOT NULL,
-	"played" integer DEFAULT 0 NOT NULL,
-	"win" integer DEFAULT 0 NOT NULL,
-	"draw" integer DEFAULT 0 NOT NULL,
-	"loss" integer DEFAULT 0 NOT NULL,
-	"gf" integer DEFAULT 0 NOT NULL,
-	"ga" integer DEFAULT 0 NOT NULL,
-	"pts" integer DEFAULT 0 NOT NULL,
-	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
-);
---> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "support" (
 	"sweep_id" text NOT NULL,
 	"fixture_id" text NOT NULL,
@@ -198,7 +152,7 @@ CREATE TABLE IF NOT EXISTS "sweep" (
 	"co_owners" text DEFAULT 'all_win' NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"archived_at" timestamp with time zone,
-	"competition_id" text,
+	"competition_id" text NOT NULL,
 	"account_id" text,
 	CONSTRAINT "sweep_member_token_unique" UNIQUE("member_token"),
 	CONSTRAINT "sweep_admin_token_unique" UNIQUE("admin_token")
@@ -214,24 +168,8 @@ CREATE TABLE IF NOT EXISTS "sync_log" (
 	"error" text
 );
 --> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "team" (
-	"code" text PRIMARY KEY NOT NULL,
-	"name" text NOT NULL,
-	"group" text NOT NULL,
-	"pool" text NOT NULL,
-	"color" text NOT NULL,
-	"strength" integer NOT NULL,
-	"flag_code" text NOT NULL,
-	"squad" jsonb
-);
---> statement-breakpoint
-CREATE TABLE IF NOT EXISTS "team_crosswalk" (
-	"team_code" text PRIMARY KEY NOT NULL,
-	"provider_team_id" integer
-);
---> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "bet" ADD CONSTRAINT "bet_fixture_id_fixture_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."fixture"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "bet" ADD CONSTRAINT "bet_fixture_id_event_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."event"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -279,18 +217,6 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "fixture" ADD CONSTRAINT "fixture_t1_code_team_code_fk" FOREIGN KEY ("t1_code") REFERENCES "public"."team"("code") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "fixture" ADD CONSTRAINT "fixture_t2_code_team_code_fk" FOREIGN KEY ("t2_code") REFERENCES "public"."team"("code") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
  ALTER TABLE "ownership" ADD CONSTRAINT "ownership_competitor_id_competitor_id_fk" FOREIGN KEY ("competitor_id") REFERENCES "public"."competitor"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
@@ -327,7 +253,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "photo" ADD CONSTRAINT "photo_fixture_id_fixture_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."fixture"("id") ON DELETE set null ON UPDATE no action;
+ ALTER TABLE "photo" ADD CONSTRAINT "photo_fixture_id_event_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."event"("id") ON DELETE set null ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -339,13 +265,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "standing" ADD CONSTRAINT "standing_team_code_team_code_fk" FOREIGN KEY ("team_code") REFERENCES "public"."team"("code") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "support" ADD CONSTRAINT "support_fixture_id_fixture_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."fixture"("id") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "support" ADD CONSTRAINT "support_fixture_id_event_id_fk" FOREIGN KEY ("fixture_id") REFERENCES "public"."event"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
@@ -364,12 +284,6 @@ END $$;
 --> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "sweep" ADD CONSTRAINT "sweep_account_id_account_id_fk" FOREIGN KEY ("account_id") REFERENCES "public"."account"("id") ON DELETE no action ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "team_crosswalk" ADD CONSTRAINT "team_crosswalk_team_code_team_code_fk" FOREIGN KEY ("team_code") REFERENCES "public"."team"("code") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;

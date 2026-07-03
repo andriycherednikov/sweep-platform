@@ -9,7 +9,7 @@ const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform
 const TOK = newToken()
 beforeAll(async () => {
   await app.ready()
-  await db.insert(sweep).values({ id: 'sw_resolve', name: 'R', kind: 'token', memberToken: TOK, adminToken: newToken() })
+  await db.insert(sweep).values({ id: 'sw_resolve', name: 'R', kind: 'token', memberToken: TOK, adminToken: newToken(), competitionId: 'apifootball:1:2026' })
 })
 afterAll(async () => { await app.close(); await pool.end() })
 

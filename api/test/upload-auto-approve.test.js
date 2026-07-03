@@ -8,7 +8,7 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { photo, person, fixture } from '../src/db/schema.js'
+import { photo, person, event } from '../src/db/schema.js'
 import { createStorage } from '../src/photos/storage.js'
 
 const { pool, db } = openTestDb()
@@ -29,7 +29,7 @@ async function upload(fields, file) {
   if (file) form.append('file', file, { filename: 'pic.png', contentType: 'image/png' })
   return app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
 }
-async function aFixture() { const [f] = await db.select().from(fixture).limit(1); return f }
+async function aFixture() { const [f] = await db.select().from(event).limit(1); return f }
 async function aPerson() { const [p] = await db.select().from(person).limit(1); return p }
 
 test('auto-approve: a fan photo goes straight to approved, file in approved dir, shows in /api/photos', async () => {

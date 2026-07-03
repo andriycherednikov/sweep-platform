@@ -35,11 +35,6 @@ export async function seed(db) {
 
   for (const code of Object.keys(g.teams)) {
     const t = g.teams[code]
-    await db.insert(s.team).values({
-      code: t.code, name: t.name, group: t.group, pool: t.pool,
-      color: t.color, strength: t.strength, flagCode: t.code,
-    }).onConflictDoNothing()
-    await db.insert(s.teamCrosswalk).values({ teamCode: t.code, providerTeamId: null }).onConflictDoNothing()
     await db.insert(s.competitor).values({
       id: `cp_${COMPETITION_ID}_${t.code}`, competitionId: COMPETITION_ID, code: t.code, name: t.name,
       color: t.color, providerId: null, meta: { group: t.group, pool: t.pool, strength: t.strength },
@@ -56,19 +51,6 @@ export async function seed(db) {
   }
 
   for (const f of g.fixtures) {
-    await db.insert(s.fixture).values({
-      id: f.id, group: f.group, matchday: f.matchday, t1Code: f.t1, t2Code: f.t2,
-      kickoffUtc: f.ko, venue: f.venue, city: f.city, status: f.status,
-      score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null,
-      probA: f.prob.a, probD: f.prob.d, probB: f.prob.b,
-      markets: f.markets, htScore1: f.ht?.[0] ?? null, htScore2: f.ht?.[1] ?? null,
-      stage: 'group', derby: !!f.derby, doubleOwner: (f.doubleOwners?.length ?? 0) > 0,
-    }).onConflictDoUpdate({
-      target: s.fixture.id,
-      set: { status: f.status, score1: f.score?.[0] ?? null, score2: f.score?.[1] ?? null, minute: f.minute ?? null,
-        markets: f.markets, htScore1: f.ht?.[0] ?? null, htScore2: f.ht?.[1] ?? null },
-    })
-
     const detail = {
       group: f.group, matchday: f.matchday, venue: f.venue, city: f.city,
       prob: f.prob, markets: f.markets ?? null,
@@ -87,14 +69,6 @@ export async function seed(db) {
 
   for (const g2 of g.groups) {
     for (const t of g.standings[g2]) {
-      await db.insert(s.standing).values({
-        teamCode: t.code, played: t.played, win: t.win, draw: t.draw, loss: t.loss,
-        gf: t.gf, ga: t.ga, pts: t.pts,
-      }).onConflictDoUpdate({
-        target: s.standing.teamCode,
-        set: { played: t.played, win: t.win, draw: t.draw, loss: t.loss, gf: t.gf, ga: t.ga, pts: t.pts },
-      })
-
       await db.insert(s.ranking).values({
         competitionId: COMPETITION_ID, competitorCode: t.code, points: t.pts,
         stats: { played: t.played, win: t.win, draw: t.draw, loss: t.loss, gf: t.gf, ga: t.ga },

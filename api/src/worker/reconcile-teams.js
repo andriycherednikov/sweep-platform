@@ -1,4 +1,4 @@
-// Reconcile our `team` table with the real API-Football World Cup field.
+// Reconcile our `competitor` rows with the real API-Football World Cup field.
 // Pure planning function: given our teams, the provider's teams, and the
 // provider-id→group map (from /standings), decide what to update / insert / delete.
 // Matched teams KEEP their existing code (so ownership/photos survive); absent teams
@@ -39,7 +39,7 @@ function deriveCode(realTeam, used) {
  * @returns {{updates:Array, inserts:Array, deletes:string[], stats:object}}
  *  updates: { code, name, group, providerTeamId }   (existing teams kept, re-pinned)
  *  inserts: { code, name, group, providerTeamId, color, strength, pool, flagCode }
- *  deletes: team codes present in our table but not in the real field
+ *  deletes: team codes present in our rows but not in the real field
  */
 export function reconcileTeams(ourTeams, realTeams, groupByProvider) {
   const ourByKey = new Map(ourTeams.map((t) => [matchKey(t.name), t]))

@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, person, coinLedger, bet, parlay } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
 import { refundPrunedParlays } from '../src/worker/baseline-sync.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
 
@@ -12,7 +12,7 @@ beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db
 test('refundPrunedParlays refunds + deletes a parlay with a leg on a dropped fixture', async () => {
   const p = (await db.select().from(person).limit(1))[0]
   await ensureGrants(db, 'default', p.id)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const [f1, f2] = await db.select().from(event).limit(2)
   const start = await balanceOf(db, 'default', p.id)
   await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'stake', amount: -100, refId: 'par_p' })
   await db.insert(parlay).values({ id: 'par_p', sweepId: 'default', personId: p.id, stake: 100, combinedOdds: '4', potentialPayout: 400, status: 'open' })

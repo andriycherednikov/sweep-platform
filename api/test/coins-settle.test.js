@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, event, person, coinLedger, bet } from '../src/db/schema.js'
+import { event, person, coinLedger, bet } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 import { fixtureResult, settleBets, settleStaleBets } from '../src/coins/settle.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
@@ -31,9 +31,8 @@ test('fixtureResult prefers winnerCode, falls back to the group score', () => {
 test('settleBets pays winners, busts losers, and is idempotent', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
-  const [f] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
-  await db.update(event).set({ status: 'final', winnerCode: f.t1Code, detail: detailMerge({ reg: [2, 0] }) }).where(eq(event.id, f.id))
+  const [f] = await db.select().from(event).limit(1)
+  await db.update(event).set({ status: 'final', winnerCode: f.c1Code, detail: detailMerge({ reg: [2, 0] }) }).where(eq(event.id, f.id))
   const startBal = await balanceOf(db, 'default', p.id)
   await placeRaw(f, p, 'HOME', 100, 2)  // wins → +200
   await placeRaw(f, p, 'AWAY', 100, 4)  // loses
@@ -176,10 +175,9 @@ test('resolveBet gs matches across API-Football name formats (odds full name vs 
 test('settleStaleBets grades open bets left on already-final fixtures', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   // fixture is final, but its bet was never settled (worker missed it → stale)
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
-  await db.update(event).set({ status: 'final', winnerCode: f.t1Code, detail: detailMerge({ reg: [2, 0] }) }).where(eq(event.id, f.id))
+  await db.update(event).set({ status: 'final', winnerCode: f.c1Code, detail: detailMerge({ reg: [2, 0] }) }).where(eq(event.id, f.id))
   const startBal = await balanceOf(db, 'default', p.id)
   await placeRaw(f, p, 'HOME', 100, 2) // should win → +200
   const published = []
@@ -199,8 +197,7 @@ test('settleStaleBets grades open bets left on already-final fixtures', async ()
 test('settleStaleBets leaves bets on non-final fixtures untouched', async () => {
   const p = await aPerson()
   await ensureGrants(db, 'default', p.id)
-  const [f] = await db.select().from(fixture).limit(1)
-  await db.update(fixture).set({ status: 'live', winnerCode: null, score1: null, score2: null }).where(eq(fixture.id, f.id))
+  const [f] = await db.select().from(event).limit(1)
   await db.update(event).set({ status: 'live', winnerCode: null, score1: null, score2: null }).where(eq(event.id, f.id))
   await placeRaw(f, p, 'HOME', 50, 2)
   expect(await settleStaleBets(db, () => {})).toBe(0)

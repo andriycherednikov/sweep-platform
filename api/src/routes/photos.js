@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
-import { photo, person, fixture } from '../db/schema.js'
+import { photo, person, event } from '../db/schema.js'
 import { validateUpload, processImage } from '../photos/process.js'
 import { requireSweep } from '../sweeps/auth.js'
 
@@ -36,7 +36,7 @@ export async function photoRoutes(app) {
 
     if (kind === 'fan') {
       if (!fixtureId) return reply.code(400).send({ error: 'missing_fixture' })
-      const [fx] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
+      const [fx] = await app.db.select().from(event).where(eq(event.id, fixtureId))
       if (!fx) return reply.code(400).send({ error: 'unknown_fixture' })
     } else {
       if (!personId) return reply.code(400).send({ error: 'missing_person' })

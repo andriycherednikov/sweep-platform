@@ -1,5 +1,5 @@
 import { and, asc, eq } from 'drizzle-orm'
-import { team, competitor, competition } from '../db/schema.js'
+import { competitor, competition } from '../db/schema.js'
 import { createPool, createDb } from '../db/client.js'
 import { createApiFootballProvider } from '../providers/api-football-provider.js'
 
@@ -29,10 +29,13 @@ export function matchTeams(ourTeams, providerTeams) {
 }
 
 export async function syncCrosswalk(db, provider, { season }) {
-  const [ourTeams, providerTeams] = await Promise.all([db.select().from(team), provider.fetchTeams(season)])
-  const { matched, unmatchedProvider, unmatchedOurs } = matchTeams(ourTeams, providerTeams)
   // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
+  const [ourTeams, providerTeams] = await Promise.all([
+    db.select().from(competitor).where(eq(competitor.competitionId, defaultCompetition.id)),
+    provider.fetchTeams(season),
+  ])
+  const { matched, unmatchedProvider, unmatchedOurs } = matchTeams(ourTeams, providerTeams)
   for (const m of matched) {
     await db.update(competitor).set({ providerId: m.providerTeamId })
       .where(and(eq(competitor.competitionId, defaultCompetition.id), eq(competitor.code, m.teamCode)))

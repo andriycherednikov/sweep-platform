@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 import { regradeGs } from '../src/coins/regrade-gs.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
@@ -21,13 +21,11 @@ async function lostGsBet(id, f, p, selection, stake, odds, parlayId = null) {
 }
 
 async function finalWithHaalandGoal() {
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   const events = [{ type: 'goal', player: 'E. Haaland', minute: 86, detail: 'Normal Goal' }]
-  await db.update(fixture).set({ status: 'final', winnerCode: f.t2Code, regScore1: 1, regScore2: 2, events })
-    .where(eq(fixture.id, f.id))
-  await db.update(event).set({ status: 'final', winnerCode: f.t2Code, detail: detailMerge({ reg: [1, 2], events }) })
+  await db.update(event).set({ status: 'final', winnerCode: f.c2Code, detail: detailMerge({ reg: [1, 2], events }) })
     .where(eq(event.id, f.id))
-  return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
+  return (await db.select().from(event).where(eq(event.id, f.id)))[0]
 }
 
 test('regradeGs flips a mis-settled standalone goalscorer bet to won and pays it', async () => {

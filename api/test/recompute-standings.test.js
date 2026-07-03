@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { competitor, event, ranking } from '../src/db/schema.js'
+import { competitor, event, ranking, bet, support } from '../src/db/schema.js'
 import { seed } from '../src/seed/seed.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 
@@ -14,6 +14,10 @@ beforeAll(async () => {
   const comps = await db.select().from(competitor).where(eq(competitor.competitionId, COMPETITION_ID)).limit(3)
   ;[A, B, C] = comps.map((c) => c.code)
   await db.delete(ranking).where(eq(ranking.competitionId, COMPETITION_ID))
+  // bet/support FK the event they're placed on — clear any leftover rows from other test
+  // files before wiping this competition's events, or the delete below violates the FK.
+  await db.delete(bet)
+  await db.delete(support)
   await db.delete(event).where(eq(event.competitionId, COMPETITION_ID))
   const base = { competitionId: COMPETITION_ID, startUtc: new Date('2026-06-13T12:00:00Z'), status: 'final', stage: 'group' }
   await db.insert(event).values([

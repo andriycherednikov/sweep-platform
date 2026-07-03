@@ -31,7 +31,7 @@ afterAll(async () => { await app2.close(); await pool2.end() })
 
 test('POST /api/session with a member token sets a member-scoped cookie', async () => {
   await app2.ready()
-  await db2.insert(sweep).values({ id: 'sw_sess', name: 'S', kind: 'token', memberToken: memberTok, adminToken: adminTok })
+  await db2.insert(sweep).values({ id: 'sw_sess', name: 'S', kind: 'token', memberToken: memberTok, adminToken: adminTok, competitionId: 'apifootball:1:2026' })
   const res = await app2.inject({
     method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: memberTok },
   })

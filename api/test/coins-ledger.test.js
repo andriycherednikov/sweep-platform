@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, person, coinLedger, bet, sweep } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, sweep } from '../src/db/schema.js'
 import { seasonAnchor, currentWeekIndex, ensureGrants, balanceOf, statementFor } from '../src/coins/ledger.js'
 import { WEEK_MS } from '../src/coins/constants.js'
 
@@ -13,7 +13,7 @@ const aPerson = async () => (await db.select().from(person).limit(1))[0]
 
 test('seasonAnchor is the earliest fixture kickoff', async () => {
   const anchor = await seasonAnchor(db)
-  const [{ ko }] = await db.select({ ko: fixture.kickoffUtc }).from(fixture).orderBy(fixture.kickoffUtc).limit(1)
+  const [{ ko }] = await db.select({ ko: event.startUtc }).from(event).orderBy(event.startUtc).limit(1)
   expect(anchor.getTime()).toBe(new Date(ko).getTime())
 })
 
@@ -72,7 +72,7 @@ test('statementFor returns grants newest-first with weekIndex and a running bala
 
 test('statementFor attaches the matching bet to stake and payout rows', async () => {
   const p = await aPerson()
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   const anchor = await seasonAnchor(db)
   const wk0 = new Date(anchor.getTime() + 1000)
   await ensureGrants(db, 'default', p.id, wk0) // pin a single week-0 grant (+1000), date-independent
@@ -94,7 +94,7 @@ test('statementFor attaches the matching bet to stake and payout rows', async ()
 
 test('statementFor leaves a lost bet as a lone stake row (no payout) carrying status lost', async () => {
   const p = await aPerson()
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   const anchor = await seasonAnchor(db)
   const wk0 = new Date(anchor.getTime() + 1000)
   await ensureGrants(db, 'default', p.id, wk0) // pin a single week-0 grant (+1000), date-independent
@@ -133,7 +133,7 @@ test('statementFor surfaces fixtureId (and bet:null) for predict/teamwin reward 
 test('statementFor is isolated per sweep', async () => {
   const p = await aPerson()
   // a parallel sweep with its own person — the composite FK requires both to exist
-  await db.insert(sweep).values({ id: 'other', name: 'Other' }).onConflictDoNothing()
+  await db.insert(sweep).values({ id: 'other', name: 'Other', competitionId: 'apifootball:1:2026' }).onConflictDoNothing()
   await db.insert(person).values({ id: 'pn_other', sweepId: 'other', name: 'Other', short: 'Oth', initials: 'OT', avColor: '#999' }).onConflictDoNothing()
   await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'grant', amount: 1000, refId: '0' })
   await db.insert(coinLedger).values({ sweepId: 'other', personId: 'pn_other', type: 'grant', amount: 9999, refId: '0' })

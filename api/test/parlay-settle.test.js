@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 import { settleBets, settleParlay, settleStaleBets } from '../src/coins/settle.js'
 import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
@@ -12,9 +12,8 @@ beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db
 
 const aPerson = async () => (await db.select().from(person).limit(1))[0]
 
-// finalize a fixture's regulation score in both fixture (legacy) and event (ported reads)
+// finalize an event's regulation score
 async function finalizeReg(f, s1, s2) {
-  await db.update(fixture).set({ status: 'final', regScore1: s1, regScore2: s2 }).where(eq(fixture.id, f.id))
   await db.update(event).set({ status: 'final', detail: detailMerge({ reg: [s1, s2] }) }).where(eq(event.id, f.id))
 }
 
@@ -29,7 +28,7 @@ async function makeParlay(p, id, stake, combinedOdds, legs) {
 
 test('a parlay loses the moment any leg loses', async () => {
   const p = await aPerson(); await ensureGrants(db, 'default', p.id)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const [f1, f2] = await db.select().from(event).limit(2)
   const start = await balanceOf(db, 'default', p.id)
   await makeParlay(p, 'par_lose', 100, 4, [{ fixtureId: f1.id, selection: 'HOME', odds: 2 }, { fixtureId: f2.id, selection: 'HOME', odds: 2 }])
   await finalizeReg(f1, 0, 1)
@@ -40,7 +39,7 @@ test('a parlay loses the moment any leg loses', async () => {
 
 test('a parlay stays open until the last leg, then pays when all legs win', async () => {
   const p = await aPerson(); await ensureGrants(db, 'default', p.id)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const [f1, f2] = await db.select().from(event).limit(2)
   const start = await balanceOf(db, 'default', p.id)
   await makeParlay(p, 'par_win', 100, 4, [{ fixtureId: f1.id, selection: 'HOME', odds: 2 }, { fixtureId: f2.id, selection: 'HOME', odds: 2 }])
   await finalizeReg(f1, 1, 0)
@@ -56,7 +55,7 @@ test('a parlay stays open until the last leg, then pays when all legs win', asyn
 
 test('a same-game multi settles both legs on one fixture in one pass, then pays', async () => {
   const p = await aPerson(); await ensureGrants(db, 'default', p.id)
-  const [f1] = await db.select().from(fixture).limit(1)
+  const [f1] = await db.select().from(event).limit(1)
   const start = await balanceOf(db, 'default', p.id)
   // two legs on the SAME fixture: 1x2 HOME (@2) + ou25 OVER 2.5 (@2) → combined 4
   await makeParlay(p, 'par_sgm', 100, 4, [
@@ -72,7 +71,7 @@ test('a same-game multi settles both legs on one fixture in one pass, then pays'
 
 test('settleParlay is idempotent (no double payout)', async () => {
   const p = await aPerson(); await ensureGrants(db, 'default', p.id)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const [f1, f2] = await db.select().from(event).limit(2)
   const start = await balanceOf(db, 'default', p.id)
   await makeParlay(p, 'par_idem', 50, 4, [{ fixtureId: f1.id, selection: 'HOME', odds: 2 }, { fixtureId: f2.id, selection: 'HOME', odds: 2 }])
   await finalizeReg(f1, 1, 0)
@@ -86,7 +85,7 @@ test('settleParlay is idempotent (no double payout)', async () => {
 
 test('settleStaleBets rolls up a parlay whose legs were graded but the parent stayed open', async () => {
   const p = await aPerson(); await ensureGrants(db, 'default', p.id)
-  const [f1, f2] = await db.select().from(fixture).limit(2)
+  const [f1, f2] = await db.select().from(event).limit(2)
   const start = await balanceOf(db, 'default', p.id)
   await makeParlay(p, 'par_stale', 100, 4, [{ fixtureId: f1.id, selection: 'HOME', odds: 2 }, { fixtureId: f2.id, selection: 'HOME', odds: 2 }])
   await db.update(bet).set({ status: 'won' }).where(eq(bet.parlayId, 'par_stale'))

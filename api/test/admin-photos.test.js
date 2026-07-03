@@ -7,7 +7,7 @@ import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { photo, person, fixture } from '../src/db/schema.js'
+import { photo, person, event } from '../src/db/schema.js'
 import { person as personT } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
@@ -23,7 +23,7 @@ afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recu
 beforeEach(async () => { await db.delete(photo) })
 
 async function seedPending() {
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   await app.photos.writePending('z.jpg', Buffer.from('img'))
   await db.insert(photo).values({ id: 'ph1', sweepId: 'default', kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, filePath: 'z.jpg', thumbPath: 'z.jpg', caption: 'hi', status: 'pending' })
   return f
@@ -58,7 +58,7 @@ test('approve a fan photo → moves file, status approved, emits photo-approved'
   const app2 = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's', publish: (e) => published.push(e) })
   await app2.ready()
   const ck = (await app2.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
-  const [f] = await db.select().from(fixture).limit(1)
+  const [f] = await db.select().from(event).limit(1)
   await app2.photos.writePending('appr.jpg', Buffer.from('img'))
   await db.insert(photo).values({ id: 'ph2', sweepId: 'default', kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, filePath: 'appr.jpg', thumbPath: 'appr.jpg', status: 'pending' })
 

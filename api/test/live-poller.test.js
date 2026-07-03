@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { and, eq, sql } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, competitor, fixture, standing, event, ranking } from '../src/db/schema.js'
+import { competitor, event, ranking } from '../src/db/schema.js'
 import { flattenEvent, detailMerge } from '../src/db/event-shape.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
@@ -19,17 +19,13 @@ const getEvent = async (id) => flattenEvent((await db.select().from(event).where
 
 beforeAll(async () => {
   for (const [code, id] of [['hr', 3001], ['be', 3002], ['gh', 3003]]) {
-    await db.update(teamCrosswalk).set({ providerTeamId: id }).where(eq(teamCrosswalk.teamCode, code))
     await db.update(competitor).set({ providerId: id }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, code)))
   }
   await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026, competitionId: COMPETITION_ID })
 })
 // beforeAll prunes `event` (competition-scoped) via syncBaseline; restore the Phase-1 seed
-// for fixture/standing/event/ranking afterwards so other test files (which depend on the
-// global seed) still pass.
+// for event/ranking afterwards so other test files (which depend on the global seed) still pass.
 afterAll(async () => {
-  await db.delete(fixture)
-  await db.delete(standing)
   await db.delete(event)
   await db.delete(ranking)
   await seed(db)
