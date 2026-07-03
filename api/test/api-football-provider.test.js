@@ -53,15 +53,17 @@ test('sport/groupsFromStandings/resultToWinnerCode/baseDetail', async () => {
   expect(p.baseDetail(f)).toEqual({ group: 'A', matchday: 1, venue: 'V', city: 'C', minute: null, phase: null, ht: [1, 0], reg: null, pen: null })
 })
 
-test('fetchCompetitions queries /leagues?id=1 and maps to the catalog shape', async () => {
+test('fetchCompetitions queries the full /leagues catalog (no id filter) and maps every league', async () => {
   const fetch = fakeFetch({ '/leagues': load('leagues') })
   const p = createApiFootballProvider({ apiKey: 'K', fetch })
-  const [l] = await p.fetchCompetitions()
+  const leagues = await p.fetchCompetitions()
   const calledUrl = new URL(fetch.mock.calls[0][0])
   expect(calledUrl.pathname).toBe('/leagues')
-  expect(calledUrl.searchParams.get('id')).toBe('1')
-  expect(l).toMatchObject({ providerLeagueId: 1, name: 'World Cup', type: 'Cup' })
-  expect(l.seasons.map((s) => s.season)).toContain('2026')
+  expect(calledUrl.searchParams.get('id')).toBeNull() // full catalog, not just the WC
+  expect(leagues).toHaveLength(2)
+  expect(leagues[0]).toMatchObject({ providerLeagueId: 1, name: 'World Cup', type: 'Cup' })
+  expect(leagues[0].seasons.map((s) => s.season)).toContain('2026')
+  expect(leagues[1]).toMatchObject({ providerLeagueId: 39, name: 'Premier League', type: 'League' })
 })
 
 test('fetchCompetitors sends league/season params and maps teams', async () => {

@@ -1,8 +1,8 @@
 {
   "get": "leagues",
-  "parameters": { "id": "1" },
+  "parameters": {},
   "errors": [],
-  "results": 1,
+  "results": 2,
   "paging": { "current": 1, "total": 1 },
   "response": [
     {
@@ -11,6 +11,13 @@
       "seasons": [
         { "year": 2026, "start": "2026-06-11", "end": "2026-07-19", "current": true },
         { "year": 2022, "start": "2022-11-20", "end": "2022-12-18", "current": false }
+      ]
+    },
+    {
+      "league": { "id": 39, "name": "Premier League", "type": "League", "logo": "https://media.api-sports.io/football/leagues/39.png" },
+      "country": { "name": "England", "code": "GB-ENG", "flag": "https://media.api-sports.io/flags/gb-eng.svg" },
+      "seasons": [
+        { "year": 2025, "start": "2025-08-15", "end": "2026-05-24", "current": true }
       ]
     }
   ]

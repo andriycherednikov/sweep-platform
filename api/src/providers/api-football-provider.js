@@ -15,7 +15,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
     sport: 'football',
     groupsFromStandings: true, // soccer resolves group letters from /standings, not the round string
     async fetchCompetitions() {
-      const j = await get('/leagues', { id: LEAGUE })
+      const j = await get('/leagues')
       return (j.response ?? []).map(mapLeague)
     },
     async fetchSchedule(comp) {
