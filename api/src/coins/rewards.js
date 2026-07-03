@@ -47,7 +47,7 @@ export async function grantMatchRewards(db, fixtureId, publish = () => {}) {
   if (result !== 'DRAW') {
     const winningTeam = result === 'HOME' ? f.t1Code : f.t2Code
     // rewards is cross-sweep: resolve the code via the EVENT's own competition, not a request sweep.
-    // The resolved competitor id already encodes its competition, so ownership rows across sweeps
+    // Competitor ids are namespaced as cp_{competitionId}_{code}, so ownership rows across sweeps
     // (each possibly bound to a different competition, later) still filter correctly by id alone.
     const winningCompetitorId = await codeToCompetitorId(db, row.competitionId, winningTeam)
     const owners = winningCompetitorId ? await db.select({ sweepId: ownership.sweepId, personId: ownership.personId, adult: person.adult })

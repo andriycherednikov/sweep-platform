@@ -4,6 +4,9 @@ import { openTestDb } from './helpers/db.js'
 import { fixture, event, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
 import { grantMatchRewards } from '../src/coins/rewards.js'
 
+const COMPETITION_ID = 'apifootball:1:2026' // matches seed.js's default competition
+const cpId = (code) => `cp_${COMPETITION_ID}_${code}`
+
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
 beforeEach(async () => { await db.delete(coinLedger); await db.delete(support); await db.delete(ownership) })
@@ -45,8 +48,8 @@ test('a correct prediction grants +100; a wrong one grants nothing', async () =>
 test('winning-team owner gets +300; losing-team owner gets nothing', async () => {
   const [a, b] = await twoPeople()
   const f = await homeWinFixture()
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` }) // owns winner
-  await db.insert(ownership).values({ sweepId: 'default', personId: b.id, competitorId: `cp_${f.t2Code}` }) // owns loser
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) }) // owns winner
+  await db.insert(ownership).values({ sweepId: 'default', personId: b.id, competitorId: cpId(f.t2Code) }) // owns loser
   await grantMatchRewards(db, f.id)
   expect((await rows(a.id, 'teamwin'))[0].amount).toBe(300)
   expect(await rows(b.id, 'teamwin')).toHaveLength(0)
@@ -55,8 +58,8 @@ test('winning-team owner gets +300; losing-team owner gets nothing', async () =>
 test('both co-owners of the winning team each get the full +300', async () => {
   const [a, b] = await twoPeople()
   const f = await homeWinFixture()
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` })
-  await db.insert(ownership).values({ sweepId: 'default', personId: b.id, competitorId: `cp_${f.t1Code}` })
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) })
+  await db.insert(ownership).values({ sweepId: 'default', personId: b.id, competitorId: cpId(f.t1Code) })
   await grantMatchRewards(db, f.id)
   expect((await rows(a.id, 'teamwin'))[0].amount).toBe(300)
   expect((await rows(b.id, 'teamwin'))[0].amount).toBe(300)
@@ -69,7 +72,7 @@ test('a drawn match pays correct DRAW predictions but no team-win', async () => 
   await db.update(event).set({ status: 'final', winnerCode: 'DRAW' }).where(eq(event.id, f0.id))
   const f = (await db.select().from(fixture).where(eq(fixture.id, f0.id)))[0]
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: 'DRAW' })
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` })
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) })
   await grantMatchRewards(db, f.id)
   expect((await rows(a.id, 'predict'))[0].amount).toBe(100)
   expect(await rows(a.id, 'teamwin')).toHaveLength(0)
@@ -79,7 +82,7 @@ test('a person who predicts right AND owns the winner gets both (+400)', async (
   const [a] = await twoPeople()
   const f = await homeWinFixture()
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: f.t1Code })
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` })
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) })
   const granted = await grantMatchRewards(db, f.id)
   expect(granted).toBe(2)
   const all = await db.select().from(coinLedger).where(eq(coinLedger.personId, a.id))
@@ -90,7 +93,7 @@ test('grantMatchRewards is idempotent (re-run grants nothing new)', async () => 
   const [a] = await twoPeople()
   const f = await homeWinFixture()
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: f.t1Code })
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` })
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) })
   await grantMatchRewards(db, f.id)
   const second = await grantMatchRewards(db, f.id)
   expect(second).toBe(0)
@@ -133,7 +136,7 @@ test('a minor who owns the winning team gets no team-win reward', async () => {
   const [a] = await twoPeople()
   const f = await homeWinFixture()
   await db.update(person).set({ adult: false }).where(eq(person.id, a.id))
-  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: `cp_${f.t1Code}` })
+  await db.insert(ownership).values({ sweepId: 'default', personId: a.id, competitorId: cpId(f.t1Code) })
   await grantMatchRewards(db, f.id)
   expect(await rows(a.id, 'teamwin')).toHaveLength(0)
 })

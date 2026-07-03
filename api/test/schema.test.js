@@ -52,5 +52,26 @@ test('seed created the default competition, bound the default sweep, and mirrore
   expect(ev.c1Code).toBe(fx.t1Code)
   expect(ev.detail.group).toBe(fx.group)
   const [cp] = await db.select().from(competitor).where(eq(competitor.code, fx.t1Code))
-  expect(cp.id).toBe('cp_' + fx.t1Code)
+  expect(cp.id).toBe(`cp_${comp.id}_${fx.t1Code}`)
+})
+
+test('competitor id is namespaced by competition: same code under a second competition does not collide', async () => {
+  const otherCompetitionId = 'apifootball:2:2026'
+  await db.insert(competition).values({
+    id: otherCompetitionId, provider: 'apifootball', sport: 'football', leagueId: '2',
+    season: '2026', format: 'groups_then_ko', name: 'Other Competition',
+  })
+  const [existing] = await db.select().from(competitor).limit(1)
+  const otherId = `cp_${otherCompetitionId}_${existing.code}`
+  await db.insert(competitor).values({
+    id: otherId, competitionId: otherCompetitionId, code: existing.code, name: existing.name, color: existing.color,
+  })
+  const rows = await db.select().from(competitor).where(eq(competitor.code, existing.code))
+  const ids = rows.map((r) => r.id)
+  expect(ids).toContain(existing.id)
+  expect(ids).toContain(otherId)
+  expect(existing.id).not.toBe(otherId)
+
+  await db.delete(competitor).where(eq(competitor.id, otherId))
+  await db.delete(competition).where(eq(competition.id, otherCompetitionId))
 })

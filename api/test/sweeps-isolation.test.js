@@ -26,7 +26,7 @@ beforeAll(async () => {
   // binding from Task 16), so it still sets one explicitly.
   await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, adminToken: newToken(), competitionId: 'apifootball:1:2026' })
   await db.insert(person).values({ id: 'pb1', sweepId: 'sw_b', name: 'Bee', short: 'Bee', initials: 'B', avColor: '#111' })
-  await db.insert(ownership).values({ sweepId: 'sw_b', personId: 'pb1', competitorId: 'cp_hr' })
+  await db.insert(ownership).values({ sweepId: 'sw_b', personId: 'pb1', competitorId: 'cp_apifootball:1:2026_hr' })
 })
 afterAll(async () => {
   // Leave the shared test DB as we found it (seed.test.js counts persons globally).

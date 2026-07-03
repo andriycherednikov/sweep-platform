@@ -1,6 +1,8 @@
-import { person, ownership } from '../db/schema.js'
+import { asc } from 'drizzle-orm'
+import { person, ownership, competition } from '../db/schema.js'
 import { roster } from './roster.js'
 import { createPool, createDb } from '../db/client.js'
+import { codeToCompetitorId } from '../routes/competitors.js'
 
 const AV_COLORS = ['#d2342a', '#3b6fd1', '#0a6b3b', '#7a4fd1', '#c9472f', '#1f7a8c', '#b5562a', '#5a4fd1', '#2a8f6a', '#c23a6a']
 
@@ -20,11 +22,14 @@ export function toPerson(name, i) {
 export async function importRoster(db, list = roster) {
   await db.delete(ownership)
   await db.delete(person)
+  // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
+  const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
   for (let i = 0; i < list.length; i++) {
     const p = toPerson(list[i].name, i)
     await db.insert(person).values(p)
     for (const code of list[i].teams) {
-      await db.insert(ownership).values({ personId: p.id, competitorId: `cp_${code}` }).onConflictDoNothing()
+      const competitorId = await codeToCompetitorId(db, defaultCompetition.id, code)
+      await db.insert(ownership).values({ personId: p.id, competitorId }).onConflictDoNothing()
     }
   }
   return { people: list.length, picks: list.reduce((n, r) => n + r.teams.length, 0) }

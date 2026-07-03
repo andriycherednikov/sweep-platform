@@ -36,7 +36,7 @@ export async function syncTeams(db, provider, { season, competitionId }) {
 
   for (const i of plan.inserts) {
     await db.insert(competitor).values({
-      id: `cp_${i.code}`, competitionId, code: i.code, name: i.name, color: i.color, providerId: i.providerTeamId,
+      id: `cp_${competitionId}_${i.code}`, competitionId, code: i.code, name: i.name, color: i.color, providerId: i.providerTeamId,
       meta: { group: i.group, pool: i.pool, strength: i.strength },
     }).onConflictDoNothing()
   }

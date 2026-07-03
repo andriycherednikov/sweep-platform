@@ -41,7 +41,7 @@ export async function seed(db) {
     }).onConflictDoNothing()
     await db.insert(s.teamCrosswalk).values({ teamCode: t.code, providerTeamId: null }).onConflictDoNothing()
     await db.insert(s.competitor).values({
-      id: `cp_${t.code}`, competitionId: COMPETITION_ID, code: t.code, name: t.name,
+      id: `cp_${COMPETITION_ID}_${t.code}`, competitionId: COMPETITION_ID, code: t.code, name: t.name,
       color: t.color, providerId: null, meta: { group: t.group, pool: t.pool, strength: t.strength },
     }).onConflictDoNothing()
   }
@@ -51,7 +51,7 @@ export async function seed(db) {
       id: p.id, sweepId: 'default', name: p.name, short: p.short, initials: p.initials, avColor: p.av,
     }).onConflictDoNothing()
     for (const tc of p.teams) {
-      await db.insert(s.ownership).values({ sweepId: 'default', personId: p.id, competitorId: `cp_${tc}` }).onConflictDoNothing()
+      await db.insert(s.ownership).values({ sweepId: 'default', personId: p.id, competitorId: `cp_${COMPETITION_ID}_${tc}` }).onConflictDoNothing()
     }
   }
 
