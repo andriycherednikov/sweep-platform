@@ -29,10 +29,18 @@ test('refundPrunedParlays refunds + deletes a parlay with a leg on a dropped fix
   await db.insert(parlay).values({ id: 'par_p', sweepId: 'default', personId: p.id, stake: 100, combinedOdds: '4', potentialPayout: 400, status: 'open' })
   await db.insert(bet).values({ id: 'lg1', sweepId: 'default', personId: p.id, fixtureId: f1.id, parlayId: 'par_p', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
   await db.insert(bet).values({ id: 'lg2', sweepId: 'default', personId: p.id, fixtureId: f2.id, parlayId: 'par_p', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
-  await refundPrunedParlays(db, [f2.id]) // keep only f2 → f1's leg is dropped → refund whole parlay
+  // keep only f2 → f1's leg is dropped → refund whole parlay; scope = this competition's events
+  const compEventIds = db.select({ id: event.id }).from(event).where(eq(event.competitionId, COMPETITION_ID))
+  await refundPrunedParlays(db, [f2.id], compEventIds)
   expect(await db.select().from(parlay).where(eq(parlay.id, 'par_p'))).toHaveLength(0) // deleted (cascade legs)
   expect(await db.select().from(bet).where(eq(bet.parlayId, 'par_p'))).toHaveLength(0)
   expect(await balanceOf(db, 'default', p.id)).toBe(start) // stake refunded
+})
+
+// GATE(phase-2): an omitted scope used to mean "global" — one competition's baseline
+// could refund-and-delete every other competition's parlays. Scope is now required.
+test('refundPrunedParlays throws when the competition scope is omitted', async () => {
+  await expect(refundPrunedParlays(db, ['whatever'])).rejects.toThrow(/scope/)
 })
 
 test('syncing one competition never prunes another competition\'s dependent rows', async () => {

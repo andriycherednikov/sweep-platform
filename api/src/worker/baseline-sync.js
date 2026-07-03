@@ -7,10 +7,11 @@ import { backfillFinalEvents } from './live-poller.js'
 import { competitorCodeMap } from '../routes/competitors.js'
 
 export async function refundPrunedParlays(db, keep, compEventIds) {
-  // compEventIds scopes the prune to one competition's events; omitted only by the direct
-  // unit test below, which exercises the refund logic globally on purpose.
-  const cond = compEventIds ? and(notInArray(bet.fixtureId, keep), inArray(bet.fixtureId, compEventIds)) : notInArray(bet.fixtureId, keep)
-  const legRows = await db.select({ parlayId: bet.parlayId }).from(bet).where(cond)
+  // compEventIds is REQUIRED: it scopes the prune to one competition's events — without it
+  // this refunds-and-deletes every OTHER competition's parlays (their ids are never in `keep`).
+  if (!compEventIds) throw new Error('refundPrunedParlays: compEventIds (competition scope) is required')
+  const legRows = await db.select({ parlayId: bet.parlayId }).from(bet)
+    .where(and(notInArray(bet.fixtureId, keep), inArray(bet.fixtureId, compEventIds)))
   const parlayIds = [...new Set(legRows.map((r) => r.parlayId).filter(Boolean))]
   if (!parlayIds.length) return
   const parls = await db.select().from(parlay).where(inArray(parlay.id, parlayIds))
