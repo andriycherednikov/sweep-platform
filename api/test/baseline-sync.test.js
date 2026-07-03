@@ -8,6 +8,7 @@ import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
 import { mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
+import { syncCompetitors } from '../src/worker/sync-competitors.js'
 import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
@@ -139,12 +140,7 @@ test('persists markets + htScore and winnerCode when fixture is final', async ()
   expect(f.winnerCode).toBe(f.t1Code) // winnerSide 'home' → t1Code ('hr')
 })
 
-// unskipped in Task 8 (sync-competitors lands there) — sync-competitors.js doesn't exist
-// yet, so syncCompetitors is dynamic-imported inside the (skipped) test body: a static
-// import here would fail module resolution at collection time and red the whole file,
-// even with test.skip.
-test.skip('NBA baseline: drops All-Star game, writes 2-way finals + conference rankings, reports newlyFinal', async () => {
-  const { syncCompetitors } = await import('../src/worker/sync-competitors.js')
+test('NBA baseline: drops All-Star game, writes 2-way finals + conference rankings, reports newlyFinal', async () => {
   const provider = createRecordedBasketballProvider({
     leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings'),
   })
