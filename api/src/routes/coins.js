@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
-import { fixture, person, coinLedger, bet, parlay } from '../db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../db/schema.js'
+import { flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
 import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../coins/ledger.js'
 
@@ -59,8 +60,9 @@ export async function coinsRoutes(app) {
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     // wagers are 18+ — enforce server-side so minors can't bet by bypassing the UI
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
-    const [f] = await app.db.select().from(fixture).where(eq(fixture.id, fixtureId))
-    if (!f) return reply.code(400).send({ error: 'unknown_fixture' })
+    const [evRow] = await app.db.select().from(event).where(eq(event.id, fixtureId))
+    if (!evRow) return reply.code(400).send({ error: 'unknown_fixture' })
+    const f = flattenEvent(evRow)
     if (f.status !== 'upcoming') return reply.code(400).send({ error: 'betting_closed' })
     const mk = f.markets?.[market]
     const sel = mk?.selections?.find((s) => s.key === selection)
@@ -114,8 +116,9 @@ export async function coinsRoutes(app) {
     const resolved = []
     for (const l of legs) {
       const market = l.market ?? '1x2'
-      const [f] = await app.db.select().from(fixture).where(eq(fixture.id, l.fixtureId))
-      if (!f) return reply.code(400).send({ error: 'fixture_not_found', fixtureId: l.fixtureId })
+      const [row] = await app.db.select().from(event).where(eq(event.id, l.fixtureId))
+      if (!row) return reply.code(400).send({ error: 'fixture_not_found', fixtureId: l.fixtureId })
+      const f = flattenEvent(row)
       if (f.status !== 'upcoming') return reply.code(400).send({ error: 'leg_betting_closed', fixtureId: l.fixtureId })
       const mk = f.markets?.[market]
       const sel = mk?.selections?.find((s) => s.key === l.selection)

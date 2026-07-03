@@ -1,7 +1,8 @@
 import { expect, test, afterAll, beforeEach } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, coinLedger, bet, fixture, parlay } from '../src/db/schema.js'
+import { person, coinLedger, bet, fixture, event, parlay } from '../src/db/schema.js'
+import { detailMerge } from '../src/db/event-shape.js'
 import { and, eq } from 'drizzle-orm'
 
 const { pool, db } = openTestDb()
@@ -46,6 +47,7 @@ async function bettableFixture() {
       { key: 'OVER', label: 'Over 2.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 2.5', odds: 1.9 }] },
   }
   await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ status: 'upcoming', stage: 'group', detail: detailMerge({ markets }) }).where(eq(event.id, f.id))
   return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
 }
 const balanceOfPerson = async (id) => (await app.inject({ method: 'GET', url: `/api/coins?personId=${id}` })).json().balance
@@ -61,6 +63,7 @@ async function twoBettableFixtures() {
   const out = []
   for (const f of fs) {
     await db.update(fixture).set({ status: 'upcoming', stage: 'group', markets }).where(eq(fixture.id, f.id))
+    await db.update(event).set({ status: 'upcoming', stage: 'group', detail: detailMerge({ markets }) }).where(eq(event.id, f.id))
     out.push((await db.select().from(fixture).where(eq(fixture.id, f.id)))[0])
   }
   return out
@@ -120,6 +123,7 @@ test('POST /api/bet rejects a stake above the balance', async () => {
 test('POST /api/bet rejects once the match is no longer upcoming', async () => {
   const p = await aPerson(); const f = await bettableFixture()
   await db.update(fixture).set({ status: 'live' }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ status: 'live' }).where(eq(event.id, f.id))
   const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
   expect(res.statusCode).toBe(400)
   expect(res.json()).toEqual({ error: 'betting_closed' })
@@ -129,10 +133,12 @@ test('POST /api/bet now accepts knockout fixtures (full tournament) and still re
   const p = await aPerson(); const f = await bettableFixture()
   await balanceOfPerson(p.id) // seed grant
   await db.update(fixture).set({ stage: 'r16' }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ stage: 'r16' }).where(eq(event.id, f.id))
   const ok = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
   expect(ok.statusCode).toBe(200)
   expect(ok.json().bet).toMatchObject({ market: '1x2', selection: 'HOME' })
   await db.update(fixture).set({ stage: 'group', markets: null }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ stage: 'group', detail: detailMerge({ markets: null }) }).where(eq(event.id, f.id))
   expect((await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })).json()).toEqual({ error: 'no_odds' })
 })
 
@@ -206,8 +212,10 @@ test('POST /api/parlay validation: too few legs, duplicate market, leg errors, m
   expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f1.id, market: '1x2', selection: 'AWAY' }] })).json()).toMatchObject({ error: 'duplicate_market' })
   expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: 'nope', selection: 'HOME' }] })).json()).toMatchObject({ error: 'fixture_not_found' })
   await db.update(fixture).set({ status: 'live' }).where(eq(fixture.id, f2.id))
+  await db.update(event).set({ status: 'live' }).where(eq(event.id, f2.id))
   expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'HOME' }] })).json()).toMatchObject({ error: 'leg_betting_closed' })
   await db.update(fixture).set({ status: 'upcoming' }).where(eq(fixture.id, f2.id))
+  await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, f2.id))
   expect((await post({ personId: p.id, stake: 10, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, market: 'cards', selection: 'OVER' }] })).json()).toMatchObject({ error: 'leg_no_odds' })
   expect((await post({ personId: p.id, stake: 99999999, legs: [{ fixtureId: f1.id, selection: 'HOME' }, { fixtureId: f2.id, selection: 'AWAY' }] })).json()).toEqual({ error: 'insufficient_funds' })
   await db.update(person).set({ adult: false }).where(eq(person.id, p.id))
