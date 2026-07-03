@@ -8,23 +8,34 @@ import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
 import { grantMatchRewards } from './coins/rewards.js'
-import { asc, inArray } from 'drizzle-orm'
-import { fixture, competition } from './db/schema.js'
+import { eq, inArray, isNull } from 'drizzle-orm'
+import { event, sweep } from './db/schema.js'
 
+// season is per-provider-fetch, not yet threaded from competition.season — Phase 2 (multi-
+// season/provider wiring); WC_SEASON stays the single knob until then.
 const season = Number(process.env.WC_SEASON ?? 2026)
 const pool = createPool()
 const db = createDb(pool)
 const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KEY })
-// ponytail: worker.js is still fixture/team-scoped pre-Task 15; recomputeStandings is now
-// competition-scoped, so thread through the sole seeded competition until the full rewrite.
-const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
+
+/** Competitions worth syncing: bound to at least one live (unarchived) sweep — the
+ *  §7 dedupe-by-competition (N sweeps on one competition = one poll). Empty DB → empty
+ *  list → both loops below no-op instead of crashing on boot. */
+async function activeCompetitions(db) {
+  const rows = await db.selectDistinct({ id: sweep.competitionId }).from(sweep)
+    .where(isNull(sweep.archivedAt))
+  return rows.map((r) => r.id).filter(Boolean)
+}
 
 async function baseline(reason) {
-  try {
-    const r = await syncBaseline(db, provider, { season, competitionId: defaultCompetition?.id })
-    await publish(db, { type: 'sync' })
-    console.log(`[baseline:${reason}] ${r.fixtures} fixtures`)
-  } catch (e) { console.error(`[baseline:${reason}] failed (last-good intact):`, e.message) }
+  // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
+  for (const competitionId of await activeCompetitions(db)) {
+    try {
+      const r = await syncBaseline(db, provider, { season, competitionId })
+      await publish(db, { type: 'sync' })
+      console.log(`[baseline:${reason}] ${competitionId}: ${r.fixtures} fixtures`)
+    } catch (e) { console.error(`[baseline:${reason}] ${competitionId} failed (last-good intact):`, e.message) }
+  }
 }
 
 // Baseline a few times a day (00:10, 06:10, 12:10, 18:10 UTC) + once at boot.
@@ -45,7 +56,8 @@ await settleStale('boot')
 
 // When a match finishes we recompute the table instantly from our own results, then queue
 // ONE official provider reconcile ~5 min later — debounced so a cluster of finals triggers
-// a single baseline, not one per game.
+// a single baseline, not one per game. baseline() loops every active competition, so this
+// stays a single timer regardless of how many competitions are live.
 let finalReconcileTimer = null
 function scheduleFinalReconcile() {
   if (finalReconcileTimer) return
@@ -61,45 +73,49 @@ setInterval(async () => {
   if (ticking) return
   ticking = true
   try {
-    const rows = await db.select({ id: fixture.id, ko: fixture.kickoffUtc, status: fixture.status, lineups: fixture.lineups }).from(fixture)
-    const now = new Date()
-    const kickoffs = rows.map((r) => new Date(r.ko))
-    // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
-    const liveIds = fixturesToPoll(rows, now)
-    if (liveIds.length) {
-      const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
-      const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
-      if (n) console.log(`[live] updated ${n}`)
-      // events poll AFTER scores, so a goal notification carries the just-updated score
-      const crosswalk = await resolveCrosswalk(db, defaultCompetition.id) // static within a match window — resolve once per tick
-      const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
-      if (e) console.log(`[events] ${e} new`)
-      // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
-      const st = await pollStatistics(db, provider, liveIds, crosswalk)
-      if (st) console.log(`[stats] updated ${st}`)
-      // any polled fixture just go final? recompute the table now + queue an official reconcile
-      const after = await db.select({ id: fixture.id, status: fixture.status }).from(fixture).where(inArray(fixture.id, liveIds))
-      const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
-      if (newlyFinal.length) {
-        await recomputeStandings(db, defaultCompetition.id)
-        // settle each fixture independently — one bad fixture must not block the others
-        // (they're already 'final', so a skipped settlement would never be retried)
-        for (const r of newlyFinal) {
-          try { await settleBets(db, r.id, (e) => publish(db, e)) }
-          catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
-          try { await grantMatchRewards(db, r.id, (e) => publish(db, e)) }
-          catch (e) { console.error(`[grantMatchRewards] fixture ${r.id} failed:`, e.message) }
+    // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
+    for (const competitionId of await activeCompetitions(db)) {
+      const rows = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
+        .from(event).where(eq(event.competitionId, competitionId))
+      const now = new Date()
+      const kickoffs = rows.map((r) => new Date(r.ko))
+      // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
+      const liveIds = fixturesToPoll(rows, now)
+      if (liveIds.length) {
+        const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
+        const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
+        if (n) console.log(`[live] updated ${n}`)
+        // events poll AFTER scores, so a goal notification carries the just-updated score
+        const crosswalk = await resolveCrosswalk(db, competitionId) // static within a match window — resolve once per tick
+        const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
+        if (e) console.log(`[events] ${e} new`)
+        // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
+        const st = await pollStatistics(db, provider, liveIds, crosswalk)
+        if (st) console.log(`[stats] updated ${st}`)
+        // any polled fixture just go final? recompute the table now + queue an official reconcile
+        const after = await db.select({ id: event.id, status: event.status }).from(event).where(inArray(event.id, liveIds))
+        const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
+        if (newlyFinal.length) {
+          await recomputeStandings(db, competitionId)
+          // settle each fixture independently — one bad fixture must not block the others
+          // (they're already 'final', so a skipped settlement would never be retried)
+          for (const r of newlyFinal) {
+            try { await settleBets(db, r.id, (e) => publish(db, e)) }
+            catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
+            try { await grantMatchRewards(db, r.id, (e) => publish(db, e)) }
+            catch (e) { console.error(`[grantMatchRewards] fixture ${r.id} failed:`, e.message) }
+          }
+          await publish(db, { type: 'sync' })
+          console.log(`[standings] ${competitionId}: recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
+          scheduleFinalReconcile()
         }
-        await publish(db, { type: 'sync' })
-        console.log(`[standings] recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
-        scheduleFinalReconcile()
       }
-    }
-    if (isLineupWindow(now, kickoffs)) {
-      const candidates = rows.filter((r) => !r.lineups && isLineupWindow(now, [new Date(r.ko)]))
-      if (candidates.length) {
-        const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, defaultCompetition.id), (e) => publish(db, e))
-        if (m) console.log(`[lineups] updated ${m}`)
+      if (isLineupWindow(now, kickoffs)) {
+        const candidates = rows.filter((r) => !r.detail?.lineups && isLineupWindow(now, [new Date(r.ko)]))
+        if (candidates.length) {
+          const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, competitionId), (e) => publish(db, e))
+          if (m) console.log(`[lineups] updated ${m}`)
+        }
       }
     }
   } catch (e) { console.error('[tick] failed:', e.message) }
