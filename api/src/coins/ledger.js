@@ -1,13 +1,16 @@
 import { and, eq, sql, isNull, inArray } from 'drizzle-orm'
-import { event, person, coinLedger, bet, parlay } from '../db/schema.js'
+import { event, person, coinLedger, bet, parlay, sweep } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
 import { resolveBet } from './settle.js'
 import { serializePerson } from '../serialize.js'
 
-/** Tournament start = earliest fixture kickoff, or null when there are no fixtures. */
-export async function seasonAnchor(db) {
+/** Season start for ONE competition = its earliest event start, or null when it has none.
+ *  Scoped so a second competition with an earlier season can't shift another's week index. */
+export async function seasonAnchor(db, competitionId) {
+  if (!competitionId) throw new Error('seasonAnchor: competitionId is required')
   const [row] = await db.select({ min: sql`min(${event.startUtc})` }).from(event)
+    .where(eq(event.competitionId, competitionId))
   return row?.min == null ? null : new Date(row.min)
 }
 
@@ -18,7 +21,9 @@ export function currentWeekIndex(anchor, now) {
 
 /** Credit any missing weekly grant rows (week 0 = starting bankroll). Idempotent via the unique constraint. */
 export async function ensureGrants(db, sweepId, personId, now = new Date()) {
-  const anchor = await seasonAnchor(db)
+  const [sw] = await db.select({ competitionId: sweep.competitionId }).from(sweep).where(eq(sweep.id, sweepId))
+  if (!sw?.competitionId) return // unknown sweep → nothing to grant
+  const anchor = await seasonAnchor(db, sw.competitionId)
   if (!anchor) return // no fixtures yet → no tournament started → nothing to grant
   const week = currentWeekIndex(anchor, now)
   for (let w = 0; w <= week; w++) {
