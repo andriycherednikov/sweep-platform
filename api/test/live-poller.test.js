@@ -2,7 +2,8 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, competitor, fixture, standing } from '../src/db/schema.js'
+import { teamCrosswalk, competitor, fixture, standing, event, ranking } from '../src/db/schema.js'
+import { flattenEvent } from '../src/db/event-shape.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, pollStatistics, backfillFinalStatistics, backfillFinalEvents } from '../src/worker/live-poller.js'
@@ -19,12 +20,29 @@ beforeAll(async () => {
     await db.update(competitor).set({ providerId: id }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, code)))
   }
   await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026, competitionId: COMPETITION_ID })
+  // live-poller.js itself still reads/writes the `fixture` table (ported in the next task);
+  // baseline sync no longer writes it, so mirror the synced events into `fixture` here —
+  // a test-only bridge that goes away once live-poller.test.js is re-keyed onto `event`.
+  const synced = (await db.select().from(event).where(eq(event.competitionId, COMPETITION_ID))).map(flattenEvent)
+  for (const f of synced) {
+    await db.insert(fixture).values({
+      id: f.id, group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
+      kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
+      score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase,
+      probA: f.probA, probD: f.probD, probB: f.probB, markets: f.markets, winnerCode: f.winnerCode,
+      htScore1: f.htScore1, htScore2: f.htScore2, regScore1: f.regScore1, regScore2: f.regScore2,
+      penScore1: f.penScore1, penScore2: f.penScore2, stage: f.stage,
+      derby: f.derby, doubleOwner: f.doubleOwner,
+    }).onConflictDoNothing()
+  }
 })
-// beforeAll prunes the shared fixture table to the provider set; restore the Phase-1
-// seed afterwards so other test files (which depend on the global seed) still pass.
+// beforeAll prunes `event` (competition-scoped) and mirrors it into `fixture`; restore the
+// Phase-1 seed for both afterwards so other test files (which depend on the global seed) still pass.
 afterAll(async () => {
   await db.delete(fixture)
   await db.delete(standing)
+  await db.delete(event)
+  await db.delete(ranking)
   await seed(db)
   await pool.end()
 })

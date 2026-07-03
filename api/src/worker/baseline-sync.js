@@ -1,5 +1,6 @@
 import { notInArray, inArray, and, isNull, eq } from 'drizzle-orm'
-import { fixture, standing, ownership, syncLog, support, bet, coinLedger, parlay } from '../db/schema.js'
+import { event, ranking, ownership, syncLog, support, bet, coinLedger, parlay } from '../db/schema.js'
+import { detailMerge } from '../db/event-shape.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
@@ -69,29 +70,28 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
       const prob = probById.get(f.id)
       const winnerCode = f.winnerSide === 'home' ? f.t1Code : f.winnerSide === 'away' ? f.t2Code : f.winnerSide === 'draw' ? 'DRAW' : null
       const m = mById.get(f.id)
-      const marketsSet = m?.markets ? { markets: m.markets } : {}
-      await db.insert(fixture).values({
-        id: f.id, group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
-        kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
-        score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase ?? null,
-        probA: prob?.a ?? null, probD: prob?.d ?? null, probB: prob?.b ?? null,
-        ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
-        regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
-        penScore1: f.penScore1 ?? null, penScore2: f.penScore2 ?? null,
-        stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
+      const detail = {
+        group: f.group, matchday: f.matchday, venue: f.venue, city: f.city,
+        minute: f.minute ?? null, phase: f.phase ?? null,
+        ht: f.htScore1 == null ? null : [f.htScore1, f.htScore2],
+        reg: f.regScore1 == null ? null : [f.regScore1, f.regScore2],
+        pen: f.penScore1 == null ? null : [f.penScore1, f.penScore2],
+        derby: fl.derby, doubleOwner: fl.doubleOwner,
+        // predictions/markets are best-effort: omit when not freshly fetched so the jsonb
+        // merge on update leaves the previously stored value untouched.
+        ...(prob ? { prob } : {}), ...(m?.markets ? { markets: m.markets } : {}),
+      }
+      await db.insert(event).values({
+        id: f.id, competitionId, c1Code: f.t1Code, c2Code: f.t2Code,
+        startUtc: f.kickoffUtc, status: f.status, score1: f.score1, score2: f.score2,
+        winnerCode, stage: f.stage || 'group', detail, updatedAt: new Date(),
       }).onConflictDoUpdate({
-        target: fixture.id,
+        target: event.id,
         set: {
-          group: f.group, matchday: f.matchday, t1Code: f.t1Code, t2Code: f.t2Code,
-          kickoffUtc: f.kickoffUtc, venue: f.venue, city: f.city, status: f.status,
-          score1: f.score1, score2: f.score2, minute: f.minute, phase: f.phase ?? null,
-          // predictions are best-effort: only overwrite when we got fresh numbers
-          ...(prob ? { probA: prob.a, probD: prob.d, probB: prob.b } : {}),
-          // markets only overwrite when freshly fetched (marketsSet empty otherwise → preserves prior)
-          ...marketsSet, winnerCode, htScore1: f.htScore1 ?? null, htScore2: f.htScore2 ?? null,
-          regScore1: f.regScore1 ?? null, regScore2: f.regScore2 ?? null,
-          penScore1: f.penScore1 ?? null, penScore2: f.penScore2 ?? null,
-          stage: f.stage || 'group', derby: fl.derby, doubleOwner: fl.doubleOwner, updatedAt: new Date(),
+          c1Code: f.t1Code, c2Code: f.t2Code, startUtc: f.kickoffUtc, status: f.status,
+          score1: f.score1, score2: f.score2, winnerCode, stage: f.stage || 'group',
+          detail: detailMerge(detail), // preserves stored lineups/events/statistics keys
+          updatedAt: new Date(),
         },
       })
     }
@@ -111,16 +111,19 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
       const prunedBets = await db.select({ id: bet.id }).from(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
       if (prunedBets.length) await db.delete(coinLedger).where(inArray(coinLedger.refId, prunedBets.map((b) => b.id)))
       await db.delete(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
-      await db.delete(fixture).where(notInArray(fixture.id, keep))
+      // scoped by competitionId: another competition's events are never in `keep`, so an
+      // unscoped notInArray would wipe them too.
+      await db.delete(event).where(and(eq(event.competitionId, competitionId), notInArray(event.id, keep)))
     }
 
     for (const s of realStandings) {
       const teamCode = crosswalk.get(s.providerTeamId)
-      await db.insert(standing).values({
-        teamCode, played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga, pts: s.pts, updatedAt: new Date(),
+      const stats = { played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga }
+      await db.insert(ranking).values({
+        competitionId, competitorCode: teamCode, points: s.pts, stats, updatedAt: new Date(),
       }).onConflictDoUpdate({
-        target: standing.teamCode,
-        set: { played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga, pts: s.pts, updatedAt: new Date() },
+        target: [ranking.competitionId, ranking.competitorCode],
+        set: { points: s.pts, stats, updatedAt: new Date() },
       })
     }
 

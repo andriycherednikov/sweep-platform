@@ -2,7 +2,8 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, competitor, fixture, standing, syncLog, support } from '../src/db/schema.js'
+import { teamCrosswalk, competitor, fixture, standing, event, ranking, syncLog, support } from '../src/db/schema.js'
+import { flattenEvent } from '../src/db/event-shape.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
@@ -25,18 +26,23 @@ beforeAll(async () => {
   await db.update(competitor).set({ providerId: 3002 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'be')))
   await db.update(competitor).set({ providerId: 3003 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'gh')))
 })
-// This suite prunes the shared fixture table down to the provider set; restore the
+// This suite prunes `event` (competition-scoped) down to the provider set; restore the
 // Phase-1 seed afterwards so other test files (which depend on the global seed) still pass.
+// fixture/standing are untouched by syncBaseline now but 'stale1' below dual-inserts a
+// fixture row too (bet/support.fixtureId still FKs fixture.id — swap task repoints it),
+// so clean those up as well.
 afterAll(async () => {
   await db.delete(fixture)
   await db.delete(standing)
+  await db.delete(event)
+  await db.delete(ranking)
   await seed(db)
   await pool.end()
 })
 
 test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', async () => {
   await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
-  const fx = await db.select().from(fixture)
+  const fx = (await db.select().from(event)).map(flattenEvent)
   const ids = fx.map((f) => f.id).sort()
   expect(ids).toEqual(['9001', '9002'])            // seeded m0..m71 pruned; provider fixtures present
   const f1 = fx.find((f) => f.id === '9001')
@@ -46,12 +52,15 @@ test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', a
   expect(logs.at(-1).status).toBe('ok')
 })
 
-test('prunes a stale fixture even when it has support rows (no FK error)', async () => {
+test('prunes a stale event even when it has support rows (no FK error)', async () => {
+  // support/bet.fixtureId still FKs fixture.id (swap task repoints it) — dual-insert so the
+  // FK is satisfied while the prune target (event, competition-scoped) is what's under test.
   await db.insert(fixture).values({ id: 'stale1', group: 'L', matchday: 1, t1Code: 'hr', t2Code: 'be', kickoffUtc: new Date(), venue: 'V', city: 'C', status: 'upcoming' }).onConflictDoNothing()
+  await db.insert(event).values({ id: 'stale1', competitionId: COMPETITION_ID, c1Code: 'hr', c2Code: 'be', startUtc: new Date(), status: 'upcoming', detail: { group: 'L', matchday: 1, venue: 'V', city: 'C' } }).onConflictDoNothing()
   await db.insert(support).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
   // the provider only knows 9001/9002, so stale1 must be pruned along with its social rows
   await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
-  expect((await db.select().from(fixture).where(eq(fixture.id, 'stale1'))).length).toBe(0)
+  expect((await db.select().from(event).where(eq(event.id, 'stale1'))).length).toBe(0)
   expect((await db.select().from(support).where(eq(support.fixtureId, 'stale1'))).length).toBe(0)
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('ok')
@@ -59,9 +68,10 @@ test('prunes a stale fixture even when it has support rows (no FK error)', async
 
 test('is idempotent — second run changes nothing structural', async () => {
   await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
-  expect((await db.select().from(fixture)).length).toBe(2)
-  const cro = (await db.select().from(standing).where(eq(standing.teamCode, 'hr')))[0]
-  expect(cro).toMatchObject({ played: 1, win: 1, pts: 3, gf: 2, ga: 1 })
+  expect((await db.select().from(event)).length).toBe(2)
+  const cro = (await db.select().from(ranking).where(and(eq(ranking.competitionId, COMPETITION_ID), eq(ranking.competitorCode, 'hr'))))[0]
+  expect(cro.points).toBe(3)
+  expect(cro.stats).toMatchObject({ played: 1, win: 1, gf: 2, ga: 1 })
 })
 
 test('prefers bookmaker odds, falls back to predictions when odds are absent', async () => {
@@ -77,7 +87,7 @@ test('prefers bookmaker odds, falls back to predictions when odds are absent', a
     async fetchPredictions(fixtureId) { calls.preds.push(fixtureId); return mapPrediction(load('predictions')) },
   }
   await syncBaseline(db, oddsProvider, { season: 2026, competitionId: COMPETITION_ID })
-  const fx = await db.select().from(fixture)
+  const fx = (await db.select().from(event)).map(flattenEvent)
   const f1 = fx.find((f) => f.id === '9001')
   const f2 = fx.find((f) => f.id === '9002')
   expect(f2).toMatchObject({ probA: 50, probD: 25, probB: 25 })   // odds-derived
@@ -94,14 +104,14 @@ test('a failed odds+predictions fetch does not wipe prior prob', async () => {
     async fetchPredictions() { throw new Error('preds 503') },
   }
   await syncBaseline(db, boomProbs, { season: 2026, competitionId: COMPETITION_ID })
-  const f2 = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
+  const f2 = flattenEvent((await db.select().from(event).where(eq(event.id, '9002')))[0])
   expect(f2.probA).toBe(50)                                       // last-good odds untouched
 })
 
 test('a provider failure leaves last-good data and logs an error row', async () => {
   const boom = { ...provider, async fetchFixtures() { throw new Error('upstream 503') } }
   await expect(syncBaseline(db, boom, { season: 2026, competitionId: COMPETITION_ID })).rejects.toThrow(/503/)
-  expect((await db.select().from(fixture)).length).toBe(2) // unchanged
+  expect((await db.select().from(event)).length).toBe(2) // unchanged
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('error')
   expect(logs.at(-1).error).toMatch(/503/)
@@ -126,7 +136,8 @@ test('persists markets + htScore and winnerCode when fixture is final', async ()
     },
   }
   await syncBaseline(db, pinnacleOddsProvider, { season: 2026, competitionId: COMPETITION_ID })
-  const [f] = await db.select().from(fixture).where(eq(fixture.id, '9001'))
+  const [row] = await db.select().from(event).where(eq(event.id, '9001'))
+  const f = flattenEvent(row)
   expect(f.markets['1x2'].selections[0].odds).toBe(2)
   expect(f.probA).toBe(50)
   expect(f.htScore1).toBe(1)
