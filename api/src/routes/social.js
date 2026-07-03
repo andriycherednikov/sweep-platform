@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { event, person, support } from '../db/schema.js'
-import { flattenEvent } from '../db/event-shape.js'
+import { person, support } from '../db/schema.js'
+import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
 
 const DRAW = 'DRAW'
@@ -23,7 +23,7 @@ export async function socialRoutes(app) {
   app.post('/api/support', { preHandler: member, schema: { body: supportBody } }, async (req, reply) => {
     const sweepId = req.sweep.id
     const { fixtureId, personId, teamCode } = req.body
-    const [row] = await app.db.select().from(event).where(eq(event.id, fixtureId))
+    const row = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
     if (!row) return reply.code(400).send({ error: 'unknown_fixture' })
     const f = flattenEvent(row)
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))

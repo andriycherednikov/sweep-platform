@@ -1,5 +1,6 @@
 import { and, asc, eq } from 'drizzle-orm'
 import { event, ownership } from '../db/schema.js'
+import { eventInCompetition } from '../db/event-shape.js'
 import { serializeEvent } from '../serialize.js'
 import { requireSweep } from '../sweeps/auth.js'
 import { competitorCodeMap } from './competitors.js'
@@ -24,8 +25,8 @@ export async function fixtureRoutes(app) {
   })
 
   app.get('/api/fixtures/:id', { preHandler: member }, async (req, reply) => {
-    const rows = await app.db.select().from(event).where(eq(event.id, req.params.id))
-    if (!rows.length) return reply.code(404).send({ error: 'not_found' })
-    return serializeEvent(rows[0])
+    const row = await eventInCompetition(app.db, req.sweep.competitionId, req.params.id)
+    if (!row) return reply.code(404).send({ error: 'not_found' })
+    return serializeEvent(row)
   })
 }

@@ -1,5 +1,13 @@
-import { sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { event } from './schema.js'
+
+/** The event, only if it belongs to the given competition — the tenancy guard for every
+ *  wire-level event-id lookup. Null when missing OR when the id is another competition's. */
+export async function eventInCompetition(db, competitionId, id) {
+  const [row] = await db.select().from(event)
+    .where(and(eq(event.id, id), eq(event.competitionId, competitionId)))
+  return row ?? null
+}
 
 const pair = (a) => (Array.isArray(a) ? [a[0] ?? null, a[1] ?? null] : [null, null])
 
