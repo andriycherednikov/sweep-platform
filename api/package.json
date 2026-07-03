@@ -10,7 +10,6 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --env-file=../.env src/db/migrate.js",
     "db:seed": "node --env-file=../.env src/seed/seed.js",
-    "import:roster": "node --env-file=../.env src/seed/import-roster.js",
     "worker": "node --env-file=../.env src/worker.js",
     "sync": "node --env-file=../.env src/worker/run-baseline.js",
     "competition:add": "node --env-file=../.env src/worker/add-competition.js",

@@ -15,7 +15,8 @@ const limit = Number(process.argv[2] || process.env.STATS_BACKFILL_LIMIT || 5)
 try {
   // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
-  const crosswalk = await resolveCrosswalk(db, defaultCompetition?.id)
+  if (!defaultCompetition) { console.error('no competition found — run competition:add or db:seed first'); process.exit(1) }
+  const crosswalk = await resolveCrosswalk(db, defaultCompetition.id)
   const { checked, updated } = await backfillFinalStatistics(db, provider, crosswalk, { limit })
   console.log(`stats backfill ok: checked ${checked} final fixture(s), stored stats for ${updated}`)
 } catch (e) {

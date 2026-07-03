@@ -28,12 +28,13 @@ export function matchTeams(ourTeams, providerTeams) {
   return { matched, unmatchedProvider, unmatchedOurs }
 }
 
-export async function syncCrosswalk(db, provider, { season }) {
+export async function syncCrosswalk(db, provider) {
   // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
+  if (!defaultCompetition) { console.error('no competition found — run competition:add or db:seed first'); process.exit(1) }
   const [ourTeams, providerTeams] = await Promise.all([
     db.select().from(competitor).where(eq(competitor.competitionId, defaultCompetition.id)),
-    provider.fetchCompetitors({ season, leagueId: '1' }),
+    provider.fetchCompetitors({ season: defaultCompetition.season, leagueId: '1' }),
   ])
   const { matched, unmatchedProvider, unmatchedOurs } = matchTeams(ourTeams, providerTeams)
   for (const m of matched) {
@@ -44,11 +45,10 @@ export async function syncCrosswalk(db, provider, { season }) {
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const season = Number(process.env.WC_SEASON ?? 2026)
   const pool = createPool()
   const db = createDb(pool)
   const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KEY })
-  const report = await syncCrosswalk(db, provider, { season })
+  const report = await syncCrosswalk(db, provider)
   await pool.end()
   console.log(`crosswalk: matched ${report.matchedCount}/48`)
   if (report.unmatchedOurs.length) console.warn('UNMATCHED (ours, fill manually):', report.unmatchedOurs.map((t) => `${t.code}:${t.name}`).join(', '))

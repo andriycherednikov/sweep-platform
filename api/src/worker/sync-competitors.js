@@ -37,7 +37,7 @@ export async function syncCompetitors(db, provider, comp) {
     const mine = oursByProviderId.get(t.providerTeamId)
     if (mine) {
       await db.update(competitor)
-        .set({ name: t.name, logo: t.logo, meta: sql`coalesce(${competitor.meta}, '{}'::jsonb) || ${JSON.stringify({ conference })}::jsonb` })
+        .set({ name: t.name, logo: t.logo, meta: sql`coalesce(${competitor.meta}, '{}'::jsonb) || ${JSON.stringify({ conference, group: conference })}::jsonb` })
         .where(eq(competitor.id, mine.id))
       updated++
     } else {
@@ -47,7 +47,7 @@ export async function syncCompetitors(db, provider, comp) {
       usedCodes.add(code)
       await db.insert(competitor).values({
         id: `cp_${comp.id}_${code}`, competitionId: comp.id, code, name: t.name,
-        color: colorFor(code), logo: t.logo, providerId: t.providerTeamId, meta: { conference },
+        color: colorFor(code), logo: t.logo, providerId: t.providerTeamId, meta: { conference, group: conference },
       })
       inserted++
     }

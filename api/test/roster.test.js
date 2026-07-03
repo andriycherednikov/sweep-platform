@@ -1,6 +1,5 @@
 import { expect, test } from 'vitest'
 import { roster } from '../src/seed/roster.js'
-import { toPerson } from '../src/seed/import-roster.js'
 
 // The real 48 WC-2026 team codes (must match the `team` table after the cutover).
 const VALID = new Set([
@@ -29,9 +28,4 @@ test('roster: every one of the 48 teams is owned by exactly two players', () => 
 test('roster: player names are unique', () => {
   const names = roster.map((r) => r.name)
   expect(new Set(names).size).toBe(names.length)
-})
-
-test('toPerson builds id, initials, and short form', () => {
-  expect(toPerson('Andriy Cherednikov', 0)).toMatchObject({ id: 'p1', initials: 'AC', short: 'Andriy C.' })
-  expect(toPerson('Havill Family', 2)).toMatchObject({ id: 'p3', initials: 'HF' })
 })

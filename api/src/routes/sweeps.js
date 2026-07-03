@@ -83,10 +83,15 @@ export async function sweepsRoutes(app) {
   app.post('/api/super/sweeps', { preHandler: superGuard, schema: { body: createBody } }, async (req, reply) => {
     const id = `sw_${newToken(12)}`
     const memberToken = newToken(), adminToken = newToken()
-    // ponytail: default = the one seeded competition; the catalog picker is P3.
-    const competitionId = req.body.competitionId
-      ?? (await app.db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1))[0]?.id
-    if (!competitionId) return reply.code(400).send({ error: 'no_competition' })
+    let competitionId = req.body.competitionId
+    if (competitionId) {
+      const [comp] = await app.db.select().from(competition).where(eq(competition.id, competitionId))
+      if (!comp) return reply.code(400).send({ error: 'unknown_competition' })
+    } else {
+      // ponytail: default = the one seeded competition; the catalog picker is P3.
+      competitionId = (await app.db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1))[0]?.id
+      if (!competitionId) return reply.code(400).send({ error: 'no_competition' })
+    }
     await app.db.insert(sweep).values({ id, name: req.body.name, kind: 'token', memberToken, adminToken, competitionId })
     const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
     return reply.code(201).send({ id, name: row.name, memberToken, adminToken, ...links(app, row) })

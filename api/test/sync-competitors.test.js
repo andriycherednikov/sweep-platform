@@ -31,6 +31,7 @@ test('syncCompetitors inserts the 30 franchises with conference meta, then delet
   const okc = rows.find((c) => c.code === 'oklahoma-city-thunder')
   expect(okc.providerId).toBe(152)
   expect(okc.meta.conference).toBe('Western Conference')
+  expect(okc.meta.group).toBe('Western Conference')
   expect(okc.color).toMatch(/^hsl\(/)
   expect(okc.logo).toMatch(/^https:/)
 

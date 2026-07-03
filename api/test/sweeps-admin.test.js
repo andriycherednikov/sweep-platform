@@ -40,6 +40,13 @@ test('super can create a sweep and gets two tokens + links', async () => {
   expect(body.memberLink).toContain(`/g/${body.memberToken}`)
 })
 
+test('creating a sweep with an unknown competitionId is 400 unknown_competition', async () => {
+  const cookie = await superCookie()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'X', competitionId: 'nope:0:0' } })
+  expect(res.statusCode).toBe(400)
+  expect(res.json().error).toBe('unknown_competition')
+})
+
 test('creating a sweep without a super cookie is 401', async () => {
   expect((await app.inject({ method: 'POST', url: '/api/super/sweeps', payload: { name: 'X' } })).statusCode).toBe(401)
 })

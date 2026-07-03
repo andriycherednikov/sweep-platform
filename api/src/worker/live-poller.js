@@ -54,7 +54,9 @@ export async function pollLineups(db, provider, fixtures, crosswalk, publish = (
   let updated = 0
   let checked = 0
   for (const f of fixtures) {
-    if (f.lineups) continue // already have a team sheet — don't refetch
+    // caller may pass flattened rows (`.lineups`) or raw event rows (`.detail.lineups`) —
+    // check both so this guard holds regardless of the caller's shape/pre-filter.
+    if (f.lineups ?? f.detail?.lineups) continue // already have a team sheet — don't refetch
     checked++
     try {
       const lineups = mapLineups(await provider.fetchLineups(f.id), crosswalk)

@@ -38,7 +38,7 @@ function deriveCode(realTeam, used) {
 /**
  * @returns {{updates:Array, inserts:Array, deletes:string[], stats:object}}
  *  updates: { code, name, group, providerTeamId }   (existing teams kept, re-pinned)
- *  inserts: { code, name, group, providerTeamId, color, strength, pool, flagCode }
+ *  inserts: { code, name, group, providerTeamId, color, strength, pool }
  *  deletes: team codes present in our rows but not in the real field
  */
 export function reconcileTeams(ourTeams, realTeams, groupByProvider) {
@@ -59,7 +59,7 @@ export function reconcileTeams(ourTeams, realTeams, groupByProvider) {
       const code = deriveCode(rt, used)
       inserts.push({
         code, name: rt.name, group, providerTeamId: rt.providerTeamId,
-        flagCode: code, ...NEW_TEAM_DEFAULTS, strength: strengthFor(code, NEW_TEAM_DEFAULTS.strength),
+        ...NEW_TEAM_DEFAULTS, strength: strengthFor(code, NEW_TEAM_DEFAULTS.strength),
       })
     }
   }

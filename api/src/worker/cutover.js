@@ -11,7 +11,6 @@ import { syncTeams } from './sync-teams.js'
 import { syncBaseline } from './baseline-sync.js'
 import { event, ranking, competition } from '../db/schema.js'
 
-const season = Number(process.env.WC_SEASON ?? 2026)
 const pool = createPool()
 const db = createDb(pool)
 const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KEY })
@@ -19,10 +18,11 @@ const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KE
 try {
   // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
-  const competitionId = defaultCompetition?.id
+  if (!defaultCompetition) { console.error('no competition found — run competition:add or db:seed first'); process.exit(1) }
+  const competitionId = defaultCompetition.id
   await db.delete(event).where(eq(event.competitionId, competitionId))
   await db.delete(ranking).where(eq(ranking.competitionId, competitionId))
-  const t = await syncTeams(db, provider, { season, competitionId })
+  const t = await syncTeams(db, provider, { season: defaultCompetition.season, competitionId })
   console.log(`teams: matched ${t.matched}, inserted ${t.inserted}, deleted ${t.deleted}`)
   const b = await syncBaseline(db, provider, defaultCompetition)
   console.log(`baseline: ${b.fixtures} fixtures, ${b.standings} standings`)
