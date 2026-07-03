@@ -1,6 +1,6 @@
 import cron from 'node-cron'
 import { createPool, createDb } from './db/client.js'
-import { createApiFootballProvider } from './providers/api-football-provider.js'
+import { providerFor } from './providers/registry.js'
 import { syncBaseline } from './worker/baseline-sync.js'
 import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
@@ -11,12 +11,8 @@ import { grantMatchRewards } from './coins/rewards.js'
 import { eq, inArray, isNull } from 'drizzle-orm'
 import { competition, event, sweep } from './db/schema.js'
 
-// season is per-provider-fetch, not yet threaded from competition.season — Phase 2 (multi-
-// season/provider wiring); WC_SEASON stays the single knob until then.
-const season = Number(process.env.WC_SEASON ?? 2026)
 const pool = createPool()
 const db = createDb(pool)
-const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KEY })
 
 /** Competitions worth syncing: bound to at least one live (unarchived) sweep — the
  *  §7 dedupe-by-competition (N sweeps on one competition = one poll). Empty DB → empty
@@ -24,18 +20,29 @@ const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KE
 async function activeCompetitions(db) {
   const rows = await db.selectDistinct({ id: sweep.competitionId }).from(sweep)
     .where(isNull(sweep.archivedAt))
-  return rows.map((r) => r.id).filter(Boolean)
+  const ids = rows.map((r) => r.id).filter(Boolean)
+  if (!ids.length) return []
+  return db.select().from(competition).where(inArray(competition.id, ids))
 }
 
 async function baseline(reason) {
-  const ids = await activeCompetitions(db)
-  // ponytail: still the module-level football provider regardless of each competition's
-  // sport — Task 11 ports this loop to the registry (providerFor per competition row).
-  const comps = await db.select().from(competition).where(inArray(competition.id, ids))
+  const comps = await activeCompetitions(db)
   // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
   for (const comp of comps) {
     try {
+      const provider = providerFor(comp)
       const r = await syncBaseline(db, provider, comp)
+      if (r.newlyFinal.length) {
+        await recomputeStandings(db, comp.id)
+        // settle each fixture independently — one bad fixture must not block the others
+        // (they're already 'final', so a skipped settlement would never be retried)
+        for (const id of r.newlyFinal) {
+          try { await settleBets(db, id, (e) => publish(db, e)) }
+          catch (e) { console.error(`[settleBets] fixture ${id} failed:`, e.message) }
+          try { await grantMatchRewards(db, id, (e) => publish(db, e)) }
+          catch (e) { console.error(`[grantMatchRewards] fixture ${id} failed:`, e.message) }
+        }
+      }
       await publish(db, { type: 'sync' })
       console.log(`[baseline:${reason}] ${comp.id}: ${r.fixtures} fixtures`)
     } catch (e) { console.error(`[baseline:${reason}] ${comp.id} failed (last-good intact):`, e.message) }
@@ -78,8 +85,11 @@ setInterval(async () => {
   ticking = true
   try {
     // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
-    for (const competitionId of await activeCompetitions(db)) {
+    for (const comp of await activeCompetitions(db)) {
+      const competitionId = comp.id
       try {
+        const provider = providerFor(comp)
+        if (!provider.fetchLive) continue // baseline-only sport (NBA)
         const rows = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
           .from(event).where(eq(event.competitionId, competitionId))
         const now = new Date()
@@ -128,4 +138,4 @@ setInterval(async () => {
   finally { ticking = false }
 }, 60_000)
 
-console.log(`worker up — season ${season}`)
+console.log('worker up')
