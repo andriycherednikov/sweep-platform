@@ -1295,3 +1295,44 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
 - **Placeholder scan:** none; every code step is complete.
 - **Type consistency:** mapped-game core fields (`homeProviderId/awayProviderId/kickoffUtc/status/winnerSide/score1/score2/stage`) shared by both maps and consumed by T7's spine; `mapStanding`'s new `{rank, pts, stats}` shape consumed by T7 and tolerated by `sync-teams` (reads only `group`/`providerTeamId`); `fetchResults(ids)` used by live-poller (T5) and recorded providers (T4/T5); `syncBaseline(db, provider, competition)` signature consistent across T7/T11/T12/T13; `sportConfig` consumed in T1/T9/T10.
 - **Known judgment calls (flagged, not hidden):** Tasks 7+8 share one TDD arc (skip/unskip protocol keeps main green); T13 may surface integration bugs — instruction is fix-in-owner-module, not adjust-the-test; football `ranking.rank` stays null (client sorts).
+
+---
+
+## Post-implementation follow-ups (final whole-branch review, 2026-07-04)
+
+Branch landed as commits `eb3b233..c6a712d` (gate ×3, docs, fixtures, 15 tasks,
+1 final-review fix). All tasks individually reviewed; final review verdict:
+READY TO MERGE. The one Important finding (cross-provider event-id collision →
+opaque FK failure) was fixed same-session as `c6a712d`: syncBaseline now
+refuses foreign-owned event ids with a named error before any upsert.
+
+**P3 gate candidate — before a THIRD provider lands:**
+- `event.id` is a bare cross-provider keyspace (football ~1.1M+ vs basketball
+  ~400k today — disjoint, and the `c6a712d` guard fails loud on collision).
+  Real fix: namespace non-football event ids or composite PK. Decide at P3.
+
+**Follow-up tickets (non-blocking):**
+- `cutover.js` assumes the earliest competition is football — provisioned
+  NBA-first it would wipe NBA events; filter `sport='football'` or take an arg.
+- Football `fetchCompetitions` hardcodes `/leagues?id=1` → "league X not found"
+  is misleading for any other football league; `fetchLive` is now a dead-code
+  capability marker (gate reads its existence, `pollLive` uses `fetchResults`)
+  — replace with an explicit `live: true` flag when touched. Both are P3
+  catalog-work adjacent.
+- Worker never re-runs `syncCompetitors` (CLI-only); fine for NBA, revisit for
+  roster-churn sports. Related pre-existing hazard: deleting a competitor with
+  historical event rows FK-violates (both sync paths).
+- `providerFor` cache ignores `apiKey` after first call (matters only for
+  multi-tenant keys, P4+).
+- Test-coverage nits: live-verify the hand-built `apifootball/leagues.json`
+  fixture (1 free API call); league-param tests beyond `fetchSchedule`;
+  `pollLineups` raw-row-shape test; `String(season)` numeric branch;
+  `winnerSideToResult` garbage-input fallthrough.
+- Local env: `.env` still carries `PLATFORM_HOST=localhost:3000` (pre-existing)
+  — plain-localhost requests resolve as platform host, so default-sweep reads
+  need a non-platform Host header in dev.
+
+Accepted as designed: NBA `/api/standings` sorts alphabetically within
+conference groups (points/gd are soccer math; rank column unused by the route —
+P6 reskin owns sport-driven tables); NBA sweeps expose no betting markets
+(feed has no NBA odds — P5); `run-squads` duplicate competition lookup.
