@@ -5,6 +5,13 @@ web renders NBA as-is; NBA is baseline-sync-only — live polling stays football
 until a paid feed tier). Implements phase 2 of the feasibility read
 (`2026-07-01-multi-sport-sweep-platform-feasibility.md` §4, §8).
 
+**Plan-time refinements (2026-07-03, recorded per plan approval):**
+`fetchResults(ids)` drops the `comp` param (neither API needs it for id lookups);
+NBA competitor `meta` carries `{conference}` only (division unconsumed — YAGNI);
+per-sport event detail comes from an adapter method `baseDetail(mappedGame)` instead
+of a sport fork inside `syncBaseline`; `mapStanding` (both sports) returns
+`{providerTeamId, group, rank, pts, stats}` so the ranking upsert is shared.
+
 **Inputs:** Phase 1 core schema (merged; api on competition/competitor/event/ranking,
 wire contract frozen, web 436 untouched). Phase-2 blocking gate landed
 (`eb3b233`..`b6b2c10`): per-competition seasonAnchor, competition-scoped event
