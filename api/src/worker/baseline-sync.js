@@ -6,8 +6,11 @@ import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
 import { competitorCodeMap } from '../routes/competitors.js'
 
-export async function refundPrunedParlays(db, keep) {
-  const legRows = await db.select({ parlayId: bet.parlayId }).from(bet).where(notInArray(bet.fixtureId, keep))
+export async function refundPrunedParlays(db, keep, compEventIds) {
+  // compEventIds scopes the prune to one competition's events; omitted only by the direct
+  // unit test below, which exercises the refund logic globally on purpose.
+  const cond = compEventIds ? and(notInArray(bet.fixtureId, keep), inArray(bet.fixtureId, compEventIds)) : notInArray(bet.fixtureId, keep)
+  const legRows = await db.select({ parlayId: bet.parlayId }).from(bet).where(cond)
   const parlayIds = [...new Set(legRows.map((r) => r.parlayId).filter(Boolean))]
   if (!parlayIds.length) return
   const parls = await db.select().from(parlay).where(inArray(parlay.id, parlayIds))
@@ -108,16 +111,21 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
     // Guard the whole call: an empty fetch is suspicious — prune nothing rather than wipe the table.
     const keep = fixtures.map((f) => f.id)
     if (keep.length) {
-      await db.delete(support).where(notInArray(support.fixtureId, keep))
+      // this competition's event ids (kept + about-to-be-pruned) — re-evaluated at each use
+      // below since we don't delete any events until after the dependent-row cleanup runs.
+      // Without this, a notInArray(x.fixtureId, keep) alone is global and would also wipe
+      // every OTHER competition's support/bet/parlay rows (their fixtureIds are never in `keep`).
+      const compEventIds = db.select({ id: event.id }).from(event).where(eq(event.competitionId, competitionId))
+      await db.delete(support).where(and(notInArray(support.fixtureId, keep), inArray(support.fixtureId, compEventIds)))
       // a parlay with a leg on a dropped fixture can never complete → refund + delete it
       // (ON DELETE CASCADE drops its legs) before we touch single bets below.
-      await refundPrunedParlays(db, keep)
+      await refundPrunedParlays(db, keep, compEventIds)
       // a single bet's stake/payout ledger rows use refId = bet.id; drop them with the bet so a
       // pruned fixture doesn't leave the person's balance debited for a bet that's gone.
       // Only single bets here (parlayId NULL) — parlay legs were removed via refundPrunedParlays.
-      const prunedBets = await db.select({ id: bet.id }).from(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
+      const prunedBets = await db.select({ id: bet.id }).from(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId), inArray(bet.fixtureId, compEventIds)))
       if (prunedBets.length) await db.delete(coinLedger).where(inArray(coinLedger.refId, prunedBets.map((b) => b.id)))
-      await db.delete(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId)))
+      await db.delete(bet).where(and(notInArray(bet.fixtureId, keep), isNull(bet.parlayId), inArray(bet.fixtureId, compEventIds)))
       // scoped by competitionId: another competition's events are never in `keep`, so an
       // unscoped notInArray would wipe them too.
       await db.delete(event).where(and(eq(event.competitionId, competitionId), notInArray(event.id, keep)))
