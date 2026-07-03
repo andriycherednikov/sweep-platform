@@ -11,6 +11,7 @@ import { seed } from '../src/seed/seed.js'
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
 const COMPETITION_ID = 'apifootball:1:2026' // the seeded (Phase-1) competition
+const FOOTBALL_COMP = { id: 'apifootball:1:2026', provider: 'apifootball', sport: 'football', leagueId: '1', season: '2026' }
 beforeAll(async () => {
   // wire crosswalk: hr→3001, be→3002, gh→3003 (matches recorded JSON) — same as baseline-sync.test.js
   await db.update(competitor).set({ providerId: 3001 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'hr')))
@@ -79,7 +80,8 @@ test('syncing one competition never prunes another competition\'s dependent rows
     // baseline for the FIRST competition prunes its fixtures down to the provider set —
     // competition 2's event/support/bet/ledger/parlay must all survive untouched.
     const provider = createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') })
-    await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
+    const r = await syncBaseline(db, provider, FOOTBALL_COMP)
+    expect(r.newlyFinal).toEqual(expect.any(Array))
 
     expect(await db.select().from(event).where(eq(event.id, 'ev_c2_1'))).toHaveLength(1)
     expect(await db.select().from(support).where(eq(support.fixtureId, 'ev_c2_1'))).toHaveLength(1)

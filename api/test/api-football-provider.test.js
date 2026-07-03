@@ -26,6 +26,14 @@ test('sends the api key header and league/season params', async () => {
   expect(fetch.mock.calls[0][1].headers['x-apisports-key']).toBe('K')
 })
 
+test('fetchSchedule uses comp.leagueId for the league param (not a hardcoded league)', async () => {
+  const fetch = fakeFetch({ '/fixtures': { response: [] } })
+  const p = createApiFootballProvider({ apiKey: 'K', fetch })
+  await p.fetchSchedule({ ...COMP, leagueId: '39' })
+  const calledUrl = new URL(fetch.mock.calls[0][0])
+  expect(calledUrl.searchParams.get('league')).toBe('39')
+})
+
 test('fetchSchedule maps raw response to domain fixtures', async () => {
   const fetch = fakeFetch({ '/fixtures': {
     response: [{ fixture: { id: 1, date: '2026-06-13T03:30:00+00:00', status: { short: 'NS', elapsed: null }, venue: { name: 'V', city: 'C' } },

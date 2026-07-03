@@ -13,6 +13,7 @@ import { seed } from '../src/seed/seed.js'
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
 const COMPETITION_ID = 'apifootball:1:2026'
+const FOOTBALL_COMP = { id: 'apifootball:1:2026', provider: 'apifootball', sport: 'football', leagueId: '1', season: '2026' }
 
 // read helper: fetch one event row by id, flattened to the legacy fixture field names
 const getEvent = async (id) => flattenEvent((await db.select().from(event).where(eq(event.id, id)))[0])
@@ -21,7 +22,7 @@ beforeAll(async () => {
   for (const [code, id] of [['hr', 3001], ['be', 3002], ['gh', 3003]]) {
     await db.update(competitor).set({ providerId: id }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, code)))
   }
-  await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), FOOTBALL_COMP)
 })
 // beforeAll prunes `event` (competition-scoped) via syncBaseline; restore the Phase-1 seed
 // for event/ranking afterwards so other test files (which depend on the global seed) still pass.

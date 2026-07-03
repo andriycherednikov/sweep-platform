@@ -24,7 +24,7 @@ try {
   await db.delete(ranking).where(eq(ranking.competitionId, competitionId))
   const t = await syncTeams(db, provider, { season, competitionId })
   console.log(`teams: matched ${t.matched}, inserted ${t.inserted}, deleted ${t.deleted}`)
-  const b = await syncBaseline(db, provider, { season, competitionId })
+  const b = await syncBaseline(db, provider, defaultCompetition)
   console.log(`baseline: ${b.fixtures} fixtures, ${b.standings} standings`)
   console.log('cutover complete')
 } catch (e) {

@@ -2,16 +2,20 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { competitor, event, ranking, syncLog, support } from '../src/db/schema.js'
+import { competition, competitor, event, ranking, syncLog, support } from '../src/db/schema.js'
 import { flattenEvent } from '../src/db/event-shape.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
+import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
 import { mapPrediction } from '../src/providers/mapping.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
+const loadB = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
 const COMPETITION_ID = 'apifootball:1:2026'
+const FOOTBALL_COMP = { id: 'apifootball:1:2026', provider: 'apifootball', sport: 'football', leagueId: '1', season: '2026' }
+const NBA_COMP = { id: 'apibasketball:12:2023-2024', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024' }
 
 const provider = createRecordedProvider({
   fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams'),
@@ -33,13 +37,15 @@ afterAll(async () => {
 })
 
 test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', async () => {
-  await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
+  const r = await syncBaseline(db, provider, FOOTBALL_COMP)
+  expect(r.newlyFinal).toEqual(expect.any(Array))
   const fx = (await db.select().from(event)).map(flattenEvent)
   const ids = fx.map((f) => f.id).sort()
   expect(ids).toEqual(['9001', '9002'])            // seeded m0..m71 pruned; provider fixtures present
   const f1 = fx.find((f) => f.id === '9001')
   expect(f1).toMatchObject({ t1Code: 'hr', t2Code: 'be', status: 'final', score1: 2, score2: 1, group: 'L', matchday: 1 })
   expect(f1.probA).toBe(55)                        // predictions applied
+  expect(r.newlyFinal).toContain('9001')           // fixture 9001 is final on this (first) sync
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('ok')
 })
@@ -48,7 +54,7 @@ test('prunes a stale event even when it has support rows (no FK error)', async (
   await db.insert(event).values({ id: 'stale1', competitionId: COMPETITION_ID, c1Code: 'hr', c2Code: 'be', startUtc: new Date(), status: 'upcoming', detail: { group: 'L', matchday: 1, venue: 'V', city: 'C' } }).onConflictDoNothing()
   await db.insert(support).values({ sweepId: 'default', fixtureId: 'stale1', personId: 'p4', teamCode: 'hr' }).onConflictDoNothing()
   // the provider only knows 9001/9002, so stale1 must be pruned along with its social rows
-  await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, provider, FOOTBALL_COMP)
   expect((await db.select().from(event).where(eq(event.id, 'stale1'))).length).toBe(0)
   expect((await db.select().from(support).where(eq(support.fixtureId, 'stale1'))).length).toBe(0)
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
@@ -56,7 +62,7 @@ test('prunes a stale event even when it has support rows (no FK error)', async (
 })
 
 test('is idempotent — second run changes nothing structural', async () => {
-  await syncBaseline(db, provider, { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, provider, FOOTBALL_COMP)
   expect((await db.select().from(event)).length).toBe(2)
   const cro = (await db.select().from(ranking).where(and(eq(ranking.competitionId, COMPETITION_ID), eq(ranking.competitorCode, 'hr'))))[0]
   expect(cro.points).toBe(3)
@@ -75,7 +81,7 @@ test('prefers bookmaker odds, falls back to predictions when odds are absent', a
     },
     async fetchPredictions(fixtureId) { calls.preds.push(fixtureId); return mapPrediction(load('predictions')) },
   }
-  await syncBaseline(db, oddsProvider, { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, oddsProvider, FOOTBALL_COMP)
   const fx = (await db.select().from(event)).map(flattenEvent)
   const f1 = fx.find((f) => f.id === '9001')
   const f2 = fx.find((f) => f.id === '9002')
@@ -92,14 +98,14 @@ test('a failed odds+predictions fetch does not wipe prior prob', async () => {
     async fetchOdds() { throw new Error('odds 503') },
     async fetchPredictions() { throw new Error('preds 503') },
   }
-  await syncBaseline(db, boomProbs, { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, boomProbs, FOOTBALL_COMP)
   const f2 = flattenEvent((await db.select().from(event).where(eq(event.id, '9002')))[0])
   expect(f2.probA).toBe(50)                                       // last-good odds untouched
 })
 
 test('a provider failure leaves last-good data and logs an error row', async () => {
   const boom = { ...provider, async fetchSchedule() { throw new Error('upstream 503') } }
-  await expect(syncBaseline(db, boom, { season: 2026, competitionId: COMPETITION_ID })).rejects.toThrow(/503/)
+  await expect(syncBaseline(db, boom, FOOTBALL_COMP)).rejects.toThrow(/503/)
   expect((await db.select().from(event)).length).toBe(2) // unchanged
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('error')
@@ -124,11 +130,49 @@ test('persists markets + htScore and winnerCode when fixture is final', async ()
       return null
     },
   }
-  await syncBaseline(db, pinnacleOddsProvider, { season: 2026, competitionId: COMPETITION_ID })
+  await syncBaseline(db, pinnacleOddsProvider, FOOTBALL_COMP)
   const [row] = await db.select().from(event).where(eq(event.id, '9001'))
   const f = flattenEvent(row)
   expect(f.markets['1x2'].selections[0].odds).toBe(2)
   expect(f.probA).toBe(50)
   expect(f.htScore1).toBe(1)
   expect(f.winnerCode).toBe(f.t1Code) // winnerSide 'home' → t1Code ('hr')
+})
+
+// unskipped in Task 8 (sync-competitors lands there) — sync-competitors.js doesn't exist
+// yet, so syncCompetitors is dynamic-imported inside the (skipped) test body: a static
+// import here would fail module resolution at collection time and red the whole file,
+// even with test.skip.
+test.skip('NBA baseline: drops All-Star game, writes 2-way finals + conference rankings, reports newlyFinal', async () => {
+  const { syncCompetitors } = await import('../src/worker/sync-competitors.js')
+  const provider = createRecordedBasketballProvider({
+    leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings'),
+  })
+  await db.insert(competition).values({ ...NBA_COMP, format: 'league', name: 'NBA' }).onConflictDoNothing()
+  await syncCompetitors(db, provider, NBA_COMP)
+  try {
+    const r = await syncBaseline(db, provider, NBA_COMP)
+    expect(r.fixtures).toBe(5) // 6 recorded − All-Star (East/West unknown teams dropped)
+    expect(r.newlyFinal).toHaveLength(5)
+    const evs = await db.select().from(event).where(eq(event.competitionId, NBA_COMP.id))
+    expect(evs).toHaveLength(5)
+    for (const ev of evs) {
+      expect(ev.status).toBe('final')
+      expect([ev.c1Code, ev.c2Code]).toContain(ev.winnerCode) // 2-way: winner is always a competitor, never 'DRAW'
+    }
+    const aot = evs.find((ev) => ev.id === '372190')
+    expect(aot.detail.ot).not.toBeNull()
+    expect(aot.detail.quarters.home).toHaveLength(4)
+    const rows = await db.select().from(ranking).where(eq(ranking.competitionId, NBA_COMP.id))
+    expect(rows).toHaveLength(30)
+    const withRank = rows.filter((x) => x.rank != null)
+    expect(withRank).toHaveLength(30) // conference positions land in ranking.rank
+    expect(rows[0].stats).toHaveProperty('pct')
+  } finally {
+    // teardown so later test files see only the Phase-1 seed
+    await db.delete(event).where(eq(event.competitionId, NBA_COMP.id))
+    await db.delete(ranking).where(eq(ranking.competitionId, NBA_COMP.id))
+    await db.delete(competitor).where(eq(competitor.competitionId, NBA_COMP.id))
+    await db.delete(competition).where(eq(competition.id, NBA_COMP.id))
+  }
 })

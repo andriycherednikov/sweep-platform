@@ -19,7 +19,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       return (j.response ?? []).map(mapLeague)
     },
     async fetchSchedule(comp) {
-      const j = await get('/fixtures', { league: LEAGUE, season: Number(comp.season) })
+      const j = await get('/fixtures', { league: comp.leagueId ?? LEAGUE, season: Number(comp.season) })
       return (j.response ?? []).map(mapFixture)
     },
     async fetchLive() {
@@ -38,7 +38,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       return out
     },
     async fetchStandings(comp) {
-      const j = await get('/standings', { league: LEAGUE, season: Number(comp.season) })
+      const j = await get('/standings', { league: comp.leagueId ?? LEAGUE, season: Number(comp.season) })
       return (j.response?.[0]?.league?.standings ?? []).flat().map(mapStanding)
     },
     async fetchPredictions(fixtureId) {
@@ -52,7 +52,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       return mapMarkets(j)
     },
     async fetchCompetitors(comp) {
-      const j = await get('/teams', { league: LEAGUE, season: Number(comp.season) })
+      const j = await get('/teams', { league: comp.leagueId ?? LEAGUE, season: Number(comp.season) })
       return (j.response ?? []).map(mapTeam)
     },
     async fetchLineups(fixtureId) {

@@ -9,7 +9,7 @@ import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
 import { grantMatchRewards } from './coins/rewards.js'
 import { eq, inArray, isNull } from 'drizzle-orm'
-import { event, sweep } from './db/schema.js'
+import { competition, event, sweep } from './db/schema.js'
 
 // season is per-provider-fetch, not yet threaded from competition.season — Phase 2 (multi-
 // season/provider wiring); WC_SEASON stays the single knob until then.
@@ -28,13 +28,17 @@ async function activeCompetitions(db) {
 }
 
 async function baseline(reason) {
+  const ids = await activeCompetitions(db)
+  // ponytail: still the module-level football provider regardless of each competition's
+  // sport — Task 11 ports this loop to the registry (providerFor per competition row).
+  const comps = await db.select().from(competition).where(inArray(competition.id, ids))
   // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
-  for (const competitionId of await activeCompetitions(db)) {
+  for (const comp of comps) {
     try {
-      const r = await syncBaseline(db, provider, { season, competitionId })
+      const r = await syncBaseline(db, provider, comp)
       await publish(db, { type: 'sync' })
-      console.log(`[baseline:${reason}] ${competitionId}: ${r.fixtures} fixtures`)
-    } catch (e) { console.error(`[baseline:${reason}] ${competitionId} failed (last-good intact):`, e.message) }
+      console.log(`[baseline:${reason}] ${comp.id}: ${r.fixtures} fixtures`)
+    } catch (e) { console.error(`[baseline:${reason}] ${comp.id} failed (last-good intact):`, e.message) }
   }
 }
 
