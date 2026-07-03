@@ -75,48 +75,50 @@ setInterval(async () => {
   try {
     // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
     for (const competitionId of await activeCompetitions(db)) {
-      const rows = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
-        .from(event).where(eq(event.competitionId, competitionId))
-      const now = new Date()
-      const kickoffs = rows.map((r) => new Date(r.ko))
-      // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
-      const liveIds = fixturesToPoll(rows, now)
-      if (liveIds.length) {
-        const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
-        const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
-        if (n) console.log(`[live] updated ${n}`)
-        // events poll AFTER scores, so a goal notification carries the just-updated score
-        const crosswalk = await resolveCrosswalk(db, competitionId) // static within a match window — resolve once per tick
-        const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
-        if (e) console.log(`[events] ${e} new`)
-        // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
-        const st = await pollStatistics(db, provider, liveIds, crosswalk)
-        if (st) console.log(`[stats] updated ${st}`)
-        // any polled fixture just go final? recompute the table now + queue an official reconcile
-        const after = await db.select({ id: event.id, status: event.status }).from(event).where(inArray(event.id, liveIds))
-        const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
-        if (newlyFinal.length) {
-          await recomputeStandings(db, competitionId)
-          // settle each fixture independently — one bad fixture must not block the others
-          // (they're already 'final', so a skipped settlement would never be retried)
-          for (const r of newlyFinal) {
-            try { await settleBets(db, r.id, (e) => publish(db, e)) }
-            catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
-            try { await grantMatchRewards(db, r.id, (e) => publish(db, e)) }
-            catch (e) { console.error(`[grantMatchRewards] fixture ${r.id} failed:`, e.message) }
+      try {
+        const rows = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
+          .from(event).where(eq(event.competitionId, competitionId))
+        const now = new Date()
+        const kickoffs = rows.map((r) => new Date(r.ko))
+        // in-window fixtures + recovery sweep (missed kickoffs / stuck-live games)
+        const liveIds = fixturesToPoll(rows, now)
+        if (liveIds.length) {
+          const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
+          const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
+          if (n) console.log(`[live] updated ${n}`)
+          // events poll AFTER scores, so a goal notification carries the just-updated score
+          const crosswalk = await resolveCrosswalk(db, competitionId) // static within a match window — resolve once per tick
+          const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
+          if (e) console.log(`[events] ${e} new`)
+          // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
+          const st = await pollStatistics(db, provider, liveIds, crosswalk)
+          if (st) console.log(`[stats] updated ${st}`)
+          // any polled fixture just go final? recompute the table now + queue an official reconcile
+          const after = await db.select({ id: event.id, status: event.status }).from(event).where(inArray(event.id, liveIds))
+          const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
+          if (newlyFinal.length) {
+            await recomputeStandings(db, competitionId)
+            // settle each fixture independently — one bad fixture must not block the others
+            // (they're already 'final', so a skipped settlement would never be retried)
+            for (const r of newlyFinal) {
+              try { await settleBets(db, r.id, (e) => publish(db, e)) }
+              catch (e) { console.error(`[settleBets] fixture ${r.id} failed:`, e.message) }
+              try { await grantMatchRewards(db, r.id, (e) => publish(db, e)) }
+              catch (e) { console.error(`[grantMatchRewards] fixture ${r.id} failed:`, e.message) }
+            }
+            await publish(db, { type: 'sync' })
+            console.log(`[standings] ${competitionId}: recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
+            scheduleFinalReconcile()
           }
-          await publish(db, { type: 'sync' })
-          console.log(`[standings] ${competitionId}: recomputed after ${newlyFinal.length} final(s); official reconcile in 5m`)
-          scheduleFinalReconcile()
         }
-      }
-      if (isLineupWindow(now, kickoffs)) {
-        const candidates = rows.filter((r) => !r.detail?.lineups && isLineupWindow(now, [new Date(r.ko)]))
-        if (candidates.length) {
-          const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, competitionId), (e) => publish(db, e))
-          if (m) console.log(`[lineups] updated ${m}`)
+        if (isLineupWindow(now, kickoffs)) {
+          const candidates = rows.filter((r) => !r.detail?.lineups && isLineupWindow(now, [new Date(r.ko)]))
+          if (candidates.length) {
+            const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, competitionId), (e) => publish(db, e))
+            if (m) console.log(`[lineups] updated ${m}`)
+          }
         }
-      }
+      } catch (e) { console.error(`[tick] ${competitionId} failed:`, e.message) }
     }
   } catch (e) { console.error('[tick] failed:', e.message) }
   finally { ticking = false }
