@@ -1,7 +1,8 @@
 import { and, eq } from 'drizzle-orm'
-import { person, support } from '../db/schema.js'
+import { person, support, competition } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
+import { sportConfig } from '../sports.js'
 
 const DRAW = 'DRAW'
 const member = requireSweep(['member', 'admin'])
@@ -28,7 +29,13 @@ export async function socialRoutes(app) {
     const f = flattenEvent(row)
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
-    const validPick = teamCode === f.t1Code || teamCode === f.t2Code || (teamCode === DRAW && f.stage === 'group')
+    let validPick = teamCode === f.t1Code || teamCode === f.t2Code
+    if (!validPick && teamCode === DRAW && f.stage === 'group') {
+      // draw picks only exist in sports that can draw (football); NBA etc. are 2-way
+      const [comp] = await app.db.select({ sport: competition.sport }).from(competition)
+        .where(eq(competition.id, req.sweep.competitionId))
+      validPick = comp ? sportConfig(comp.sport).hasDraws : false
+    }
     if (!validPick) return reply.code(400).send({ error: 'invalid_team' })
 
     const where = and(eq(support.fixtureId, fixtureId), eq(support.personId, personId))
