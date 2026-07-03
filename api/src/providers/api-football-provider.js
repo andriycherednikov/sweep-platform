@@ -13,6 +13,7 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
 
   return {
     sport: 'football',
+    live: true, // live-pollable — the worker's live tick gates on this flag
     groupsFromStandings: true, // soccer resolves group letters from /standings, not the round string
     async fetchCompetitions() {
       const j = await get('/leagues')
@@ -21,10 +22,6 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
     async fetchSchedule(comp) {
       const j = await get('/fixtures', { league: comp.leagueId ?? LEAGUE, season: Number(comp.season) })
       return (j.response ?? []).map(mapFixture)
-    },
-    async fetchLive() {
-      const j = await get('/fixtures', { live: 'all' })
-      return (j.response ?? []).filter((r) => r.league?.id === LEAGUE).map(mapFixture)
     },
     async fetchResults(ids) {
       // Poll specific fixtures regardless of status — unlike live=all, this still

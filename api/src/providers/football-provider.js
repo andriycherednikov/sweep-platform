@@ -32,13 +32,13 @@
  * A FootballProvider returns DOMAIN shapes (already mapped from raw JSON).
  * @typedef {Object} FootballProvider
  * @property {'football'} sport
+ * @property {true} live  live-pollable — the worker's live tick gates on this flag
  * @property {true} groupsFromStandings  soccer resolves group letters from /standings, not the round string
  * @property {() => Promise<DomainLeague[]>} fetchCompetitions
  * @property {(comp:{season:number|string}) => Promise<DomainFixture[]>} fetchSchedule
  * @property {(comp:{season:number|string}) => Promise<DomainStanding[]>} fetchStandings
  * @property {(fixtureId:string) => Promise<RawProb|null>} fetchPredictions
  * @property {(fixtureId:string) => Promise<{markets:object, book:string, prob:RawProb|null}|null>} fetchOdds
- * @property {() => Promise<DomainFixture[]>} fetchLive
  * @property {(ids:string[]) => Promise<DomainFixture[]>} fetchResults  any status, batched ≤20
  * @property {(comp:{season:number|string}) => Promise<DomainTeam[]>} fetchCompetitors
  * @property {(fixtureId:string) => Promise<object|null>} fetchLineups  raw /fixtures/lineups json

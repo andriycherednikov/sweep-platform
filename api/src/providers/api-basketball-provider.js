@@ -3,8 +3,8 @@ import { mapGame, mapBasketTeam, mapBasketStanding, mapLeague } from './basketba
 
 const BASE = 'https://v1.basketball.api-sports.io'
 
-/** API-Basketball adapter. Baseline-sync-only: no fetchLive/odds/lineups capabilities —
- *  their absence gates NBA out of the live tick (owner decision; free tier has no live NBA). */
+/** API-Basketball adapter. Baseline-sync-only: no `live` flag and no odds/lineups
+ *  capabilities — the worker's live tick skips it (owner decision; free tier has no live NBA). */
 export function createApiBasketballProvider({ apiKey, fetch = globalThis.fetch, retries = 3, retryDelayMs = 500, base = BASE }) {
   const { get } = createApiSportsClient({ base, apiKey, fetch, retries, retryDelayMs })
   return {

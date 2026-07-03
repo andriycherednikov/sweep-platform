@@ -2,13 +2,13 @@ import { mapFixture, mapStanding, mapPrediction, mapTeam, mapMarkets, mapSquad, 
 import { winnerSideToResult } from './api-sports-base.js'
 
 /** Build a FootballProvider from already-parsed raw API-Football JSON objects. */
-export function createRecordedProvider({ leagues, fixtures, live, standings, predictions, teams, odds, lineups, events, squads } = {}) {
+export function createRecordedProvider({ leagues, fixtures, standings, predictions, teams, odds, lineups, events, squads } = {}) {
   return {
     sport: 'football',
+    live: true,
     groupsFromStandings: true,
     async fetchCompetitions() { return (leagues?.response ?? []).map(mapLeague) },
     async fetchSchedule() { return (fixtures?.response ?? []).map(mapFixture) },
-    async fetchLive() { return (live?.response ?? []).map(mapFixture) },
     async fetchResults(ids) {
       const want = new Set(ids.map(String))
       return (fixtures?.response ?? []).filter((r) => want.has(String(r.fixture.id))).map(mapFixture)

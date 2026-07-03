@@ -89,7 +89,7 @@ setInterval(async () => {
       const competitionId = comp.id
       try {
         const provider = providerFor(comp)
-        if (!provider.fetchLive) continue // baseline-only sport (NBA)
+        if (!provider.live) continue // baseline-only sport (NBA)
         const rows = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
           .from(event).where(eq(event.competitionId, competitionId))
         const now = new Date()

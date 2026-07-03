@@ -46,6 +46,7 @@ test('fetchSchedule maps raw response to domain fixtures', async () => {
 test('sport/groupsFromStandings/resultToWinnerCode/baseDetail', async () => {
   const p = createApiFootballProvider({ apiKey: 'K', fetch: fakeFetch({}) })
   expect(p.sport).toBe('football')
+  expect(p.live).toBe(true)
   expect(p.groupsFromStandings).toBe(true)
   expect(p.resultToWinnerCode({ winnerSide: 'home' })).toBe('HOME')
   expect(p.resultToWinnerCode({ winnerSide: 'draw' })).toBe('DRAW')
@@ -168,5 +169,5 @@ test('retries on a 500 then succeeds', async () => {
 test('throws after exhausting retries', async () => {
   const fetch = vi.fn(async () => ({ ok: false, status: 503, json: async () => ({}) }))
   const p = createApiFootballProvider({ apiKey: 'K', fetch, retries: 2, retryDelayMs: 0 })
-  await expect(p.fetchLive()).rejects.toThrow(/api-sports/i)
+  await expect(p.fetchStandings(COMP)).rejects.toThrow(/api-sports/i)
 })
