@@ -59,7 +59,7 @@ test('pollLive publishes a score event for each changed fixture', async () => {
 test('pollLive finalizes a match that has ended — the key fix vs live=all', async () => {
   await db.update(event).set({ status: 'live', score1: 1, score2: 0, winnerCode: null, detail: detailMerge({ minute: 90 }) }).where(eq(event.id, '9002'))
   // id polling still returns the fixture once it's FT (live=all would have dropped it)
-  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 2, score2: 0, minute: null, winnerSide: 'home' }] : [] } }
+  const provider = { async fetchResults(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 2, score2: 0, minute: null, winnerSide: 'home' }] : [] } }
   const events = []
   const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))
   expect(n).toBe(1)
@@ -70,7 +70,7 @@ test('pollLive finalizes a match that has ended — the key fix vs live=all', as
 
 test('pollLive persists winnerCode and shootout score on penalty final', async () => {
   await db.update(event).set({ status: 'live', score1: 1, score2: 1, winnerCode: null, detail: detailMerge({ minute: 120, pen: null }) }).where(eq(event.id, '9002'))
-  const provider = { async fetchFixturesByIds(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 1, score2: 1, minute: null, winnerSide: 'away', penScore1: 3, penScore2: 5 }] : [] } }
+  const provider = { async fetchResults(ids) { return ids.includes('9002') ? [{ id: '9002', status: 'final', score1: 1, score2: 1, minute: null, winnerSide: 'away', penScore1: 3, penScore2: 5 }] : [] } }
   const n = await pollLive(db, provider, ['9002'])
   expect(n).toBe(1)
   const f = await getEvent('9002')
@@ -79,7 +79,7 @@ test('pollLive persists winnerCode and shootout score on penalty final', async (
 
 test('pollLive makes no update and publishes nothing when nothing changed', async () => {
   await db.update(event).set({ status: 'upcoming', score1: null, score2: null, winnerCode: null, detail: detailMerge({ minute: null, pen: null }) }).where(eq(event.id, '9002'))
-  const provider = { async fetchFixturesByIds() { return [{ id: '9002', status: 'upcoming', score1: null, score2: null, minute: null }] } }
+  const provider = { async fetchResults() { return [{ id: '9002', status: 'upcoming', score1: null, score2: null, minute: null }] } }
   const events = []
   const n = await pollLive(db, provider, ['9002'], (e) => events.push(e))
   expect(n).toBe(0)
@@ -88,7 +88,7 @@ test('pollLive makes no update and publishes nothing when nothing changed', asyn
 
 test('pollLive does nothing (no fetch) when there are no in-window ids', async () => {
   let called = 0
-  const provider = { async fetchFixturesByIds() { called++; return [] } }
+  const provider = { async fetchResults() { called++; return [] } }
   const n = await pollLive(db, provider, [])
   expect(n).toBe(0)
   expect(called).toBe(0)
@@ -292,7 +292,7 @@ test('pollLive persists the 90-minute regulation score on a knockout final', asy
   const f = flattenEvent(row)
   await db.update(event).set({ status: 'live', score1: 1, score2: 1, detail: detailMerge({ reg: null }) }).where(eq(event.id, f.id))
   // stub provider: a knockout match decided in ET — final score 2:1, but 90' was 1:1
-  const provider = { fetchFixturesByIds: async () => [{ id: f.id, status: 'final', score1: 2, score2: 1, minute: 120, htScore1: 0, htScore2: 1, regScore1: 1, regScore2: 1 }] }
+  const provider = { fetchResults: async () => [{ id: f.id, status: 'final', score1: 2, score2: 1, minute: 120, htScore1: 0, htScore2: 1, regScore1: 1, regScore2: 1 }] }
   await pollLive(db, provider, [f.id])
   const after = await getEvent(f.id)
   expect([after.regScore1, after.regScore2]).toEqual([1, 1])

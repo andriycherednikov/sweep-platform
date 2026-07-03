@@ -1,5 +1,5 @@
-import { mapFixture, mapStanding, mapPrediction, mapTeam, mapMarkets, mapSquad } from './mapping.js'
-import { createApiSportsClient } from './api-sports-base.js'
+import { mapFixture, mapStanding, mapPrediction, mapTeam, mapMarkets, mapSquad, mapLeague } from './mapping.js'
+import { createApiSportsClient, winnerSideToResult } from './api-sports-base.js'
 
 const BASE = 'https://v3.football.api-sports.io'
 const LEAGUE = 1
@@ -12,15 +12,21 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
   const { get } = createApiSportsClient({ base, apiKey, fetch, retries, retryDelayMs })
 
   return {
-    async fetchFixtures(season) {
-      const j = await get('/fixtures', { league: LEAGUE, season })
+    sport: 'football',
+    groupsFromStandings: true, // soccer resolves group letters from /standings, not the round string
+    async fetchCompetitions() {
+      const j = await get('/leagues', { id: LEAGUE })
+      return (j.response ?? []).map(mapLeague)
+    },
+    async fetchSchedule(comp) {
+      const j = await get('/fixtures', { league: LEAGUE, season: Number(comp.season) })
       return (j.response ?? []).map(mapFixture)
     },
     async fetchLive() {
       const j = await get('/fixtures', { live: 'all' })
       return (j.response ?? []).filter((r) => r.league?.id === LEAGUE).map(mapFixture)
     },
-    async fetchFixturesByIds(ids) {
+    async fetchResults(ids) {
       // Poll specific fixtures regardless of status — unlike live=all, this still
       // returns a match once it's finished, so we catch the live→final transition.
       // /fixtures?ids= is capped at 20 ids per call, so batch.
@@ -31,8 +37,8 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       }
       return out
     },
-    async fetchStandings(season) {
-      const j = await get('/standings', { league: LEAGUE, season })
+    async fetchStandings(comp) {
+      const j = await get('/standings', { league: LEAGUE, season: Number(comp.season) })
       return (j.response?.[0]?.league?.standings ?? []).flat().map(mapStanding)
     },
     async fetchPredictions(fixtureId) {
@@ -45,8 +51,8 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
       const j = await get('/odds', { fixture: fixtureId })
       return mapMarkets(j)
     },
-    async fetchTeams(season) {
-      const j = await get('/teams', { league: LEAGUE, season })
+    async fetchCompetitors(comp) {
+      const j = await get('/teams', { league: LEAGUE, season: Number(comp.season) })
       return (j.response ?? []).map(mapTeam)
     },
     async fetchLineups(fixtureId) {
@@ -64,6 +70,16 @@ export function createApiFootballProvider({ apiKey, fetch = globalThis.fetch, re
     async fetchSquad(teamId) {
       const j = await get('/players/squads', { team: teamId })
       return mapSquad(j)
+    },
+    resultToWinnerCode(game) { return winnerSideToResult(game.winnerSide, 'football') },
+    baseDetail(f) {
+      return {
+        group: f.group, matchday: f.matchday, venue: f.venue, city: f.city,
+        minute: f.minute ?? null, phase: f.phase ?? null,
+        ht: f.htScore1 == null ? null : [f.htScore1, f.htScore2],
+        reg: f.regScore1 == null ? null : [f.regScore1, f.regScore2],
+        pen: f.penScore1 == null ? null : [f.penScore1, f.penScore2],
+      }
     },
   }
 }

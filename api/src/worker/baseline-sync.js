@@ -34,8 +34,8 @@ export async function refundPrunedParlays(db, keep, compEventIds) {
 export async function syncBaseline(db, provider, { season, competitionId }) {
   try {
     const [rawFixtures, standings, crosswalk, ownershipRows, codeById] = await Promise.all([
-      provider.fetchFixtures(season),
-      provider.fetchStandings(season),
+      provider.fetchSchedule({ season, leagueId: '1' }),
+      provider.fetchStandings({ season, leagueId: '1' }),
       resolveCrosswalk(db, competitionId),
       db.select().from(ownership),
       competitorCodeMap(db, competitionId),
@@ -134,7 +134,7 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
 
     for (const s of realStandings) {
       const teamCode = crosswalk.get(s.providerTeamId)
-      const stats = { played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga }
+      const stats = { played: s.stats.played, win: s.stats.win, draw: s.stats.draw, loss: s.stats.loss, gf: s.stats.gf, ga: s.stats.ga }
       await db.insert(ranking).values({
         competitionId, competitorCode: teamCode, points: s.pts, stats, updatedAt: new Date(),
       }).onConflictDoUpdate({

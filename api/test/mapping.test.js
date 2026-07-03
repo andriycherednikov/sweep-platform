@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapLineups, mapSquad, mapEvents, mapStatistics, mapMarkets } from '../src/providers/mapping.js'
+import { mapStatus, parseRound, mapFixture, mapStanding, mapPrediction, mapTeam, mapLeague, mapLineups, mapSquad, mapEvents, mapStatistics, mapMarkets } from '../src/providers/mapping.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 
@@ -33,9 +33,18 @@ test('mapFixture turns a raw fixture into a DomainFixture (group resolved later 
 
 test('mapStanding maps a raw row (group label, lose→loss, goals.for/against→gf/ga)', () => {
   const rows = load('standings').response[0].league.standings.flat().map(mapStanding)
-  expect(rows[0]).toEqual({ providerTeamId: 3001, group: 'L', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 1, pts: 3 })
+  expect(rows[0]).toEqual({
+    providerTeamId: 3001, group: 'L', rank: null, pts: 3,
+    stats: { played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 1 },
+  })
   // the "Ranking of third-placed teams" pseudo-group has no group letter
   expect(rows.at(-1).group).toBeNull()
+})
+
+test('mapLeague maps the catalog entry (football nests under `league`, unlike basketball\'s flat row)', () => {
+  const l = mapLeague(load('leagues').response[0])
+  expect(l).toMatchObject({ providerLeagueId: 1, name: 'World Cup', type: 'Cup' })
+  expect(l.seasons.map((s) => s.season)).toContain('2026')
 })
 
 test('mapPrediction turns percent strings into integers, or null', () => {

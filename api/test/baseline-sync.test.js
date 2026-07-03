@@ -98,7 +98,7 @@ test('a failed odds+predictions fetch does not wipe prior prob', async () => {
 })
 
 test('a provider failure leaves last-good data and logs an error row', async () => {
-  const boom = { ...provider, async fetchFixtures() { throw new Error('upstream 503') } }
+  const boom = { ...provider, async fetchSchedule() { throw new Error('upstream 503') } }
   await expect(syncBaseline(db, boom, { season: 2026, competitionId: COMPETITION_ID })).rejects.toThrow(/503/)
   expect((await db.select().from(event)).length).toBe(2) // unchanged
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
@@ -107,12 +107,12 @@ test('a provider failure leaves last-good data and logs an error row', async () 
 })
 
 test('persists markets + htScore and winnerCode when fixture is final', async () => {
-  // Arrange: override fetchFixtures to inject winnerSide:'home' + htScore into fixture 9001 (Croatia won)
+  // Arrange: override fetchSchedule to inject winnerSide:'home' + htScore into fixture 9001 (Croatia won)
   // and fetchOdds to return Pinnacle markets for 9001.
   const pinnacleOddsProvider = {
     ...provider,
-    async fetchFixtures(season) {
-      const base = await provider.fetchFixtures(season)
+    async fetchSchedule(comp) {
+      const base = await provider.fetchSchedule(comp)
       return base.map((f) => f.id === '9001' ? { ...f, winnerSide: 'home', htScore1: 1, htScore2: 0 } : f)
     },
     async fetchOdds(fixtureId) {

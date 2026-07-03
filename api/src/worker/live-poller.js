@@ -79,7 +79,7 @@ export async function pollLineups(db, provider, fixtures, crosswalk, publish = (
 export async function pollLive(db, provider, ids, publish = () => {}) {
   if (!ids || ids.length === 0) return 0
   try {
-    const fetched = await provider.fetchFixturesByIds(ids)
+    const fetched = await provider.fetchResults(ids)
     const current = (await db.select().from(event).where(inArray(event.id, ids))).map(flattenEvent)
     const byId = new Map(current.map((r) => [r.id, r]))
     let updated = 0

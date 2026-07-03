@@ -58,13 +58,27 @@ export function mapFixture(raw) {
   }
 }
 
-/** A standings row → domain. `group` is the letter (A–L) or null for the third-placed ranking. */
+/** A standings row → domain. `group` is the letter (A–L) or null for the third-placed ranking.
+ *  `rank` is null — football has no single provider-ranked position (group placement is
+ *  resolved elsewhere), unlike basketball's conference `position`. */
 export function mapStanding(raw) {
   return {
     providerTeamId: raw.team.id,
     group: parseGroupLabel(raw.group),
-    played: raw.all.played, win: raw.all.win, draw: raw.all.draw, loss: raw.all.lose,
-    gf: raw.all.goals.for, ga: raw.all.goals.against, pts: raw.points,
+    rank: null,
+    pts: raw.points,
+    stats: {
+      played: raw.all.played, win: raw.all.win, draw: raw.all.draw, loss: raw.all.lose,
+      gf: raw.all.goals.for, ga: raw.all.goals.against,
+    },
+  }
+}
+
+/** Raw /leagues row → catalog entry. Football nests under `league` (unlike basketball's flat row). */
+export function mapLeague(raw) {
+  return {
+    providerLeagueId: raw.league.id, name: raw.league.name, type: raw.league.type, logo: raw.league.logo ?? null,
+    seasons: (raw.seasons ?? []).map((s) => ({ season: String(s.year), start: s.start, end: s.end })),
   }
 }
 

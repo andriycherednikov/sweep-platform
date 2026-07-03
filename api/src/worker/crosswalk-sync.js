@@ -33,7 +33,7 @@ export async function syncCrosswalk(db, provider, { season }) {
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
   const [ourTeams, providerTeams] = await Promise.all([
     db.select().from(competitor).where(eq(competitor.competitionId, defaultCompetition.id)),
-    provider.fetchTeams(season),
+    provider.fetchCompetitors({ season, leagueId: '1' }),
   ])
   const { matched, unmatchedProvider, unmatchedOurs } = matchTeams(ourTeams, providerTeams)
   for (const m of matched) {

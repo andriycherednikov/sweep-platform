@@ -13,8 +13,8 @@ import { reconcileTeams } from './reconcile-teams.js'
  */
 export async function syncTeams(db, provider, { season, competitionId }) {
   const [realTeams, standings, ourCompetitors] = await Promise.all([
-    provider.fetchTeams(season),
-    provider.fetchStandings(season),
+    provider.fetchCompetitors({ season, leagueId: '1' }),
+    provider.fetchStandings({ season, leagueId: '1' }),
     db.select().from(competitor).where(eq(competitor.competitionId, competitionId)),
   ])
   const ourTeams = ourCompetitors.map((c) => ({ code: c.code, name: c.name, group: c.meta?.group ?? '' }))
