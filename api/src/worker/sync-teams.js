@@ -1,47 +1,43 @@
-import { eq } from 'drizzle-orm'
-import { team, teamCrosswalk, ownership, standing, photo } from '../db/schema.js'
+import { and, eq, sql } from 'drizzle-orm'
+import { competitor, ownership, ranking } from '../db/schema.js'
 import { reconcileTeams } from './reconcile-teams.js'
 
 /**
- * Reconcile the `team` table to the real API-Football WC field:
- *  - matched teams keep their code (ownership/photos survive), re-pinned to real group + provider id
+ * Reconcile the `competitor` table (one competition) to the real API-Football WC field:
+ *  - matched teams keep their code (ownership survives), re-pinned to real group + provider id
  *  - real teams we lack are inserted with a derived code
- *  - teams absent from the real field are removed, along with their ownership/standing/crosswalk
- *    rows (photos tagged to them are untagged, not deleted)
+ *  - teams absent from the real field are removed, along with their ownership/ranking rows
  *
- * Precondition: any `fixture` rows referencing soon-to-be-deleted teams must already be cleared
- * (the cutover clears fixtures+standings first). Returns {matched, inserted, deleted}.
+ * Precondition: any `event` rows referencing soon-to-be-deleted competitors must already be
+ * cleared (the cutover clears events+rankings first). Returns {matched, inserted, deleted}.
  */
-export async function syncTeams(db, provider, { season }) {
-  const [realTeams, standings, ourTeams] = await Promise.all([
+export async function syncTeams(db, provider, { season, competitionId }) {
+  const [realTeams, standings, ourCompetitors] = await Promise.all([
     provider.fetchTeams(season),
     provider.fetchStandings(season),
-    db.select().from(team),
+    db.select().from(competitor).where(eq(competitor.competitionId, competitionId)),
   ])
+  const ourTeams = ourCompetitors.map((c) => ({ code: c.code, name: c.name, group: c.meta?.group ?? '' }))
   const groupByProvider = new Map(standings.filter((s) => s.group).map((s) => [s.providerTeamId, s.group]))
   const plan = reconcileTeams(ourTeams, realTeams, groupByProvider)
 
   for (const code of plan.deletes) {
     await db.delete(ownership).where(eq(ownership.teamCode, code))
-    await db.update(photo).set({ teamCode: null }).where(eq(photo.teamCode, code))
-    await db.delete(standing).where(eq(standing.teamCode, code))
-    await db.delete(teamCrosswalk).where(eq(teamCrosswalk.teamCode, code))
-    await db.delete(team).where(eq(team.code, code))
+    await db.delete(ranking).where(and(eq(ranking.competitionId, competitionId), eq(ranking.competitorCode, code)))
+    await db.delete(competitor).where(and(eq(competitor.competitionId, competitionId), eq(competitor.code, code)))
   }
 
   for (const u of plan.updates) {
-    await db.update(team).set({ name: u.name, group: u.group }).where(eq(team.code, u.code))
-    await db.insert(teamCrosswalk).values({ teamCode: u.code, providerTeamId: u.providerTeamId })
-      .onConflictDoUpdate({ target: teamCrosswalk.teamCode, set: { providerTeamId: u.providerTeamId } })
+    await db.update(competitor)
+      .set({ name: u.name, providerId: u.providerTeamId, meta: sql`${competitor.meta} || ${JSON.stringify({ group: u.group })}::jsonb` })
+      .where(and(eq(competitor.competitionId, competitionId), eq(competitor.code, u.code)))
   }
 
   for (const i of plan.inserts) {
-    await db.insert(team).values({
-      code: i.code, name: i.name, group: i.group, pool: i.pool,
-      color: i.color, strength: i.strength, flagCode: i.flagCode,
+    await db.insert(competitor).values({
+      id: `cp_${i.code}`, competitionId, code: i.code, name: i.name, color: i.color, providerId: i.providerTeamId,
+      meta: { group: i.group, pool: i.pool, strength: i.strength },
     }).onConflictDoNothing()
-    await db.insert(teamCrosswalk).values({ teamCode: i.code, providerTeamId: i.providerTeamId })
-      .onConflictDoUpdate({ target: teamCrosswalk.teamCode, set: { providerTeamId: i.providerTeamId } })
   }
 
   return plan.stats
