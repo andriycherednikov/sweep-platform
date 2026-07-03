@@ -144,6 +144,19 @@ test('pollLineups skips fixtures that already have a team sheet', async () => {
   expect(f.lineups).toEqual(sentinel)
 })
 
+test('pollLineups honors a team sheet on RAW event rows (the worker passes detail.lineups)', async () => {
+  const sentinel = [{ teamCode: 'hr', formation: 'X', startXI: [] }]
+  await db.update(event).set({ detail: detailMerge({ lineups: sentinel }) }).where(eq(event.id, '9001'))
+  let called = 0
+  const provider = { async fetchLineups() { called++; return load('lineups') } }
+  // the worker's shape: { id, ko, status, detail } — lineups live under detail, not flattened
+  const [raw] = await db.select({ id: event.id, ko: event.startUtc, status: event.status, detail: event.detail })
+    .from(event).where(eq(event.id, '9001'))
+  expect(raw.lineups).toBeUndefined() // prove this row is NOT flattened
+  await pollLineups(db, provider, [raw], await resolveCrosswalk(db, COMPETITION_ID))
+  expect(called).toBe(0) // sheet already present under detail → no refetch
+})
+
 test('pollLineups is best-effort: a failed fetch updates nothing and never throws', async () => {
   await db.update(event).set({ detail: detailMerge({ lineups: null }) }).where(eq(event.id, '9002'))
   const provider = { async fetchLineups() { throw new Error('lineups 503') } }

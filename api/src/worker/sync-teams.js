@@ -1,6 +1,7 @@
 import { and, eq, sql } from 'drizzle-orm'
 import { competitor, ownership, ranking } from '../db/schema.js'
 import { reconcileTeams } from './reconcile-teams.js'
+import { competitorHasEvents } from './sync-competitors.js'
 
 /**
  * Reconcile the `competitor` table (one competition) to the real API-Football WC field:
@@ -8,8 +9,8 @@ import { reconcileTeams } from './reconcile-teams.js'
  *  - real teams we lack are inserted with a derived code
  *  - teams absent from the real field are removed, along with their ownership/ranking rows
  *
- * Precondition: any `event` rows referencing soon-to-be-deleted competitors must already be
- * cleared (the cutover clears events+rankings first). Returns {matched, inserted, deleted}.
+ * A team absent from the real field but referenced by historical `event` rows is kept
+ * (loud skip) — deleting it would FK-violate. Returns {matched, inserted, deleted}.
  */
 export async function syncTeams(db, provider, { season, competitionId }) {
   const [realTeams, standings, ourCompetitors] = await Promise.all([
@@ -23,6 +24,10 @@ export async function syncTeams(db, provider, { season, competitionId }) {
   const plan = reconcileTeams(ourTeams, realTeams, groupByProvider)
 
   for (const code of plan.deletes) {
+    if (await competitorHasEvents(db, competitionId, code)) {
+      console.warn(`[sync-teams] ${competitionId}: keeping ${code} — left the field but has historical events`)
+      continue
+    }
     await db.delete(ownership).where(eq(ownership.competitorId, idByCode.get(code)))
     await db.delete(ranking).where(and(eq(ranking.competitionId, competitionId), eq(ranking.competitorCode, code)))
     await db.delete(competitor).where(and(eq(competitor.competitionId, competitionId), eq(competitor.code, code)))

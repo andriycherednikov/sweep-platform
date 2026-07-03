@@ -1,5 +1,14 @@
-import { and, eq, sql } from 'drizzle-orm'
-import { competitor, ownership, ranking } from '../db/schema.js'
+import { and, eq, or, sql } from 'drizzle-orm'
+import { competitor, event, ownership, ranking } from '../db/schema.js'
+
+/** True when any event in the competition references the competitor code —
+ *  deleting such a competitor would FK-violate; history must outlive the feed. */
+export async function competitorHasEvents(db, competitionId, code) {
+  const [row] = await db.select({ id: event.id }).from(event)
+    .where(and(eq(event.competitionId, competitionId), or(eq(event.c1Code, code), eq(event.c2Code, code))))
+    .limit(1)
+  return !!row
+}
 
 /** Lowercase, strip accents, collapse non-alphanumerics to single hyphens. */
 export function slugName(name) {
@@ -55,6 +64,10 @@ export async function syncCompetitors(db, provider, comp) {
 
   for (const c of ours) {
     if (c.providerId != null && !seen.has(c.providerId)) {
+      if (await competitorHasEvents(db, comp.id, c.code)) {
+        console.warn(`[sync-competitors] ${comp.id}: keeping ${c.code} — left the feed but has historical events`)
+        continue
+      }
       await db.delete(ownership).where(eq(ownership.competitorId, c.id))
       await db.delete(ranking).where(and(eq(ranking.competitionId, comp.id), eq(ranking.competitorCode, c.code)))
       await db.delete(competitor).where(eq(competitor.id, c.id))

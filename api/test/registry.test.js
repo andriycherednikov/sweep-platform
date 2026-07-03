@@ -13,6 +13,13 @@ test('providerFor returns the right adapter per provider key, cached', () => {
   expect(() => providerFor({ provider: 'espn' }, { apiKey: 'k' })).toThrow(/unknown provider/)
 })
 
+test('providerFor keys the cache by apiKey too (multi-tenant keys must not collide)', () => {
+  const a = providerFor({ provider: 'apifootball' }, { apiKey: 'kA' })
+  const b = providerFor({ provider: 'apifootball' }, { apiKey: 'kB' })
+  expect(b).not.toBe(a)
+  expect(providerFor({ provider: 'apifootball' }, { apiKey: 'kA' })).toBe(a)
+})
+
 test('sportOf maps provider keys to sports', () => {
   expect(sportOf('apifootball')).toBe('football')
   expect(sportOf('apibasketball')).toBe('basketball')
