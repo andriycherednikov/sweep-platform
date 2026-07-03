@@ -1,0 +1,60 @@
+{
+ "get": "",
+ "parameters": {
+  "search": "nba"
+ },
+ "errors": [],
+ "results": 1,
+ "paging": {
+  "current": 1,
+  "total": 1
+ },
+ "response": [
+  {
+   "id": 12,
+   "name": "NBA",
+   "type": "League",
+   "logo": "https://media.api-sports.io/basketball/leagues/12.png",
+   "country": {
+    "id": 5,
+    "name": "USA",
+    "code": "US",
+    "flag": "https://media.api-sports.io/flags/us.svg"
+   },
+   "seasons": [
+    {
+     "season": "2023-2024",
+     "start": "2023-10-05",
+     "end": "2024-06-18",
+     "coverage": {
+      "games": {
+       "statistics": {
+        "teams": true,
+        "players": true
+       }
+      },
+      "standings": true,
+      "players": true,
+      "odds": false
+     }
+    },
+    {
+     "season": "2022-2023",
+     "start": "2022-09-30",
+     "end": "2023-06-13",
+     "coverage": {
+      "games": {
+       "statistics": {
+        "teams": false,
+        "players": false
+       }
+      },
+      "standings": false,
+      "players": false,
+      "odds": false
+     }
+    }
+   ]
+  }
+ ]
+}
