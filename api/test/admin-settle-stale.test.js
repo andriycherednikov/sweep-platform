@@ -7,7 +7,8 @@ import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { fixture, person, coinLedger, bet } from '../src/db/schema.js'
+import { fixture, event, person, coinLedger, bet } from '../src/db/schema.js'
+import { detailMerge } from '../src/db/event-shape.js'
 
 const { pool, db } = openTestDb()
 const PASS = '1234'
@@ -30,6 +31,7 @@ test('POST /api/admin/settle-stale grades open bets on already-final fixtures', 
   const [p] = await db.select().from(person).limit(1)
   const [f] = await db.select().from(fixture).limit(1)
   await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code, regScore1: 2, regScore2: 0 }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ status: 'final', winnerCode: f.t1Code, detail: detailMerge({ reg: [2, 0] }) }).where(eq(event.id, f.id))
   await db.insert(coinLedger).values({ sweepId: 'default', personId: p.id, type: 'stake', amount: -100, refId: 'b_stale' })
   await db.insert(bet).values({ id: 'b_stale', sweepId: 'default', personId: p.id, fixtureId: f.id, selection: 'HOME',
     stake: 100, oddsDecimal: '2', book: 'Pinnacle', potentialPayout: 200, status: 'open' })

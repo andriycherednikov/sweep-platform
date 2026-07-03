@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeEach, afterEach } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { fixture, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
+import { fixture, event, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
 import { grantMatchRewards } from '../src/coins/rewards.js'
 
 const { pool, db } = openTestDb()
@@ -25,6 +25,7 @@ const rows = (personId, type) =>
 async function homeWinFixture() {
   const [f] = await db.select().from(fixture).limit(1)
   await db.update(fixture).set({ status: 'final', winnerCode: f.t1Code }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ status: 'final', winnerCode: f.t1Code }).where(eq(event.id, f.id))
   return (await db.select().from(fixture).where(eq(fixture.id, f.id)))[0]
 }
 
@@ -65,6 +66,7 @@ test('a drawn match pays correct DRAW predictions but no team-win', async () => 
   const [a] = await twoPeople()
   const [f0] = await db.select().from(fixture).limit(1)
   await db.update(fixture).set({ status: 'final', winnerCode: 'DRAW' }).where(eq(fixture.id, f0.id))
+  await db.update(event).set({ status: 'final', winnerCode: 'DRAW' }).where(eq(event.id, f0.id))
   const f = (await db.select().from(fixture).where(eq(fixture.id, f0.id)))[0]
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: 'DRAW' })
   await db.insert(ownership).values({ sweepId: 'default', personId: a.id, teamCode: f.t1Code })
@@ -100,6 +102,7 @@ test('a non-final fixture grants nothing', async () => {
   const [a] = await twoPeople()
   const [f] = await db.select().from(fixture).limit(1)
   await db.update(fixture).set({ status: 'upcoming', winnerCode: null }).where(eq(fixture.id, f.id))
+  await db.update(event).set({ status: 'upcoming', winnerCode: null }).where(eq(event.id, f.id))
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: a.id, teamCode: f.t1Code })
   expect(await grantMatchRewards(db, f.id)).toBe(0)
 })

@@ -1,12 +1,13 @@
 import { and, eq, sql, isNull, inArray } from 'drizzle-orm'
-import { fixture, person, coinLedger, bet, parlay } from '../db/schema.js'
+import { event, person, coinLedger, bet, parlay } from '../db/schema.js'
+import { flattenEvent } from '../db/event-shape.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
 import { resolveBet } from './settle.js'
 import { serializePerson } from '../serialize.js'
 
 /** Tournament start = earliest fixture kickoff, or null when there are no fixtures. */
 export async function seasonAnchor(db) {
-  const [row] = await db.select({ min: sql`min(${fixture.kickoffUtc})` }).from(fixture)
+  const [row] = await db.select({ min: sql`min(${event.startUtc})` }).from(event)
   return row?.min == null ? null : new Date(row.min)
 }
 
@@ -90,8 +91,8 @@ export async function openBetsBySweep(db, sweepId) {
   for (const legs of legsByParlay.values()) for (const l of legs) fxIds.add(l.fixtureId)
   const fxById = new Map()
   if (fxIds.size) {
-    const fxs = await db.select().from(fixture).where(inArray(fixture.id, [...fxIds]))
-    for (const f of fxs) fxById.set(f.id, f)
+    const fxs = await db.select().from(event).where(inArray(event.id, [...fxIds]))
+    for (const row of fxs) fxById.set(row.id, flattenEvent(row))
   }
   const statusOf = (id) => fxById.get(id)?.status ?? null
 

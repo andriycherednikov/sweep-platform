@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { fixture, coinLedger, bet, parlay } from '../db/schema.js'
+import { event, coinLedger, bet, parlay } from '../db/schema.js'
+import { flattenEvent } from '../db/event-shape.js'
 
 /** Winning selection for a final fixture: 'HOME' | 'AWAY' | 'DRAW' | null. */
 export function fixtureResult(f) {
@@ -104,7 +105,8 @@ export function resolveBet(market, selection, line, f) {
  * stake. Idempotent — only 'open' bets are touched. Publishes one bet-settled per sweep.
  */
 export async function settleBets(db, fixtureId, publish = () => {}) {
-  const [f] = await db.select().from(fixture).where(eq(fixture.id, fixtureId))
+  const [row] = await db.select().from(event).where(eq(event.id, fixtureId))
+  const f = row && flattenEvent(row)
   if (!f || f.status !== 'final') return 0
   const open = await db.select().from(bet).where(and(eq(bet.fixtureId, fixtureId), eq(bet.status, 'open')))
   const sweeps = new Set()
@@ -171,8 +173,8 @@ export async function settleParlay(db, parlayId) {
  */
 export async function settleStaleBets(db, publish = () => {}) {
   const rows = await db.select({ fixtureId: bet.fixtureId })
-    .from(bet).innerJoin(fixture, eq(bet.fixtureId, fixture.id))
-    .where(and(eq(bet.status, 'open'), eq(fixture.status, 'final')))
+    .from(bet).innerJoin(event, eq(bet.fixtureId, event.id))
+    .where(and(eq(bet.status, 'open'), eq(event.status, 'final')))
   const ids = [...new Set(rows.map((r) => r.fixtureId))]
   for (const id of ids) await settleBets(db, id, publish)
   // roll up any open parlay whose legs are already graded but the parent never settled —

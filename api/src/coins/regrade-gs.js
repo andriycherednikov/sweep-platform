@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { createPool, createDb } from '../db/client.js'
-import { bet, fixture, parlay } from '../db/schema.js'
+import { bet, event, parlay } from '../db/schema.js'
+import { flattenEvent } from '../db/event-shape.js'
 import { resolveBet, settleBets } from './settle.js'
 
 /**
@@ -14,12 +15,12 @@ import { resolveBet, settleBets } from './settle.js'
  * 'open' by an interrupted run is caught by the next settle (settleBets/settleStaleBets).
  */
 export async function regradeGs(db, publish = () => {}) {
-  const rows = await db.select({ b: bet, f: fixture })
-    .from(bet).innerJoin(fixture, eq(bet.fixtureId, fixture.id))
-    .where(and(eq(bet.market, 'gs'), eq(bet.status, 'lost'), eq(fixture.status, 'final')))
+  const rows = await db.select({ b: bet, f: event })
+    .from(bet).innerJoin(event, eq(bet.fixtureId, event.id))
+    .where(and(eq(bet.market, 'gs'), eq(bet.status, 'lost'), eq(event.status, 'final')))
 
   const flips = rows.filter(({ b, f }) =>
-    resolveBet('gs', b.selection, b.line == null ? null : Number(b.line), f) === 'won')
+    resolveBet('gs', b.selection, b.line == null ? null : Number(b.line), flattenEvent(f)) === 'won')
   if (flips.length === 0) return { regraded: 0, fixtures: 0 }
 
   // Reset the mis-graded legs (and their parent parlays) to 'open' so the settler re-grades

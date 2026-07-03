@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
-import { fixture, person, support, ownership, coinLedger } from '../db/schema.js'
+import { event, person, support, ownership, coinLedger } from '../db/schema.js'
+import { flattenEvent } from '../db/event-shape.js'
 import { fixtureResult } from './settle.js'
 import { PREDICT_REWARD, TEAM_WIN_REWARD } from './constants.js'
 
@@ -13,7 +14,8 @@ import { PREDICT_REWARD, TEAM_WIN_REWARD } from './constants.js'
  * sweep (the web client invalidates the coins cache on it).
  */
 export async function grantMatchRewards(db, fixtureId, publish = () => {}) {
-  const [f] = await db.select().from(fixture).where(eq(fixture.id, fixtureId))
+  const [row] = await db.select().from(event).where(eq(event.id, fixtureId))
+  const f = row && flattenEvent(row)
   if (!f || f.status !== 'final') return 0
   const result = fixtureResult(f) // 'HOME' | 'AWAY' | 'DRAW' | null
   if (!result) return 0
