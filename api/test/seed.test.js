@@ -16,5 +16,5 @@ test('seeds 48 teams, 16 people, full fixture set', async () => {
 
 test('ownership links Andriy to Croatia', async () => {
   const rows = await db.select().from(ownership).where(eq(ownership.personId, 'p4'))
-  expect(rows.map((r) => r.teamCode)).toContain('hr')
+  expect(rows.map((r) => r.competitorId)).toContain('cp_hr')
 })

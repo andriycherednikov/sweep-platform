@@ -51,7 +51,7 @@ export async function seed(db) {
       id: p.id, sweepId: 'default', name: p.name, short: p.short, initials: p.initials, avColor: p.av,
     }).onConflictDoNothing()
     for (const tc of p.teams) {
-      await db.insert(s.ownership).values({ sweepId: 'default', personId: p.id, teamCode: tc }).onConflictDoNothing()
+      await db.insert(s.ownership).values({ sweepId: 'default', personId: p.id, competitorId: `cp_${tc}` }).onConflictDoNothing()
     }
   }
 

@@ -4,6 +4,7 @@ import { detailMerge } from '../db/event-shape.js'
 import { resolveCrosswalk, assertResolved } from './crosswalk.js'
 import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
+import { competitorCodeMap } from '../routes/competitors.js'
 
 export async function refundPrunedParlays(db, keep) {
   const legRows = await db.select({ parlayId: bet.parlayId }).from(bet).where(notInArray(bet.fixtureId, keep))
@@ -28,12 +29,18 @@ export async function refundPrunedParlays(db, keep) {
  */
 export async function syncBaseline(db, provider, { season, competitionId }) {
   try {
-    const [rawFixtures, standings, crosswalk, ownershipRows] = await Promise.all([
+    const [rawFixtures, standings, crosswalk, ownershipRows, codeById] = await Promise.all([
       provider.fetchFixtures(season),
       provider.fetchStandings(season),
       resolveCrosswalk(db, competitionId),
       db.select().from(ownership),
+      competitorCodeMap(db, competitionId),
     ])
+    // translate at the boundary (competitorId → code) so computeFlags stays pure/code-based;
+    // rows for other competitions drop out (no code in this competition's map).
+    const ownershipCodeRows = ownershipRows
+      .map((o) => ({ personId: o.personId, teamCode: codeById.get(o.competitorId) }))
+      .filter((o) => o.teamCode)
 
     // Group letters live on the standings rows ("Group A"); the third-placed ranking has none.
     const realStandings = standings.filter((s) => s.group)
@@ -50,7 +57,7 @@ export async function syncBaseline(db, provider, { season, competitionId }) {
       t2Code: crosswalk.get(f.awayProviderId),
       group: groupByProvider.get(f.homeProviderId) ?? groupByProvider.get(f.awayProviderId) ?? f.group ?? '',
     }))
-    const flags = computeFlags(fixtures, ownershipRows)
+    const flags = computeFlags(fixtures, ownershipCodeRows)
 
     // win probabilities: prefer bookmaker markets (prob from 1x2), fall back to /predictions.
     // best-effort per fixture (missing → leave prob null, never throw).

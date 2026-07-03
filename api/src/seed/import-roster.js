@@ -24,7 +24,7 @@ export async function importRoster(db, list = roster) {
     const p = toPerson(list[i].name, i)
     await db.insert(person).values(p)
     for (const code of list[i].teams) {
-      await db.insert(ownership).values({ personId: p.id, teamCode: code }).onConflictDoNothing()
+      await db.insert(ownership).values({ personId: p.id, competitorId: `cp_${code}` }).onConflictDoNothing()
     }
   }
   return { people: list.length, picks: list.reduce((n, r) => n + r.teams.length, 0) }

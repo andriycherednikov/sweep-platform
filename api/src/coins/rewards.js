@@ -3,6 +3,7 @@ import { event, person, support, ownership, coinLedger } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
 import { fixtureResult } from './settle.js'
 import { PREDICT_REWARD, TEAM_WIN_REWARD } from './constants.js'
+import { codeToCompetitorId } from '../routes/competitors.js'
 
 /**
  * For a final fixture, grant:
@@ -45,10 +46,14 @@ export async function grantMatchRewards(db, fixtureId, publish = () => {}) {
   // (b) owned winning team → +300 per owner (no winner on a draw)
   if (result !== 'DRAW') {
     const winningTeam = result === 'HOME' ? f.t1Code : f.t2Code
-    const owners = await db.select({ sweepId: ownership.sweepId, personId: ownership.personId, adult: person.adult })
+    // rewards is cross-sweep: resolve the code via the EVENT's own competition, not a request sweep.
+    // The resolved competitor id already encodes its competition, so ownership rows across sweeps
+    // (each possibly bound to a different competition, later) still filter correctly by id alone.
+    const winningCompetitorId = await codeToCompetitorId(db, row.competitionId, winningTeam)
+    const owners = winningCompetitorId ? await db.select({ sweepId: ownership.sweepId, personId: ownership.personId, adult: person.adult })
       .from(ownership)
       .innerJoin(person, and(eq(person.id, ownership.personId), eq(person.sweepId, ownership.sweepId)))
-      .where(eq(ownership.teamCode, winningTeam))
+      .where(eq(ownership.competitorId, winningCompetitorId)) : []
     for (const o of owners) {
       if (o.adult === false) continue // coins is 18+ — no rewards for minors
       const ins = await db.insert(coinLedger)

@@ -10,7 +10,7 @@ export async function teamRoutes(app) {
     if (!rows.length) return reply.code(404).send({ error: 'not_found' })
     const owners = await app.db.select({ p: person }).from(ownership)
       .innerJoin(person, eq(person.id, ownership.personId))
-      .where(and(eq(ownership.teamCode, req.params.code), eq(ownership.sweepId, req.sweep.id)))
+      .where(and(eq(ownership.competitorId, rows[0].id), eq(ownership.sweepId, req.sweep.id)))
     return { ...serializeCompetitor(rows[0]), owners: owners.map((r) => serializePerson(r.p)) }
   })
 }

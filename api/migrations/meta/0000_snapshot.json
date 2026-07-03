@@ -1,5 +1,5 @@
 {
-  "id": "fb88342f-976c-4232-af41-da03199ab642",
+  "id": "4a5bdf43-4955-4c79-ab78-aa45e0cde236",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -928,8 +928,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "team_code": {
-          "name": "team_code",
+        "competitor_id": {
+          "name": "competitor_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true
@@ -953,15 +953,15 @@
         }
       },
       "foreignKeys": {
-        "ownership_team_code_team_code_fk": {
-          "name": "ownership_team_code_team_code_fk",
+        "ownership_competitor_id_competitor_id_fk": {
+          "name": "ownership_competitor_id_competitor_id_fk",
           "tableFrom": "ownership",
-          "tableTo": "team",
+          "tableTo": "competitor",
           "columnsFrom": [
-            "team_code"
+            "competitor_id"
           ],
           "columnsTo": [
-            "code"
+            "id"
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
@@ -983,11 +983,11 @@
         }
       },
       "compositePrimaryKeys": {
-        "ownership_person_id_team_code_pk": {
-          "name": "ownership_person_id_team_code_pk",
+        "ownership_person_id_competitor_id_pk": {
+          "name": "ownership_person_id_competitor_id_pk",
           "columns": [
             "person_id",
-            "team_code"
+            "competitor_id"
           ]
         }
       },

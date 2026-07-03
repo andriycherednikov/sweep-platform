@@ -96,6 +96,25 @@ test('co-ownership allowed: two people CAN own the same team; same person twice 
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(409)
 })
 
+test('assigning/removing an unknown team code is 400 unknown_team (single + bulk)', async () => {
+  const su = await superCookie()
+  const { cookie } = await adminCookieFor(su)
+  const h = { host: 'platform.test', cookie }
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Nope', short: 'Nope', initials: 'NP', av: '#abc' } })).json()
+  const assign = await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: p.id, teamCode: 'zz' } })
+  expect(assign.statusCode).toBe(400)
+  expect(assign.json().error).toBe('unknown_team')
+  const remove = await app.inject({ method: 'DELETE', url: '/api/admin/ownership', headers: h, payload: { personId: p.id, teamCode: 'zz' } })
+  expect(remove.statusCode).toBe(400)
+  expect(remove.json().error).toBe('unknown_team')
+  const bulkAssign = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'zz' }] } })
+  expect(bulkAssign.statusCode).toBe(400)
+  expect(bulkAssign.json().error).toBe('unknown_team')
+  const bulkRemove = await app.inject({ method: 'DELETE', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'zz' }] } })
+  expect(bulkRemove.statusCode).toBe(400)
+  expect(bulkRemove.json().error).toBe('unknown_team')
+})
+
 test('super can rename a sweep and edit scoring (PATCH returns updated row)', async () => {
   const cookie = await superCookie()
   const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Old Name' } })).json()

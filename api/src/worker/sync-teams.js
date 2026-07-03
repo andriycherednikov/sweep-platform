@@ -18,11 +18,12 @@ export async function syncTeams(db, provider, { season, competitionId }) {
     db.select().from(competitor).where(eq(competitor.competitionId, competitionId)),
   ])
   const ourTeams = ourCompetitors.map((c) => ({ code: c.code, name: c.name, group: c.meta?.group ?? '' }))
+  const idByCode = new Map(ourCompetitors.map((c) => [c.code, c.id]))
   const groupByProvider = new Map(standings.filter((s) => s.group).map((s) => [s.providerTeamId, s.group]))
   const plan = reconcileTeams(ourTeams, realTeams, groupByProvider)
 
   for (const code of plan.deletes) {
-    await db.delete(ownership).where(eq(ownership.teamCode, code))
+    await db.delete(ownership).where(eq(ownership.competitorId, idByCode.get(code)))
     await db.delete(ranking).where(and(eq(ranking.competitionId, competitionId), eq(ranking.competitorCode, code)))
     await db.delete(competitor).where(and(eq(competitor.competitionId, competitionId), eq(competitor.code, code)))
   }

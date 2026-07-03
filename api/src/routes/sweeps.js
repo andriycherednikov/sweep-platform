@@ -1,8 +1,9 @@
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { eq, or, and } from 'drizzle-orm'
-import { sweep, person, ownership } from '../db/schema.js'
+import { eq, or, and, asc, inArray } from 'drizzle-orm'
+import { sweep, person, ownership, competition, competitor } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSuper, requireSweep } from '../sweeps/auth.js'
+import { codeToCompetitorId } from './competitors.js'
 
 const sessionBody = {
   type: 'object', required: ['token'], additionalProperties: false,
@@ -11,7 +12,10 @@ const sessionBody = {
 
 const createBody = {
   type: 'object', required: ['name'], additionalProperties: false,
-  properties: { name: { type: 'string', minLength: 1, maxLength: 80 } },
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 80 },
+    competitionId: { type: 'string', minLength: 1, maxLength: 120 },
+  },
 }
 const rotateBody = {
   type: 'object', required: ['which'], additionalProperties: false,
@@ -79,7 +83,11 @@ export async function sweepsRoutes(app) {
   app.post('/api/super/sweeps', { preHandler: superGuard, schema: { body: createBody } }, async (req, reply) => {
     const id = `sw_${newToken(12)}`
     const memberToken = newToken(), adminToken = newToken()
-    await app.db.insert(sweep).values({ id, name: req.body.name, kind: 'token', memberToken, adminToken })
+    // ponytail: default = the one seeded competition; the catalog picker is P3.
+    const competitionId = req.body.competitionId
+      ?? (await app.db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1))[0]?.id
+    if (!competitionId) return reply.code(400).send({ error: 'no_competition' })
+    await app.db.insert(sweep).values({ id, name: req.body.name, kind: 'token', memberToken, adminToken, competitionId })
     const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
     return reply.code(201).send({ id, name: row.name, memberToken, adminToken, ...links(app, row) })
   })
@@ -195,10 +203,12 @@ export async function sweepsRoutes(app) {
     const { personId, teamCode } = req.body
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    const competitorId = await codeToCompetitorId(app.db, req.sweep.competitionId, teamCode)
+    if (!competitorId) return reply.code(400).send({ error: 'unknown_team' })
     try {
-      await app.db.insert(ownership).values({ sweepId, personId, teamCode })
+      await app.db.insert(ownership).values({ sweepId, personId, competitorId })
     } catch (e) {
-      // pk(person_id, team_code) violation → this person already owns this team.
+      // pk(person_id, competitor_id) violation → this person already owns this team.
       // Co-ownership is allowed: a different person owning the same team is NOT a conflict.
       if (e?.code === '23505') return reply.code(409).send({ error: 'already_owned' })
       throw e
@@ -206,12 +216,24 @@ export async function sweepsRoutes(app) {
     return reply.code(201).send({ personId, teamCode })
   })
 
-  app.delete('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req) => {
+  app.delete('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req, reply) => {
     const sweepId = req.sweep.id
     const { personId, teamCode } = req.body
-    await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), eq(ownership.personId, personId), eq(ownership.teamCode, teamCode)))
+    const competitorId = await codeToCompetitorId(app.db, req.sweep.competitionId, teamCode)
+    if (!competitorId) return reply.code(400).send({ error: 'unknown_team' })
+    await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), eq(ownership.personId, personId), eq(ownership.competitorId, competitorId)))
     return { personId, teamCode, removed: true }
   })
+
+  // Resolve every distinct teamCode in `items` to a competitor id, scoped to the sweep's
+  // competition. Null when any code is unknown so callers can 400 unknown_team.
+  async function codeMapFor(competitionId, items) {
+    const codes = [...new Set(items.map((it) => it.teamCode))]
+    const rows = await app.db.select({ id: competitor.id, code: competitor.code }).from(competitor)
+      .where(and(eq(competitor.competitionId, competitionId), inArray(competitor.code, codes)))
+    const idByCode = new Map(rows.map((r) => [r.code, r.id]))
+    return items.every((it) => idByCode.has(it.teamCode)) ? idByCode : null
+  }
 
   // Bulk allocate: assign many (person, team) pairs in one call. Idempotent
   // (onConflictDoNothing) so re-assigning an owned team is a no-op; co-ownership
@@ -223,25 +245,31 @@ export async function sweepsRoutes(app) {
     const own = await app.db.select({ id: person.id }).from(person).where(eq(person.sweepId, sweepId))
     const valid = new Set(own.map((p) => p.id))
     if (items.some((it) => !valid.has(it.personId))) return reply.code(400).send({ error: 'unknown_person' })
+    const idByCode = await codeMapFor(req.sweep.competitionId, items)
+    if (!idByCode) return reply.code(400).send({ error: 'unknown_team' })
     // de-dupe identical pairs within the request
     const seen = new Set()
+    const dedupedItems = []
     const rows = []
     for (const it of items) {
-      const key = `${it.personId} ${it.teamCode}`
+      const key = `${it.personId} ${it.teamCode}`
       if (seen.has(key)) continue
       seen.add(key)
-      rows.push({ sweepId, personId: it.personId, teamCode: it.teamCode })
+      dedupedItems.push({ personId: it.personId, teamCode: it.teamCode })
+      rows.push({ sweepId, personId: it.personId, competitorId: idByCode.get(it.teamCode) })
     }
-    const inserted = await app.db.insert(ownership).values(rows).onConflictDoNothing().returning({ personId: ownership.personId, teamCode: ownership.teamCode })
+    const inserted = await app.db.insert(ownership).values(rows).onConflictDoNothing().returning({ personId: ownership.personId, competitorId: ownership.competitorId })
     if (inserted.length) await app.publish({ type: 'sync', sweepId })
-    return reply.code(201).send({ inserted: inserted.length, items: rows.map(({ personId, teamCode }) => ({ personId, teamCode })) })
+    return reply.code(201).send({ inserted: inserted.length, items: dedupedItems })
   })
 
   // Bulk unallocate: remove many (person, team) pairs, scoped to this sweep.
-  app.delete('/api/admin/ownership/bulk', { preHandler: groupAdmin, schema: { body: ownItemsBody } }, async (req) => {
+  app.delete('/api/admin/ownership/bulk', { preHandler: groupAdmin, schema: { body: ownItemsBody } }, async (req, reply) => {
     const sweepId = req.sweep.id
     const { items } = req.body
-    const pairs = items.map((it) => and(eq(ownership.personId, it.personId), eq(ownership.teamCode, it.teamCode)))
+    const idByCode = await codeMapFor(req.sweep.competitionId, items)
+    if (!idByCode) return reply.code(400).send({ error: 'unknown_team' })
+    const pairs = items.map((it) => and(eq(ownership.personId, it.personId), eq(ownership.competitorId, idByCode.get(it.teamCode))))
     await app.db.delete(ownership).where(and(eq(ownership.sweepId, sweepId), or(...pairs)))
     await app.publish({ type: 'sync', sweepId })
     return { removed: items.length, items: items.map(({ personId, teamCode }) => ({ personId, teamCode })) }

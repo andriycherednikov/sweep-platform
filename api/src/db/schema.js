@@ -49,9 +49,9 @@ export const team = pgTable('team', {
 export const ownership = pgTable('ownership', {
   sweepId: text('sweep_id').notNull(),
   personId: text('person_id').notNull(),
-  teamCode: text('team_code').notNull().references(() => team.code),
+  competitorId: text('competitor_id').notNull().references(() => competitor.id),
 }, (t) => ({
-  pk: primaryKey({ columns: [t.personId, t.teamCode] }),
+  pk: primaryKey({ columns: [t.personId, t.competitorId] }),
   sweepIdx: index('ownership_sweep_id_idx').on(t.sweepId),
   // composite FK pins (person, sweep) together — a row can never reference a person in another sweep
   personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'ownership_person_sweep_fk' }),

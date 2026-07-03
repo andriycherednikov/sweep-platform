@@ -113,8 +113,8 @@ CREATE TABLE IF NOT EXISTS "fixture" (
 CREATE TABLE IF NOT EXISTS "ownership" (
 	"sweep_id" text NOT NULL,
 	"person_id" text NOT NULL,
-	"team_code" text NOT NULL,
-	CONSTRAINT "ownership_person_id_team_code_pk" PRIMARY KEY("person_id","team_code")
+	"competitor_id" text NOT NULL,
+	CONSTRAINT "ownership_person_id_competitor_id_pk" PRIMARY KEY("person_id","competitor_id")
 );
 --> statement-breakpoint
 CREATE TABLE IF NOT EXISTS "parlay" (
@@ -291,7 +291,7 @@ EXCEPTION
 END $$;
 --> statement-breakpoint
 DO $$ BEGIN
- ALTER TABLE "ownership" ADD CONSTRAINT "ownership_team_code_team_code_fk" FOREIGN KEY ("team_code") REFERENCES "public"."team"("code") ON DELETE no action ON UPDATE no action;
+ ALTER TABLE "ownership" ADD CONSTRAINT "ownership_competitor_id_competitor_id_fk" FOREIGN KEY ("competitor_id") REFERENCES "public"."competitor"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
