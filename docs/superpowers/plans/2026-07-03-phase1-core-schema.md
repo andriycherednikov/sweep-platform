@@ -925,3 +925,40 @@ curl -s -X POST localhost:3000/api/session -H 'content-type: application/json' -
 - **Spec coverage:** competition/competitor/event/ranking/account tables (T3), composite-FK integrity (T3 schema), sports config (T2), fresh migrations (T3/T16/T17 regen), seed with competition + default sweep (T3, T17), worker dedupe-by-competition (T15), wire contract frozen (T5–T9, proven T17/T18), crosswalk retired into `competitor.providerId` (T11), dead `photo.teamCode` bug dies (T14), ownership → competitorId (T16), account stub + nullable `sweep.accountId` (T3). Out-of-scope items (§7 of the design doc) have no tasks — correct.
 - **Type consistency:** `flattenEvent` output feeds `serializeFixture` (T5), `fixtureResult`/`resolveBet` (T9), recompute (T10) — all consume the legacy field names it produces. `resolveCrosswalk(db, competitionId)` signature change is threaded through T12 (baseline), T13 (live), T15 (worker), T14 (CLI). `recomputeStandings(db, competitionId)` callers updated in T15.
 - **Known judgment calls (flagged, not hidden):** events/rankings reference competitors by `(code, competitionId)` (header note — design-doc amendment required); drizzle numbers the fresh migration 0000; `standings` route stays sweep-resolved rather than gaining auth (T6 keeps existing behavior).
+
+---
+
+## Post-implementation follow-ups (final whole-branch review, 2026-07-03)
+
+Branch merged as commits `3c3999f..12ccefa` (18 tasks + 2 review fixes). All
+tasks individually reviewed; final review verdict: mergeable after the
+competition-scoped prune fix (landed as `12ccefa`).
+
+**PHASE-2 BLOCKING GATE — no second competition row may ship before these:**
+
+1. **`seasonAnchor` must be per-competition** (`api/src/coins/ledger.js`) —
+   weekly coin-grant anchor is a global `min(event.startUtc)`; a second
+   competition with an earlier season inflates every sweep's week index and
+   mints retroactive grants.
+2. **Scope all bare event-id lookups by the sweep's competition** — one shared
+   helper for the five call sites: `GET /api/fixtures/:id`, `POST /api/bet`,
+   parlay legs, `POST /api/support`, fan-photo upload. Today members of sweep A
+   can reference competition B's events by id.
+3. **Make `refundPrunedParlays`'s scope param required** (currently optional →
+   global when omitted; one production caller passes it; the unit test builds
+   its own subquery).
+
+**Follow-up tickets (non-blocking):**
+- CLI hardening: loud "no competition found" guard in the default-competition
+  lookups (sync-squads, run-stats-backfill, crosswalk-sync); fix or delete
+  `seed/import-roster.js` (pre-existing missing-sweepId bug, untested CLI).
+- `POST /api/super/sweeps` with an unknown `competitionId` FK-fails → 500;
+  should 400.
+- `pollLineups`'s internal `if (f.lineups)` skip-guard depends on the caller's
+  row shape (worker pre-filters via `detail.lineups`) — flatten or comment.
+- `reconcile-teams` emits an unconsumed `flagCode`; wire to `competitor.logo`
+  or drop.
+
+Accepted as designed: seed detail-block duplication, shallow `detailMerge`,
+standings fail-closed `{}` for unauthenticated platform hosts (P3 picker),
+full-detail tick select, global `WC_SEASON` (P2 provider registry owns it).
