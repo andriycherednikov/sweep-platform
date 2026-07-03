@@ -1,8 +1,8 @@
 import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, fixture, standing } from '../src/db/schema.js'
+import { teamCrosswalk, competitor, fixture, standing } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { pollLive, isLiveWindow, pollLineups, isLineupWindow, fixturesToPoll, pollEvents, pollStatistics, backfillFinalStatistics, backfillFinalEvents } from '../src/worker/live-poller.js'
@@ -11,12 +11,14 @@ import { seed } from '../src/seed/seed.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
+const COMPETITION_ID = 'apifootball:1:2026'
 
 beforeAll(async () => {
   for (const [code, id] of [['hr', 3001], ['be', 3002], ['gh', 3003]]) {
     await db.update(teamCrosswalk).set({ providerTeamId: id }).where(eq(teamCrosswalk.teamCode, code))
+    await db.update(competitor).set({ providerId: id }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, code)))
   }
-  await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026 })
+  await syncBaseline(db, createRecordedProvider({ fixtures: load('fixtures'), standings: load('standings'), predictions: load('predictions'), teams: load('teams') }), { season: 2026, competitionId: COMPETITION_ID })
 })
 // beforeAll prunes the shared fixture table to the provider set; restore the Phase-1
 // seed afterwards so other test files (which depend on the global seed) still pass.
@@ -113,7 +115,7 @@ test('isLineupWindow is true ~45 min before kickoff (longer lead than scores)', 
 
 test('pollLineups stores 2-team lineups and publishes a lineups event', async () => {
   await db.update(fixture).set({ lineups: null }).where(eq(fixture.id, '9001'))
-  const crosswalk = await resolveCrosswalk(db)
+  const crosswalk = await resolveCrosswalk(db, COMPETITION_ID)
   const provider = createRecordedProvider({ lineups: load('lineups') })
   const rows = await db.select().from(fixture).where(eq(fixture.id, '9001'))
   const events = []
@@ -132,7 +134,7 @@ test('pollLineups skips fixtures that already have a team sheet', async () => {
   let called = 0
   const provider = { async fetchLineups() { called++; return load('lineups') } }
   const rows = await db.select().from(fixture).where(eq(fixture.id, '9001'))
-  await pollLineups(db, provider, rows, await resolveCrosswalk(db))
+  await pollLineups(db, provider, rows, await resolveCrosswalk(db, COMPETITION_ID))
   expect(called).toBe(0)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9001')))[0]
   expect(f.lineups).toEqual(sentinel)
@@ -142,7 +144,7 @@ test('pollLineups is best-effort: a failed fetch updates nothing and never throw
   await db.update(fixture).set({ lineups: null }).where(eq(fixture.id, '9002'))
   const provider = { async fetchLineups() { throw new Error('lineups 503') } }
   const rows = await db.select().from(fixture).where(eq(fixture.id, '9002'))
-  const n = await pollLineups(db, provider, rows, await resolveCrosswalk(db))
+  const n = await pollLineups(db, provider, rows, await resolveCrosswalk(db, COMPETITION_ID))
   expect(n).toBe(0)
   const f = (await db.select().from(fixture).where(eq(fixture.id, '9002')))[0]
   expect(f.lineups).toBeNull()
@@ -154,7 +156,7 @@ const eventsProvider = (list) => ({ async fetchEvents() { return { response: lis
 
 test('pollEvents baselines silently when events is null (no backfill spam)', async () => {
   await db.update(fixture).set({ events: null, score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const emitted = []
   const n = await pollEvents(db, eventsProvider([goalRaw()]), ['9002'], xw, (e) => emitted.push(e))
   expect(n).toBe(0)
@@ -165,7 +167,7 @@ test('pollEvents baselines silently when events is null (no backfill spam)', asy
 
 test('pollEvents emits only newly-appearing goal/card events and carries the score on goals', async () => {
   await db.update(fixture).set({ events: [], score1: 1, score2: 0 }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const emitted = []
   const n = await pollEvents(db, eventsProvider([goalRaw(), cardRaw(), { type: 'subst', team: { id: 3001 }, time: { elapsed: 70 }, player: { name: 'x' }, detail: 's' }]), ['9002'], xw, (e) => emitted.push(e))
   expect(n).toBe(2) // subst ignored
@@ -175,7 +177,7 @@ test('pollEvents emits only newly-appearing goal/card events and carries the sco
 
 test('pollEvents emits nothing when the event list is unchanged', async () => {
   await db.update(fixture).set({ events: [], score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const provider = eventsProvider([goalRaw()])
   await pollEvents(db, provider, ['9002'], xw, () => {})   // first non-null poll: emits the goal
   const emitted = []
@@ -186,7 +188,7 @@ test('pollEvents emits nothing when the event list is unchanged', async () => {
 
 test('pollEvents isolates a per-fixture fetch error', async () => {
   await db.update(fixture).set({ events: [], score1: 0, score2: 0 }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const provider = { async fetchEvents() { throw new Error('boom') } }
   const n = await pollEvents(db, provider, ['9002'], xw, () => {})
   expect(n).toBe(0) // swallowed, no throw
@@ -200,7 +202,7 @@ const statsProvider = (list) => ({ async fetchStatistics() { return { response: 
 
 test('pollStatistics stores a per-team snapshot keyed by team code', async () => {
   await db.update(fixture).set({ statistics: null }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const n = await pollStatistics(db, statsProvider(statsRaw({ sog: 5, pos: '58%', f: 9 }, { sog: 2, pos: '42%', f: 14 })), ['9002'], xw)
   expect(n).toBe(1)
   const [row] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
@@ -208,7 +210,7 @@ test('pollStatistics stores a per-team snapshot keyed by team code', async () =>
 })
 
 test('pollStatistics is a no-op (no write) when the snapshot is unchanged', async () => {
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const provider = statsProvider(statsRaw({ sog: 1, pos: '50%', f: 1 }, { sog: 1, pos: '50%', f: 1 }))
   await pollStatistics(db, provider, ['9002'], xw)
   const n = await pollStatistics(db, provider, ['9002'], xw)
@@ -216,7 +218,7 @@ test('pollStatistics is a no-op (no write) when the snapshot is unchanged', asyn
 })
 
 test('pollStatistics keeps a prior snapshot when nothing is published yet', async () => {
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   await pollStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), ['9002'], xw)
   const n = await pollStatistics(db, statsProvider([]), ['9002'], xw) // empty response → null map, no overwrite
   expect(n).toBe(0)
@@ -226,7 +228,7 @@ test('pollStatistics keeps a prior snapshot when nothing is published yet', asyn
 
 test('pollStatistics merges a one-team response into the existing snapshot (no wipe)', async () => {
   await db.update(fixture).set({ statistics: null }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   await pollStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), ['9002'], xw)
   // a later poll only returns the home team — must not drop the away team's stats
   const onlyHome = statsProvider([{ team: { id: 3001 }, statistics: [{ type: 'Shots on Goal', value: 7 }] }])
@@ -238,7 +240,7 @@ test('pollStatistics merges a one-team response into the existing snapshot (no w
 })
 
 test('pollStatistics isolates a per-fixture fetch error', async () => {
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const n = await pollStatistics(db, { async fetchStatistics() { throw new Error('boom') } }, ['9002'], xw)
   expect(n).toBe(0)
 })
@@ -247,7 +249,7 @@ test('backfillFinalStatistics fills the most recent finals missing stats, respec
   await db.update(fixture).set({ statistics: {} }) // everything else already has a (non-null) snapshot
   await db.update(fixture).set({ status: 'final', statistics: null, kickoffUtc: new Date('2026-06-20T00:00:00Z') }).where(eq(fixture.id, '9002'))
   await db.update(fixture).set({ status: 'final', statistics: null, kickoffUtc: new Date('2026-06-10T00:00:00Z') }).where(eq(fixture.id, '9001'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const res = await backfillFinalStatistics(db, statsProvider(statsRaw({ sog: 3, pos: '55%', f: 5 }, { sog: 4, pos: '45%', f: 6 })), xw, { limit: 1 })
   expect(res).toEqual({ checked: 1, updated: 1 }) // newest-first → only 9002
   const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
@@ -261,7 +263,7 @@ test('backfillFinalEvents pulls events for finished fixtures missing them, skipp
   await db.update(fixture).set({ events: [] })
   await db.update(fixture).set({ status: 'final', events: null }).where(eq(fixture.id, '9002'))
   await db.update(fixture).set({ status: 'final', events: [] }).where(eq(fixture.id, '9001'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const n = await backfillFinalEvents(db, eventsProvider([goalRaw()]), xw)
   expect(n).toBe(1) // only 9002 qualified (final AND events null)
   const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))
@@ -273,7 +275,7 @@ test('backfillFinalEvents pulls events for finished fixtures missing them, skipp
 test('backfillFinalEvents ignores non-final fixtures and is a no-op when nothing qualifies', async () => {
   await db.update(fixture).set({ events: [] })
   await db.update(fixture).set({ status: 'live', events: null }).where(eq(fixture.id, '9002'))
-  const xw = await resolveCrosswalk(db)
+  const xw = await resolveCrosswalk(db, COMPETITION_ID)
   const n = await backfillFinalEvents(db, eventsProvider([goalRaw()]), xw)
   expect(n).toBe(0) // a live fixture with null events is left for the live poller, not backfilled
   const [f2] = await db.select().from(fixture).where(eq(fixture.id, '9002'))

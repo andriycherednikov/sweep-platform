@@ -4,11 +4,12 @@
 //      ownership, keeps matched codes, inserts new real teams, fills the crosswalk
 //   3. baseline-sync real fixtures + standings + predictions
 // Idempotent: safe to re-run. Requires API_FOOTBALL_KEY in .env.
+import { asc } from 'drizzle-orm'
 import { createPool, createDb } from '../db/client.js'
 import { createApiFootballProvider } from '../providers/api-football-provider.js'
 import { syncTeams } from './sync-teams.js'
 import { syncBaseline } from './baseline-sync.js'
-import { fixture, standing } from '../db/schema.js'
+import { fixture, standing, competition } from '../db/schema.js'
 
 const season = Number(process.env.WC_SEASON ?? 2026)
 const pool = createPool()
@@ -20,7 +21,9 @@ try {
   await db.delete(standing)
   const t = await syncTeams(db, provider, { season })
   console.log(`teams: matched ${t.matched}, inserted ${t.inserted}, deleted ${t.deleted}`)
-  const b = await syncBaseline(db, provider, { season })
+  // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
+  const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
+  const b = await syncBaseline(db, provider, { season, competitionId: defaultCompetition?.id })
   console.log(`baseline: ${b.fixtures} fixtures, ${b.standings} standings`)
   console.log('cutover complete')
 } catch (e) {

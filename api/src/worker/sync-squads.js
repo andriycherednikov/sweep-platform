@@ -1,5 +1,5 @@
-import { eq } from 'drizzle-orm'
-import { team, syncLog } from '../db/schema.js'
+import { asc, eq } from 'drizzle-orm'
+import { team, syncLog, competition } from '../db/schema.js'
 import { resolveCrosswalk } from './crosswalk.js'
 
 /**
@@ -9,7 +9,9 @@ import { resolveCrosswalk } from './crosswalk.js'
  * @returns {Promise<number>} count of teams whose squad was stored
  */
 export async function syncSquads(db, provider) {
-  const crosswalk = await resolveCrosswalk(db) // Map<providerTeamId, teamCode>
+  // ponytail: single-competition CLI; parameterize when self-serve lands (P3)
+  const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
+  const crosswalk = await resolveCrosswalk(db, defaultCompetition?.id) // Map<providerTeamId, teamCode>
   let updated = 0
   for (const [providerTeamId, code] of crosswalk) {
     try {

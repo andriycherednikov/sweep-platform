@@ -21,7 +21,7 @@ const [defaultCompetition] = await db.select().from(competition).orderBy(asc(com
 
 async function baseline(reason) {
   try {
-    const r = await syncBaseline(db, provider, { season })
+    const r = await syncBaseline(db, provider, { season, competitionId: defaultCompetition?.id })
     await publish(db, { type: 'sync' })
     console.log(`[baseline:${reason}] ${r.fixtures} fixtures`)
   } catch (e) { console.error(`[baseline:${reason}] failed (last-good intact):`, e.message) }
@@ -71,7 +71,7 @@ setInterval(async () => {
       const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
       if (n) console.log(`[live] updated ${n}`)
       // events poll AFTER scores, so a goal notification carries the just-updated score
-      const crosswalk = await resolveCrosswalk(db) // static within a match window — resolve once per tick
+      const crosswalk = await resolveCrosswalk(db, defaultCompetition.id) // static within a match window — resolve once per tick
       const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
       if (e) console.log(`[events] ${e} new`)
       // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
@@ -98,7 +98,7 @@ setInterval(async () => {
     if (isLineupWindow(now, kickoffs)) {
       const candidates = rows.filter((r) => !r.lineups && isLineupWindow(now, [new Date(r.ko)]))
       if (candidates.length) {
-        const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db), (e) => publish(db, e))
+        const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, defaultCompetition.id), (e) => publish(db, e))
         if (m) console.log(`[lineups] updated ${m}`)
       }
     }

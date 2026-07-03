@@ -25,12 +25,12 @@ export async function refundPrunedParlays(db, keep) {
  * compute flags, upsert idempotently, prune fixtures no longer present, write a sync_log row.
  * On any failure: write an error sync_log row and rethrow — last-good data is untouched.
  */
-export async function syncBaseline(db, provider, { season }) {
+export async function syncBaseline(db, provider, { season, competitionId }) {
   try {
     const [rawFixtures, standings, crosswalk, ownershipRows] = await Promise.all([
       provider.fetchFixtures(season),
       provider.fetchStandings(season),
-      resolveCrosswalk(db),
+      resolveCrosswalk(db, competitionId),
       db.select().from(ownership),
     ])
 

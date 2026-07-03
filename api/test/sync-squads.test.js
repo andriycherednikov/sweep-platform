@@ -1,16 +1,18 @@
 import { expect, test, afterAll, beforeAll } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { teamCrosswalk, team, syncLog } from '../src/db/schema.js'
+import { teamCrosswalk, competitor, team, syncLog } from '../src/db/schema.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { syncSquads } from '../src/worker/sync-squads.js'
 
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apifootball/${n}.json`, import.meta.url)))
 const { pool, db } = openTestDb()
+const COMPETITION_ID = 'apifootball:1:2026'
 
 beforeAll(async () => {
   await db.update(teamCrosswalk).set({ providerTeamId: 3001 }).where(eq(teamCrosswalk.teamCode, 'hr'))
+  await db.update(competitor).set({ providerId: 3001 }).where(and(eq(competitor.competitionId, COMPETITION_ID), eq(competitor.code, 'hr')))
 })
 afterAll(async () => {
   await db.update(team).set({ squad: null }).where(eq(team.code, 'hr')) // restore seed
