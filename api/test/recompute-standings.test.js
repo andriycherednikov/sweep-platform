@@ -1,7 +1,7 @@
 import { expect, test, beforeAll, afterAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
-import { competitor, event, ranking, bet, support } from '../src/db/schema.js'
+import { competition, competitor, event, ranking, bet, support } from '../src/db/schema.js'
 import { seed } from '../src/seed/seed.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 
@@ -49,4 +49,22 @@ test('recomputeStandings ignores non-final and knockout fixtures', async () => {
   await recomputeStandings(db, COMPETITION_ID)
   const a = (await db.select().from(ranking).where(and(eq(ranking.competitionId, COMPETITION_ID), eq(ranking.competitorCode, A))))[0]
   expect(a).toMatchObject({ points: 4, stats: { played: 2 } }) // unchanged — live game and knockout excluded
+})
+
+test('recomputeStandings is a no-op for non-football competitions', async () => {
+  const NBA = 'apibasketball:12:test'
+  await db.insert(competition).values({ id: NBA, provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: 'test', format: 'league', name: 'NBA' }).onConflictDoNothing()
+  await db.insert(competitor).values([
+    { id: `cp_${NBA}_aa`, competitionId: NBA, code: 'aa', name: 'Aa', color: '#111' },
+    { id: `cp_${NBA}_bb`, competitionId: NBA, code: 'bb', name: 'Bb', color: '#222' },
+  ])
+  await db.insert(event).values({ id: 'ev_nba_rc', competitionId: NBA, c1Code: 'aa', c2Code: 'bb', startUtc: new Date(), status: 'final', score1: 100, score2: 90, winnerCode: 'aa', stage: 'group', detail: {} })
+  try {
+    expect(await recomputeStandings(db, NBA)).toBe(0)
+    expect(await db.select().from(ranking).where(eq(ranking.competitionId, NBA))).toHaveLength(0)
+  } finally {
+    await db.delete(event).where(eq(event.id, 'ev_nba_rc'))
+    await db.delete(competitor).where(eq(competitor.competitionId, NBA))
+    await db.delete(competition).where(eq(competition.id, NBA))
+  }
 })

@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm'
-import { competitor, event, ranking } from '../db/schema.js'
+import { competition, competitor, event, ranking } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
 import { fixtureResult } from '../coins/settle.js'
 
@@ -12,6 +12,9 @@ import { fixtureResult } from '../coins/settle.js'
  * @returns {Promise<number>} number of ranking rows written
  */
 export async function recomputeStandings(db, competitionId) {
+  const [comp] = await db.select({ sport: competition.sport }).from(competition).where(eq(competition.id, competitionId))
+  if (comp?.sport !== 'football') return 0 // provider standings are authoritative for other sports
+
   const comps = await db.select({ code: competitor.code }).from(competitor)
     .where(eq(competitor.competitionId, competitionId))
   const finals = (await db.select().from(event)
