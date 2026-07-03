@@ -8,13 +8,16 @@ import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
 import { grantMatchRewards } from './coins/rewards.js'
-import { inArray } from 'drizzle-orm'
-import { fixture } from './db/schema.js'
+import { asc, inArray } from 'drizzle-orm'
+import { fixture, competition } from './db/schema.js'
 
 const season = Number(process.env.WC_SEASON ?? 2026)
 const pool = createPool()
 const db = createDb(pool)
 const provider = createApiFootballProvider({ apiKey: process.env.API_FOOTBALL_KEY })
+// ponytail: worker.js is still fixture/team-scoped pre-Task 15; recomputeStandings is now
+// competition-scoped, so thread through the sole seeded competition until the full rewrite.
+const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
 
 async function baseline(reason) {
   try {
@@ -78,7 +81,7 @@ setInterval(async () => {
       const after = await db.select({ id: fixture.id, status: fixture.status }).from(fixture).where(inArray(fixture.id, liveIds))
       const newlyFinal = after.filter((r) => r.status === 'final' && !prevFinal.has(r.id))
       if (newlyFinal.length) {
-        await recomputeStandings(db)
+        await recomputeStandings(db, defaultCompetition.id)
         // settle each fixture independently — one bad fixture must not block the others
         // (they're already 'final', so a skipped settlement would never be retried)
         for (const r of newlyFinal) {
