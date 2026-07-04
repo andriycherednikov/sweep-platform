@@ -1,4 +1,5 @@
 import Fastify from 'fastify'
+import Stripe from 'stripe'
 import { bootstrapRoutes } from './routes/bootstrap.js'
 import { fixtureRoutes } from './routes/fixtures.js'
 import { standingsRoutes } from './routes/standings.js'
@@ -54,6 +55,14 @@ export function buildApp(db, opts = {}) {
   app.decorate('providerFor', opts.providerFor ?? providerFor)
   // magic-link delivery seam — console logger IS dev mode; a real provider is an ops decision (P4+)
   app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
+  // Stripe seam (P4): tests inject a fake; dev without a key runs fine (billing routes 503).
+  const stripeKey = opts.stripeKey ?? process.env.STRIPE_SECRET_KEY ?? ''
+  if (stripeKey.startsWith('sk_live') && process.env.NODE_ENV !== 'production') {
+    throw new Error('live Stripe key outside production — refusing to boot')
+  }
+  app.decorate('stripe', opts.stripe ?? (stripeKey ? new Stripe(stripeKey) : null))
+  app.decorate('stripeWebhookSecret', opts.stripeWebhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET ?? '')
+  app.decorate('stripePriceId', opts.stripePriceId ?? process.env.STRIPE_PRICE_ID ?? '')
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
 
