@@ -2,7 +2,7 @@ import { eq, and, isNull, gt } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
-import { TRIAL_MS, GOOD_STANDING, syncQuantity } from '../accounts/billing.js'
+import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount } from '../accounts/billing.js'
 import { seasonInWindow } from '../providers/registry.js'
 import { addCompetition } from '../worker/add-competition.js'
 import { syncCompetitors } from '../worker/sync-competitors.js'
@@ -129,10 +129,17 @@ export async function accountRoutes(app) {
   })
 
   app.post('/api/account/sweeps/:id/archive', { preHandler: accountGuard }, async (req, reply) => {
-    const [row] = await app.db.select().from(sweep)
-      .where(and(eq(sweep.id, req.params.id), eq(sweep.accountId, req.account.id)))
-    if (!row) return reply.code(404).send({ error: 'not_found' })
-    await app.db.update(sweep).set({ archivedAt: new Date() }).where(eq(sweep.id, row.id))
-    return { id: row.id, archived: true }
+    const result = await app.db.transaction(async (tx) => {
+      const [acct] = await tx.select().from(account).where(eq(account.id, req.account.id)).for('update')
+      const [row] = await tx.select().from(sweep)
+        .where(and(eq(sweep.id, req.params.id), eq(sweep.accountId, acct.id)))
+      if (!row) return { code: 404, body: { error: 'not_found' } }
+      await tx.update(sweep).set({ archivedAt: new Date() }).where(eq(sweep.id, row.id))
+      if (GOOD_STANDING.includes(acct.subscriptionStatus)) {
+        await syncQuantity(app.stripe, acct, await liveSweepCount(tx, acct.id))
+      }
+      return { code: 200, body: { id: row.id, archived: true } }
+    })
+    return reply.code(result.code).send(result.body)
   })
 }

@@ -204,3 +204,14 @@ test('concurrent provisions at cap-1 land exactly one 201 (FOR UPDATE serializes
   ])
   expect([a.statusCode, b.statusCode].sort()).toEqual([201, 403])
 })
+
+test('archive re-asserts stripe quantity for subscribed accounts', async () => {
+  stripeFake.calls.subUpdate.length = 0
+  const mine = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: { 'x-account-token': 'lapsesession' } })).json()
+  const target = mine.find((s) => s.name === 'PaidTwo')
+  const r = await app.inject({ method: 'POST', url: `/api/account/sweeps/${target.id}/archive`, headers: { 'x-account-token': 'lapsesession' } })
+  expect(r.json()).toEqual({ id: target.id, archived: true })
+  expect(stripeFake.calls.subUpdate).toEqual([
+    { id: 'sub_lapse', items: [{ id: 'si_lapse', quantity: 1 }], proration_behavior: 'none' },
+  ])
+})
