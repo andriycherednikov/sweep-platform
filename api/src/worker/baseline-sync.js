@@ -6,6 +6,10 @@ import { computeFlags } from './flags.js'
 import { backfillFinalEvents } from './live-poller.js'
 import { competitorCodeMap } from '../routes/competitors.js'
 
+// Odds are only actionable pre-kickoff: skip finals and far-future fixtures so a provisioned
+// 380-game league costs ~dozens of odds calls per baseline, not ~1,500-3,000/day (design §6).
+const ODDS_WINDOW_MS = 7 * 24 * 3600_000
+
 export async function refundPrunedParlays(db, keep, compEventIds) {
   // compEventIds is REQUIRED: it scopes the prune to one competition's events — without it
   // this refunds-and-deletes every OTHER competition's parlays (their ids are never in `keep`).
@@ -92,7 +96,9 @@ export async function syncBaseline(db, provider, competition) {
     const probById = new Map()
     const mById = new Map()
     if (provider.fetchOdds) {
+      const now = Date.now()
       for (const f of fixtures) {
+        if (f.status === 'final' || f.kickoffUtc.getTime() - now > ODDS_WINDOW_MS) continue
         let m = null
         try { m = await provider.fetchOdds(f.id) } catch { /* best-effort */ }
         let prob = m?.prob ?? null

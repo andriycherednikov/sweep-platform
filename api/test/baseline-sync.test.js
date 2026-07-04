@@ -68,7 +68,9 @@ test('baseline sync upserts provider fixtures, prunes seed fixtures, logs ok', a
   expect(ids).toEqual(['9001', '9002'])            // seeded m0..m71 pruned; provider fixtures present
   const f1 = fx.find((f) => f.id === '9001')
   expect(f1).toMatchObject({ t1Code: 'hr', t2Code: 'be', status: 'final', score1: 2, score2: 1, group: 'L', matchday: 1 })
-  expect(f1.probA).toBe(55)                        // predictions applied
+  expect(f1.probA).toBeNull()                      // final fixtures no longer fetch odds (budget window)
+  const f2 = fx.find((f) => f.id === '9002')
+  expect(f2.probA).toBe(55)                        // predictions applied to the in-window upcoming fixture
   expect(r.newlyFinal).toContain('9001')           // fixture 9001 is final on this (first) sync
   const logs = await db.select().from(syncLog).where(eq(syncLog.kind, 'baseline'))
   expect(logs.at(-1).status).toBe('ok')
@@ -112,9 +114,9 @@ test('prefers bookmaker odds, falls back to predictions when odds are absent', a
   const f2 = fx.find((f) => f.id === '9002')
   expect(f2).toMatchObject({ probA: 50, probD: 25, probB: 25 })   // odds-derived
   expect(f2.probA + f2.probD + f2.probB).toBe(100)
-  expect(f1.probA).toBe(55)                                       // no odds → predictions fallback
+  expect(f1.probA).toBeNull()                                     // 9001 is final → odds loop skips it entirely (budget window)
   expect(calls.preds).not.toContain('9002')                      // odds won → predictions skipped
-  expect(calls.preds).toContain('9001')                          // no odds → predictions tried
+  expect(calls.preds).not.toContain('9001')                      // final → predictions never attempted either
 })
 
 test('a failed odds+predictions fetch does not wipe prior prob', async () => {
@@ -137,9 +139,9 @@ test('a provider failure leaves last-good data and logs an error row', async () 
   expect(logs.at(-1).error).toMatch(/503/)
 })
 
-test('persists markets + htScore and winnerCode when fixture is final', async () => {
+test('persists htScore and winnerCode when fixture is final (odds/markets skipped — budget window)', async () => {
   // Arrange: override fetchSchedule to inject winnerSide:'home' + htScore into fixture 9001 (Croatia won)
-  // and fetchOdds to return Pinnacle markets for 9001.
+  // and fetchOdds to return Pinnacle markets for 9001 — the odds loop must skip it anyway (final).
   const pinnacleOddsProvider = {
     ...provider,
     async fetchSchedule(comp) {
@@ -158,8 +160,8 @@ test('persists markets + htScore and winnerCode when fixture is final', async ()
   await syncBaseline(db, pinnacleOddsProvider, FOOTBALL_COMP)
   const [row] = await db.select().from(event).where(eq(event.id, '9001'))
   const f = flattenEvent(row)
-  expect(f.markets['1x2'].selections[0].odds).toBe(2)
-  expect(f.probA).toBe(50)
+  expect(f.markets).toBeNull()                        // final → odds loop skipped, Pinnacle markets never fetched
+  expect(f.probA).toBeNull()
   expect(f.htScore1).toBe(1)
   expect(f.winnerCode).toBe(f.t1Code) // winnerSide 'home' → t1Code ('hr')
 })
@@ -231,4 +233,28 @@ test('league-format football keeps all standings rows (no group filter)', async 
     await db.delete(competitor).where(eq(competitor.competitionId, LG.id))
     await db.delete(competition).where(eq(competition.id, LG.id))
   }
+})
+
+test('odds loop skips final and far-future fixtures (feed-budget window)', async () => {
+  const in3days = new Date(Date.now() + 3 * 24 * 3600_000).toISOString()
+  const in30days = new Date(Date.now() + 30 * 24 * 3600_000).toISOString()
+  const fixtureRaw = (id, date, status) => ({
+    fixture: { id, date, status: { short: status, elapsed: status === 'FT' ? 90 : null }, venue: { name: 'V', city: 'C' } },
+    league: { round: 'Group A - 1' }, teams: { home: { id: 3001, winner: status === 'FT' ? true : null }, away: { id: 3002, winner: status === 'FT' ? false : null } },
+    goals: status === 'FT' ? { home: 1, away: 0 } : { home: null, away: null },
+    score: { halftime: { home: null, away: null }, fulltime: { home: null, away: null }, penalty: { home: null, away: null } },
+  })
+  const oddsCalls = []
+  const base = createRecordedProvider({
+    fixtures: { response: [
+      fixtureRaw(9101, '2026-06-13T03:30:00+00:00', 'FT'), // final → skip
+      fixtureRaw(9102, in3days, 'NS'),                     // near upcoming → fetch
+      fixtureRaw(9103, in30days, 'NS'),                    // far future → skip
+    ] },
+    standings: load('standings'), predictions: load('predictions'),
+  })
+  const provider = { ...base, fetchOdds: async (id) => { oddsCalls.push(String(id)); return null } }
+  const r = await syncBaseline(db, provider, FOOTBALL_COMP)
+  expect(r.fixtures).toBe(3)
+  expect(oddsCalls).toEqual(['9102']) // only the near-upcoming fixture
 })
