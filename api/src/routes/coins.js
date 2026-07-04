@@ -4,6 +4,7 @@ import { person, coinLedger, bet, parlay } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
 import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../wagering/ledger.js'
+import { isExcluded } from '../optout.js'
 
 const member = requireSweep(['member', 'admin'])
 
@@ -61,6 +62,7 @@ export async function coinsRoutes(app) {
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     // wagers are 18+ — enforce server-side so minors can't bet by bypassing the UI
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
+    if (isExcluded(p)) return reply.code(403).send({ error: 'self_excluded' })
     const evRow = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
     if (!evRow) return reply.code(400).send({ error: 'unknown_fixture' })
     const f = flattenEvent(evRow)
@@ -106,6 +108,7 @@ export async function coinsRoutes(app) {
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     if (!p) return reply.code(400).send({ error: 'unknown_person' })
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
+    if (isExcluded(p)) return reply.code(403).send({ error: 'self_excluded' })
     if (legs.length < 2) return reply.code(400).send({ error: 'too_few_legs' })
     // Same-game multis are allowed (e.g. 1x2 + ou25 on one fixture), but two selections of
     // the SAME market on the SAME fixture can never both win — dedupe on fixtureId|market.

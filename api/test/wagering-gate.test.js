@@ -51,3 +51,20 @@ test('wagering ON (default sweep as backfilled/seeded): bet placement works unch
   expect(res.statusCode).toBe(200)
   expect(res.json().bet.market).toBe('1x2') // frozen wire: market keys unchanged
 })
+
+test('self-excluded person cannot bet or parlay server-side; expiry restores', async () => {
+  const f = await bettable(); const p = await aPerson()
+  await db.update(person).set({ excludedUntil: new Date(Date.now() + 86_400_000) }).where(eq(person.id, p.id))
+  try {
+    const bet = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+    expect(bet.statusCode).toBe(403)
+    expect(bet.json()).toEqual({ error: 'self_excluded' })
+    const par = await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [ { fixtureId: f.id, selection: 'HOME' }, { fixtureId: f.id, market: 'ou25', selection: 'OVER' } ] } })
+    expect(par.statusCode).toBe(403)
+    expect(par.json()).toEqual({ error: 'self_excluded' })
+    // expired exclusion no longer blocks
+    await db.update(person).set({ excludedUntil: new Date(Date.now() - 1000) }).where(eq(person.id, p.id))
+    const again = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+    expect(again.statusCode).toBe(200)
+  } finally { await db.update(person).set({ excludedUntil: null }).where(eq(person.id, p.id)) }
+})
