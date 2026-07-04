@@ -51,9 +51,13 @@ export async function syncBaseline(db, provider, competition) {
     // Group letters live on the standings rows ("Group A"); the third-placed ranking has none.
     // Soccer-only quirk: the round string doesn't carry the letter, /standings does. Other
     // sports' standings carry no such placeholder rows to skip, so this block only runs for them.
+    // League-format football (EPL et al) is exempt: its standings rows are labelled with the
+    // league name ("Premier League"), not "Group X" — parseGroupLabel returns null for every
+    // row, so the filter would empty the whole table. Groups only exist in cup formats, and
+    // `ranking` has no group column anyway, so keeping ungrouped rows is harmless.
     let realStandings = standings
     let groupByProvider = new Map()
-    if (provider.groupsFromStandings) {
+    if (provider.groupsFromStandings && competition.format !== 'league') {
       realStandings = standings.filter((s) => s.group)
       groupByProvider = new Map(realStandings.map((s) => [s.providerTeamId, s.group]))
     }

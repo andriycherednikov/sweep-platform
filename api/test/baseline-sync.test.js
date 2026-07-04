@@ -196,3 +196,39 @@ test('NBA baseline: drops All-Star game, writes 2-way finals + conference rankin
     await db.delete(competition).where(eq(competition.id, NBA_COMP.id))
   }
 })
+
+test('league-format football keeps all standings rows (no group filter)', async () => {
+  const LG = { id: 'apifootball:39:test-league', provider: 'apifootball', sport: 'football', leagueId: '39', season: 'test-league' }
+  await db.insert(competition).values({ ...LG, format: 'league', name: 'EPL Test' }).onConflictDoNothing()
+  await db.insert(competitor).values([
+    { id: `cp_${LG.id}_ars`, competitionId: LG.id, code: 'ars', name: 'Arsenal', color: '#f00', providerId: 42 },
+    { id: `cp_${LG.id}_liv`, competitionId: LG.id, code: 'liv', name: 'Liverpool', color: '#c00', providerId: 40 },
+  ]).onConflictDoNothing()
+  const leagueProvider = createRecordedProvider({
+    fixtures: { response: [{
+      fixture: { id: 7710001, date: '2026-01-10T15:00:00+00:00', status: { short: 'FT', elapsed: 90 }, venue: { name: 'V', city: 'C' } },
+      league: { round: 'Regular Season - 21' }, teams: { home: { id: 42, winner: true }, away: { id: 40, winner: false } },
+      goals: { home: 2, away: 1 }, score: { halftime: { home: 1, away: 0 }, fulltime: { home: 2, away: 1 }, penalty: { home: null, away: null } },
+    }] },
+    standings: { response: [{ league: { standings: [[
+      { team: { id: 40, name: 'Liverpool' }, group: 'Premier League', rank: 1, points: 50, all: { played: 21, win: 16, draw: 2, lose: 3, goals: { for: 55, against: 20 } } },
+      { team: { id: 42, name: 'Arsenal' }, group: 'Premier League', rank: 2, points: 47, all: { played: 21, win: 14, draw: 5, lose: 2, goals: { for: 44, against: 18 } } },
+    ]] } }] },
+    predictions: { response: [] },
+  })
+  try {
+    const r = await syncBaseline(db, leagueProvider, { ...LG, format: 'league' })
+    expect(r.standings).toBe(2) // both rows kept despite no "Group X" label
+    const rows = await db.select().from(ranking).where(eq(ranking.competitionId, LG.id))
+    expect(rows).toHaveLength(2)
+    expect(rows.find((x) => x.competitorCode === 'liv')).toMatchObject({ rank: 1, points: 50 })
+    const [ev] = await db.select().from(event).where(eq(event.competitionId, LG.id))
+    expect(ev.stage).toBe('group') // league fixtures are group-stage (draw picks stay legal)
+    expect(ev.detail.matchday).toBe(21)
+  } finally {
+    await db.delete(event).where(eq(event.competitionId, LG.id))
+    await db.delete(ranking).where(eq(ranking.competitionId, LG.id))
+    await db.delete(competitor).where(eq(competitor.competitionId, LG.id))
+    await db.delete(competition).where(eq(competition.id, LG.id))
+  }
+})

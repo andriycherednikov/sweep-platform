@@ -20,6 +20,20 @@ test('parseRound: real "Group Stage - N" (no letter), embedded form, and knockou
   expect(parseRound('Round of 16')).toEqual({ group: '', matchday: 0, stage: 'knockout' })
 })
 
+test('parseRound: league regular-season rounds are group-stage with a matchday', () => {
+  expect(parseRound('Regular Season - 15')).toEqual({ group: '', matchday: 15, stage: 'group' })
+  expect(parseRound('Regular Season - 1')).toEqual({ group: '', matchday: 1, stage: 'group' })
+  // WC shapes unchanged
+  expect(parseRound('Group Stage - 2')).toEqual({ group: '', matchday: 2, stage: 'group' })
+  expect(parseRound('Quarter-finals')).toEqual({ group: '', matchday: 0, stage: 'knockout' })
+})
+
+test('mapStanding carries the provider rank', () => {
+  const s = mapStanding({ team: { id: 3001 }, group: 'Group L', rank: 4, points: 3,
+    all: { played: 1, win: 1, draw: 0, lose: 0, goals: { for: 2, against: 1 } } })
+  expect(s.rank).toBe(4)
+})
+
 test('mapFixture turns a raw fixture into a DomainFixture (group resolved later from standings)', () => {
   const [fin, ups] = load('fixtures').response.map(mapFixture)
   expect(fin).toMatchObject({

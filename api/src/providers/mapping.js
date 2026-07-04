@@ -20,6 +20,10 @@ export function parseRound(round) {
   if (m) return { group: '', matchday: Number(m[1]), stage: 'group' }
   m = /Group\s+([A-L])\s*-\s*(\d+)/i.exec(s)
   if (m) return { group: m[1].toUpperCase(), matchday: Number(m[2]), stage: 'group' }
+  // League rounds ("Regular Season - N") are the sport-generic "regular season = group
+  // stage" convention (same as NBA) — draws are legal picks here, unlike knockout rounds.
+  m = /Regular\s+Season\s*-\s*(\d+)/i.exec(s)
+  if (m) return { group: '', matchday: Number(m[1]), stage: 'group' }
   return { group: '', matchday: 0, stage: 'knockout' }
 }
 
@@ -59,13 +63,13 @@ export function mapFixture(raw) {
 }
 
 /** A standings row → domain. `group` is the letter (A–L) or null for the third-placed ranking.
- *  `rank` is null — football has no single provider-ranked position (group placement is
- *  resolved elsewhere), unlike basketball's conference `position`. */
+ *  `rank` is the provider's table position — football leagues carry it, and WC group tables
+ *  store it too (the `/api/standings` route never reads the column, so the wire is unchanged). */
 export function mapStanding(raw) {
   return {
     providerTeamId: raw.team.id,
     group: parseGroupLabel(raw.group),
-    rank: null,
+    rank: raw.rank ?? null,
     pts: raw.points,
     stats: {
       played: raw.all.played, win: raw.all.win, draw: raw.all.draw, loss: raw.all.lose,
