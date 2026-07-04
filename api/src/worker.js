@@ -1,7 +1,9 @@
 import cron from 'node-cron'
 import { createPool, createDb } from './db/client.js'
-import { providerFor } from './providers/registry.js'
+import { providerFor, PROVIDER_KEYS } from './providers/registry.js'
 import { syncBaseline } from './worker/baseline-sync.js'
+import { syncCatalog } from './worker/catalog-sync.js'
+import { syncCompetitors } from './worker/sync-competitors.js'
 import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { publish } from './events/notify.js'
@@ -25,12 +27,17 @@ async function activeCompetitions(db) {
   return db.select().from(competition).where(inArray(competition.id, ids))
 }
 
-async function baseline(reason) {
+async function baseline(reason, { syncRosters = false } = {}) {
   const comps = await activeCompetitions(db)
   // ponytail: sequential per-competition loop; parallelize if >10 active competitions ever matters (P4 concern).
   for (const comp of comps) {
     try {
       const provider = providerFor(comp)
+      if (syncRosters && provider.dropUnknownTeams) {
+        // feed-born rosters follow feed churn (trades/relocations); curated football stays CLI-driven.
+        try { await syncCompetitors(db, provider, comp) }
+        catch (e) { console.error(`[syncCompetitors] ${comp.id} failed:`, e.message) }
+      }
       const r = await syncBaseline(db, provider, comp)
       if (r.newlyFinal.length) {
         await recomputeStandings(db, comp.id)
@@ -49,8 +56,21 @@ async function baseline(reason) {
   }
 }
 
-// Baseline a few times a day (00:10, 06:10, 12:10, 18:10 UTC) + once at boot.
-cron.schedule('10 0,6,12,18 * * *', () => baseline('cron'))
+// Once a day (00:10 UTC): refresh each provider's catalog (~1 request/provider), then
+// baseline with a feed-born roster re-sync so trades/relocations aren't stuck until a
+// manual CLI run. Catalog failures are per-provider — one provider's outage must not
+// block the other's refresh, nor the baseline that follows.
+async function daily() {
+  for (const key of PROVIDER_KEYS) {
+    try { await syncCatalog(db, key, providerFor({ provider: key })) }
+    catch (e) { console.error(`[daily] catalog ${key} failed:`, e.message) }
+  }
+  await baseline('cron-daily', { syncRosters: true })
+}
+cron.schedule('10 0 * * *', () => daily())
+
+// Baseline the rest of the day (06:10, 12:10, 18:10 UTC) + once at boot.
+cron.schedule('10 6,12,18 * * *', () => baseline('cron'))
 await baseline('boot')
 
 // Safety net for stale bets: the live tick only grades a fixture at the moment it flips
