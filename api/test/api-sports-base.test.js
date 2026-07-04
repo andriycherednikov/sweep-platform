@@ -40,3 +40,8 @@ test('winnerSideToResult maps sides and guards no-draw sports', () => {
   expect(winnerSideToResult(null, 'football')).toBeNull()
   expect(() => winnerSideToResult('draw', 'basketball')).toThrow(/no-draw/)
 })
+
+test('winnerSideToResult throws on a garbage side instead of leaking DRAW past the guard', () => {
+  expect(() => winnerSideToResult('banana', 'basketball')).toThrow(/unknown winner side/)
+  expect(() => winnerSideToResult('banana', 'football')).toThrow(/unknown winner side/)
+})

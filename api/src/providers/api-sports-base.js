@@ -28,5 +28,7 @@ export function winnerSideToResult(side, sport) {
   if (side === 'draw' && !sportConfig(sport).hasDraws) {
     throw new Error(`no-draw sport ${sport} produced a drawn final`)
   }
-  return side === 'home' ? 'HOME' : side === 'away' ? 'AWAY' : 'DRAW'
+  const result = { home: 'HOME', away: 'AWAY', draw: 'DRAW' }[side]
+  if (!result) throw new Error(`unknown winner side: ${side}`) // mapper bug — never grade on garbage
+  return result
 }
