@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { buildApp } from '../src/app.js'
 import { account, accountSession, loginToken } from '../src/db/schema.js'
+import { cleanupExpiredAuth } from '../src/accounts/auth.js'
 
 const { pool, db } = openTestDb()
 const mails = []
@@ -62,4 +63,21 @@ test('expired link and expired session are refused; login never leaks existence'
   await db.insert(accountSession).values({ token: 'expiredsess', accountId: acc.id, expiresAt: new Date(Date.now() - 1000) })
   expect((await app.inject({ method: 'GET', url: '/api/account', headers: { 'x-account-token': 'expiredsess' } })).statusCode).toBe(401)
   expect((await app.inject({ method: 'GET', url: '/api/account' })).statusCode).toBe(401) // no header
+})
+
+test('cleanupExpiredAuth deletes expired login tokens + sessions, keeps live ones', async () => {
+  const [acc] = await db.select().from(account).where(eq(account.email, 'ada@x.test'))
+  await db.insert(loginToken).values([
+    { token: 'cleanup-expired-lt', email: 'ada@x.test', expiresAt: new Date(Date.now() - 1000) },
+    { token: 'cleanup-live-lt', email: 'ada@x.test', expiresAt: new Date(Date.now() + 60_000) },
+  ])
+  await db.insert(accountSession).values([
+    { token: 'cleanup-expired-as', accountId: acc.id, expiresAt: new Date(Date.now() - 1000) },
+    { token: 'cleanup-live-as', accountId: acc.id, expiresAt: new Date(Date.now() + 60_000) },
+  ])
+  await cleanupExpiredAuth(db)
+  const lts = await db.select().from(loginToken).where(inArray(loginToken.token, ['cleanup-expired-lt', 'cleanup-live-lt']))
+  expect(lts.map((r) => r.token)).toEqual(['cleanup-live-lt'])
+  const sess = await db.select().from(accountSession).where(inArray(accountSession.token, ['cleanup-expired-as', 'cleanup-live-as']))
+  expect(sess.map((r) => r.token)).toEqual(['cleanup-live-as'])
 })

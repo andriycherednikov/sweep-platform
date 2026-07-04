@@ -6,6 +6,7 @@ import { syncCatalog } from './worker/catalog-sync.js'
 import { syncCompetitors } from './worker/sync-competitors.js'
 import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
+import { cleanupExpiredAuth } from './accounts/auth.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
@@ -61,6 +62,8 @@ async function baseline(reason, { syncRosters = false } = {}) {
 // manual CLI run. Catalog failures are per-provider — one provider's outage must not
 // block the other's refresh, nor the baseline that follows.
 async function daily() {
+  try { await cleanupExpiredAuth(db) }
+  catch (e) { console.error('[daily] auth cleanup failed:', e.message) }
   for (const key of PROVIDER_KEYS) {
     try { await syncCatalog(db, key, providerFor({ provider: key })) }
     catch (e) { console.error(`[daily] catalog ${key} failed:`, e.message) }
