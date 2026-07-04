@@ -123,6 +123,17 @@ test('bootstrap exposes wageringEnabled additively', async () => {
   expect(body.wageringEnabled).toBe(true)
 })
 
+test('bootstrap serves the competition identity (sport, hasDraws, format)', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/bootstrap' })
+  expect(res.statusCode).toBe(200)
+  const { competition } = res.json()
+  expect(competition).toMatchObject({
+    sport: 'football', hasDraws: true, format: expect.any(String),
+    name: expect.any(String), season: expect.any(String),
+  })
+  expect(competition).toHaveProperty('logo')
+})
+
 test('no-draw sport: 1x2 and DRAW are refused at validation', async () => {
   // minimal basketball world: competition + two competitors + one upcoming event with an ml market stored
   await db.insert(competition).values({ id: 'ck_wgnba', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024', format: 'league', name: 'NBA vt' })
