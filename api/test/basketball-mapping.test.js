@@ -72,3 +72,11 @@ test('mapLeague maps the catalog entry', () => {
   expect(l).toMatchObject({ providerLeagueId: 12, name: 'NBA', type: 'League' })
   expect(l.seasons.map((s) => s.season)).toContain('2023-2024')
 })
+
+test('basketball mapLeague carries country and coverage; no current flag in this API', () => {
+  const l = mapLeague(leagues[0])
+  expect(l.country).toMatchObject({ name: 'USA', code: 'US' })
+  const s23 = l.seasons.find((s) => s.season === '2023-2024')
+  expect(s23).toMatchObject({ current: false, standings: true, odds: false })
+  expect(l.seasons.find((s) => s.season === '2022-2023')).toMatchObject({ standings: false })
+})

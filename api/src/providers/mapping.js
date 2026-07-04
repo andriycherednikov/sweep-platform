@@ -78,7 +78,11 @@ export function mapStanding(raw) {
 export function mapLeague(raw) {
   return {
     providerLeagueId: raw.league.id, name: raw.league.name, type: raw.league.type, logo: raw.league.logo ?? null,
-    seasons: (raw.seasons ?? []).map((s) => ({ season: String(s.year), start: s.start, end: s.end })),
+    country: raw.country ? { name: raw.country.name ?? null, code: raw.country.code ?? null, flag: raw.country.flag ?? null } : null,
+    seasons: (raw.seasons ?? []).map((s) => ({
+      season: String(s.year), start: s.start, end: s.end, current: !!s.current,
+      standings: !!s.coverage?.standings, odds: !!s.coverage?.odds,
+    })),
   }
 }
 

@@ -47,6 +47,17 @@ test('mapLeague maps the catalog entry (football nests under `league`, unlike ba
   expect(l.seasons.map((s) => s.season)).toContain('2026')
 })
 
+test('mapLeague carries country and per-season coverage flags', () => {
+  const [wc, epl] = load('leagues').response.map(mapLeague)
+  expect(wc.country).toEqual({ name: 'World', code: null, flag: null })
+  const wc26 = wc.seasons.find((s) => s.season === '2026')
+  expect(wc26).toMatchObject({ current: true, standings: true, odds: true })
+  expect(epl.country.name).toBe('England')
+  // the coverage-maturity trap: EPL's unstarted 2026 season reports standings:false
+  expect(epl.seasons.find((s) => s.season === '2026')).toMatchObject({ current: true, standings: false })
+  expect(epl.seasons.find((s) => s.season === '2025')).toMatchObject({ current: false, standings: true })
+})
+
 test('mapPrediction turns percent strings into integers, or null', () => {
   expect(mapPrediction(load('predictions'))).toEqual({ a: 55, d: 25, b: 20 })
   expect(mapPrediction({ response: [] })).toBeNull()

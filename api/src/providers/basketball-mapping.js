@@ -69,10 +69,14 @@ export function mapBasketStanding(raw) {
   }
 }
 
-/** Raw /leagues row → catalog entry. */
+/** Raw /leagues row → catalog entry. No `current` flag in this API — always false. */
 export function mapLeague(raw) {
   return {
     providerLeagueId: raw.id, name: raw.name, type: raw.type, logo: raw.logo ?? null,
-    seasons: (raw.seasons ?? []).map((s) => ({ season: String(s.season), start: s.start, end: s.end })),
+    country: raw.country ? { name: raw.country.name ?? null, code: raw.country.code ?? null, flag: raw.country.flag ?? null } : null,
+    seasons: (raw.seasons ?? []).map((s) => ({
+      season: String(s.season), start: s.start, end: s.end, current: false,
+      standings: !!s.coverage?.standings, odds: !!s.coverage?.odds,
+    })),
   }
 }
