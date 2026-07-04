@@ -8,5 +8,5 @@ test('football has draws, basketball does not', () => {
 
 test('sportConfig throws on unknown sport', () => {
   expect(() => sportConfig('curling')).toThrow(/unknown sport/)
-  expect(sportConfig('football')).toEqual({ hasDraws: true })
+  expect(sportConfig('football')).toEqual({ hasDraws: true, gradeOn: 'regulation' })
 })

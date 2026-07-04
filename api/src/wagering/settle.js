@@ -1,7 +1,8 @@
 import { and, eq } from 'drizzle-orm'
-import { event, coinLedger, bet, parlay } from '../db/schema.js'
+import { event, coinLedger, bet, parlay, competition } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
 import { resolveBet, fixtureResult, regulationResult } from './markets.js'
+import { sportConfig } from '../sports.js'
 
 export { resolveBet, fixtureResult, regulationResult, MARKET_REGISTRY } from './markets.js'
 
@@ -14,11 +15,13 @@ export async function settleBets(db, fixtureId, publish = () => {}) {
   const [row] = await db.select().from(event).where(eq(event.id, fixtureId))
   const f = row && flattenEvent(row)
   if (!f || f.status !== 'final') return 0
+  const [comp] = await db.select().from(competition).where(eq(competition.id, row.competitionId))
+  const sport = sportConfig(comp.sport)
   const open = await db.select().from(bet).where(and(eq(bet.fixtureId, fixtureId), eq(bet.status, 'open')))
   const sweeps = new Set()
   const parlayIds = new Set()
   for (const b of open) {
-    const outcome = resolveBet(b.market, b.selection, b.line == null ? null : Number(b.line), f)
+    const outcome = resolveBet(b.market, b.selection, b.line == null ? null : Number(b.line), f, sport)
     if (outcome == null) continue // data not available yet → leave open
     const won = outcome === 'won'
     if (b.parlayId) {

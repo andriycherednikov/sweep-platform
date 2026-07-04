@@ -36,8 +36,29 @@ export function regulationResult(f) {
   return f.regScore1 > f.regScore2 ? 'HOME' : f.regScore1 < f.regScore2 ? 'AWAY' : 'DRAW'
 }
 
+/** Score pair a sport's bets grade on; null when not yet available. */
+function scoresFor(f, sport) {
+  if (sport.gradeOn === 'regulation') return f.regScore1 == null || f.regScore2 == null ? null : [f.regScore1, f.regScore2]
+  return f.score1 == null || f.score2 == null ? null : [f.score1, f.score2]
+}
+
 export const MARKET_REGISTRY = {
   '1x2': { needsDraws: true, grade(f, selection) { const r = regulationResult(f); return r == null ? null : r === selection ? 'won' : 'lost' } },
+  ml: { grade(f, selection) { const r = fixtureResult(f); return r == null ? null : r === selection ? 'won' : 'lost' } },
+  ou: { grade(f, selection, line, sport) {
+    if (line == null) return null
+    const s = scoresFor(f, sport); if (!s) return null
+    const total = s[0] + s[1]
+    if (total === line) return null // ponytail: half-point lines only at offer — an integer push would need refund plumbing
+    return ((total > line) === (selection === 'OVER')) ? 'won' : 'lost'
+  } },
+  hcap: { grade(f, selection, line, sport) {
+    if (line == null) return null
+    const s = scoresFor(f, sport); if (!s) return null
+    const margin = s[0] + line - s[1]
+    if (margin === 0) return null // ponytail: half-point lines only at offer — an integer push would need refund plumbing
+    return ((margin > 0) === (selection === 'HOME')) ? 'won' : 'lost'
+  } },
   // To Qualify grades on who actually advanced (winnerCode → ET/penalties aware), not the 90' result.
   toq: { grade(f, selection) { const r = fixtureResult(f); return r == null ? null : r === selection ? 'won' : 'lost' } },
   fh1x2: { needsDraws: true, grade(f, selection) { const r = htResult(f); return r == null ? null : r === selection ? 'won' : 'lost' } },
