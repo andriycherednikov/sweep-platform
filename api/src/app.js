@@ -25,6 +25,7 @@ import { sweepResolver } from './sweeps/resolve.js'
 import { accountRoutes } from './routes/account.js'
 import { catalogRoutes } from './routes/catalog.js'
 import { billingRoutes } from './routes/billing.js'
+import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { providerFor } from './providers/registry.js'
 
 export function buildApp(db, opts = {}) {
@@ -85,6 +86,7 @@ export function buildApp(db, opts = {}) {
   app.register(sweepsRoutes)
   app.register(accountRoutes)
   app.register(billingRoutes)
+  app.register(stripeWebhookRoutes)
   app.register(catalogRoutes)
   return app
 }
