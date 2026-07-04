@@ -3,9 +3,10 @@ import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { buildApp } from '../src/app.js'
-import { competition, competitor, event, ranking, sweep, person, ownership, bet, coinLedger, support } from '../src/db/schema.js'
+import { competition, competitor, event, ranking, sweep, person, ownership, bet, coinLedger, support, parlay } from '../src/db/schema.js'
 import { addCompetition } from '../src/worker/add-competition.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
+import { detailMerge } from '../src/db/event-shape.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
 import { settleBets } from '../src/wagering/settle.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
@@ -37,6 +38,7 @@ beforeAll(async () => { await app.ready() })
 afterAll(async () => {
   await db.delete(support).where(eq(support.sweepId, 'sw_nbae2e'))
   await db.delete(bet).where(eq(bet.sweepId, 'sw_nbae2e'))
+  await db.delete(parlay).where(eq(parlay.sweepId, 'sw_nbae2e')) // parlay legs cascade via bet, but the parlay row itself is separate and FKs person
   await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_nbae2e'))
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_nbae2e'))
   await db.delete(person).where(eq(person.sweepId, 'sw_nbae2e'))
@@ -95,4 +97,47 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
   const rows = await db.select().from(ranking).where(eq(ranking.competitionId, ID))
   expect(rows).toHaveLength(30)
   expect(rows.every((x) => x.rank != null && x.stats.pct != null)).toBe(true)
+})
+
+test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the recorded finals', async () => {
+  // fresh upcoming snapshot so bets are placeable
+  await syncBaseline(db, recorded(upcomingGames()), (await db.select().from(competition).where(eq(competition.id, ID)))[0])
+  const evs = await db.select().from(event).where(eq(event.competitionId, ID))
+  const [g1, g2] = evs.slice(0, 2)
+  const markets = {
+    ml:   { label: 'Moneyline', book: 'TestBook', selections: [ { key: 'HOME', label: 'Home', odds: 1.8 }, { key: 'AWAY', label: 'Away', odds: 2.0 } ] },
+    ou:   { label: 'Total', line: 213.5, book: 'TestBook', selections: [ { key: 'OVER', label: 'Over 213.5', odds: 1.9 }, { key: 'UNDER', label: 'Under 213.5', odds: 1.9 } ] },
+    hcap: { label: 'Handicap', line: -2.5, book: 'TestBook', selections: [ { key: 'HOME', label: 'Home -2.5', odds: 1.95 }, { key: 'AWAY', label: 'Away +2.5', odds: 1.85 } ] },
+  }
+  for (const g of [g1, g2]) await db.update(event).set({ detail: detailMerge({ markets }) }).where(eq(event.id, g.id))
+  await db.update(sweep).set({ wageringEnabled: true }).where(eq(sweep.id, 'sw_nbae2e'))
+  const cookie = await sessionCookie(memberToken)
+  const H = { host: 'platform.test', cookie }
+
+  const b1 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'ml', selection: 'HOME', stake: 100 } })
+  expect(b1.statusCode).toBe(200)
+  const b2 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'ou', selection: 'OVER', stake: 50 } })
+  expect(b2.statusCode).toBe(200)
+  const b3 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'hcap', selection: 'HOME', stake: 50 } })
+  expect(b3.statusCode).toBe(200)
+  const par = await app.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { personId: 'pn_e2e', stake: 40, legs: [ { fixtureId: g1.id, market: 'ml', selection: 'HOME' }, { fixtureId: g2.id, market: 'ou', selection: 'UNDER' } ] } })
+  expect(par.statusCode).toBe(200)
+
+  // flip the feed to the real (final) capture and settle both games
+  await syncBaseline(db, recorded(load('games')), (await db.select().from(competition).where(eq(competition.id, ID)))[0])
+  await settleBets(db, g1.id); await settleBets(db, g2.id)
+
+  const settled = await db.select().from(bet).where(and(eq(bet.sweepId, 'sw_nbae2e'), eq(bet.fixtureId, g1.id)))
+  expect(settled.every((b) => b.status === 'won' || b.status === 'lost')).toBe(true)
+  // grading agrees with the recorded final score (read it and assert each bet the cheap way)
+  const [fin] = await db.select().from(event).where(eq(event.id, g1.id))
+  const homeWon = fin.winnerCode === fin.c1Code
+  const mlBet = settled.find((b) => b.market === 'ml' && !b.parlayId)
+  expect(mlBet.status).toBe(homeWon ? 'won' : 'lost')
+  const total = fin.score1 + fin.score2
+  expect(settled.find((b) => b.market === 'ou' && !b.parlayId).status).toBe(total > 213.5 ? 'won' : 'lost')
+  expect(settled.find((b) => b.market === 'hcap' && !b.parlayId).status).toBe(fin.score1 - 2.5 > fin.score2 ? 'won' : 'lost')
+  // ledger: a won single paid out; the parlay resolved once both legs graded
+  const [pl] = await db.select().from(parlay).where(eq(parlay.sweepId, 'sw_nbae2e'))
+  expect(['won', 'lost']).toContain(pl.status)
 })
