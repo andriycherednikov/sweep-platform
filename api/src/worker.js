@@ -6,27 +6,17 @@ import { syncCatalog } from './worker/catalog-sync.js'
 import { syncCompetitors } from './worker/sync-competitors.js'
 import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLineupWindow } from './worker/live-poller.js'
 import { resolveCrosswalk } from './worker/crosswalk.js'
+import { activeCompetitions } from './worker/active-competitions.js'
 import { cleanupExpiredAuth } from './accounts/auth.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
 import { grantMatchRewards } from './coins/rewards.js'
-import { eq, inArray, isNull } from 'drizzle-orm'
-import { competition, event, sweep } from './db/schema.js'
+import { eq, inArray } from 'drizzle-orm'
+import { event } from './db/schema.js'
 
 const pool = createPool()
 const db = createDb(pool)
-
-/** Competitions worth syncing: bound to at least one live (unarchived) sweep — the
- *  §7 dedupe-by-competition (N sweeps on one competition = one poll). Empty DB → empty
- *  list → both loops below no-op instead of crashing on boot. */
-async function activeCompetitions(db) {
-  const rows = await db.selectDistinct({ id: sweep.competitionId }).from(sweep)
-    .where(isNull(sweep.archivedAt))
-  const ids = rows.map((r) => r.id).filter(Boolean)
-  if (!ids.length) return []
-  return db.select().from(competition).where(inArray(competition.id, ids))
-}
 
 async function baseline(reason, { syncRosters = false } = {}) {
   const comps = await activeCompetitions(db)
