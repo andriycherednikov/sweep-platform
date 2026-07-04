@@ -197,6 +197,30 @@ export function mapMarkets(rawResponse) {
       selections: [{ key: 'OVER', label: 'Over 2.5', odds: go }, { key: 'UNDER', label: 'Under 2.5', odds: gu }] }
   }
 
+  const ahR = acrossBooks('Asian Handicap')
+  if (ahR) {
+    // values pair by displayed number: "Home +0.5" / "Away +0.5" are the two sides of the
+    // market whose home-relative line is +0.5 (±0 anchors to the Home/Away DNB odds).
+    const sides = new Map() // line -> { home: {label, odds}, away: {label, odds} }
+    for (const v of ahR.bet.values ?? []) {
+      const mch = /^(Home|Away)\s+([+-]?\d+(?:\.\d+)?)$/.exec(String(v.value))
+      if (!mch) continue
+      const line = Number(mch[2]), odds = Number(v.odd)
+      if (Math.abs(line % 1) !== 0.5 || !Number.isFinite(odds) || odds <= 1) continue // half-point lines only
+      const e = sides.get(line) ?? {}
+      e[mch[1] === 'Home' ? 'home' : 'away'] = { label: String(v.value), odds }
+      sides.set(line, e)
+    }
+    let best = null
+    for (const [line, e] of sides) {
+      if (!e.home || !e.away) continue
+      const gap = Math.abs(e.home.odds - e.away.odds)
+      if (!best || gap < best.gap) best = { line, gap, ...e }
+    }
+    if (best) markets['hcap'] = { label: 'Handicap', line: best.line, book: ahR.book.name,
+      selections: [ { key: 'HOME', label: best.home.label, odds: best.home.odds }, { key: 'AWAY', label: best.away.label, odds: best.away.odds } ] }
+  }
+
   const couR = acrossBooks('Cards Over/Under')
   if (couR) for (const line of PREF_CARD_LINES) {
     const co = oddOf(couR.bet, `Over ${line}`), cu = oddOf(couR.bet, `Under ${line}`)

@@ -382,3 +382,36 @@ test('mapFixture shootout scores are null when absent', () => {
   expect(f.penScore1).toBeNull()
   expect(f.penScore2).toBeNull()
 })
+
+const liveOdds = load('odds-spine-live')
+
+test('mapMarkets extracts a half-point handicap main line from the live capture', () => {
+  const m = mapMarkets(liveOdds)
+  expect(m.markets.hcap).toBeDefined()
+  const h = m.markets.hcap
+  expect(Math.abs(h.line % 1)).toBeCloseTo(0.5)             // half-point lines only
+  expect(h.selections.map((s) => s.key).sort()).toEqual(['AWAY', 'HOME'])
+  for (const s of h.selections) expect(Number(s.odds)).toBeGreaterThan(1)
+})
+
+test('hcap picks the most balanced half-point line and pairs sides by displayed number', () => {
+  const raw = { response: [ { bookmakers: [ { name: 'Bet365', bets: [ { id: 4, name: 'Asian Handicap', values: [
+    { value: 'Home +0', odd: '3.25' }, { value: 'Away +0', odd: '1.30' },
+    { value: 'Home +0.5', odd: '2.00' }, { value: 'Away +0.5', odd: '1.77' },
+    { value: 'Home +1', odd: '1.50' }, { value: 'Away +1', odd: '2.45' },
+    { value: 'Home +1.5', odd: '1.25' }, { value: 'Away +1.5', odd: '3.90' },
+  ] }, { id: 1, name: 'Match Winner', values: [ { value: 'Home', odd: '4.50' }, { value: 'Draw', odd: '3.40' }, { value: 'Away', odd: '1.80' } ] } ] } ] } ] }
+  const m = mapMarkets(raw)
+  expect(m.markets.hcap.line).toBe(0.5)                     // |2.00−1.77| is the tightest half-point pair
+  expect(m.markets.hcap.selections).toEqual([
+    { key: 'HOME', label: 'Home +0.5', odds: 2.0 },
+    { key: 'AWAY', label: 'Away +0.5', odds: 1.77 },
+  ])
+})
+
+test('no half-point handicap pair → hcap omitted', () => {
+  const raw = { response: [ { bookmakers: [ { name: 'Bet365', bets: [ { id: 4, name: 'Asian Handicap', values: [
+    { value: 'Home +1', odd: '1.50' }, { value: 'Away +1', odd: '2.45' } ] },
+    { id: 1, name: 'Match Winner', values: [ { value: 'Home', odd: '4.50' }, { value: 'Draw', odd: '3.40' }, { value: 'Away', odd: '1.80' } ] } ] } ] } ] }
+  expect(mapMarkets(raw).markets.hcap).toBeUndefined()
+})
