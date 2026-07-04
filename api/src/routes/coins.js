@@ -53,6 +53,7 @@ export async function coinsRoutes(app) {
   })
 
   app.post('/api/bet', { preHandler: member, schema: { body: betBody } }, async (req, reply) => {
+    if (!req.sweep.wageringEnabled) return reply.code(403).send({ error: 'wagering_disabled' })
     const sweepId = req.sweep.id
     const { fixtureId, personId, selection, stake } = req.body
     const market = req.body.market ?? '1x2'
@@ -99,6 +100,7 @@ export async function coinsRoutes(app) {
   })
 
   app.post('/api/parlay', { preHandler: member, schema: { body: parlayBody } }, async (req, reply) => {
+    if (!req.sweep.wageringEnabled) return reply.code(403).send({ error: 'wagering_disabled' })
     const sweepId = req.sweep.id
     const { personId, stake, legs } = req.body
     const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
