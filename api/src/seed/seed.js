@@ -30,7 +30,7 @@ export async function seed(db) {
   }).onConflictDoNothing()
   await db.insert(s.sweep).values({
     id: 'default', name: 'The Sweep', kind: 'default', scoringRule: 'top3',
-    coOwners: 'all_win', competitionId: COMPETITION_ID,
+    coOwners: 'all_win', competitionId: COMPETITION_ID, wageringEnabled: true,
   }).onConflictDoNothing()
 
   for (const code of Object.keys(g.teams)) {

@@ -8,6 +8,7 @@ export const sweep = pgTable('sweep', {
   adminToken: text('admin_token').unique(),
   scoringRule: text('scoring_rule').notNull().default('top3'),
   coOwners: text('co_owners').notNull().default('all_win'),
+  wageringEnabled: boolean('wagering_enabled').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   archivedAt: timestamp('archived_at', { withTimezone: true }),
   competitionId: text('competition_id').notNull().references(() => competition.id),
