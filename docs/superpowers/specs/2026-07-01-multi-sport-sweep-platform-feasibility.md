@@ -176,6 +176,10 @@ is commercial (unit economics), not technical.
   verified-available in the family if a third sport is wanted later.
 - **Feed-cost model:** **waived by owner decision** — feed cost is assumed
   acceptable; no unit-economics gate before phase 4.
+  **UPDATE 2026-07-04 (phase 4):** the waiver expired as scoped; owner chose
+  the full model — see `2026-07-04-p4-unit-economics.md`. Verdict: viable;
+  football competitions need ~2 sweeps sharing them at Pro pricing, ~free at
+  Ultra scale; basketball ~free.
 
 ---
 
