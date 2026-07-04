@@ -21,6 +21,7 @@ import { MAX_BYTES } from './photos/process.js'
 import { adminRoutes } from './routes/admin.js'
 import { sweepsRoutes } from './routes/sweeps.js'
 import { sweepResolver } from './sweeps/resolve.js'
+import { accountRoutes } from './routes/account.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -47,6 +48,8 @@ export function buildApp(db, opts = {}) {
   if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
   app.decorate('platformHost', platformHost)
   app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
+  // magic-link delivery seam — console logger IS dev mode; a real provider is an ops decision (P4+)
+  app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
   app.register(rateLimit, { global: false })
 
@@ -66,5 +69,6 @@ export function buildApp(db, opts = {}) {
   app.register(coinsRoutes)
   app.register(adminRoutes)
   app.register(sweepsRoutes)
+  app.register(accountRoutes)
   return app
 }
