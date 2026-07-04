@@ -78,20 +78,24 @@ export async function accountRoutes(app) {
     if (mine.length >= cap) return reply.code(403).send({ error: 'sweep_cap', cap })
 
     const compId = `${providerKey}:${leagueId}:${season}`
-    const provider = app.providerFor({ provider: providerKey })
-    let [comp] = await app.db.select().from(competition).where(eq(competition.id, compId))
-    if (!comp) {
-      await addCompetition(app.db, provider, {
-        provider: providerKey, leagueId, season,
-        league: { name: cl.name, type: cl.type, logo: cl.logo }, // from the persisted catalog — never a live catalog call
-      })
-      ;[comp] = await app.db.select().from(competition).where(eq(competition.id, compId))
-    } else {
-      const [ev] = await app.db.select({ id: event.id }).from(event).where(eq(event.competitionId, compId)).limit(1)
-      if (!ev) { // an earlier provision died mid-baseline — finish the job before binding a sweep
-        await syncCompetitors(app.db, provider, comp)
-        await syncBaseline(app.db, provider, comp)
+    try { // feed-touching block: a provider hiccup must surface as a stable error, never internals
+      const provider = app.providerFor({ provider: providerKey })
+      let [comp] = await app.db.select().from(competition).where(eq(competition.id, compId))
+      if (!comp) {
+        await addCompetition(app.db, provider, {
+          provider: providerKey, leagueId, season,
+          league: { name: cl.name, type: cl.type, logo: cl.logo }, // from the persisted catalog — never a live catalog call
+        })
+      } else {
+        const [ev] = await app.db.select({ id: event.id }).from(event).where(eq(event.competitionId, compId)).limit(1)
+        if (!ev) { // an earlier provision died mid-baseline — finish the job before binding a sweep
+          await syncCompetitors(app.db, provider, comp)
+          await syncBaseline(app.db, provider, comp)
+        }
       }
+    } catch (e) {
+      req.log.error({ err: e, competitionId: compId }, 'provision failed')
+      return reply.code(500).send({ error: 'provision_failed' }) // competition/competitors left behind are reused by a retry
     }
 
     const id = `sw_${newToken(12)}`

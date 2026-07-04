@@ -12,31 +12,47 @@ const NBA_ID = 'apibasketball:12:2023-2024'
 const recordedB = () => createRecordedBasketballProvider({
   leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings'),
 })
+let feedDown = false // when true, the provider's roster fetch throws — simulates a feed hiccup mid-provision
 const app = buildApp(db, {
   sessionSecret: 'test-secret', platformHost: 'platform.test',
-  providerFor: (comp) => { if (comp.provider !== 'apibasketball') throw new Error(`unexpected provider ${comp.provider}`); return recordedB() },
+  providerFor: (comp) => {
+    if (comp.provider !== 'apibasketball') throw new Error(`unexpected provider ${comp.provider}`)
+    const p = recordedB()
+    return feedDown ? { ...p, fetchCompetitors: async () => { throw new Error('ECONNRESET internal feed detail') } } : p
+  },
 })
 const M = { headers: { 'x-account-token': 'swsession' } }
+const FAIL_ID = 'apibasketball:12:2022-2023'
 
 beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({ id: 'ac_sw', email: 'sw@x.test' }).onConflictDoNothing()
+  await db.insert(account).values({ id: 'ac_fail', email: 'fail@x.test' }).onConflictDoNothing()
   await db.insert(accountSession).values({ token: 'swsession', accountId: 'ac_sw', expiresAt: new Date(Date.now() + 3600_000) })
+  await db.insert(accountSession).values({ token: 'failsession', accountId: 'ac_fail', expiresAt: new Date(Date.now() + 3600_000) })
   await db.insert(catalogLeague).values({
     id: 'apibasketball:12', provider: 'apibasketball', providerLeagueId: '12', name: 'NBA', type: 'League',
     country: { name: 'USA', code: 'US', flag: null }, curated: true,
-    seasons: [{ season: '2023-2024', start: '2023-10-05', end: '2024-06-18', current: false, standings: true, odds: false }],
+    seasons: [
+      { season: '2023-2024', start: '2023-10-05', end: '2024-06-18', current: false, standings: true, odds: false },
+      { season: '2022-2023', start: '2022-10-18', end: '2023-06-12', current: false, standings: true, odds: false },
+    ],
   }).onConflictDoNothing()
 })
 afterAll(async () => {
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_sw'))
-  await db.delete(event).where(eq(event.competitionId, NBA_ID))
-  await db.delete(ranking).where(eq(ranking.competitionId, NBA_ID))
-  await db.delete(competitor).where(eq(competitor.competitionId, NBA_ID))
-  await db.delete(competition).where(eq(competition.id, NBA_ID))
+  await db.delete(sweep).where(eq(sweep.accountId, 'ac_fail'))
+  for (const id of [NBA_ID, FAIL_ID]) {
+    await db.delete(event).where(eq(event.competitionId, id))
+    await db.delete(ranking).where(eq(ranking.competitionId, id))
+    await db.delete(competitor).where(eq(competitor.competitionId, id))
+    await db.delete(competition).where(eq(competition.id, id))
+  }
   await db.delete(catalogLeague).where(eq(catalogLeague.id, 'apibasketball:12'))
   await db.delete(accountSession).where(eq(accountSession.token, 'swsession'))
+  await db.delete(accountSession).where(eq(accountSession.token, 'failsession'))
   await db.delete(account).where(eq(account.id, 'ac_sw'))
+  await db.delete(account).where(eq(account.id, 'ac_fail'))
   await app.close(); await pool.end()
 })
 
@@ -77,6 +93,18 @@ test('cap blocks the 4th sweep; archive frees the slot; ownership scoped', async
 
   // someone else's sweep id → 404 (the seeded default sweep is unowned)
   expect((await app.inject({ method: 'POST', url: '/api/account/sweeps/default/archive', ...M })).statusCode).toBe(404)
+})
+
+test('feed failure mid-provision → stable provision_failed, no internals leaked, no sweep', async () => {
+  feedDown = true
+  try {
+    const res = await app.inject({ method: 'POST', url: '/api/account/sweeps', headers: { 'x-account-token': 'failsession' },
+      payload: { name: 'Doomed', provider: 'apibasketball', leagueId: '12', season: '2022-2023' } })
+    expect(res.statusCode).toBe(500)
+    expect(res.json()).toEqual({ error: 'provision_failed' })
+    expect(res.body).not.toContain('ECONNRESET') // internal feed error must not reach the client
+    expect(await db.select().from(sweep).where(eq(sweep.accountId, 'ac_fail'))).toHaveLength(0)
+  } finally { feedDown = false }
 })
 
 test('validation: non-curated league, bad season, unauthenticated', async () => {
