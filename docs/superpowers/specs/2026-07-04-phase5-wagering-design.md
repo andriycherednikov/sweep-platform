@@ -167,7 +167,32 @@ Strict TDD, testcontainers, recorded feeds only — zero live calls.
 - Bootstrap: additive `wageringEnabled` field.
 - Suites green: api (393 + new), web 436 untouched.
 
-## 10. Out of scope
+## 10. Post-implementation (2026-07-04, branch ccb3dac..0356655)
+
+Landed as designed; final whole-branch review READY-TO-MERGE-WITH-FIXES, all
+fixes applied and re-reviewed clean (api 412 / web 436 unmodified / build
+green). Owner decisions and deviations recorded:
+
+- **hcap-on-football drift (owner-decided: keep).** The frozen web's
+  "+N more markets" chip counts all `detail.markets` keys, but its
+  bet-detail whitelist predates `hcap` — once LIVE football odds sync, the
+  count includes a market the detail screen doesn't show. Cosmetic only;
+  accepted; the P6 reskin resolves it. Do not "fix" in web/.
+- **Audit-parity fix beyond the plan text:** `openBetsBySweep`/`gradeNow`
+  (wagering/ledger.js) now threads the sweep's sport like `settleBets`
+  does — the plan only threaded settlement; the admin stale-bet audit
+  diverged for basketball (final review, RED-proven fix `04c89e2`).
+- **Tickets out of P5:** integer-line push leaves a bet open with stake
+  deducted (refund plumbing only if integer lines become offerable); `ml`
+  grades the final result regardless of `gradeOn` (fine for every sport
+  that offers it; comment-only); `hcap` equal-gap tie-break is first-seen;
+  `cs` draw scorelines aren't hasDraws-vetoed (unreachable — never offered
+  for no-draw sports).
+- **AFK defaults still standing for veto:** decision (c) surface
+  (provision option + admin toggle), backfill-ON, server-side exclusion
+  enforcement.
+
+## 11. Out of scope
 
 P6 reskin (wire rename, wagering UI), basketball live odds fetch (seam
 only), push/void handling for integer lines, per-sport exotics beyond
