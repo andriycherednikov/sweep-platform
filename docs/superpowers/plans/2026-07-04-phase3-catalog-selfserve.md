@@ -1325,3 +1325,52 @@ async function memberCookie(memberToken) {
 - **Placeholder scan:** clean — every code step is complete; T7's "rest unchanged" and T10's route bodies name exact existing code.
 - **Type consistency:** `seasonInWindow(providerKey, season)` (T3) used in T6/T10; `syncCatalog(db, providerKey, provider)` (T4) used in T11; `setCurated(db, providerKey, leagueId, on)` (T4) used in T13 CLI; `requireAccount(app)` (T5) used in T6/T10; `addCompetition(..., {league})` (T7) used in T10; `links(app, row)` export (T10); mapLeague season shape `{season,start,end,current,standings,odds}` (T2) consumed by T4 upsert, T6 filter, T10 validation; `app.providerFor` (T10) used in T10/T12 tests.
 - **Judgment calls (flagged):** T8 changes `mapStanding.rank` for ALL football (WC now stores real ranks — wire unread, safe); T9 re-keys one existing baseline assertion (approved behavior change); T12's football feed is inline-literal EPL-shaped JSON rather than fixture files (2 teams — small enough to read); seeded WC `format` value must be checked in T8 Step 4 (gate keys off `'league'` only).
+
+---
+
+## Post-implementation follow-ups (final whole-branch review, 2026-07-04)
+
+Branch landed as `e5b4665..96a067f` (6 prereq/cleanup commits, 3 docs, 12
+implementation tasks + live verification, 1 final-review fix). Final review
+verdict: READY TO MERGE. Both Important findings resolved same-session:
+magic-link consumption is now one atomic conditional UPDATE (`96a067f`), and
+NBA `2024-2025` was verified live on the free tier (window is by START year —
+correct as-is, documented in registry.js).
+
+**First-deploy gate (before ANY production deploy):**
+- Rate limits key on `req.ip` with no `trustProxy`; behind Caddy every client
+  shares the proxy IP → the login limit becomes one global bucket. Set
+  `trustProxy`/an `x-forwarded-for` keyGenerator at deploy time.
+- Expired `login_token`/`account_session` rows are never cleaned — two
+  `DELETE ... WHERE expires_at < now()` lines in the worker's `daily()`.
+- (Inherited) `Makefile`/`infra/` deploy targets still point at WC prod.
+
+**P4 hooks (fold into the subscription work on the same paths):**
+- Provision failures surface as raw 500s with internal messages — map to a
+  stable `{error: 'provision_failed'}`.
+- Account deletion is blocked by the session FK (deletion stays YAGNI until
+  billing).
+- Cap check is TOCTOU: concurrent provisions can land cap+1 (self-abuse only;
+  competition dedupe keeps feed impact ~nil).
+
+**Ticket-grade (non-blocking):**
+- Eventless-retry provision branch (competition exists, baseline died earlier)
+  has no test — it is the real feed-hiccup recovery path.
+- Concurrent FIRST provision of the same competition: loser gets an ungraceful
+  500 ("competition already exists"); retry succeeds.
+- catalog-sync: error branch untested; no txn around the upsert loop (partial
+  catalog self-heals at the next daily run); the CLI aborts remaining
+  providers on the first failure (the worker cron isolates per provider);
+  `catalog:curate` treats an `--off` typo as "on".
+- Catalog route: season sort-desc + null-country branches untested
+  (hand-traced correct); `sportOf` would 500 the catalog if a provider key
+  ever leaves FACTORIES while its rows remain — filter instead.
+- Indexes on `account_session.account_id` / catalog lookups when volume warrants.
+- Test hygiene: unscoped `accountSession`/`loginToken` wipes (safe under
+  `fileParallelism: false`); odds-window exact-7-day boundary untested;
+  FACTORIES lookup-throw triplicated in registry.js.
+
+Accepted as designed: Task-10 validation-before-cap ordering (resolves the
+plan's self-contradiction; no new disclosure — the catalog route already shows
+the same data); provider `rank` now stored for all football (wire unread);
+odds windowing changed WC baseline behavior (approved, tests re-keyed).
