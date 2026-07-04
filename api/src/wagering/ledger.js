@@ -1,8 +1,9 @@
 import { and, eq, sql, isNull, inArray } from 'drizzle-orm'
-import { event, person, coinLedger, bet, parlay, sweep } from '../db/schema.js'
+import { event, person, coinLedger, bet, parlay, sweep, competition } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
 import { STARTING_COINS, WEEKLY_COINS, WEEK_MS } from './constants.js'
 import { resolveBet } from './settle.js'
+import { sportConfig } from '../sports.js'
 import { serializePerson } from '../serialize.js'
 
 /** Season start for ONE competition = its earliest event start, or null when it has none.
@@ -62,10 +63,12 @@ async function parlaysFor(db, sweepId, personId) {
 }
 
 /** Grade an open bet exactly as the settler would right now: a definite 'won'/'lost' only
- *  when its fixture is final AND resolveBet has the data, else null (still unresolvable). */
-function gradeNow(b, f) {
+ *  when its fixture is final AND resolveBet has the data, else null (still unresolvable).
+ *  `sport` must be threaded through (see settle.js) — without it resolveBet defaults to
+ *  football's regulation-time grading, which mis-grades other sports' bets. */
+function gradeNow(b, f, sport) {
   if (!f || f.status !== 'final') return null
-  return resolveBet(b.market, b.selection, b.line == null ? null : Number(b.line), f)
+  return resolveBet(b.market, b.selection, b.line == null ? null : Number(b.line), f, sport)
 }
 
 /**
@@ -78,6 +81,12 @@ function gradeNow(b, f) {
  * touch it. People with stale bets sort first, then by open count, then name.
  */
 export async function openBetsBySweep(db, sweepId) {
+  // the sweep's own competition decides grading rules (regulation-time vs final score,
+  // draws legal or not) — mirror settle.js so a stale-bet audit agrees with the real settler
+  const [sw] = await db.select({ competitionId: sweep.competitionId }).from(sweep).where(eq(sweep.id, sweepId))
+  const [comp] = sw?.competitionId ? await db.select().from(competition).where(eq(competition.id, sw.competitionId)) : []
+  const sport = comp ? sportConfig(comp.sport) : undefined
+
   const singles = await db.select().from(bet)
     .where(and(eq(bet.sweepId, sweepId), eq(bet.status, 'open'), isNull(bet.parlayId)))
   const openParlays = await db.select().from(parlay)
@@ -120,12 +129,12 @@ export async function openBetsBySweep(db, sweepId) {
     groupFor(b.personId).singles.push({
       ...serializeBet(b),
       fixtureStatus: statusOf(b.fixtureId),
-      stale: gradeNow(b, fxById.get(b.fixtureId)) != null,
+      stale: gradeNow(b, fxById.get(b.fixtureId), sport) != null,
     })
   }
   for (const pl of openParlays) {
     const legs = legsByParlay.get(pl.id) ?? []
-    const grades = legs.map((l) => gradeNow(l, fxById.get(l.fixtureId)))
+    const grades = legs.map((l) => gradeNow(l, fxById.get(l.fixtureId), sport))
     // settleParlay settles the moment any leg loses, or once every leg has won
     const stale = grades.some((g) => g === 'lost') || (legs.length > 0 && grades.every((g) => g === 'won'))
     const ser = serializeParlay(pl, legs)

@@ -7,8 +7,9 @@ import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
+import { event, person, coinLedger, bet, parlay, sweep, competition, competitor } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
+import { openBetsBySweep } from '../src/wagering/ledger.js'
 
 const { pool, db } = openTestDb()
 const PASS = '1234'
@@ -120,4 +121,42 @@ test('does not flag a single on a final fixture that has no result data yet', as
   expect(body.totalStale).toBe(0)
   expect(body.people[0].singles[0].fixtureStatus).toBe('final')
   expect(body.people[0].singles[0].stale).toBe(false)
+})
+
+// finding 1: the audit path (openBetsBySweep → gradeNow) must resolve bets with the
+// sweep's OWN sport, exactly like settle.js does — not silently default to football's
+// regulation-time grading. An 'ou' bet only has regScore under football; a final NBA
+// game only ever has score1/score2 (final), so a football-default grade would come back
+// null (falsely "not stale") where the real settler (which threads sport correctly)
+// would grade it. Bypasses HTTP since the admin cookie only ever targets 'default'.
+test('grades a final NBA game\'s open ou bet using the sweep\'s own sport (not football default)', async () => {
+  const compId = 'ck_aob_nba'
+  const sweepId = 'sw_aob_nba'
+  try {
+    await db.insert(competition).values({ id: compId, provider: 'apibasketball', sport: 'basketball', leagueId: '99', season: '2099', format: 'league', name: 'NBA audit' })
+    await db.insert(competitor).values([
+      { id: `cp_${compId}_BOS`, competitionId: compId, code: 'BOS', name: 'Boston', color: '#0f0' },
+      { id: `cp_${compId}_DAL`, competitionId: compId, code: 'DAL', name: 'Dallas', color: '#00f' },
+    ])
+    // final score 110-90 (total 200), no reg score stored — football's regulation-time
+    // grading has nothing to read here and would grade null
+    await db.insert(event).values({ id: 'evt_aob_nba1', competitionId: compId, c1Code: 'BOS', c2Code: 'DAL',
+      startUtc: new Date(Date.now() - 3600_000), status: 'final', score1: 110, score2: 90, winnerCode: 'BOS', stage: 'group' })
+    await db.insert(sweep).values({ id: sweepId, name: 'NBA audit', kind: 'token', memberToken: 'mt_aob_nba', adminToken: 'at_aob_nba', competitionId: compId })
+    await db.insert(person).values({ id: 'pn_aob_nba', sweepId, name: 'Ada', short: 'Ada', initials: 'AD', avColor: '#111' })
+    await db.insert(bet).values({ id: 'b_aob_ou', sweepId, personId: 'pn_aob_nba', fixtureId: 'evt_aob_nba1', selection: 'OVER',
+      market: 'ou', line: '199.5', stake: 10, oddsDecimal: '1.9', potentialPayout: 19, status: 'open' })
+
+    const body = await openBetsBySweep(db, sweepId)
+    expect(body.totalOpen).toBe(1)
+    expect(body.totalStale).toBe(1) // graded won (200 > 199.5) — not null, not silently skipped
+    expect(body.people[0].singles[0].stale).toBe(true)
+  } finally {
+    await db.delete(bet).where(eq(bet.sweepId, sweepId))
+    await db.delete(person).where(eq(person.sweepId, sweepId))
+    await db.delete(sweep).where(eq(sweep.id, sweepId))
+    await db.delete(event).where(eq(event.competitionId, compId))
+    await db.delete(competitor).where(eq(competitor.competitionId, compId))
+    await db.delete(competition).where(eq(competition.id, compId))
+  }
 })
