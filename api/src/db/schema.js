@@ -146,6 +146,34 @@ export const account = pgTable('account', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
+export const loginToken = pgTable('login_token', {
+  token: text('token').primaryKey(),
+  email: text('email').notNull(), // keyed by email, NOT account — account is created on first USE (verified email)
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  usedAt: timestamp('used_at', { withTimezone: true }),
+})
+
+export const accountSession = pgTable('account_session', {
+  token: text('token').primaryKey(),
+  accountId: text('account_id').notNull().references(() => account.id),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})
+
+export const catalogLeague = pgTable('catalog_league', {
+  id: text('id').primaryKey(), // '<provider>:<providerLeagueId>'
+  provider: text('provider').notNull(),
+  providerLeagueId: text('provider_league_id').notNull(),
+  name: text('name').notNull(),
+  type: text('type').notNull(), // raw feed value — 'League' | 'Cup' | 'cup' (casing varies by API)
+  logo: text('logo'),
+  country: jsonb('country'), // {name, code, flag} | null
+  seasons: jsonb('seasons').notNull().default([]), // [{season, start, end, current, standings, odds}]
+  curated: boolean('curated').notNull().default(false), // sync NEVER touches this — curation is operator data
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
 export const competition = pgTable('competition', {
   id: text('id').primaryKey(), // '<provider>:<leagueId>:<season>'
   provider: text('provider').notNull(),
