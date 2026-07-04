@@ -24,6 +24,7 @@ import { sweepsRoutes } from './routes/sweeps.js'
 import { sweepResolver } from './sweeps/resolve.js'
 import { accountRoutes } from './routes/account.js'
 import { catalogRoutes } from './routes/catalog.js'
+import { billingRoutes } from './routes/billing.js'
 import { providerFor } from './providers/registry.js'
 
 export function buildApp(db, opts = {}) {
@@ -83,6 +84,7 @@ export function buildApp(db, opts = {}) {
   app.register(adminRoutes)
   app.register(sweepsRoutes)
   app.register(accountRoutes)
+  app.register(billingRoutes)
   app.register(catalogRoutes)
   return app
 }
