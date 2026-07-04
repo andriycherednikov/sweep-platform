@@ -3,7 +3,7 @@ import { and, eq, sql } from 'drizzle-orm'
 import { person, coinLedger, bet, parlay } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../coins/ledger.js'
+import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../wagering/ledger.js'
 
 const member = requireSweep(['member', 'admin'])
 

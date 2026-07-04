@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet, parlay } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
-import { regradeGs } from '../src/coins/regrade-gs.js'
-import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
+import { regradeGs } from '../src/wagering/regrade-gs.js'
+import { ensureGrants, balanceOf } from '../src/wagering/ledger.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })

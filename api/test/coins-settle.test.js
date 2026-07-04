@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
-import { fixtureResult, settleBets, settleStaleBets } from '../src/coins/settle.js'
-import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
+import { fixtureResult, settleBets, settleStaleBets } from '../src/wagering/settle.js'
+import { ensureGrants, balanceOf } from '../src/wagering/ledger.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
@@ -49,7 +49,7 @@ test('settleBets pays winners, busts losers, and is idempotent', async () => {
   expect(await balanceOf(db, 'default', p.id)).toBe(startBal - 200 + 200)
 })
 
-import { resolveBet, regulationResult } from '../src/coins/settle.js'
+import { resolveBet, regulationResult } from '../src/wagering/settle.js'
 
 const fx = (over = {}) => ({ t1Code: 'arg', t2Code: 'bra', winnerCode: null, score1: null, score2: null,
   regScore1: null, regScore2: null, htScore1: null, htScore2: null, events: [], ...over })

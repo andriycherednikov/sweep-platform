@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeEach, afterEach } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
-import { grantMatchRewards } from '../src/coins/rewards.js'
+import { grantMatchRewards } from '../src/wagering/rewards.js'
 
 const COMPETITION_ID = 'apifootball:1:2026' // matches seed.js's default competition
 const cpId = (code) => `cp_${COMPETITION_ID}_${code}`

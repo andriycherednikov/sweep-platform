@@ -4,7 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet, parlay, support, competition, sweep, competitor, ranking } from '../src/db/schema.js'
 import { refundPrunedParlays, syncBaseline } from '../src/worker/baseline-sync.js'
-import { ensureGrants, balanceOf } from '../src/coins/ledger.js'
+import { ensureGrants, balanceOf } from '../src/wagering/ledger.js'
 import { createRecordedProvider } from '../src/providers/recorded-provider.js'
 import { seed } from '../src/seed/seed.js'
 

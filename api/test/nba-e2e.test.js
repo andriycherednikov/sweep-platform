@@ -7,7 +7,7 @@ import { competition, competitor, event, ranking, sweep, person, ownership, bet,
 import { addCompetition } from '../src/worker/add-competition.js'
 import { syncBaseline } from '../src/worker/baseline-sync.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
-import { settleBets } from '../src/coins/settle.js'
+import { settleBets } from '../src/wagering/settle.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 import { newToken } from '../src/sweeps/tokens.js'
 

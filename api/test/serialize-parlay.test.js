@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest'
-import { serializeParlay } from '../src/coins/ledger.js'
+import { serializeParlay } from '../src/wagering/ledger.js'
 
 test('serializeParlay nests serialized legs and exposes parent money fields', () => {
   const p = { id: 'par_1', stake: 100, combinedOdds: '7.6', potentialPayout: 760, status: 'open', placedAt: 'T', settledAt: null }

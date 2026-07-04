@@ -2,8 +2,8 @@ import { expect, test, afterAll, beforeEach } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet, sweep, competition, competitor } from '../src/db/schema.js'
-import { seasonAnchor, currentWeekIndex, ensureGrants, balanceOf, statementFor } from '../src/coins/ledger.js'
-import { WEEK_MS } from '../src/coins/constants.js'
+import { seasonAnchor, currentWeekIndex, ensureGrants, balanceOf, statementFor } from '../src/wagering/ledger.js'
+import { WEEK_MS } from '../src/wagering/constants.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })

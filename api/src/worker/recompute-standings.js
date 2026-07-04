@@ -1,7 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { competition, competitor, event, ranking } from '../db/schema.js'
 import { flattenEvent } from '../db/event-shape.js'
-import { fixtureResult } from '../coins/settle.js'
+import { fixtureResult } from '../wagering/settle.js'
 
 /**
  * Recompute group standings from our OWN final results and upsert the ranking table.
