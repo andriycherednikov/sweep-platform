@@ -1272,3 +1272,48 @@ test('trial → checkout → quantity → lapse (read-only + polling drop) → r
 - **Placeholder scan:** clean. T9's bootstrap splice and T5's "validation prefix unchanged" name exact existing code; T9 Step 1 includes its fallback instruction (schema-vs-hook ordering) explicitly.
 - **Type consistency:** `sweepIsLive(sweepRow, accountRow, now)` (T2) used in T9 via `sweepLiveNow`; `liveSweepCount(db, accountId)` (T2) used in T6/T7/T8; `syncQuantity(stripe, acct, n)` (T2) used in T5/T6/T8; `GOOD_STANDING` (T2) used in T4/T5/T6/T7; `activeCompetitions(db, now)` (T4) used in T11; `fakeStripe(over)` (T3) used in T5/T7/T8/T11; env names `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_PRICE_ID` consistent across T3/T12; `ACCOUNT_SWEEP_CAP`/`ACCOUNT_SWEEP_MAX` (T5) match the design.
 - **Judgment calls (flagged):** provision txn rollback replaces the P3 leave-behind-for-retry semantics (approved in-plan; eventless branch retained and re-tested via seeding); `liveSweepCount` counts unarchived (billable) not predicate-live (intentional — renewal shouldn't resurrect a different quantity than the owner sees); webhook `subscription.updated` for an unknown sub id is a silent audit-only no-op (Stripe test-clock noise tolerated).
+
+---
+
+## Post-implementation follow-ups (final whole-branch review, 2026-07-04)
+
+Branch landed as `a078a54..3c53a43` (3 prereqs, docs, 11 tasks, 3 mid-branch
+review fixes, 1 final-review fix). Final review verdict: READY TO SHIP.
+Important findings all resolved same-session: pg client multiplexing under
+the provision txn (`686fe8f`), checkout customer-create TOCTOU + untested
+branches (`606602d`), webhook transactional idempotency — approved deviation
+from the plan's marker-first wording, recorded in the design doc (`adff4e6`),
+and the zero-sweep re-subscribe stuck state + rk_live boot guard (`3c53a43`).
+
+**Approved deviations from this plan's text:**
+- Provision runs in ONE txn: feed failure rolls back the competition row
+  (P3's leave-behind-for-retry semantics retired for the route; the
+  eventless-retry branch remains for CLI/worker deaths).
+- Webhook marker + handlers are one transaction (see design §5 amendment).
+- stripe SDK ^22.3.0 (plan's ^19 was stale); checkout `quantity:
+  Math.max(n, 1)` replaced the `no_live_sweeps` 409 (stuck-state fix).
+
+**Ticket-grade (non-blocking):**
+- `subscription.updated` mirrors the payload status; two out-of-order
+  deliveries leave a stale status until the next event — retrieve-current
+  (as the completed handler does) or compare `ev.created`.
+- Archive txn has no catch: a Stripe failure surfaces Fastify's raw 500
+  (inconsistent with provision's `provision_failed` mapping).
+- `checkout.session.completed` with missing `obj.subscription` →
+  `retrieve(undefined)` throws → Stripe retries until give-up (guard like
+  `client_reference_id`).
+- Reminder loop: no per-account try/catch (one bad address defers the rest
+  to the next daily run — unstamped, self-correcting).
+- Read-only gate precedes role checks: lapsed-sweep admin writes 403
+  `sweep_readonly` before any role error (minor state disclosure).
+
+**First-deploy gate additions (with the inherited trustProxy/deploy items):**
+- Public webhook endpoint + production `STRIPE_WEBHOOK_SECRET` provisioning
+  (dashboard-configured endpoint, not stripe-cli forwarding).
+- Live-mode keys only via production env; the boot guard blocks
+  `sk_live`/`rk_live` everywhere else.
+
+**Live verification (Task 12):** dev DB migrated + trial backfill verified;
+Stripe-side run (checkout 4242 → lapse → renew via stripe-cli/dashboard)
+pending owner's `stripe login` re-auth — record results in the SDD ledger
+when done.

@@ -122,7 +122,12 @@ resolver. Consumers:
   dependency), because `stripe.webhooks.constructEvent(rawBody, sig, secret)`
   requires the exact bytes. Bad signature → 400. Then:
   1. Insert `billing_event` (`stripeEventId` unique) — conflict → 200 no-op
-     (idempotent redelivery).
+     (idempotent redelivery). **AMENDED in review (adff4e6):** the marker
+     insert AND the handler side effects run in ONE transaction — a
+     marker-first autocommit would permanently drop a paid event whose
+     handler failed transiently (retry would see "duplicate"). A mid-handler
+     throw now rolls the marker back so Stripe's redelivery reprocesses;
+     true duplicates still short-circuit.
   2. Switch on type:
      - `checkout.session.completed` → resolve account by
        `client_reference_id`; store `stripeSubscriptionId` +
