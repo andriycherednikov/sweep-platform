@@ -22,6 +22,7 @@ import { MAX_BYTES } from './photos/process.js'
 import { adminRoutes } from './routes/admin.js'
 import { sweepsRoutes } from './routes/sweeps.js'
 import { sweepResolver } from './sweeps/resolve.js'
+import { readOnlyGate } from './sweeps/read-only.js'
 import { accountRoutes } from './routes/account.js'
 import { catalogRoutes } from './routes/catalog.js'
 import { billingRoutes } from './routes/billing.js'
@@ -70,6 +71,7 @@ export function buildApp(db, opts = {}) {
 
   app.get('/api/health', async () => ({ ok: true }))
   app.addHook('preHandler', sweepResolver(app))
+  app.addHook('preHandler', readOnlyGate(app))
   app.get('/api/whoami', async (req) => ({ sweepId: req.sweep?.id ?? null, role: req.role ?? null }))
   app.register(bootstrapRoutes)
   app.register(fixtureRoutes)
