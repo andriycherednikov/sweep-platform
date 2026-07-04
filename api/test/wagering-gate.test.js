@@ -1,5 +1,6 @@
 import { expect, test, afterAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
+import bcrypt from 'bcryptjs'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { sweep, person, event } from '../src/db/schema.js'
@@ -7,8 +8,16 @@ import { detailMerge } from '../src/db/event-shape.js'
 
 const { pool, db } = openTestDb()
 const published = []
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', publish: (e) => published.push(e) })
+const PASS = '1234'
+const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', publish: (e) => published.push(e), adminHash: bcrypt.hashSync(PASS, 8) })
 afterAll(async () => { await app.close(); await pool.end() })
+
+// mirrors admin-auth.test.js / admin-settle-stale.test.js: passcode login mints the
+// DEFAULT sweep's admin cookie (the default sweep has no adminToken to key off of).
+async function adminSession() {
+  const res = await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })
+  return res.headers['set-cookie']
+}
 
 test('sweep.wageringEnabled defaults false; seeded default sweep is true', async () => {
   const [dflt] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
@@ -67,4 +76,20 @@ test('self-excluded person cannot bet or parlay server-side; expiry restores', a
     const again = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
     expect(again.statusCode).toBe(200)
   } finally { await db.update(person).set({ excludedUntil: null }).where(eq(person.id, p.id)) }
+})
+
+test('admin toggle flips wageringEnabled for the resolved sweep', async () => {
+  const adminCookie = await adminSession()
+  const off = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: false } })
+  expect(off.statusCode).toBe(200)
+  expect(off.json()).toEqual({ wageringEnabled: false })
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
+  expect(row.wageringEnabled).toBe(false)
+  const on = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: true } })
+  expect(on.json()).toEqual({ wageringEnabled: true })
+})
+
+test('bootstrap exposes wageringEnabled additively', async () => {
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  expect(body.wageringEnabled).toBe(true)
 })

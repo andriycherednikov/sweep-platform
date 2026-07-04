@@ -49,6 +49,7 @@ afterAll(async () => {
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_fail'))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_lapse'))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_race'))
+  await db.delete(sweep).where(eq(sweep.accountId, 'ac_wager'))
   for (const id of [NBA_ID, FAIL_ID]) {
     await db.delete(event).where(eq(event.competitionId, id))
     await db.delete(ranking).where(eq(ranking.competitionId, id))
@@ -60,10 +61,12 @@ afterAll(async () => {
   await db.delete(accountSession).where(eq(accountSession.token, 'failsession'))
   await db.delete(accountSession).where(eq(accountSession.token, 'lapsesession'))
   await db.delete(accountSession).where(eq(accountSession.token, 'racesession'))
+  await db.delete(accountSession).where(eq(accountSession.token, 'wagersession'))
   await db.delete(account).where(eq(account.id, 'ac_sw'))
   await db.delete(account).where(eq(account.id, 'ac_fail'))
   await db.delete(account).where(eq(account.id, 'ac_lapse'))
   await db.delete(account).where(eq(account.id, 'ac_race'))
+  await db.delete(account).where(eq(account.id, 'ac_wager'))
   await app.close(); await pool.end()
 })
 
@@ -203,6 +206,26 @@ test('concurrent provisions at cap-1 land exactly one 201 (FOR UPDATE serializes
     app.inject({ method: 'POST', url: '/api/account/sweeps', ...R, payload: { ...body, name: 'Racer2' } }),
   ])
   expect([a.statusCode, b.statusCode].sort()).toEqual([201, 403])
+})
+
+test('provision honors wageringEnabled: true in the body', async () => {
+  await db.insert(account).values({ id: 'ac_wager', email: 'wager@x.test' }).onConflictDoNothing()
+  await db.insert(accountSession).values({ token: 'wagersession', accountId: 'ac_wager', expiresAt: new Date(Date.now() + 3600_000) })
+  const W = { headers: { 'x-account-token': 'wagersession' } }
+  const res = await app.inject({ method: 'POST', url: '/api/account/sweeps', ...W,
+    payload: { name: 'WagerOn', provider: 'apibasketball', leagueId: '12', season: '2023-2024', wageringEnabled: true } })
+  expect(res.statusCode).toBe(201)
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, res.json().id))
+  expect(row.wageringEnabled).toBe(true)
+})
+
+test('provision omitting wageringEnabled defaults the row to false', async () => {
+  const W = { headers: { 'x-account-token': 'wagersession' } }
+  const res = await app.inject({ method: 'POST', url: '/api/account/sweeps', ...W,
+    payload: { name: 'WagerOff', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
+  expect(res.statusCode).toBe(201)
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, res.json().id))
+  expect(row.wageringEnabled).toBe(false)
 })
 
 test('archive re-asserts stripe quantity for subscribed accounts', async () => {

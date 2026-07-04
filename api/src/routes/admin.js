@@ -1,6 +1,6 @@
 import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
-import { photo, person } from '../db/schema.js'
+import { photo, person, sweep } from '../db/schema.js'
 import { verifyPasscode } from '../auth.js'
 import { settleStaleBets } from '../wagering/settle.js'
 import { openBetsBySweep } from '../wagering/ledger.js'
@@ -39,6 +39,12 @@ export async function adminRoutes(app) {
   app.post('/api/admin/settle-stale', { preHandler: admin }, async () => {
     const swept = await settleStaleBets(app.db, app.publish)
     return { swept }
+  })
+
+  const wageringBody = { type: 'object', required: ['enabled'], additionalProperties: false, properties: { enabled: { type: 'boolean' } } }
+  app.post('/api/admin/wagering', { preHandler: admin, schema: { body: wageringBody } }, async (req) => {
+    await app.db.update(sweep).set({ wageringEnabled: req.body.enabled }).where(eq(sweep.id, req.sweep.id))
+    return { wageringEnabled: req.body.enabled }
   })
 
   // Audit view of every open (unresolved) bet in the sweep, grouped by person, so the admin

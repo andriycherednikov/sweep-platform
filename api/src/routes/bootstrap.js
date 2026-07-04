@@ -26,6 +26,7 @@ export async function bootstrapRoutes(app) {
       scoring: { rule: req.sweep.scoringRule, coOwners: req.sweep.coOwners },
       sweep: { id: req.sweep.id, name: req.sweep.name, role: req.role },
       readOnly: req.sweep ? !(await sweepLiveNow(app, req.sweep)) : false,
+      wageringEnabled: req.sweep?.wageringEnabled ?? false,
     }
   })
 }
