@@ -13,6 +13,8 @@
     "worker": "node --env-file=../.env src/worker.js",
     "sync": "node --env-file=../.env src/worker/run-baseline.js",
     "competition:add": "node --env-file=../.env src/worker/add-competition.js",
+    "catalog:sync": "node --env-file=../.env src/worker/catalog-sync.js",
+    "catalog:curate": "node --env-file=../.env src/worker/catalog-curate.js",
     "crosswalk:sync": "node --env-file=../.env src/worker/crosswalk-sync.js",
     "squads:sync": "node --env-file=../.env src/worker/run-squads.js",
     "stats:backfill": "node --env-file=../.env src/worker/run-stats-backfill.js",
