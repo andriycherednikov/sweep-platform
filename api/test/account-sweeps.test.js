@@ -9,10 +9,13 @@ import { createRecordedBasketballProvider } from '../src/providers/recorded-bask
 const { pool, db } = openTestDb()
 const loadB = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
 const NBA_ID = 'apibasketball:12:2023-2024'
-const recordedB = () => createRecordedBasketballProvider({
-  leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings'),
-})
 let feedDown = false // when true, the provider's roster fetch throws — simulates a feed hiccup mid-provision
+let gameIdOffset = false // second-season feed: real seasons carry fresh provider game ids (same ids would trip the c6a712d collision guard)
+const recordedB = () => {
+  const games = loadB('games')
+  if (gameIdOffset) for (const g of games.response) g.id += 9_000_000
+  return createRecordedBasketballProvider({ leagues: loadB('leagues'), teams: loadB('teams'), games, standings: loadB('standings') })
+}
 const app = buildApp(db, {
   sessionSecret: 'test-secret', platformHost: 'platform.test',
   providerFor: (comp) => {
@@ -105,6 +108,24 @@ test('feed failure mid-provision → stable provision_failed, no internals leake
     expect(res.body).not.toContain('ECONNRESET') // internal feed error must not reach the client
     expect(await db.select().from(sweep).where(eq(sweep.accountId, 'ac_fail'))).toHaveLength(0)
   } finally { feedDown = false }
+})
+
+test('eventless competition (earlier provision died mid-baseline) is re-synced before binding', async () => {
+  // the failed provision above left FAIL_ID as a competition row with no events — the real feed-hiccup recovery path
+  const [comp] = await db.select().from(competition).where(eq(competition.id, FAIL_ID))
+  expect(comp).toBeDefined()
+  expect(await db.select().from(event).where(eq(event.competitionId, FAIL_ID))).toHaveLength(0)
+
+  gameIdOffset = true // a real 2022-2023 feed has its own game ids, distinct from the 2023-2024 set already synced
+  let res
+  try {
+    res = await app.inject({ method: 'POST', url: '/api/account/sweeps', headers: { 'x-account-token': 'failsession' },
+      payload: { name: 'Recovered', provider: 'apibasketball', leagueId: '12', season: '2022-2023' } })
+  } finally { gameIdOffset = false }
+  expect(res.statusCode).toBe(201)
+  expect(res.json().competitionId).toBe(FAIL_ID)
+  expect((await db.select().from(event).where(eq(event.competitionId, FAIL_ID))).length).toBeGreaterThan(0)
+  expect((await db.select().from(competitor).where(eq(competitor.competitionId, FAIL_ID))).length).toBeGreaterThan(0)
 })
 
 test('validation: non-curated league, bad season, unauthenticated', async () => {
