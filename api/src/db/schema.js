@@ -144,6 +144,13 @@ export const account = pgTable('account', {
   email: text('email').notNull().unique(),
   name: text('name'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // P4 billing — Stripe state mirror (webhook-written). null subscriptionStatus = never subscribed.
+  stripeCustomerId: text('stripe_customer_id'),
+  stripeSubscriptionId: text('stripe_subscription_id'),
+  stripeSubscriptionItemId: text('stripe_subscription_item_id'),
+  subscriptionStatus: text('subscription_status'),
+  trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),      // one cardless trial clock per account, set at first provision
+  trialReminderSentAt: timestamp('trial_reminder_sent_at', { withTimezone: true }),
 })
 
 export const loginToken = pgTable('login_token', {
@@ -172,6 +179,15 @@ export const catalogLeague = pgTable('catalog_league', {
   seasons: jsonb('seasons').notNull().default([]), // [{season, start, end, current, standings, odds}]
   curated: boolean('curated').notNull().default(false), // sync NEVER touches this — curation is operator data
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+})
+
+export const billingEvent = pgTable('billing_event', {
+  id: serial('id').primaryKey(),
+  stripeEventId: text('stripe_event_id').notNull().unique(), // idempotency: duplicate webhook delivery → conflict → no-op
+  type: text('type').notNull(),
+  accountId: text('account_id'),
+  summary: jsonb('summary'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const competition = pgTable('competition', {
