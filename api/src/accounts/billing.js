@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, gt, isNotNull, isNull, lt } from 'drizzle-orm'
 import { account, sweep } from '../db/schema.js'
 
 export const TRIAL_MS = 14 * 24 * 3600_000 // one cardless trial per account, started at first provision
@@ -36,4 +36,22 @@ export async function syncQuantity(stripe, accountRow, quantity) {
     items: [{ id: accountRow.stripeSubscriptionItemId, quantity }],
     proration_behavior: 'none',
   })
+}
+
+const REMIND_WINDOW_MS = 3 * 24 * 3600_000
+const consoleMail = async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)
+
+/** Daily (worker): one heads-up mail per account, ~3 days before the cardless trial ends. */
+export async function sendTrialReminders(db, sendMail = consoleMail, now = new Date()) {
+  const soon = new Date(now.getTime() + REMIND_WINDOW_MS)
+  const due = await db.select().from(account).where(and(
+    isNull(account.subscriptionStatus), isNull(account.trialReminderSentAt),
+    isNotNull(account.trialEndsAt), gt(account.trialEndsAt, now), lt(account.trialEndsAt, soon),
+  ))
+  for (const acct of due) {
+    await sendMail(acct.email, 'Your sweep trial is ending soon',
+      `Your trial ends ${acct.trialEndsAt.toISOString().slice(0, 10)}. Add a card to keep your sweeps running (POST /api/account/billing/checkout).`)
+    await db.update(account).set({ trialReminderSentAt: now }).where(eq(account.id, acct.id))
+  }
+  return due.length
 }

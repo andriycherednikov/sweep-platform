@@ -1,5 +1,5 @@
 import { test, expect, afterAll } from 'vitest'
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { account, sweep, competition } from '../src/db/schema.js'
 import { sweepIsLive, liveSweepCount, syncQuantity, TRIAL_MS, GOOD_STANDING } from '../src/accounts/billing.js'
@@ -47,4 +47,22 @@ test('liveSweepCount counts unarchived sweeps; syncQuantity no-ops without subsc
   expect(calls).toHaveLength(0) // never subscribed → nothing to sync
   await syncQuantity(stripe, { stripeSubscriptionId: 'sub_9', stripeSubscriptionItemId: 'si_9' }, 3)
   expect(calls).toEqual([{ id: 'sub_9', items: [{ id: 'si_9', quantity: 3 }], proration_behavior: 'none' }])
+})
+
+test('sendTrialReminders mails once, only near-expiry unsubscribed accounts', async () => {
+  const NOW2 = new Date('2026-07-10T12:00:00Z')
+  const in2d = new Date(NOW2.getTime() + 2 * 86400_000)
+  const in10d = new Date(NOW2.getTime() + 10 * 86400_000)
+  await db.insert(account).values([
+    { id: 'ac_rem_due', email: 'rem-due@x.test', trialEndsAt: in2d },
+    { id: 'ac_rem_far', email: 'rem-far@x.test', trialEndsAt: in10d },
+    { id: 'ac_rem_paid', email: 'rem-paid@x.test', trialEndsAt: in2d, subscriptionStatus: 'active' },
+    { id: 'ac_rem_over', email: 'rem-over@x.test', trialEndsAt: new Date(NOW2.getTime() - 1000) },
+  ])
+  const mails = []
+  const { sendTrialReminders } = await import('../src/accounts/billing.js')
+  expect(await sendTrialReminders(db, async (to, subject) => mails.push({ to, subject }), NOW2)).toBe(1)
+  expect(mails).toEqual([{ to: 'rem-due@x.test', subject: expect.stringMatching(/trial/i) }])
+  expect(await sendTrialReminders(db, async (to) => mails.push(to), NOW2)).toBe(0) // once, ever
+  await db.delete(account).where(inArray(account.id, ['ac_rem_due', 'ac_rem_far', 'ac_rem_paid', 'ac_rem_over']))
 })

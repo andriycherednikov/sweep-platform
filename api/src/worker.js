@@ -8,6 +8,7 @@ import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLi
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { activeCompetitions } from './worker/active-competitions.js'
 import { cleanupExpiredAuth } from './accounts/auth.js'
+import { sendTrialReminders } from './accounts/billing.js'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './coins/settle.js'
@@ -54,6 +55,8 @@ async function baseline(reason, { syncRosters = false } = {}) {
 async function daily() {
   try { await cleanupExpiredAuth(db) }
   catch (e) { console.error('[daily] auth cleanup failed:', e.message) }
+  try { const n = await sendTrialReminders(db); if (n) console.log(`[daily] trial reminders sent: ${n}`) }
+  catch (e) { console.error('[daily] trial reminders failed:', e.message) }
   for (const key of PROVIDER_KEYS) {
     try { await syncCatalog(db, key, providerFor({ provider: key })) }
     catch (e) { console.error(`[daily] catalog ${key} failed:`, e.message) }
