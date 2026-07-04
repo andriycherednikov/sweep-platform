@@ -23,6 +23,7 @@ import { sweepsRoutes } from './routes/sweeps.js'
 import { sweepResolver } from './sweeps/resolve.js'
 import { accountRoutes } from './routes/account.js'
 import { catalogRoutes } from './routes/catalog.js'
+import { providerFor } from './providers/registry.js'
 
 export function buildApp(db, opts = {}) {
   const app = Fastify({ logger: opts.logger ?? false })
@@ -49,6 +50,8 @@ export function buildApp(db, opts = {}) {
   if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
   app.decorate('platformHost', platformHost)
   app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
+  // adapter resolution seam — tests inject recorded providers; live code gets the registry
+  app.decorate('providerFor', opts.providerFor ?? providerFor)
   // magic-link delivery seam — console logger IS dev mode; a real provider is an ops decision (P4+)
   app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
   app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
