@@ -2,6 +2,7 @@ import { eq, and, isNull, gt } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
+import { TRIAL_MS, GOOD_STANDING, syncQuantity } from '../accounts/billing.js'
 import { seasonInWindow } from '../providers/registry.js'
 import { addCompetition } from '../worker/add-competition.js'
 import { syncCompetitors } from '../worker/sync-competitors.js'
@@ -70,39 +71,56 @@ export async function accountRoutes(app) {
       .some((s) => s.season === String(season) && s.standings && seasonInWindow(providerKey, s.season))
     if (!seasonOk) return reply.code(400).send({ error: 'unknown_competition' })
 
-    // Cap checked after catalog validation: a request for an unknown/invalid competition
-    // always 400s, even for an account already at its cap (never leaks cap state ahead of validity).
-    const cap = Number(process.env.ACCOUNT_SWEEP_CAP ?? 3) // P4 swaps this constant for subscription quantity
-    const mine = await app.db.select({ id: sweep.id }).from(sweep)
-      .where(and(eq(sweep.accountId, req.account.id), isNull(sweep.archivedAt)))
-    if (mine.length >= cap) return reply.code(403).send({ error: 'sweep_cap', cap })
-
     const compId = `${providerKey}:${leagueId}:${season}`
-    try { // feed-touching block: a provider hiccup must surface as a stable error, never internals
-      const provider = app.providerFor({ provider: providerKey })
-      let [comp] = await app.db.select().from(competition).where(eq(competition.id, compId))
-      if (!comp) {
-        await addCompetition(app.db, provider, {
-          provider: providerKey, leagueId, season,
-          league: { name: cl.name, type: cl.type, logo: cl.logo }, // from the persisted catalog — never a live catalog call
-        })
-      } else {
-        const [ev] = await app.db.select({ id: event.id }).from(event).where(eq(event.competitionId, compId)).limit(1)
-        if (!ev) { // an earlier provision died mid-baseline — finish the job before binding a sweep
-          await syncCompetitors(app.db, provider, comp)
-          await syncBaseline(app.db, provider, comp)
+    try {
+      const result = await app.db.transaction(async (tx) => {
+        // Serialize per-account provisions: cap/quantity check-then-insert sits behind a row lock,
+        // so the P3 TOCTOU (concurrent provisions landing cap+1) is structurally gone.
+        // ponytail: feed sync runs inside the txn → seconds-long per-account lock; per-account queueing is fine at this scale.
+        const [acct] = await tx.select().from(account).where(eq(account.id, req.account.id)).for('update')
+        const now = new Date()
+        let trialEndsAt = acct.trialEndsAt
+        if (!acct.subscriptionStatus && !trialEndsAt) {
+          trialEndsAt = new Date(now.getTime() + TRIAL_MS) // the account's one cardless trial starts at first provision
+          await tx.update(account).set({ trialEndsAt }).where(eq(account.id, acct.id))
         }
-      }
+        const subscribed = GOOD_STANDING.includes(acct.subscriptionStatus)
+        if (!subscribed && (acct.subscriptionStatus || trialEndsAt <= now)) {
+          return { code: 402, body: { error: 'subscription_required' } }
+        }
+        const mine = await tx.select({ id: sweep.id }).from(sweep)
+          .where(and(eq(sweep.accountId, acct.id), isNull(sweep.archivedAt)))
+        const cap = subscribed
+          ? Number(process.env.ACCOUNT_SWEEP_MAX ?? 25)  // feed-abuse ceiling; billing is the real limiter
+          : Number(process.env.ACCOUNT_SWEEP_CAP ?? 3)   // the P3 constant survives as the TRIAL cap
+        if (mine.length >= cap) return { code: 403, body: { error: 'sweep_cap', cap } }
+
+        const provider = app.providerFor({ provider: providerKey })
+        let [comp] = await tx.select().from(competition).where(eq(competition.id, compId))
+        if (!comp) {
+          await addCompetition(tx, provider, {
+            provider: providerKey, leagueId, season,
+            league: { name: cl.name, type: cl.type, logo: cl.logo }, // from the persisted catalog — never a live catalog call
+          })
+        } else {
+          const [ev] = await tx.select({ id: event.id }).from(event).where(eq(event.competitionId, compId)).limit(1)
+          if (!ev) { // eventless leftover (dead CLI/worker baseline) — finish the job before binding
+            await syncCompetitors(tx, provider, comp)
+            await syncBaseline(tx, provider, comp)
+          }
+        }
+        const id = `sw_${newToken(12)}`
+        const memberToken = newToken(), adminToken = newToken()
+        await tx.insert(sweep).values({ id, name, kind: 'token', memberToken, adminToken, competitionId: compId, accountId: acct.id })
+        if (subscribed) await syncQuantity(app.stripe, acct, mine.length + 1) // stripe failure → rollback: no sweep exists unbilled
+        const [row] = await tx.select().from(sweep).where(eq(sweep.id, id))
+        return { code: 201, body: { id, name: row.name, competitionId: compId, memberToken, adminToken, ...links(app, row) } }
+      })
+      return reply.code(result.code).send(result.body)
     } catch (e) {
       req.log.error({ err: e, competitionId: compId }, 'provision failed')
-      return reply.code(500).send({ error: 'provision_failed' }) // competition/competitors left behind are reused by a retry
+      return reply.code(500).send({ error: 'provision_failed' }) // txn rolled back — nothing half-provisioned survives
     }
-
-    const id = `sw_${newToken(12)}`
-    const memberToken = newToken(), adminToken = newToken()
-    await app.db.insert(sweep).values({ id, name, kind: 'token', memberToken, adminToken, competitionId: compId, accountId: req.account.id })
-    const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
-    return reply.code(201).send({ id, name: row.name, competitionId: compId, memberToken, adminToken, ...links(app, row) })
   })
 
   app.get('/api/account/sweeps', { preHandler: accountGuard }, async (req) => {

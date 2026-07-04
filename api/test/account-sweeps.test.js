@@ -2,6 +2,7 @@ import { test, expect, beforeAll, afterAll } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
+import { fakeStripe } from './helpers/fake-stripe.js'
 import { buildApp } from '../src/app.js'
 import { account, accountSession, catalogLeague, competition, competitor, event, ranking, sweep } from '../src/db/schema.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
@@ -16,8 +17,9 @@ const recordedB = () => {
   if (gameIdOffset) for (const g of games.response) g.id += 9_000_000
   return createRecordedBasketballProvider({ leagues: loadB('leagues'), teams: loadB('teams'), games, standings: loadB('standings') })
 }
+const stripeFake = fakeStripe()
 const app = buildApp(db, {
-  sessionSecret: 'test-secret', platformHost: 'platform.test',
+  sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: stripeFake,
   providerFor: (comp) => {
     if (comp.provider !== 'apibasketball') throw new Error(`unexpected provider ${comp.provider}`)
     const p = recordedB()
@@ -45,6 +47,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_sw'))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_fail'))
+  await db.delete(sweep).where(eq(sweep.accountId, 'ac_lapse'))
+  await db.delete(sweep).where(eq(sweep.accountId, 'ac_race'))
   for (const id of [NBA_ID, FAIL_ID]) {
     await db.delete(event).where(eq(event.competitionId, id))
     await db.delete(ranking).where(eq(ranking.competitionId, id))
@@ -54,8 +58,12 @@ afterAll(async () => {
   await db.delete(catalogLeague).where(eq(catalogLeague.id, 'apibasketball:12'))
   await db.delete(accountSession).where(eq(accountSession.token, 'swsession'))
   await db.delete(accountSession).where(eq(accountSession.token, 'failsession'))
+  await db.delete(accountSession).where(eq(accountSession.token, 'lapsesession'))
+  await db.delete(accountSession).where(eq(accountSession.token, 'racesession'))
   await db.delete(account).where(eq(account.id, 'ac_sw'))
   await db.delete(account).where(eq(account.id, 'ac_fail'))
+  await db.delete(account).where(eq(account.id, 'ac_lapse'))
+  await db.delete(account).where(eq(account.id, 'ac_race'))
   await app.close(); await pool.end()
 })
 
@@ -107,13 +115,14 @@ test('feed failure mid-provision → stable provision_failed, no internals leake
     expect(res.json()).toEqual({ error: 'provision_failed' })
     expect(res.body).not.toContain('ECONNRESET') // internal feed error must not reach the client
     expect(await db.select().from(sweep).where(eq(sweep.accountId, 'ac_fail'))).toHaveLength(0)
+    // txn rollback: the failed provision leaves NOTHING behind (P4 behavior change, approved)
+    expect(await db.select().from(competition).where(eq(competition.id, FAIL_ID))).toHaveLength(0)
   } finally { feedDown = false }
 })
 
 test('eventless competition (earlier provision died mid-baseline) is re-synced before binding', async () => {
-  // the failed provision above left FAIL_ID as a competition row with no events — the real feed-hiccup recovery path
-  const [comp] = await db.select().from(competition).where(eq(competition.id, FAIL_ID))
-  expect(comp).toBeDefined()
+  // seed an eventless competition (as left by a dead CLI/worker baseline) — the feed-hiccup recovery path
+  await db.insert(competition).values({ id: FAIL_ID, provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2022-2023', format: 'league', name: 'NBA' }).onConflictDoNothing()
   expect(await db.select().from(event).where(eq(event.competitionId, FAIL_ID))).toHaveLength(0)
 
   gameIdOffset = true // a real 2022-2023 feed has its own game ids, distinct from the 2023-2024 set already synced
@@ -136,4 +145,62 @@ test('validation: non-curated league, bad season, unauthenticated', async () => 
   expect((await provision('Nope', { leagueId: '422' })).statusCode).toBe(400)     // not in catalog
   const anon = await app.inject({ method: 'POST', url: '/api/account/sweeps', payload: { name: 'X', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
   expect(anon.statusCode).toBe(401)
+})
+
+test('first provision stamps the account trial clock (14d), second does not move it', async () => {
+  const [before] = await db.select().from(account).where(eq(account.id, 'ac_sw'))
+  expect(before.trialEndsAt).toBeInstanceOf(Date) // stamped by this file's very first provision
+  const first = before.trialEndsAt.getTime()
+  expect(first).toBeGreaterThan(Date.now())
+  expect(first).toBeLessThanOrEqual(Date.now() + 14 * 24 * 3600_000 + 60_000)
+  await provision('ClockCheck') // may 403 at cap — irrelevant, clock must not move either way
+  const [after] = await db.select().from(account).where(eq(account.id, 'ac_sw'))
+  expect(after.trialEndsAt.getTime()).toBe(first)
+})
+
+test('expired trial and canceled subscription → 402; good standing bypasses the trial cap', async () => {
+  await db.insert(account).values({ id: 'ac_lapse', email: 'lapse@x.test', trialEndsAt: new Date(Date.now() - 1000) }).onConflictDoNothing()
+  await db.insert(accountSession).values({ token: 'lapsesession', accountId: 'ac_lapse', expiresAt: new Date(Date.now() + 3600_000) })
+  const L = { headers: { 'x-account-token': 'lapsesession' } }
+  const expired = await app.inject({ method: 'POST', url: '/api/account/sweeps', ...L,
+    payload: { name: 'Nope', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
+  expect(expired.statusCode).toBe(402)
+  expect(expired.json()).toEqual({ error: 'subscription_required' })
+
+  await db.update(account).set({ subscriptionStatus: 'canceled' }).where(eq(account.id, 'ac_lapse'))
+  expect((await app.inject({ method: 'POST', url: '/api/account/sweeps', ...L,
+    payload: { name: 'Nope', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })).statusCode).toBe(402)
+
+  // active subscription: provisions fine even though its trial date is long past
+  await db.update(account).set({ subscriptionStatus: 'active', stripeSubscriptionId: 'sub_lapse', stripeSubscriptionItemId: 'si_lapse' }).where(eq(account.id, 'ac_lapse'))
+  const ok = await app.inject({ method: 'POST', url: '/api/account/sweeps', ...L,
+    payload: { name: 'PaidNow', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
+  expect(ok.statusCode).toBe(201)
+})
+
+test('subscribed provision re-asserts stripe quantity as the live count', async () => {
+  stripeFake.calls.subUpdate.length = 0
+  const r = await app.inject({ method: 'POST', url: '/api/account/sweeps', headers: { 'x-account-token': 'lapsesession' },
+    payload: { name: 'PaidTwo', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
+  expect(r.statusCode).toBe(201)
+  expect(stripeFake.calls.subUpdate).toEqual([
+    { id: 'sub_lapse', items: [{ id: 'si_lapse', quantity: 2 }], proration_behavior: 'none' },
+  ])
+})
+
+test('concurrent provisions at cap-1 land exactly one 201 (FOR UPDATE serializes)', async () => {
+  await db.insert(account).values({ id: 'ac_race', email: 'race@x.test' }).onConflictDoNothing()
+  await db.insert(accountSession).values({ token: 'racesession', accountId: 'ac_race', expiresAt: new Date(Date.now() + 3600_000) })
+  // 2 pre-existing live sweeps → cap 3 → exactly one of two concurrent provisions may win
+  await db.insert(sweep).values([
+    { id: 'sw_race_1', name: 'R1', kind: 'token', memberToken: 'rm1', adminToken: 'ra1', competitionId: NBA_ID, accountId: 'ac_race' },
+    { id: 'sw_race_2', name: 'R2', kind: 'token', memberToken: 'rm2', adminToken: 'ra2', competitionId: NBA_ID, accountId: 'ac_race' },
+  ])
+  const R = { headers: { 'x-account-token': 'racesession' } }
+  const body = { name: 'Racer', provider: 'apibasketball', leagueId: '12', season: '2023-2024' }
+  const [a, b] = await Promise.all([
+    app.inject({ method: 'POST', url: '/api/account/sweeps', ...R, payload: body }),
+    app.inject({ method: 'POST', url: '/api/account/sweeps', ...R, payload: { ...body, name: 'Racer2' } }),
+  ])
+  expect([a.statusCode, b.statusCode].sort()).toEqual([201, 403])
 })
