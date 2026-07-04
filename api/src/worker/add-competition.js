@@ -5,11 +5,15 @@ import { syncCompetitors } from './sync-competitors.js'
 import { syncBaseline } from './baseline-sync.js'
 import { competition } from '../db/schema.js'
 
-/** Provision a competition from the provider catalog: row + competitors + first baseline. */
-export async function addCompetition(db, provider, { provider: providerKey, leagueId, season }) {
-  const leagues = await provider.fetchCompetitions()
-  const league = leagues.find((l) => String(l.providerLeagueId) === String(leagueId))
-  if (!league) throw new Error(`league ${leagueId} not found in ${providerKey} catalog`)
+/** Provision a competition: row + competitors + first baseline. `league` {name,type,logo} may be
+ *  passed from the persisted catalog (provision route — no live catalog call); the CLI omits it
+ *  and resolves live. */
+export async function addCompetition(db, provider, { provider: providerKey, leagueId, season, league }) {
+  if (!league) {
+    const leagues = await provider.fetchCompetitions()
+    league = leagues.find((l) => String(l.providerLeagueId) === String(leagueId))
+    if (!league) throw new Error(`league ${leagueId} not found in ${providerKey} catalog`)
+  }
   const id = `${providerKey}:${leagueId}:${season}`
   const [existing] = await db.select().from(competition).where(eq(competition.id, id))
   if (existing) throw new Error(`competition already exists: ${id}`)
