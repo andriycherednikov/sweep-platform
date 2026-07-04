@@ -28,7 +28,7 @@ beforeAll(async () => {
   await db.insert(sweep).values({ id: 'sw_wh_1', name: 'W1', kind: 'token', memberToken: 'wm1', adminToken: 'wa1', competitionId: COMP, accountId: 'ac_wh' })
 })
 afterAll(async () => {
-  await db.delete(billingEvent).where(inArray(billingEvent.stripeEventId, ['evt_co_1', 'evt_up_1', 'evt_del_1', 'evt_odd_1']))
+  await db.delete(billingEvent).where(inArray(billingEvent.stripeEventId, ['evt_co_1', 'evt_up_1', 'evt_del_1', 'evt_odd_1', 'evt_transient_1', 'evt_nullref_1']))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_wh'))
   await db.delete(competition).where(eq(competition.id, COMP))
   await db.delete(account).where(eq(account.id, 'ac_wh'))
@@ -65,4 +65,41 @@ test('subscription.updated mirrors status; deleted lapses; unknown type is audit
   expect((await send({ id: 'evt_odd_1', type: 'invoice.payment_failed', data: { object: { id: 'in_1' } } })).statusCode).toBe(200)
   const rows = await db.select().from(billingEvent)
   expect(rows.map((r) => r.stripeEventId).sort()).toEqual(['evt_co_1', 'evt_del_1', 'evt_odd_1', 'evt_up_1'])
+})
+
+test('transient handler failure: marker not left behind; redelivery reprocesses for real', async () => {
+  const realRetrieve = stripeFake.subscriptions.retrieve
+  let attempts = 0
+  stripeFake.subscriptions.retrieve = async (id) => {
+    attempts += 1
+    if (attempts === 1) throw new Error('stripe was down')
+    return realRetrieve(id)
+  }
+  try {
+    const ev = { id: 'evt_transient_1', type: 'checkout.session.completed',
+      data: { object: { id: 'cs_2', customer: 'cus_wh', subscription: 'sub_wh_2', client_reference_id: 'ac_wh' } } }
+
+    const first = await send(ev)
+    expect(first.statusCode).not.toBe(200)
+    expect(await db.select().from(billingEvent).where(eq(billingEvent.stripeEventId, 'evt_transient_1'))).toHaveLength(0)
+
+    const second = await send(ev)
+    expect(second.statusCode).toBe(200)
+    const [acct] = await db.select().from(account).where(eq(account.id, 'ac_wh'))
+    expect(acct).toMatchObject({ stripeSubscriptionId: 'sub_wh_2', subscriptionStatus: 'active' })
+    expect(await db.select().from(billingEvent).where(eq(billingEvent.stripeEventId, 'evt_transient_1'))).toHaveLength(1)
+  } finally {
+    stripeFake.subscriptions.retrieve = realRetrieve
+  }
+})
+
+test('checkout.session.completed with no client_reference_id: audit-only, no account touched, no retrieve call', async () => {
+  const before = stripeFake.calls.subRetrieve.length
+  const ev = { id: 'evt_nullref_1', type: 'checkout.session.completed',
+    data: { object: { id: 'cs_3', customer: 'cus_wh', subscription: 'sub_wh_3', client_reference_id: null } } }
+  const res = await send(ev)
+  expect(res.statusCode).toBe(200)
+  expect(stripeFake.calls.subRetrieve.length).toBe(before)
+  const rows = await db.select().from(billingEvent).where(eq(billingEvent.stripeEventId, 'evt_nullref_1'))
+  expect(rows).toMatchObject([{ accountId: null }])
 })
