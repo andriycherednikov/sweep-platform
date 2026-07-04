@@ -65,14 +65,24 @@ European leagues all play the same weekend and daily caps reset daily.
 | Basketball | Free | 100 | — | $0 |
 | Basketball | Pro | 7,500 | ~300 | **$19** |
 
-Pricing is **per-API** (each sport subscribed separately — matches our own
-account: football Pro + basketball Free on one key). Source:
-api-football.com/pricing via web search 2026-07-04 (the pricing pages 403
-behind Cloudflare for direct fetch; Pro=7,500/day cross-checks against the
-live `/status` capture in the catalog-shape note). Per-minute limits only
-matter at Ultra scale: ~25 concurrent football competitions × ~10 live
-matches × 2 calls/min ≈ 500/min brushes Ultra's 450/min — batch or stagger
-the tick before that point.
+Pricing is **per-API** (each sport subscribed separately, quotas NOT pooled —
+matches our own account: football Pro + basketball Free on one key). Source:
+api-football.com/pricing via web search + independent cross-check 2026-07-04
+(the pricing pages 403 behind Cloudflare for direct fetch; numbers consistent
+across the official-page snippets and two third-party summaries; Pro=7,500/day
+also cross-checks against the live `/status` capture in the catalog-shape
+note). Caveat: basketball-tier price parity with football is structure-
+confirmed but no basketball-only price sheet was fetched — glance at
+api-sports.io/sports/basketball before paying for a basketball upgrade.
+
+Two operational facts that shape failure modes, not price:
+- **No overage billing** — at the daily quota, requests simply STOP (errors)
+  until the 00:00 UTC reset. A peak-day overrun costs zero dollars and a
+  silent sync stall: the worker's last-good data stands until reset.
+- Per-minute caps exist on every tier (Pro 300/min). Only binding at Ultra
+  scale: ~25 concurrent football competitions × ~10 live matches × 2
+  calls/min ≈ 500/min brushes Ultra's 450/min — batch or stagger the tick
+  before that point.
 
 ## 4. Revenue per sweep, net
 
