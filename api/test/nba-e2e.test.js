@@ -38,7 +38,10 @@ beforeAll(async () => { await app.ready() })
 afterAll(async () => {
   await db.delete(support).where(eq(support.sweepId, 'sw_nbae2e'))
   await db.delete(bet).where(eq(bet.sweepId, 'sw_nbae2e'))
-  await db.delete(parlay).where(eq(parlay.sweepId, 'sw_nbae2e')) // parlay legs cascade via bet, but the parlay row itself is separate and FKs person
+  // the sweepId-scoped bet delete above already removed the parlay's legs (they carry
+  // sweepId too); the FK cascade (bet.parlayId → parlay.id, ON DELETE CASCADE) only runs
+  // parent→children, so it wouldn't clear this row either way — delete it directly.
+  await db.delete(parlay).where(eq(parlay.sweepId, 'sw_nbae2e'))
   await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_nbae2e'))
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_nbae2e'))
   await db.delete(person).where(eq(person.sweepId, 'sw_nbae2e'))
@@ -102,7 +105,8 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
 test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the recorded finals', async () => {
   // fresh upcoming snapshot so bets are placeable
   await syncBaseline(db, recorded(upcomingGames()), (await db.select().from(competition).where(eq(competition.id, ID)))[0])
-  const evs = await db.select().from(event).where(eq(event.competitionId, ID))
+  // ordered so g1/g2 are deterministic — an unordered SELECT has no guaranteed row order
+  const evs = await db.select().from(event).where(eq(event.competitionId, ID)).orderBy(event.startUtc, event.id)
   const [g1, g2] = evs.slice(0, 2)
   const markets = {
     ml:   { label: 'Moneyline', book: 'TestBook', selections: [ { key: 'HOME', label: 'Home', odds: 1.8 }, { key: 'AWAY', label: 'Away', odds: 2.0 } ] },
@@ -120,6 +124,7 @@ test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the
   expect(b2.statusCode).toBe(200)
   const b3 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'hcap', selection: 'HOME', stake: 50 } })
   expect(b3.statusCode).toBe(200)
+  const [b1Id, b2Id, b3Id] = [b1, b2, b3].map((r) => r.json().bet.id)
   const par = await app.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { personId: 'pn_e2e', stake: 40, legs: [ { fixtureId: g1.id, market: 'ml', selection: 'HOME' }, { fixtureId: g2.id, market: 'ou', selection: 'UNDER' } ] } })
   expect(par.statusCode).toBe(200)
 
@@ -127,7 +132,12 @@ test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the
   await syncBaseline(db, recorded(load('games')), (await db.select().from(competition).where(eq(competition.id, ID)))[0])
   await settleBets(db, g1.id); await settleBets(db, g2.id)
 
+  // g1 is fixture '372186', which also carries test 1's already-settled legacy 'toq' bet
+  // (bet_e2e) plus this parlay's ml leg on the same fixture — so filter to just the three
+  // singles this test placed rather than asserting the raw row count.
   const settled = await db.select().from(bet).where(and(eq(bet.sweepId, 'sw_nbae2e'), eq(bet.fixtureId, g1.id)))
+  const singles = settled.filter((b) => [b1Id, b2Id, b3Id].includes(b.id))
+  expect(singles.length).toBe(3)
   expect(settled.every((b) => b.status === 'won' || b.status === 'lost')).toBe(true)
   // grading agrees with the recorded final score (read it and assert each bet the cheap way)
   const [fin] = await db.select().from(event).where(eq(event.id, g1.id))
@@ -137,6 +147,15 @@ test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the
   const total = fin.score1 + fin.score2
   expect(settled.find((b) => b.market === 'ou' && !b.parlayId).status).toBe(total > 213.5 ? 'won' : 'lost')
   expect(settled.find((b) => b.market === 'hcap' && !b.parlayId).status).toBe(fin.score1 - 2.5 > fin.score2 ? 'won' : 'lost')
+  // a won single actually pays out (coinLedger 'payout' row for its id, amount = potentialPayout);
+  // a lost one doesn't — pins the money path the audit in ledger.js only mirrors
+  const mlPayout = await db.select().from(coinLedger).where(and(eq(coinLedger.sweepId, 'sw_nbae2e'), eq(coinLedger.type, 'payout'), eq(coinLedger.refId, mlBet.id)))
+  if (mlBet.status === 'won') {
+    expect(mlPayout).toHaveLength(1)
+    expect(mlPayout[0].amount).toBe(mlBet.potentialPayout)
+  } else {
+    expect(mlPayout).toHaveLength(0)
+  }
   // ledger: a won single paid out; the parlay resolved once both legs graded
   const [pl] = await db.select().from(parlay).where(eq(parlay.sweepId, 'sw_nbae2e'))
   expect(['won', 'lost']).toContain(pl.status)
