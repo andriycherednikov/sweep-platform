@@ -25,8 +25,11 @@ afterAll(async () => {
   await app.close(); await pool.end()
 })
 
-test('checkout: no live sweeps → 409; with a sweep → customer created once + session url', async () => {
-  expect((await app.inject({ method: 'POST', url: '/api/account/billing/checkout', ...M })).statusCode).toBe(409)
+test('zero live sweeps → checkout succeeds with quantity 1', async () => {
+  const r0 = await app.inject({ method: 'POST', url: '/api/account/billing/checkout', ...M })
+  expect(r0.statusCode).toBe(200)
+  expect(r0.json()).toEqual({ url: 'https://checkout.stripe.test/s1' })
+  expect(stripeFake.calls.checkoutCreate[0]).toMatchObject({ line_items: [{ price: 'price_test5', quantity: 1 }] })
 
   await db.insert(sweep).values({ id: 'sw_bill_1', name: 'B1', kind: 'token', memberToken: 'bm1', adminToken: 'ba1', competitionId: COMP, accountId: 'ac_bill' })
   const r = await app.inject({ method: 'POST', url: '/api/account/billing/checkout', ...M })

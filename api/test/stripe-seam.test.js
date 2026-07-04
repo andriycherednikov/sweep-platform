@@ -5,6 +5,8 @@ import { fakeStripe } from './helpers/fake-stripe.js'
 test('sk_live outside production refuses to boot; sk_test and injected fakes are fine', () => {
   expect(() => buildApp(null, { sessionSecret: 's', stripeKey: 'sk_live_abc' }))
     .toThrow(/live Stripe key/)
+  expect(() => buildApp(null, { sessionSecret: 's', stripeKey: 'rk_live_abc' }))
+    .toThrow(/live Stripe key/)
   const app = buildApp(null, { sessionSecret: 's', stripeKey: 'sk_test_abc' })
   expect(app.stripe).toBeTruthy()
   const app2 = buildApp(null, { sessionSecret: 's', stripe: fakeStripe() })

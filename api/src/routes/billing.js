@@ -16,7 +16,6 @@ export async function billingRoutes(app) {
       const [acct] = await tx.select().from(account).where(eq(account.id, req.account.id)).for('update')
       if (GOOD_STANDING.includes(acct.subscriptionStatus)) return { code: 409, body: { error: 'already_subscribed' } }
       const n = await liveSweepCount(tx, acct.id)
-      if (!n) return { code: 409, body: { error: 'no_live_sweeps' } } // Stripe requires quantity ≥ 1
       let customerId = acct.stripeCustomerId
       if (!customerId) {
         const c = await app.stripe.customers.create({ email: acct.email, metadata: { accountId: acct.id } })
@@ -25,7 +24,10 @@ export async function billingRoutes(app) {
       }
       const sess = await app.stripe.checkout.sessions.create({
         mode: 'subscription', customer: customerId, client_reference_id: acct.id,
-        line_items: [{ price: app.stripePriceId, quantity: n }],
+        // A zero-sweep account (trial-expired-and-let-lapse, or archived-out) must still be able
+        // to re-subscribe — Stripe requires quantity ≥ 1, and the completed webhook re-asserts
+        // the true live count anyway, so paying for one seat until they provision is fine.
+        line_items: [{ price: app.stripePriceId, quantity: Math.max(n, 1) }],
         success_url: `https://${app.platformHost}/account/billing/success`,
         cancel_url: `https://${app.platformHost}/account/billing/cancelled`,
       })

@@ -60,7 +60,7 @@ export function buildApp(db, opts = {}) {
   app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
   // Stripe seam (P4): tests inject a fake; dev without a key runs fine (billing routes 503).
   const stripeKey = opts.stripeKey ?? process.env.STRIPE_SECRET_KEY ?? ''
-  if (stripeKey.startsWith('sk_live') && process.env.NODE_ENV !== 'production') {
+  if (/^(sk|rk)_live/.test(stripeKey) && process.env.NODE_ENV !== 'production') {
     throw new Error('live Stripe key outside production — refusing to boot')
   }
   app.decorate('stripe', opts.stripe ?? (stripeKey ? new Stripe(stripeKey) : null))
