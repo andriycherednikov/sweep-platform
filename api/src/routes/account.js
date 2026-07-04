@@ -1,4 +1,4 @@
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq, and, isNull, gt } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
@@ -43,9 +43,12 @@ export async function accountRoutes(app) {
     config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     const now = new Date()
-    const [lt] = await app.db.select().from(loginToken).where(eq(loginToken.token, req.body.token))
-    if (!lt || lt.usedAt || lt.expiresAt < now) return reply.code(401).send({ error: 'unauthorized' })
-    await app.db.update(loginToken).set({ usedAt: now }).where(eq(loginToken.token, lt.token))
+    // atomic claim: only an unused token row can be marked used — the concurrent loser gets 0 rows
+    const [lt] = await app.db.update(loginToken)
+      .set({ usedAt: now })
+      .where(and(eq(loginToken.token, req.body.token), isNull(loginToken.usedAt), gt(loginToken.expiresAt, now)))
+      .returning()
+    if (!lt) return reply.code(401).send({ error: 'unauthorized' })
     // account is born HERE (verified email). onConflictDoNothing + re-select survives a concurrent first-login race.
     await app.db.insert(account).values({ id: `ac_${newToken(12)}`, email: lt.email }).onConflictDoNothing()
     const [acc] = await app.db.select().from(account).where(eq(account.email, lt.email))

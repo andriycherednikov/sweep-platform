@@ -1,6 +1,6 @@
 import { test, expect, beforeAll, afterAll } from 'vitest'
 import { readFileSync } from 'node:fs'
-import { eq, inArray } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { buildApp } from '../src/app.js'
 import { account, accountSession, catalogLeague, competition, competitor, event, ranking, sweep } from '../src/db/schema.js'

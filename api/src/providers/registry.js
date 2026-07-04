@@ -3,7 +3,7 @@ import { createApiBasketballProvider } from './api-basketball-provider.js'
 
 const FACTORIES = {
   apifootball: { sport: 'football', create: createApiFootballProvider, window: null }, // Pro key — no season gate
-  apibasketball: { sport: 'basketball', create: createApiBasketballProvider, window: { min: 2022, max: 2024 } }, // free tier
+  apibasketball: { sport: 'basketball', create: createApiBasketballProvider, window: { min: 2022, max: 2024 } }, // free tier: seasons by START year 2022–2024 ('2024-2025' verified live 2026-07-04)
 }
 const cache = new Map()
 
