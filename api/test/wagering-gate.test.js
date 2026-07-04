@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { sweep, person, event, competition, competitor, bet, coinLedger } from '../src/db/schema.js'
+import { sweep, person, event, competition, competitor, bet, coinLedger, account } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 
 const { pool, db } = openTestDb()
@@ -44,7 +44,7 @@ async function bettable() {
   await db.update(event).set({ status: 'upcoming', detail: detailMerge({ markets }) }).where(eq(event.id, f.id))
   return f
 }
-const aPerson = async () => (await db.select().from(person).limit(1))[0]
+const aPerson = async () => (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
 const setWagering = (on) => db.update(sweep).set({ wageringEnabled: on }).where(eq(sweep.id, 'default'))
 
 test('wagering OFF: bet and parlay are refused with a stable error; reads stay open', async () => {
@@ -89,13 +89,33 @@ test('self-excluded person cannot bet or parlay server-side; expiry restores', a
 
 test('admin toggle flips wageringEnabled for the resolved sweep', async () => {
   const adminCookie = await adminSession()
-  const off = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: false } })
-  expect(off.statusCode).toBe(200)
-  expect(off.json()).toEqual({ wageringEnabled: false })
-  const [row] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
-  expect(row.wageringEnabled).toBe(false)
-  const on = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: true } })
-  expect(on.json()).toEqual({ wageringEnabled: true })
+  try {
+    const off = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: false } })
+    expect(off.statusCode).toBe(200)
+    expect(off.json()).toEqual({ wageringEnabled: false })
+    const [row] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
+    expect(row.wageringEnabled).toBe(false)
+    const on = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: true } })
+    expect(on.json()).toEqual({ wageringEnabled: true })
+  } finally { await setWagering(true) } // a mid-test failure must not leave the shared default sweep wagering-disabled for later files
+})
+
+// finding 2c: pins that POST /api/admin/wagering is NOT in the read-only exemption list
+// (api/src/sweeps/read-only.js EXEMPT_EXACT/EXEMPT_PREFIX) — a lapsed sweep's admin can
+// authenticate fine but still can't flip wagering while read-only, same as any other write.
+test('lapsed sweep: POST /api/admin/wagering 403s sweep_readonly (not exempt)', async () => {
+  const [dflt] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
+  await db.insert(account).values({ id: 'ac_wglapsed', email: 'wglapsed@x.test', subscriptionStatus: 'canceled' })
+  await db.insert(sweep).values({ id: 'sw_wglapsed', name: 'Lapsed WG', kind: 'token', memberToken: 'mt_wglapsed', adminToken: 'at_wglapsed', competitionId: dflt.competitionId, accountId: 'ac_wglapsed' })
+  try {
+    const cookie = (await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: 'at_wglapsed' } })).headers['set-cookie']
+    const res = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { host: 'platform.test', cookie }, payload: { enabled: false } })
+    expect(res.statusCode).toBe(403)
+    expect(res.json()).toEqual({ error: 'sweep_readonly' })
+  } finally {
+    await db.delete(sweep).where(eq(sweep.id, 'sw_wglapsed'))
+    await db.delete(account).where(eq(account.id, 'ac_wglapsed'))
+  }
 })
 
 test('bootstrap exposes wageringEnabled additively', async () => {
