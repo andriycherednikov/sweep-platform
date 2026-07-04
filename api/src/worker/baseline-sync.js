@@ -39,13 +39,15 @@ export async function refundPrunedParlays(db, keep, compEventIds) {
  */
 export async function syncBaseline(db, provider, competition) {
   try {
-    const [rawFixtures, standings, crosswalk, ownershipRows, codeById] = await Promise.all([
+    const [rawFixtures, standings] = await Promise.all([
       provider.fetchSchedule(competition),
       provider.fetchStandings(competition),
-      resolveCrosswalk(db, competition.id),
-      db.select().from(ownership),
-      competitorCodeMap(db, competition.id),
     ])
+    // these three run on the same client as the fetches' surrounding transaction, so they
+    // must not overlap each other (pg disallows concurrent queries on one client) — sequential.
+    const crosswalk = await resolveCrosswalk(db, competition.id)
+    const ownershipRows = await db.select().from(ownership)
+    const codeById = await competitorCodeMap(db, competition.id)
     // translate at the boundary (competitorId → code) so computeFlags stays pure/code-based;
     // rows for other competitions drop out (no code in this competition's map).
     const ownershipCodeRows = ownershipRows
