@@ -3,14 +3,23 @@ import { and, eq } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { sweep, person, event } from '../src/db/schema.js'
+import { sweep, person, event, competition, competitor, bet, coinLedger } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 
 const { pool, db } = openTestDb()
 const published = []
 const PASS = '1234'
 const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', publish: (e) => published.push(e), adminHash: bcrypt.hashSync(PASS, 8) })
-afterAll(async () => { await app.close(); await pool.end() })
+afterAll(async () => {
+  await db.delete(bet).where(eq(bet.sweepId, 'sw_wgnba'))
+  await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_wgnba'))
+  await db.delete(person).where(eq(person.sweepId, 'sw_wgnba'))
+  await db.delete(sweep).where(eq(sweep.id, 'sw_wgnba'))
+  await db.delete(event).where(eq(event.competitionId, 'ck_wgnba'))
+  await db.delete(competitor).where(eq(competitor.competitionId, 'ck_wgnba'))
+  await db.delete(competition).where(eq(competition.id, 'ck_wgnba'))
+  await app.close(); await pool.end()
+})
 
 // mirrors admin-auth.test.js / admin-settle-stale.test.js: passcode login mints the
 // DEFAULT sweep's admin cookie (the default sweep has no adminToken to key off of).
@@ -92,4 +101,35 @@ test('admin toggle flips wageringEnabled for the resolved sweep', async () => {
 test('bootstrap exposes wageringEnabled additively', async () => {
   const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(body.wageringEnabled).toBe(true)
+})
+
+test('no-draw sport: 1x2 and DRAW are refused at validation', async () => {
+  // minimal basketball world: competition + two competitors + one upcoming event with an ml market stored
+  await db.insert(competition).values({ id: 'ck_wgnba', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024', format: 'league', name: 'NBA vt' })
+  await db.insert(competitor).values([
+    { id: 'cp_ck_wgnba_BOS', competitionId: 'ck_wgnba', code: 'BOS', name: 'Boston', color: '#0f0' },
+    { id: 'cp_ck_wgnba_DAL', competitionId: 'ck_wgnba', code: 'DAL', name: 'Dallas', color: '#00f' },
+  ])
+  await db.insert(event).values({ id: 'evt_wgnba1', competitionId: 'ck_wgnba', c1Code: 'BOS', c2Code: 'DAL', startUtc: new Date(Date.now() + 3600_000), status: 'upcoming', stage: 'group',
+    detail: { markets: {
+      ml: { label: 'Moneyline', book: 'TestBook', selections: [ { key: 'HOME', label: 'Boston', odds: 1.6 }, { key: 'AWAY', label: 'Dallas', odds: 2.3 } ] },
+      '1x2': { label: 'poisoned', book: 'TestBook', selections: [ { key: 'HOME', label: 'H', odds: 1.6 }, { key: 'DRAW', label: 'D', odds: 9.9 }, { key: 'AWAY', label: 'A', odds: 2.3 } ] },
+    } } })
+  const mt = 'mt_wgnba'
+  await db.insert(sweep).values({ id: 'sw_wgnba', name: 'NBA WG', kind: 'token', memberToken: mt, adminToken: 'at_wgnba', competitionId: 'ck_wgnba', wageringEnabled: true })
+  await db.insert(person).values({ id: 'pn_wgnba', sweepId: 'sw_wgnba', name: 'Nia', short: 'Nia', initials: 'NI', avColor: '#111' })
+  const cookie = (await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: mt } })).headers['set-cookie']
+  const H = { host: 'platform.test', cookie }
+
+  // even with a (poisoned) stored 1x2 market, validation refuses it for basketball
+  const r1 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', personId: 'pn_wgnba', market: '1x2', selection: 'DRAW', stake: 10 } })
+  expect(r1.statusCode).toBe(400)
+  expect(r1.json()).toEqual({ error: 'market_not_offered' })
+  // the ml spine market places fine
+  const r2 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', personId: 'pn_wgnba', market: 'ml', selection: 'HOME', stake: 10 } })
+  expect(r2.statusCode).toBe(200)
+  // parlay leg with a draw market on basketball is refused too
+  const r3 = await app.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { personId: 'pn_wgnba', stake: 10, legs: [ { fixtureId: 'evt_wgnba1', market: 'ml', selection: 'HOME' }, { fixtureId: 'evt_wgnba1', market: '1x2', selection: 'HOME' } ] } })
+  expect(r3.statusCode).toBe(400)
+  expect(r3.json()).toMatchObject({ error: 'market_not_offered' })
 })

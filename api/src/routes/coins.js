@@ -1,14 +1,22 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
-import { person, coinLedger, bet, parlay } from '../db/schema.js'
+import { person, coinLedger, bet, parlay, competition } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
 import { requireSweep } from '../sweeps/auth.js'
 import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../wagering/ledger.js'
 import { isExcluded } from '../optout.js'
+import { sportConfig } from '../sports.js'
+import { MARKET_REGISTRY } from '../wagering/markets.js'
 
 const member = requireSweep(['member', 'admin'])
 
-const MARKETS = ['1x2', 'toq', 'ou25', 'cards', 'fh1x2', 'cs', 'btts', 'dc', 'oe', 'fhou', 'gs']
+const MARKETS = ['1x2', 'toq', 'ou25', 'cards', 'fh1x2', 'cs', 'btts', 'dc', 'oe', 'fhou', 'gs', 'ml', 'ou', 'hcap']
+
+async function sweepSportConfig(app, req) {
+  const [comp] = await app.db.select().from(competition).where(eq(competition.id, req.sweep.competitionId))
+  return sportConfig(comp.sport)
+}
+const drawVetoed = (cfg, market, selection) => !cfg.hasDraws && (MARKET_REGISTRY[market]?.needsDraws || selection === 'DRAW')
 const betBody = {
   type: 'object', required: ['fixtureId', 'personId', 'selection', 'stake'], additionalProperties: false,
   properties: {
@@ -67,6 +75,8 @@ export async function coinsRoutes(app) {
     if (!evRow) return reply.code(400).send({ error: 'unknown_fixture' })
     const f = flattenEvent(evRow)
     if (f.status !== 'upcoming') return reply.code(400).send({ error: 'betting_closed' })
+    const cfg = await sweepSportConfig(app, req)
+    if (drawVetoed(cfg, market, selection)) return reply.code(400).send({ error: 'market_not_offered' })
     const mk = f.markets?.[market]
     const sel = mk?.selections?.find((s) => s.key === selection)
     if (!sel) return reply.code(400).send({ error: 'no_odds' })
@@ -118,9 +128,11 @@ export async function coinsRoutes(app) {
       if (seen.has(key)) return reply.code(400).send({ error: 'duplicate_market', fixtureId: l.fixtureId, market: l.market ?? '1x2' })
       seen.add(key)
     }
+    const cfg = await sweepSportConfig(app, req)
     const resolved = []
     for (const l of legs) {
       const market = l.market ?? '1x2'
+      if (drawVetoed(cfg, market, l.selection)) return reply.code(400).send({ error: 'market_not_offered', fixtureId: l.fixtureId, market })
       const row = await eventInCompetition(app.db, req.sweep.competitionId, l.fixtureId)
       if (!row) return reply.code(400).send({ error: 'fixture_not_found', fixtureId: l.fixtureId })
       const f = flattenEvent(row)
