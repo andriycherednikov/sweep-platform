@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday } from './lib/format.js'
+import { vocabFor } from './lib/vocab.js'
 
 // Safe empty shape so module-scope reads never crash before data loads.
 function emptySweep() {
@@ -9,6 +10,7 @@ function emptySweep() {
     nextMatch: null, liveMatch: null, scoring: null, sweep: { id: 'default', name: 'The Sweep' },
     competition: { sport: 'football', hasDraws: true, name: '', season: '', format: 'groups_then_ko', logo: null },
     readOnly: false, wageringEnabled: true,
+    vocab: vocabFor('football'),
     team: (code) => SWEEP.teams[code],
     fixture: (id) => SWEEP.fixturesById[id] || null,
     ownersOf: (code) => (SWEEP._ownersByTeam && SWEEP._ownersByTeam[code]) || [],
@@ -26,7 +28,7 @@ export const SWEEP = emptySweep()
 const DATA_KEYS = [
   'teams', 'teamList', 'groups', 'people', 'peopleById', 'fixtures', 'fixturesById', 'standings',
   'photos', 'derbies', 'money', 'nextMatch', 'liveMatch', 'scoring', 'sweep', 'todayKey',
-  'competition', 'readOnly', 'wageringEnabled',
+  'competition', 'readOnly', 'wageringEnabled', 'vocab',
 ]
 
 const socialListeners = new Set()

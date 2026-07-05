@@ -1,4 +1,5 @@
 import { flag, gd, fmtTime, fmtDate, fmtDateTime, fmtDayKey, fmtWeekday } from './format.js'
+import { vocabFor } from './vocab.js'
 
 function outlookFor(s) {
   return s >= 86 ? 'Title contender' : s >= 80 ? 'Last-8 shout' : s >= 73 ? 'Knockout dark horse' : s >= 66 ? 'Group toss-up' : 'Long shot'
@@ -325,6 +326,7 @@ export function assembleSweep(api) {
     competition: bootstrap.competition ?? { sport: 'football', hasDraws: true, name: '', season: '', format: 'groups_then_ko', logo: null },
     readOnly: bootstrap.readOnly === true,
     wageringEnabled: bootstrap.wageringEnabled !== false,
+    vocab: vocabFor((bootstrap.competition ?? {}).sport || 'football'),
     team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, placementOf, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }

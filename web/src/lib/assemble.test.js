@@ -488,5 +488,8 @@ it('teams carry standings pct/pf/pa when the rows have them', () => {
   const s = assembleSweep(makeApi({ sport: 'basketball' }))
   expect(s.teams.bos).toMatchObject({ pct: 1, pf: 240, pa: 200 })
 })
+it('attaches sport vocab', () => {
+  expect(assembleSweep(makeApi({sport:'basketball'})).vocab.noun).toBe('game')
+})
 
 
