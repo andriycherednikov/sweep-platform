@@ -17,4 +17,7 @@ describe('index.html iOS standalone metas', () => {
   test('sets a theme-color matching the manifest', () => {
     expect(html).toMatch(/<meta\s+name="theme-color"\s+content="#0b1f3a"\s*\/?>/)
   })
+  test('title is sport-neutral (no hardcoded competition name)', () => {
+    expect(html).toMatch(/<title>The Sweep<\/title>/)
+  })
 })

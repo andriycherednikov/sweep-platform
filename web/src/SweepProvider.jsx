@@ -28,7 +28,7 @@ function GateBrand() {
   return (
     <div className="sweep-brand">
       <img className="sweep-brand-mark" src="/trophy.png" alt="" />
-      <div className="sweep-brand-word"><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
+      <div className="sweep-brand-word"><b>THE SWEEP</b></div>
     </div>
   )
 }

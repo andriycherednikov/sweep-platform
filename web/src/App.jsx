@@ -47,7 +47,7 @@ export function urlFor(v) {
   // is NEVER emitted to the URL — that keeps it out of the address bar/history AND
   // out of analytics (trackPageview builds its path from urlFor). Always bare /super.
   if (v.overlay?.type === "super") return "/super";
-  return v.tab === "home" ? "/" : `/${v.tab}`;
+  return v.tab === "home" ? "/" : v.tab === "coins" ? "/wagers" : `/${v.tab}`;
 }
 export function readView(path) {
   const seg = path.split("/").filter(Boolean);
@@ -58,7 +58,10 @@ export function readView(path) {
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
   if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
   if (seg[0] === "super") return { ...base, overlay: { type: "super", token: parseSuperRoute(path).token } };
-  return { ...base, tab: tabsFor().includes(seg[0]) ? seg[0] : "home" };
+  // /wagers is the web-local route for the internal "coins" tab id (wire keys are frozen).
+  // "coins" itself is not a routable segment — no legacy /coins alias.
+  if (seg[0] === "wagers") return { ...base, tab: tabsFor().includes("coins") ? "coins" : "home" };
+  return { ...base, tab: seg[0] !== "coins" && tabsFor().includes(seg[0]) ? seg[0] : "home" };
 }
 
 export default function App() {

@@ -571,7 +571,6 @@ export function OptOutSheet({ onClose }) {
 /* Shown automatically the first time someone opens Wagers (once per device),
    and re-openable anytime via the "?" in the header. */
 const WAGERS_FYI_KEY = 'sweep.wagers.fyi.v1'
-const WAGERS_END = '19 July 2026' // World Cup Final — weekly grants stop, table locks
 
 // Weekly grants roll on a 7-day cycle anchored to the first kickoff, so the
 // deposit lands on that same weekday/time. Surface it in Sydney time.
@@ -607,12 +606,12 @@ export function WagersInfoSheet({ onClose, onOptOut }) {
             <Icon.coin />
             <span>Everyone starts with <b>1,000 Yowie Dollars</b>, and another <b>1,000</b> drops into
             every account automatically {drop ? <>every <b>{drop}</b> (Sydney time)</> : <b>each week</b>} —
-            until the World Cup Final on <b>{WAGERS_END}</b>, when the table locks and the bragging begins.</span>
+            each week while the season runs.</span>
           </div>
           <div className="fyi-grant">
             <Icon.coin />
-            <span>You will get <b>100 Yowie Dollars</b> for every match outcome you predict correctly in the
-            schedule, and <b>300</b> each time a team you own wins a match.</span>
+            <span>You will get <b>100 Yowie Dollars</b> for every {S.vocab.noun} outcome you predict correctly in the
+            schedule, and <b>300</b> each time a team you own wins a {S.vocab.noun}.</span>
           </div>
           <p className="fyi-18">🔞 Adults only — minor accounts can’t see or use Wagers.</p>
           <div className="fyi-stepaway">
@@ -722,7 +721,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
             <>
               {days.length === 0 ? (
                 <div className="block" style={{ padding: '16px 14px', color: 'var(--muted)', fontSize: 13 }}>
-                  No bettable matches right now.
+                  No bettable {S.vocab.nounPlural} right now.
                 </div>
               ) : (
                 days.map(dk => {
@@ -734,7 +733,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                       <div className={'daydiv' + (isToday ? ' today' : '')}>
                         <span className="d">{isToday ? 'Today' : d.dayLabel}</span>
                         <span className="ln"></span>
-                        <span className="ct">{fs.length} {fs.length > 1 ? 'matches' : 'match'}</span>
+                        <span className="ct">{fs.length} {fs.length > 1 ? S.vocab.nounPlural : S.vocab.noun}</span>
                       </div>
                       <div className="coin-bet-grid">
                       {fs.map(f => {

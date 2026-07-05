@@ -50,9 +50,9 @@ export function liveLabel(f) {
   }
 }
 
-export function whenLabel(f) {
+export function whenLabel(f, ftShort = 'FT') {
   const base = f.dateTimeLabel || fmtDateTime(f.ko)
   if (f.status === 'live') return `${base} · ${liveLabel(f) || 'LIVE'}`
-  if (f.status === 'final') return `${base} · FT`
+  if (f.status === 'final') return `${base} · ${ftShort}`
   return base
 }

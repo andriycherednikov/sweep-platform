@@ -140,9 +140,11 @@ test('the super pageview path sent to analytics excludes the token', async () =>
   expect(trackPageview).toHaveBeenCalledWith('/super')
 })
 
-test('readView maps /coins to the coins tab and urlFor round-trips', () => {
-  expect(readView('/coins')).toMatchObject({ tab: 'coins' })
-  expect(urlFor({ tab: 'coins' })).toBe('/coins')
+test('readView maps /wagers to the coins tab and urlFor round-trips (wire key stays "coins", route is web-local)', () => {
+  expect(readView('/wagers')).toMatchObject({ tab: 'coins' })
+  expect(urlFor({ tab: 'coins' })).toBe('/wagers')
+  // no legacy alias: the old /coins path is not a route
+  expect(readView('/coins')).toMatchObject({ tab: 'home' })
 })
 
 test('league competitions have no knockouts tab or route', () => {

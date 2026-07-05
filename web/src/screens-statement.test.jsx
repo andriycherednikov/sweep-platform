@@ -94,7 +94,7 @@ test('a team-win reward row shows the match, +300 and the team icon', () => {
     { id: 8, type: 'teamwin', amount: 300, weekIndex: null, balanceAfter: 1400, createdAt: '2026-06-18T00:00:00.000Z', bet: null, fixtureId: 'f1' },
   ], 1400)
   expect(screen.getByText('ARG v BRA')).toBeInTheDocument()
-  expect(screen.getByText('Your team won')).toBeInTheDocument()
+  expect(screen.getByText('Your team won a match')).toBeInTheDocument()
   expect(screen.getByText('+300')).toBeInTheDocument()
   expect(container.querySelector('.stmt-ic.teamwin')).toBeTruthy()
 })

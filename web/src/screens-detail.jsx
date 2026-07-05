@@ -254,7 +254,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                       <Flag code={oppCode} w={24} h={18}/>
                       <span className="nm">{S.team(oppCode).name}</span>
                     </div>
-                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f, S.vocab.ftShort)}</div>
                   </div>
                   <div className="rr">
                     {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : (
@@ -299,7 +299,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
                       <Flag code={f.t2} w={24} h={18}/>
                       <span className="nm">{S.team(f.t2).name}</span>
                     </div>
-                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f, S.vocab.ftShort)}</div>
                   </div>
                   <div className="rr">
                     {isDraw
@@ -475,7 +475,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                 <div className="mini-fx" key={f.id} onClick={()=>openMatch(f)}>
                   <div className="fx-main">
                     <div className="opp"><Flag code={oppCode} w={24} h={18}/><span className="vs">v</span><span className="nm">{S.team(oppCode).name}</span></div>
-                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f)}</div>
+                    <div className={"fx-when"+(live?" live":"")}>{whenLabel(f, S.vocab.ftShort)}</div>
                   </div>
                   <div className="rr">
                     {(f.status==="final"||live) && (spoilerHidden(f) ? <ScoreCover f={f}/> : (

@@ -42,7 +42,7 @@ function entryView(e) {
   if (e.type === 'predict' || e.type === 'teamwin') {
     const f = S.fixture(e.fixtureId)
     const match = f ? `${S.team(f.t1)?.name || f.t1} v ${S.team(f.t2)?.name || f.t2}` : null
-    const sub = e.type === 'predict' ? 'Correct prediction' : 'Your team won'
+    const sub = e.type === 'predict' ? 'Correct prediction' : `Your team won a ${S.vocab.noun}`
     return { kind: e.type, title: match || sub, sub: match ? sub : '' }
   }
   const won = e.type === 'payout'

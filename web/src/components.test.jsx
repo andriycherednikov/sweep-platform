@@ -8,7 +8,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, Flag, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor } from './components.jsx'
+import { Av, Flag, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor, StatusPill } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen } from './screens-main.jsx'
@@ -447,6 +447,28 @@ test('MatchCard shows the one-line local date/time and no timezone label', () =>
   expect(getByText('Sun, 14 June · 8:00 AM')).toBeTruthy()
   expect(queryByText(/AEST/)).toBeNull()
   expect(container.querySelector('.mc-time').textContent).not.toMatch(/AEST/)
+})
+
+test('StatusPill reads the sport vocab: "Full time" for football finals, "Final" for basketball finals', () => {
+  setSweepData(assembleSweep(makeApi())) // football
+  const foot = render(<StatusPill f={{ status: 'final' }} />)
+  expect(foot.getByText('Full time')).toBeInTheDocument()
+  foot.unmount()
+
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  const ball = render(<StatusPill f={{ status: 'final' }} />)
+  expect(ball.getByText('Final')).toBeInTheDocument()
+})
+
+test('HomeHeader small-print shows the wire competition name, not a hardcoded sport', () => {
+  setSweepData(assembleSweep(makeApi())) // football factory: competition.name = 'World Cup 2026'
+  const foot = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(foot.container.querySelector('.brand-tx small').textContent).toBe('WORLD CUP 2026')
+  foot.unmount()
+
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' }))) // basketball factory: competition.name = 'NBA'
+  const ball = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(ball.container.querySelector('.brand-tx small').textContent).toBe('NBA')
 })
 
 test('SweepsSheet lists stored sweeps and marks the active one', () => {

@@ -8,7 +8,7 @@ import {
   supportOf, mySupport, setSupport, DRAW,
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
-import { fmtDate, liveLabel } from "./lib/format.js";
+import { fmtDate } from "./lib/format.js";
 import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
@@ -232,8 +232,8 @@ export function SquadList({ players, wide }) {
 
 /* status pill for a fixture */
 export function StatusPill({ f }) {
-  if (f.status === "live") return <span className="pill live"><span className="b"></span> Live{liveLabel(f) ? ` · ${liveLabel(f)}` : ""}</span>;
-  if (f.status === "final") return <span className="pill final">Full time</span>;
+  if (f.status === "live") return <span className="pill live"><span className="b"></span> Live{S.vocab.live(f) ? ` · ${S.vocab.live(f)}` : ""}</span>;
+  if (f.status === "final") return <span className="pill final">{S.vocab.finalLabel}</span>;
   return <span className="pill up">Upcoming</span>;
 }
 
@@ -379,7 +379,7 @@ export function MatchCard({ f, onOpen, onToast }) {
       <CrowdPick f={f} onToast={onToast} locked={f.status !== "upcoming"} />
       <div className="mc-foot">
         <span className="venue"><Icon.pin style={{width:12,height:12,stroke:"var(--muted)"}}/> <span>{f.venue}{f.city ? " · "+f.city : ""}</span></span>
-        {f.group && <span className="grp">GROUP {f.group}</span>}
+        {f.group && <span className="grp">{S.vocab.groupLabel.toUpperCase()} {f.group}</span>}
       </div>
     </article>
   );
@@ -422,7 +422,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
           <div className={"brand-tx" + (home ? "" : " alt")}>
             <b>{home ? "THE SWEEP" : title}</b>
-            {(home || sub) && <small>{home ? "WORLD CUP 2026" : sub}</small>}
+            {(home || sub) && <small>{home ? (S.competition?.name ? S.competition.name.toUpperCase() : "") : sub}</small>}
           </div>
         </button>
         )}
@@ -610,7 +610,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
         <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
-        <div><b>THE SWEEP</b><small>WORLD CUP 2026</small></div>
+        <div><b>THE SWEEP</b><small>{S.competition?.name ? S.competition.name.toUpperCase() : ""}</small></div>
       </button>
       <div className="sb-sec">Browse</div>
       <nav className="sb-nav">
