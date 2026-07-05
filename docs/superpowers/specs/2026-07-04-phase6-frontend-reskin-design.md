@@ -212,6 +212,44 @@ opt-out, lapsed read-only banner, billing checkout 4242 + Portal via Chrome.
 Carried cleanups (P3/P4/P5 tickets) picked up only where a task already
 touches the file. First-deploy gate items excluded per (c).
 
+## 13a. Post-implementation — Plan A / reskin half (2026-07-05, 474be15..25b56ea)
+
+Landed as designed; final whole-branch review (fable) READY-WITH-FIXES, all
+fixes applied (25b56ea), suites green: **api 416 / web 514 / build clean —
+the web-436 invariant is retired** (bar recorded per task in the SDD ledger).
+Live-verified in Chrome, Stripe test mode: WC parity (standings GROUP A–L,
+GD +prefix, bracket, flags byte-identical); NBA basketball-native end to end
+(logos, conference tables pct-ordered, 2-way votes, Playoffs-free tabs,
+Final labels); wagering ON→OFF from bootstrap (tab + /wagers route gone);
+lapsed read-only banner; full billing lifecycle fresh→provision(API)→trial
+countdown→Checkout 4242→webhook→subscribed→Portal, plus cancel→lapse webhook.
+
+Deviations/decisions during execution (all recorded in the ledger):
+- **Standings are now mirrored from `/api/standings`** (route is the one
+  source of grouping+order; api returns keys sorted, web belts it) — the
+  old client-side regroup by `teams[].group` alphabetized NBA and dropped
+  conferences. Additive api companions: `serializeCompetitor.group` falls
+  back to `meta.conference` (one key space), rows carry `pct/pf/pa`.
+- **Emblem-aware `Flag`** keeps 160/320 flag resolutions (byte-identity
+  constraint beat the plan's `Math.max(w,80)` snippet).
+- Vocab grew beyond the plan's list during live passes: `groupHeading`,
+  `kickoffLabel`, `startsInLabel`, per-sport `groupLabel` ('Conference').
+- accountClient live-caught bug: no content-type header on bodyless POSTs
+  (Fastify 400) — mocks were blind; the browser pass was the net.
+- Dev note: the Vite proxy rewrites Host, so platform-mode browsing needs
+  `PLATFORM_HOST=localhost:3000` (and a 127.0.0.1 origin to dodge stale
+  WC-era localhost cookies).
+
+Tickets carried (non-blocking): serializeTeam dead-code + parity test,
+monogram word-initials, collapse 4 team-market key lists into betLabels,
+tabsFor import cycle, non-401 getAccount retry state, countdown clamp is
+display-only, weak logo-coalesce assertion, GA property+event renames at
+the deploy gate. AFK defaults standing for veto: decision (a) both-with-
+checkpoint, GateBrand small-line removal, banner/landing copy.
+
+**GO/NO-GO checkpoint (§13 step 10): reskin half COMPLETE. AFK default =
+GO to Plan B (catalog + provision + my-sweeps polish), veto standing.**
+
 ## 14. Out of scope
 
 Wire renames (per b), deploy/infra/GA-property/live-keys (per c), fresh
