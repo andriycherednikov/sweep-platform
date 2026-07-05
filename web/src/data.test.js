@@ -1,6 +1,7 @@
-import { expect, test } from 'vitest'
+import { expect, test, it } from 'vitest'
 import { SWEEP, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
+import { makeApi, makeBootstrap } from '../test/factories.js'
 
 test('SWEEP is safe before data loads (empty collections, working helpers)', () => {
   expect(Array.isArray(SWEEP.people)).toBe(true)
@@ -39,4 +40,10 @@ test('SWEEP.sweep defaults to the default sweep when bootstrap omits it', () => 
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
   expect(SWEEP.sweep).toEqual({ id: 'default', name: 'The Sweep' })
+})
+
+it('setSweepData carries competition/readOnly/wageringEnabled onto SWEEP', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball', bootstrap: makeBootstrap({ sport: 'basketball', readOnly: true }) })))
+  expect(SWEEP.competition.sport).toBe('basketball')
+  expect(SWEEP.readOnly).toBe(true)
 })

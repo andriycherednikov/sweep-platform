@@ -1,5 +1,6 @@
-import { expect, test } from 'vitest'
+import { expect, test, it } from 'vitest'
 import { assembleSweep, twoWayProb, threeWayProb, progressProb, winnerCodeOf } from './assemble.js'
+import { makeApi, makeBootstrap } from '../../test/factories.js'
 
 const api = {
   bootstrap: {
@@ -466,6 +467,26 @@ test('a 3rd-placed team that reached the knockout is NOT eliminated; a non-quali
   expect(S.isTeamEliminated('d4')).toBe(true)  // 4th, no knockout game → out
   expect(S.isTeamEliminated('g1')).toBe(false)
   expect(S.isPersonEliminated('p1')).toBe(false) // owns q3, still alive
+})
+
+it('threads competition/readOnly/wageringEnabled into the sweep object', () => {
+  const s = assembleSweep(makeApi({ sport: 'basketball', bootstrap: makeBootstrap({ sport: 'basketball', readOnly: true, wageringEnabled: false }) }))
+  expect(s.competition).toMatchObject({ sport: 'basketball', hasDraws: false, format: 'league' })
+  expect(s.readOnly).toBe(true)
+  expect(s.wageringEnabled).toBe(false)
+  expect(s.teams.lal.logo).toBe('https://x/lal.png')
+  expect(s.teams.lal.pct).toBe(0.5) // pct rides on standings rows (Western Conference row in the factory default)
+})
+it('defaults the seams when bootstrap predates them', () => {
+  const api = makeApi(); delete api.bootstrap.competition; delete api.bootstrap.readOnly; delete api.bootstrap.wageringEnabled
+  const s = assembleSweep(api)
+  expect(s.competition.hasDraws).toBe(true)   // football-shaped default
+  expect(s.readOnly).toBe(false)
+  expect(s.wageringEnabled).toBe(true)
+})
+it('teams carry standings pct/pf/pa when the rows have them', () => {
+  const s = assembleSweep(makeApi({ sport: 'basketball' }))
+  expect(s.teams.bos).toMatchObject({ pct: 1, pf: 240, pa: 200 })
 })
 
 

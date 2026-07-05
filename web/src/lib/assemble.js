@@ -128,6 +128,7 @@ export function assembleSweep(api) {
       played: s.played, win: s.win, draw: s.draw, loss: s.loss, gf: s.gf, ga: s.ga, pts: s.pts,
       owners: ownersOf(t.code), titleOdds: titleOddsFor(t.strength), outlook: outlookFor(t.strength),
       squad: t.squad ?? null,
+      logo: t.logo ?? null, pct: s.pct ?? null, pf: s.pf ?? null, pa: s.pa ?? null,
     }
   }
   const team = (code) => teams[code]
@@ -321,6 +322,9 @@ export function assembleSweep(api) {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
     sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
+    competition: bootstrap.competition ?? { sport: 'football', hasDraws: true, name: '', season: '', format: 'groups_then_ko', logo: null },
+    readOnly: bootstrap.readOnly === true,
+    wageringEnabled: bootstrap.wageringEnabled !== false,
     team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, placementOf, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }
