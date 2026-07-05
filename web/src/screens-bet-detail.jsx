@@ -8,18 +8,22 @@ import { WalletHeader, MyBets, WagersInfoSheet, BetslipSheet, BetslipPill } from
 import { useBetslip, toggleLeg, hasLeg, betslipCount } from './betslip.js'
 import { StatementList } from './screens-statement.jsx'
 import { useCoins, myWallet } from './coins.js'
+import { RENDERABLE_MARKETS } from './lib/betLabels.js'
 
-// Ordering: To Qualify leads on knockouts (omitted on group games), then the
-// full-match markets, then 1st-half markets, then novelty markets.
-const MARKET_ORDER = ['toq', '1x2', 'dc', 'ou25', 'btts', 'oe', 'cards', 'fh1x2', 'fhou', 'cs', 'gs']
 // markets whose Home/Away selections render as team names + flags (no Draw on toq)
-const TEAM_MARKETS = new Set(['1x2', 'fh1x2', 'toq'])
+const TEAM_MARKETS = new Set(['1x2', 'fh1x2', 'toq', 'ml', 'hcap'])
 // correct score collapses behind a "show more" toggle (goalscorer has its own grouped path)
 const LONG_MARKETS = { cs: 12 }
 const GS_PER_TEAM = 6 // goalscorer players shown per team before "show more"
 
-// team-aware label for 1x2/fh1x2/toq Home/Away; passthrough otherwise
+// team-aware label for 1x2/fh1x2/toq/ml Home/Away, signed handicap for hcap; passthrough otherwise
 function selLabel(mkKey, sel, f) {
+  if (mkKey === 'hcap') {
+    const line = f?.markets?.hcap?.line ?? 0
+    const t = sel.key === 'HOME' ? S.team(f.t1)?.name || 'Home' : S.team(f.t2)?.name || 'Away'
+    const n = sel.key === 'HOME' ? line : -line
+    return `${t} ${n > 0 ? '+' : ''}${n}`
+  }
   if (TEAM_MARKETS.has(mkKey)) {
     if (sel.key === 'HOME') return S.team(f.t1)?.name || 'Home'
     if (sel.key === 'AWAY') return S.team(f.t2)?.name || 'Away'
@@ -77,7 +81,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
   if (!f) return <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }} />
 
   const markets = f.markets || {}
-  const keys = MARKET_ORDER.filter((k) => markets[k])
+  const keys = RENDERABLE_MARKETS.filter((k) => markets[k])
 
   return (
     <div data-testid="bet-detail" className="coins-page" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>

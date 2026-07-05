@@ -48,6 +48,30 @@ test('place-a-bet headlines To Qualify when available, else the match result', (
   expect(betslipLegs().find((l) => l.fixtureId === 'f2')?.market).toBe('toq')
 })
 
+test('an ml-only NBA fixture appears on the Wagers list with an ml headline', () => {
+  clearBetslip()
+  S.fixtures.push({ id: 'g1', t1: 'lal', t2: 'bos', stage: 'league', status: 'upcoming',
+    ko: new Date('2026-07-03T18:00:00Z'), dayKey: '2026-07-03', dayLabel: 'Thu 3 Jul', markets: {
+      ml: { book: 'B', selections: [{ key: 'HOME', label: 'Home', odds: 1.6 }, { key: 'AWAY', label: 'Away', odds: 2.3 }] } } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  const row = screen.getByTestId('bet-row-g1')
+  expect(within(row).getByText('1.6')).toBeInTheDocument()
+  expect(within(row).getByText('2.3')).toBeInTheDocument()
+  fireEvent.click(within(row).getByRole('button', { name: /home odds 1.6/i }))
+  expect(betslipLegs().find((l) => l.fixtureId === 'g1')?.market).toBe('ml')
+})
+
+test('drift regression: "+N more" counts only renderable markets, not unknown keys', () => {
+  S.fixtures[0].markets = {
+    ...S.fixtures[0].markets,
+    ou25: { line: 2.5, book: 'B', selections: [{ key: 'OVER', label: 'Over', odds: 1.9 }, { key: 'UNDER', label: 'Under', odds: 1.9 }] },
+    hcap: { line: -1.5, book: 'B', selections: [{ key: 'HOME', label: 'Home', odds: 1.9 }, { key: 'AWAY', label: 'Away', odds: 1.9 }] },
+    zzz_unknown: { book: 'B', selections: [{ key: 'X', label: 'X', odds: 2 }] },
+  }
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  expect(within(screen.getByTestId('bet-row-f1')).getByText('+2 more markets')).toBeInTheDocument()
+})
+
 test('tapping the row opens the bet detail', () => {
   const openBet = vi.fn()
   render(<CoinsScreen go={() => {}} openBet={openBet} />)

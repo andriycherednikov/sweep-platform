@@ -8,6 +8,7 @@ import { PersonAvatar, Flag } from "./components.jsx";
 import { onNotification } from "./notifications.js";
 import { DRAW } from "./social.js";
 import { isSpoiler, isRevealed } from "./spoiler.js";
+import { MARKET_LABELS } from "./lib/betLabels.js";
 
 const LIFETIME = 4500; // ms — must match the riseFade animation duration
 const HALF = 150; // ~half a card width + margin, to keep cards on-screen
@@ -83,17 +84,15 @@ function BackReaction({ it }) {
   );
 }
 
-const BET_MARKET_NAMES = { "1x2": "Match Winner", fh1x2: "First Half", ou25: "Over/Under 2.5", cards: "Cards O/U", cs: "Correct Score" };
-
 // describe a bet selection for the reaction: market name, readable label, optional team flag
 function describeBet(market, selection, fx) {
-  const marketName = BET_MARKET_NAMES[market] || "Bet";
-  if (market === "1x2" || market === "fh1x2") {
+  const marketName = MARKET_LABELS[market] || "Bet";
+  if (market === "1x2" || market === "fh1x2" || market === "toq" || market === "ml" || market === "hcap") {
     if (selection === "HOME") return { marketName, label: S.team(fx.t1)?.name || "Home", flagCode: fx.t1 };
     if (selection === "AWAY") return { marketName, label: S.team(fx.t2)?.name || "Away", flagCode: fx.t2 };
     return { marketName, label: "Draw", flagCode: null };
   }
-  if (market === "ou25" || market === "cards") {
+  if (market === "ou25" || market === "cards" || market === "ou" || market === "fhou") {
     const line = fx.markets?.[market]?.line ?? (market === "ou25" ? 2.5 : "");
     return { marketName, label: `${selection === "OVER" ? "Over" : "Under"} ${line}`.trim(), flagCode: null };
   }

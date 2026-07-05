@@ -8,7 +8,7 @@ import { useCoins, myWallet, placeBet, placeParlay } from './coins.js'
 import { useBetslip, toggleLeg, hasLeg, removeLeg, clearBetslip, combinedOdds, betslipCount } from './betslip.js'
 import { Icon, Flag, useScrolled, useIsDesktop, AppHeader, OptOutButton } from './components.jsx'
 import { optOut } from './optout.js'
-import { MARKET_LABELS, betSelectionLabel } from './lib/betLabels.js'
+import { MARKET_LABELS, betSelectionLabel, RENDERABLE_MARKETS } from './lib/betLabels.js'
 import { liveLabel } from './lib/format.js'
 import { StatementList } from './screens-statement.jsx'
 
@@ -668,7 +668,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
 
   // Upcoming bettable matches with a headline market — full tournament. Fixtures arrive chronological.
   const bettable = S.fixtures
-    .filter(f => f.status === 'upcoming' && (f.markets?.['toq'] || f.markets?.['1x2']))
+    .filter(f => f.status === 'upcoming' && ['toq', '1x2', 'ml'].some((k) => f.markets?.[k]))
 
   // Group by dayKey (same pattern as ScheduleScreen in screens-main.jsx)
   const days = []
@@ -741,7 +741,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                         const t1 = S.team(f.t1)
                         const t2 = S.team(f.t2)
                         // knockouts headline "To Qualify" (who advances); else the match result
-                        const mktKey = f.markets.toq ? 'toq' : '1x2'
+                        const mktKey = f.markets.toq ? 'toq' : f.markets['1x2'] ? '1x2' : 'ml'
                         const mkt = f.markets[mktKey]
                         return (
                           <div
@@ -783,7 +783,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                               })}
                             </div>
                             <div className="coin-row-foot">
-                              {(() => { const n = Object.keys(f.markets).length - 1; return n > 0 ? `+${n} more market${n > 1 ? 's' : ''}` : 'More bets' })()}
+                              {(() => { const n = Object.keys(f.markets).filter((k) => RENDERABLE_MARKETS.includes(k)).length - 1; return n > 0 ? `+${n} more market${n > 1 ? 's' : ''}` : 'More bets' })()}
                               <Icon.chev />
                             </div>
                           </div>

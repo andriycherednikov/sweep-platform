@@ -67,6 +67,21 @@ test('betLabels expose To Qualify with the advancing team name', () => {
   expect(betSelectionLabel({ fixtureId: 'f2', market: 'toq', selection: 'AWAY' })).toBe('BRA')
 })
 
+test('NBA fixture renders ml/ou/hcap market blocks (Moneyline first) with team-name selections', () => {
+  S.fixtures.push({ id: 'g1', t1: 'lal', t2: 'bos', stage: 'league', status: 'upcoming',
+    ko: new Date('2026-07-06T18:00:00Z'), dateTimeLabel: 'Mon 6 Jul, 18:00', markets: {
+      ml: { label: 'Moneyline', book: 'B', selections: [{ key: 'HOME', label: 'Home', odds: 1.6 }, { key: 'AWAY', label: 'Away', odds: 2.3 }] },
+      ou: { label: 'Total Points', line: 220.5, book: 'B', selections: [{ key: 'OVER', label: 'Over', odds: 1.9 }, { key: 'UNDER', label: 'Under', odds: 1.9 }] },
+      hcap: { label: 'Handicap', line: -4.5, book: 'B', selections: [{ key: 'HOME', label: 'Home', odds: 1.9 }, { key: 'AWAY', label: 'Away', odds: 1.9 }] },
+    } })
+  render(<BetDetail fixtureId="g1" onBack={() => {}} />)
+  const titles = screen.getAllByText(/^Moneyline$|^Total Points$|^Handicap$/)
+  expect(titles.map((t) => t.textContent)).toEqual(['Moneyline', 'Total Points', 'Handicap'])
+  const mlBlock = screen.getByText('Moneyline').closest('.coin-mkt')
+  expect(within(mlBlock).getByText('LAL')).toBeInTheDocument()
+  expect(within(mlBlock).getByText('BOS')).toBeInTheDocument()
+})
+
 test('the Statement tab shows the Yowie Dollars statement', () => {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   qc.setQueryData(['coins', 'ledger', 'pn_a'], {
