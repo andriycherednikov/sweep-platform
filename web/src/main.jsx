@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { SweepProvider } from "./SweepProvider.jsx";
 import { SuperRoot } from "./SuperRoot.jsx";
+import { AccountRoot } from "./AccountRoot.jsx";
 import { registerServiceWorker } from "./lib/registerSW.js";
 import { joinFromLocation } from "./lib/bootstrapJoin.js";
 import { parseSuperRoute } from "./lib/superRoute.js";
@@ -13,7 +14,13 @@ import "./desktop.css";
 const root = ReactDOM.createRoot(document.getElementById("appmount"));
 const sup = parseSuperRoute(window.location.pathname);
 
-if (sup.isSuper) {
+if (window.location.pathname.startsWith("/account")) {
+  // The account shell is header-token auth (x-account-token), not the sweep
+  // session cookie — mount it standalone like /super, otherwise the Gate's
+  // bootstrap 401 would block a signed-out visitor before they can sign in.
+  root.render(<AccountRoot />);
+  registerServiceWorker();
+} else if (sup.isSuper) {
   // The super console is independent of the sweep session/Gate — mount it
   // standalone, otherwise the Gate's bootstrap 401 (platform owner has a super
   // cookie, not a sweep session) would block /super and make minting the first
