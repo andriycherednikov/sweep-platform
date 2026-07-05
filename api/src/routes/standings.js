@@ -14,13 +14,14 @@ export async function standingsRoutes(app) {
     const tables = {}
     for (const t of comps) {
       const s = byCode[t.code] ?? { played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, pts: 0 }
-      ;(tables[t.meta?.group] ??= []).push({
+      ;(tables[t.meta?.group ?? t.meta?.conference ?? ''] ??= []).push({
         code: t.code, name: t.name, played: s.played ?? 0, win: s.win ?? 0, draw: s.draw ?? 0,
         loss: s.loss ?? 0, gf: s.gf ?? 0, ga: s.ga ?? 0, gd: (s.gf ?? 0) - (s.ga ?? 0), pts: s.pts ?? 0,
+        pct: s.pct ?? null, pf: s.pf ?? null, pa: s.pa ?? null,
       })
     }
     for (const g of Object.keys(tables)) {
-      tables[g].sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.name.localeCompare(y.name))
+      tables[g].sort((x, y) => y.pts - x.pts || (y.pct ?? 0) - (x.pct ?? 0) || y.gd - x.gd || y.gf - x.gf || x.name.localeCompare(y.name))
     }
     return tables
   })

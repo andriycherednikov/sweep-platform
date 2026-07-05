@@ -49,6 +49,11 @@ test('serializeFixture exposes winnerCode, null when absent', () => {
   expect(out2.winnerCode).toBeNull()
 })
 
+test('serializeCompetitor carries logo', () => {
+  expect(serializeCompetitor({ code: 'lal', name: 'Lakers', color: '#552583', logo: 'https://x/l.png', meta: { conference: 'Western Conference' } }).logo)
+    .toBe('https://x/l.png')
+})
+
 test('serializeCompetitor matches the serializeTeam wire shape', () => {
   const meta = { group: 'A', pool: '1', strength: 80, squad: [{ name: 'X' }] }
   const c = { id: 'cp_hr', code: 'hr', name: 'Croatia', color: '#f00', meta }

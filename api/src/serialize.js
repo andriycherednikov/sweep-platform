@@ -2,7 +2,7 @@ import { isExcluded } from './optout.js'
 import { flattenEvent } from './db/event-shape.js'
 
 export function serializeTeam(t) {
-  return { code: t.code, name: t.name, group: t.group, pool: t.pool, color: t.color, strength: t.strength, squad: t.squad ?? null }
+  return { code: t.code, name: t.name, group: t.group, pool: t.pool, color: t.color, logo: t.logo ?? null, strength: t.strength, squad: t.squad ?? null }
 }
 export function serializePerson(p) {
   return { id: p.id, name: p.name, short: p.short, initials: p.initials, av: p.avColor, avatarPath: p.avatarPath, adult: p.adult, excluded: isExcluded(p), createdAt: p.createdAt }
@@ -25,7 +25,7 @@ export function serializeFixture(f) {
 }
 export function serializeCompetitor(c) {
   const m = c.meta ?? {}
-  return { code: c.code, name: c.name, group: m.group ?? null, pool: m.pool ?? null, color: c.color, strength: m.strength ?? null, squad: m.squad ?? null }
+  return { code: c.code, name: c.name, group: m.group ?? null, pool: m.pool ?? null, color: c.color, logo: c.logo ?? null, strength: m.strength ?? null, squad: m.squad ?? null }
 }
 export function serializeEvent(row) {
   return serializeFixture(flattenEvent(row))
