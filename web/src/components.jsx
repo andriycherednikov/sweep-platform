@@ -263,6 +263,7 @@ export function resultFor(f, code) {
 /* crowd pick — community sentiment on who wins (distinct from the official Win %).
    Reuses the support store: one call per viewer per match, tap to set/clear. */
 export function CrowdPick({ f, onToast, light, locked }) {
+  locked = locked || S.readOnly;
   useSocial();
   const t1 = S.team(f.t1), t2 = S.team(f.t2);
   const sup = supportOf(f.id);
@@ -314,6 +315,12 @@ export function CrowdPick({ f, onToast, light, locked }) {
         : !locked && <div className="crowd-note">{showDraw ? "Tap a team or draw to call it" : "Tap a team to call the winner"}</div>}
     </div>
   );
+}
+
+/* Lapsed-subscription banner — bootstrap.readOnly is the single source of truth. */
+export function ReadOnlyBanner() {
+  if (!S.readOnly) return null
+  return <div className="ro-banner" role="status">This sweep is read-only — the owner’s subscription has lapsed. You can still browse everything.</div>
 }
 
 /* full match card (home + schedule) */

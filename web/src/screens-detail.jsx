@@ -602,6 +602,9 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
         {!done ? (
           <>
             <div className="sheet-head"><h3>{isProfile ? "Upload profile photo" : "Add a fan photo"}</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
+            {S.readOnly ? (
+              <div className="sheet-body"><p style={{color:"var(--muted)",fontSize:13,textAlign:"center"}}>Uploads are paused while the sweep is read-only.</p></div>
+            ) : (
             <div className="sheet-body">
               <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>setFile(e.target.files?.[0]||null)} />
               <div className="dropzone" onClick={()=>inputRef.current&&inputRef.current.click()} style={{cursor:"pointer",borderColor:file?"var(--live)":"var(--line)",background:file?"#f1faf4":"var(--card)"}}>
@@ -641,6 +644,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                 <Icon.camera/> {busy ? "Sending…" : "Send for approval"}
               </button>
             </div>
+            )}
           </>
         ) : (
           <div className="success">

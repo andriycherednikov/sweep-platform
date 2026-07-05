@@ -44,6 +44,10 @@
   .deskmain{ flex:1; min-width:0; position:relative; background:#dde0e4; }
   .deskmain-rel{ position:relative; height:100vh; overflow:hidden; }
   .deskscreen{ position:absolute; inset:0; width:100%; max-width:none; margin:0; display:flex; flex-direction:column; background:var(--bg); box-shadow:none; }
+  /* .deskscreen is absolutely positioned (inset:0), so it paints over any static
+     sibling regardless of DOM order — lift the banner the same way .sidebar's
+     decorative ::after is countered above. */
+  .deskmain-rel .ro-banner{ position:relative; z-index:1; }
 
   /* the per-screen bottom tab bar is replaced by the sidebar */
   .deskmain .tabs{ display:none; }

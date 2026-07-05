@@ -37,7 +37,7 @@ import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
 import { addSweep } from './sweeps.js'
-import { makeApi } from '../test/factories.js'
+import { makeApi, makeBootstrap } from '../test/factories.js'
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks()
@@ -156,4 +156,26 @@ test('league competitions have no knockouts tab or route', () => {
 test('cup competitions keep knockouts', () => {
   setSweepData(assembleSweep(makeApi()))
   expect(tabsFor()).toContain('knockouts')
+})
+
+test('wageringEnabled:false drops the coins tab and pins /wagers to home', () => {
+  setSweepData(assembleSweep(makeApi({ bootstrap: makeBootstrap({ wageringEnabled: false }) })))
+  expect(tabsFor()).not.toContain('coins')
+  expect(readView('/wagers').tab).toBe('home')
+})
+
+test('readOnly banner renders when the sweep is read-only', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'hr', name: 'Croatia', group: 'A', pool: 'P', color: '#c00', strength: 80 },
+        { code: 'br', name: 'Brazil', group: 'A', pool: 'P', color: '#0c0', strength: 90 },
+      ],
+      people: [], ownership: {}, scoring: null, readOnly: true,
+    },
+    fixtures: [{ id: 'm1', ko: '2026-06-20T18:00:00Z', t1: 'hr', t2: 'br', status: 'upcoming', group: 'A', stage: 'group', prob: null, score: null }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  render(<App />)
+  expect(screen.getByText(/read-only/i)).toBeInTheDocument()
 })

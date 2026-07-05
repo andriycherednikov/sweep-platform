@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop,
+  Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop, ReadOnlyBanner,
 } from "./components.jsx";
 import { setGlobalToast, getMe, useSocial } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -161,7 +161,7 @@ export default function App() {
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast} openMatch={openMatch}/>; ovZ = 60; }
   else if (overlay?.type==="super")   { ov = <SuperConsole onBack={goBack} onToast={showToast} autoToken={overlay.token}/>; ovZ = 60; }
-  else if (overlay?.type==="betdetail") ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
+  else if (overlay?.type==="betdetail" && canWager()) ov = <BetDetail fixtureId={overlay.id} onBack={goBack} openMatch={openMatch}/>;
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;
@@ -183,6 +183,7 @@ export default function App() {
         <Sidebar current={current} go={go} onKnock={openKnock} onAdmin={openAdmin} onSweeps={openSweeps}/>
         <main className="deskmain">
           <div className="deskmain-rel">
+            <ReadOnlyBanner/>
             <div className={"deskscreen" + (tab==="standings" && !overlay ? " wide" : "")}>{base}</div>
             {ov && <div className="deskscreen" style={{zIndex:ovZ, background:"var(--bg)"}}>{ov}</div>}
           </div>
@@ -195,6 +196,7 @@ export default function App() {
   return (
     <div className="viewport">
       <div style={{position:"relative", flex:1, display:"flex", flexDirection:"column", minHeight:0}}>
+        <ReadOnlyBanner/>
         {base}
         {ov && <div style={{position:"absolute", inset:0, background:"var(--bg)", zIndex:ovZ, display:"flex", flexDirection:"column", overflow:"hidden"}}>{ov}</div>}
       </div>

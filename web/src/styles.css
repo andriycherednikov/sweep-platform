@@ -918,6 +918,8 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .toast{position:absolute; left:50%; bottom:96px; transform:translateX(-50%); background:var(--navy); color:#fff; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:13px; padding:11px 18px; border-radius:12px; z-index:80; box-shadow:0 12px 24px -10px rgba(0,0,0,.5); display:flex; align-items:center; gap:9px; animation:rise .26s; white-space:nowrap;}
 .toast svg{width:16px; height:16px; stroke:var(--live);}
 
+.ro-banner { background:#7a4a00; color:#ffe2b0; text-align:center; font-size:12.5px; padding:6px 12px; }
+
 /* ambient floating reactions — rise from the bottom and fade out mid-screen.
    Centered via flexbox (pixel-snapped) + integer --rx offset, no scale, so the
    text stays crisp (translateX(-50%)/scale on a composited layer blurs text). */

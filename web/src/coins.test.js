@@ -7,11 +7,14 @@ import { SWEEP as S } from './data.js'
 
 beforeEach(() => {
   localStorage.clear()
+  vi.clearAllMocks()
   S.people = [{ id: 'pn_a', name: 'Ann' }, { id: 'pn_b', name: 'Bob' }]
   S.fixtures = [{ id: 'f1', t1: 'arg', t2: 'bra', status: 'upcoming', markets: {
     '1x2': { selections: [{ key: 'HOME', odds: 2 }, { key: 'DRAW', odds: 3.5 }, { key: 'AWAY', odds: 4 }] },
     ou25: { line: 2.5, selections: [{ key: 'OVER', odds: 1.9 }, { key: 'UNDER', odds: 1.9 }] } } }]
   S.fixture = (id) => S.fixtures.find((f) => f.id === id)
+  S.readOnly = false
+  S.wageringEnabled = true
   setMe('pn_a')
   setWalletData({ balance: 1000, weeklyGrant: 1000, bets: { open: [], settled: [] }, leaderboard: [{ personId: 'pn_a', balance: 1000 }, { personId: 'pn_b', balance: 1200 }] })
 })
@@ -79,4 +82,24 @@ test('opt-out is per-person — switching identity restores Wagers', () => {
   expect(canWager()).toBe(true)
   setMe('pn_a')                   // back to the opted-out person
   expect(canWager()).toBe(false)
+})
+
+test('canWager is false when the sweep has wagering turned off, even for an adult identity', () => {
+  S.wageringEnabled = false
+  expect(canWager()).toBe(false)
+})
+
+test('placeBet on a read-only sweep toasts and never posts, balance unchanged', async () => {
+  S.readOnly = true
+  await placeBet('f1', '1x2', 'HOME', 100)
+  expect(client.postBet).not.toHaveBeenCalled()
+  expect(myBalance()).toBe(1000)
+})
+
+test('placeParlay on a read-only sweep returns { ok: false } and never posts', async () => {
+  S.readOnly = true
+  const res = await placeParlay([{ fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2 }], 100)
+  expect(res).toEqual({ ok: false })
+  expect(client.postParlay).not.toHaveBeenCalled()
+  expect(myBalance()).toBe(1000)
 })

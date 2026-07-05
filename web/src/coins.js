@@ -26,7 +26,7 @@ export function myWallet() { return wallet }
 /** Wagers are 18+ only. You can only see/use them when you're signed in as an
  *  adult account. Everyone defaults to adult; a person is a minor when an admin
  *  has marked `adult === false`. Not logged in (no `me`) → no wagers either. */
-export function canWager() { const me = getMe(); return !!me && me.adult !== false && !isOptedOut() }
+export function canWager() { const me = getMe(); return !!me && me.adult !== false && !isOptedOut() && S.wageringEnabled !== false }
 export function balanceByPerson() { const m = {}; for (const e of board) m[e.personId] = e.balance; return m }
 
 /** Leaderboard rows resolved to people, highest balance first. */
@@ -44,6 +44,7 @@ export function leaderboardByBalance() { return board }
 export async function placeBet(fixtureId, market, selection, stake) {
   const me = getMe()
   if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
+  if (S.readOnly) { toast('Sweep is read-only'); return }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return }
   const f = S.fixture(fixtureId)
   const mk = f?.markets?.[market]
@@ -74,6 +75,7 @@ let pendingParlaySeq = 0
 export async function placeParlay(legs, stake) {
   const me = getMe()
   if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return { ok: false } }
+  if (S.readOnly) { toast('Sweep is read-only'); return { ok: false } }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return { ok: false } }
   const combinedOdds = legs.reduce((acc, l) => acc * l.odds, 1)
   const pendingLegs = legs.map((l, i) => ({ id: `pending_leg_${i}`, fixtureId: l.fixtureId, market: l.market,

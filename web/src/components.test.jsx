@@ -144,6 +144,12 @@ test('CrowdPick renders nothing when locked with no calls', () => {
   expect(container.firstChild).toBeNull()
 })
 
+test('CrowdPick locks when the sweep is read-only, even for an upcoming fixture', () => {
+  S.readOnly = true
+  const { getByText } = render(<CrowdPick f={F} />)
+  expect(getByText(/Closed/i)).toBeInTheDocument()
+})
+
 test('CrowdPick shows a Draw zone (three zones) on a group-stage fixture', () => {
   setSocialData({ support: { m1: { p1: 'mx', p2: 'DRAW' } } });
   const { getByLabelText, container } = render(<CrowdPick f={FG} />);

@@ -173,7 +173,7 @@ export function SweepDraw({ onToast, queryClient }) {
               <button type="button" className="allocbtn" aria-label="More teams" disabled={n >= maxN || lockN} onClick={() => changeN(1)}><Icon.plus /></button>
             </div>
             {phase === 'idle' && (
-              <button className="cta sweep-run" disabled={summary.totalAdd === 0} onClick={runDraw}><Icon.ball /> Run sweep</button>
+              <button className="cta sweep-run" disabled={summary.totalAdd === 0 || S.readOnly} onClick={runDraw}><Icon.ball /> Run sweep</button>
             )}
             {phase === 'revealing' && (
               <button className="cta sweep-run sweep-skip" onClick={skip}>Skip animation</button>
