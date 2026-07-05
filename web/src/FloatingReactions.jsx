@@ -186,7 +186,7 @@ function MatchReaction({ it }) {
     <>
       <span className="reaction-badge">🏁</span>
       <div className="reaction-txt">
-        <small>Full time</small>
+        <small>{S.vocab.finalLabel}</small>
         <b><Flag code={a.code} w={22} h={16} />{a.name} {score} {b.name}<Flag code={b.code} w={22} h={16} /></b>
         <span className="reaction-mu">Result is in</span>
       </div>

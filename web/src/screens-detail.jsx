@@ -340,7 +340,7 @@ export function TeamsScreen({ go, openTeam }) {
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title="Teams" go={go} scrolled={scrolled} />
       <div className="filterbar">
-        <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>By World Cup group</button>
+        <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>{`By ${S.vocab.groupLabel.toLowerCase()}`}</button>
         <button className={"fchip"+(mode==="pool"?" on":"")} onClick={()=>setMode("pool")}>By sweep pool</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
@@ -928,7 +928,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"90%"}}>
         <div className="grab"></div>
         <div className="sheet-head">
-          <h3>{f.status==="live"?"Live":f.status==="final"?"Full time":"Upcoming"} · Group {f.group}</h3>
+          <h3>{f.status==="live"?"Live":f.status==="final"?S.vocab.finalLabel:"Upcoming"} · {f.group ? `${S.vocab.groupLabel} ${f.group}` : ''}</h3>
           <button className="x" onClick={onClose}><Icon.x/></button>
         </div>
         <div className="sheet-body">

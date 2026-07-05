@@ -19,6 +19,6 @@ const SPORT_VOCAB = {
     live: liveLabel,
     groupHeading: (k) => `Group ${k}`,
   },
-  basketball: GENERIC,
+  basketball: { ...GENERIC, groupLabel: 'Conference', groupHeading: (k) => k },
 }
 export function vocabFor(sport) { return SPORT_VOCAB[sport] || GENERIC }

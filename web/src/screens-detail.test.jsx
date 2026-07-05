@@ -41,17 +41,18 @@ const SQUAD = [
 ]
 
 function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
-  const { status = 'upcoming', score = null, statistics = null, penScore = null, stage = 'group' } = opts
+  const { status = 'upcoming', score = null, statistics = null, penScore = null, stage = 'group', sport = 'football', group = 'L' } = opts
   setSweepData(assembleSweep({
     bootstrap: {
+      competition: { sport, hasDraws: sport === 'football' },
       teams: [
-        { code: 'hr', name: 'Croatia', group: 'L', pool: 'P', color: '#d8334a', strength: 80, squad: squads.hr ?? null },
-        { code: 'be', name: 'Belgium', group: 'L', pool: 'P', color: '#1f8a4c', strength: 82, squad: squads.be ?? null },
+        { code: 'hr', name: 'Croatia', group, pool: 'P', color: '#d8334a', strength: 80, squad: squads.hr ?? null },
+        { code: 'be', name: 'Belgium', group, pool: 'P', color: '#1f8a4c', strength: 82, squad: squads.be ?? null },
       ],
       people: [], ownership: {}, scoring: null,
     },
     fixtures: [{
-      id: 'm1', group: 'L', matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
+      id: 'm1', group, matchday: 1, t1: 'hr', t2: 'be', ko: '2026-06-13T09:00:00Z',
       venue: 'V', city: 'C', status, score, minute: null,
       prob: { a: 53, d: 26, b: 21 }, stage, penScore, lineups, events, statistics,
     }],
@@ -87,6 +88,14 @@ test('MatchSheet shows the Official prediction through live and final, not just 
   expect(hasPred(sheetFixture(null, {}, [], { status: 'upcoming' }))).toBe(true)            // baseline
   expect(hasPred(sheetFixture(null, {}, [], { status: 'live', score: [1, 0] }))).toBe(true) // was hidden by !showScore
   expect(hasPred(sheetFixture(null, {}, [], { status: 'final', score: [2, 1] }))).toBe(true)
+})
+
+test('MatchSheet header reads the sport vocab: "Full time · Group L" for football, "Final" (no group) for basketball', () => {
+  const foot = sheetFixture(null, {}, [], { status: 'final', score: [2, 1], sport: 'football', group: 'L' })
+  expect(renderSheet(foot).container.querySelector('.sheet-head h3').textContent).toBe('Full time · Group L')
+
+  const ball = sheetFixture(null, {}, [], { status: 'final', score: [2, 1], sport: 'basketball', group: '' })
+  expect(renderSheet(ball).container.querySelector('.sheet-head h3').textContent).toBe('Final · ')
 })
 
 test('MatchSheet shows a Starting XI block with formations and players', () => {
@@ -1010,6 +1019,27 @@ test('TeamsScreen "By sweep pool" omits the PTS column (points are group-only)',
   act(() => { fireEvent.click(getByText('By sweep pool')) })
   expect(queryAllByText('pts').length).toBe(0)             // pool view hides points
   expect(getByText('Argentina')).toBeTruthy()              // teams still listed
+})
+
+test('TeamsScreen filter chip label follows sport vocab: "By group" for football, "By conference" for basketball', () => {
+  const sweep = (sport) => assembleSweep({
+    bootstrap: {
+      competition: { sport },
+      teams: [{ code: 'ar', name: 'Argentina', group: 'C', pool: 'A', color: '#0a7', strength: 90 }],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: { C: [] }, photos: [], syncStatus: { stale: false },
+  })
+  const noop = () => {}
+  setSweepData(sweep('football'))
+  const foot = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(foot.getByText('By group')).toBeTruthy()
+  foot.unmount()
+
+  setSweepData(sweep('basketball'))
+  const ball = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(ball.getByText('By conference')).toBeTruthy()
+  ball.unmount()
 })
 
 // ---------------- PeopleScreen — Placement tab ----------------

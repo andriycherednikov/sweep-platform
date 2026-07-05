@@ -21,10 +21,10 @@ function selectionLabel(selection, f) {
   return selection
 }
 
-// the team flag for a team selection (Match Winner / First Half home/away), else null
+// the team flag for a team selection (Match Winner / First Half / Moneyline / Handicap home/away), else null
 function betSelectionFlag(b) {
   const f = S.fixture(b.fixtureId)
-  if ((b.market === '1x2' || b.market === 'fh1x2') && f) {
+  if ((b.market === '1x2' || b.market === 'fh1x2' || b.market === 'ml' || b.market === 'hcap') && f) {
     if (b.selection === 'HOME') return f.t1
     if (b.selection === 'AWAY') return f.t2
   }
@@ -606,7 +606,7 @@ export function WagersInfoSheet({ onClose, onOptOut }) {
             <Icon.coin />
             <span>Everyone starts with <b>1,000 Yowie Dollars</b>, and another <b>1,000</b> drops into
             every account automatically {drop ? <>every <b>{drop}</b> (Sydney time)</> : <b>each week</b>} —
-            each week while the season runs.</span>
+            while the season runs.</span>
           </div>
           <div className="fyi-grant">
             <Icon.coin />

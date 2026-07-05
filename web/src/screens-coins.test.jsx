@@ -120,6 +120,17 @@ test('My bets lists open and settled bets and filters', () => {
   expect(screen.getByText('won')).toBeInTheDocument()
 })
 
+test('My bets shows the team flag for ml and hcap picks, not just 1x2', () => {
+  setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
+    open: [
+      { id: 'b3', fixtureId: 'f1', market: 'ml', selection: 'HOME', stake: 50, odds: 1.6, potentialPayout: 80, status: 'open' },
+      { id: 'b4', fixtureId: 'f1', market: 'hcap', selection: 'AWAY', stake: 50, odds: 1.9, potentialPayout: 95, status: 'open' },
+    ], settled: [] } })
+  render(<CoinsScreen go={() => {}} openBet={() => {}} />)
+  fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
+  expect(document.querySelectorAll('.coin-bs-sel img.flag').length).toBe(2)
+})
+
 test('My bets renders a parlay card with leg count and payout', () => {
   setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: { open: [], settled: [] }, parlays: {
     open: [{ id: 'par1', stake: 100, combinedOdds: 3.8, potentialPayout: 380, status: 'open', placedAt: '2026-07-01T18:00:00Z', legs: [

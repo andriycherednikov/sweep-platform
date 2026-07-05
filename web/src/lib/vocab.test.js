@@ -16,6 +16,10 @@ describe('vocabFor', () => {
     expect(v.live({ phase: 'Q3', minute: null })).toBe('Q3')
     expect(v.live({ phase: null, minute: null })).toBe('')
     expect(v.groupHeading('Eastern Conference')).toBe('Eastern Conference')
+    expect(v.groupLabel).toBe('Conference')
+  })
+  it('basketball has its own vocab object, not a shared reference with generic', () => {
+    expect(vocabFor('basketball')).not.toBe(vocabFor('handegg'))
   })
   it('unknown sport falls back to generic 2-way', () => {
     expect(vocabFor('handegg').noun).toBe('game')
