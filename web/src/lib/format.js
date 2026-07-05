@@ -13,6 +13,10 @@ export function flag(code, size) {
 
 export function gd(t) { return t.gf - t.ga }
 
+// Win-pct formatted the US-sports way: ".598", no leading zero. Null (not yet played,
+// or a sport that doesn't track it) renders as an em dash.
+export function fmtPct(v) { return v != null ? v.toFixed(3).replace(/^0/, '') : '–' }
+
 // All formatters use the runtime's LOCAL timezone (no timeZone option).
 export function fmtTime(d) {
   return new Intl.DateTimeFormat('en-AU', { hour: 'numeric', minute: '2-digit', hour12: true }).format(d).toUpperCase().replace(/\s/, ' ')

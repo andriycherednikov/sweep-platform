@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SWEEP as S, onSweepData } from "./data.js";
-import { whenLabel, liveLabel } from "./lib/format.js";
+import { whenLabel, liveLabel, fmtPct } from "./lib/format.js";
 import { celebrate } from "./lib/celebrate.js";
 import { isShootoutKick } from "./lib/assemble.js";
 import {
@@ -357,7 +357,7 @@ export function TeamsScreen({ go, openTeam }) {
               ? <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams match “{q}”.</p>
               : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} hideElim={hideElim} />
           ) : mode==="group" ? S.groups.map(g=>(
-            <TeamGroup key={g} title={"Group "+g} teams={S.standings[g] ?? []} openTeam={openTeam} rank hideElim={hideElim} />
+            <TeamGroup key={g} title={S.vocab.groupHeading(g)} teams={S.standings[g] ?? []} openTeam={openTeam} rank hideElim={hideElim} />
           )) : ["A","B"].map(pool=>(
             <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} hidePts />
           ))}
@@ -391,7 +391,9 @@ export function TeamGroup({ title, teams, openTeam, rank, hideElim, hidePts }) {
                     : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
                 </div>
               </div>
-              {!hidePts && <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>}
+              {!hidePts && (S.competition.format === "league"
+                ? <div className="stat"><div className="pp">{fmtPct(t.pct)}</div><small>pct</small></div>
+                : <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>)}
               <Icon.chev className="chev"/>
             </div>
           );
@@ -432,9 +434,9 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                   )}
                 </div>
                 <div className="meta">
-                  <span className="b">Group {t.group}</span>
+                  {t.group && <span className="b">{S.vocab.groupHeading(t.group)}</span>}
                   <span className="b">Pool {t.pool}</span>
-                  <span className="b">{pos}{pos===1?"st":pos===2?"nd":pos===3?"rd":"th"} · {t.pts} pts</span>
+                  <span className="b">{pos}{pos===1?"st":pos===2?"nd":pos===3?"rd":"th"} · {S.competition.format === "league" ? `${fmtPct(t.pct)} pct` : `${t.pts} pts`}</span>
                 </div>
               </div>
               <button className="iconbtn" onClick={()=>openUpload(code)} aria-label="Add a fan photo"><Icon.camera/></button>
@@ -446,12 +448,19 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
       <div className="scroll pad screen-anim">
         <div className="wrap" style={{marginTop:14}}>
           <div className="dh-stats" style={{marginTop:0}}>
-            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.strength}</b><small style={{color:"var(--muted2)"}}>Strength</small></div>
-            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.win}-{t.draw}-{t.loss}</b><small style={{color:"var(--muted2)"}}>W-D-L</small></div>
-            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{S.gd(t)>0?"+":""}{S.gd(t)}</b><small style={{color:"var(--muted2)"}}>Goal diff</small></div>
+            {t.strength != null && <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{t.strength}</b><small style={{color:"var(--muted2)"}}>Strength</small></div>}
+            <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}>
+              <b style={{color:"var(--navy)"}}>{S.competition.hasDraws ? `${t.win}-${t.draw}-${t.loss}` : `${t.win}-${t.loss}`}</b>
+              <small style={{color:"var(--muted2)"}}>{S.competition.hasDraws ? "W-D-L" : "W-L"}</small>
+            </div>
+            {S.competition.hasDraws ? (
+              <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{S.gd(t)>0?"+":""}{S.gd(t)}</b><small style={{color:"var(--muted2)"}}>Goal diff</small></div>
+            ) : (
+              <div className="dh-stat" style={{background:"var(--card)",border:"1px solid var(--line)"}}><b style={{color:"var(--navy)"}}>{fmtPct(t.pct)}</b><small style={{color:"var(--muted2)"}}>PCT</small></div>
+            )}
           </div>
 
-          <div className="sec-h"><h2>Owner{t.owners.length!==1?"s":""}</h2><span className="lnk">{t.outlook}</span></div>
+          <div className="sec-h"><h2>Owner{t.owners.length!==1?"s":""}</h2>{t.strength != null && <span className="lnk">{t.outlook}</span>}</div>
           {t.owners.length>0 ? (
             <div className="owners-grid">
               {t.owners.map(p=>(
@@ -932,7 +941,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
       <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"90%"}}>
         <div className="grab"></div>
         <div className="sheet-head">
-          <h3>{f.status==="live"?"Live":f.status==="final"?S.vocab.finalLabel:"Upcoming"} · {f.group ? `${S.vocab.groupLabel} ${f.group}` : ''}</h3>
+          <h3>{f.status==="live"?"Live":f.status==="final"?S.vocab.finalLabel:"Upcoming"}{f.group ? ` · ${S.vocab.groupLabel} ${f.group}` : ''}</h3>
           <button className="x" onClick={onClose}><Icon.x/></button>
         </div>
         <div className="sheet-body">
@@ -940,7 +949,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t1)}>
               <Flag code={f.t1} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t1.name}</span>
-              <span className="mt-str">Strength {t1.strength}</span>
+              {t1.strength != null && <span className="mt-str">Strength {t1.strength}</span>}
             </div>
             <div className="vs-cd" style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {showScore
@@ -948,12 +957,12 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                     <span className="cd" style={{color:"var(--navy)",fontSize:34}}>{f.score[0]}<PenScore pen={f.penScore} side={0} />{f.penScore ? " – " : "–"}{f.score[1]}<PenScore pen={f.penScore} side={1} /></span>
                   ))
                 : <span className="cd" style={{color:"var(--navy)",fontSize:20}}>{f.timeLabel}</span>}
-              <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?[liveLabel(f), "LIVE"].filter(Boolean).join(" · "):f.status==="final"?"FULL TIME":f.dateTimeLabel}</span>
+              <span className="cdl" style={{color:"var(--muted2)", marginTop: 4}}>{f.status==="live"?[liveLabel(f), "LIVE"].filter(Boolean).join(" · "):f.status==="final"?S.vocab.finalLabel.toUpperCase():f.dateTimeLabel}</span>
             </div>
             <div className="team" style={{flex:1}} onClick={()=>openTeam(f.t2)}>
               <Flag code={f.t2} w={56} h={42}/>
               <span className="nm" style={{color:"var(--navy)",fontSize:17}}>{t2.name}</span>
-              <span className="mt-str">Strength {t2.strength}</span>
+              {t2.strength != null && <span className="mt-str">Strength {t2.strength}</span>}
             </div>
           </div>
 
@@ -1038,8 +1047,8 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
             ))}
           </div>
 
-          <div style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:16}}>
-            <Icon.pin style={{width:15,height:15,stroke:"var(--muted)"}}/> {f.venue} · {f.city}
+          <div className="venue-row" style={{display:"flex",alignItems:"center",gap:7,fontSize:12,color:"var(--muted)",fontWeight:600,marginBottom:16}}>
+            <Icon.pin style={{width:15,height:15,stroke:"var(--muted)"}}/> {[f.venue, f.city].filter(Boolean).join(" · ")}
           </div>
 
           {/* back a team — locks once the match kicks off */}

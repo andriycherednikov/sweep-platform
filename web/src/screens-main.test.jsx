@@ -2,7 +2,7 @@ import { expect, test, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
-import { StandingsScreen } from './screens-main.jsx'
+import { StandingsScreen, HomeScreen } from './screens-main.jsx'
 import { makeApi, makeBootstrap } from '../test/factories.js'
 
 beforeEach(() => {
@@ -65,4 +65,32 @@ test('StandingsScreen does not crash when basketball teams[].group is null (key-
   })
   setSweepData(assembleSweep(makeApi({ sport: 'basketball', bootstrap })))
   expect(() => render(<StandingsScreen go={() => {}} openTeam={() => {}} openKnockouts={() => {}} />)).not.toThrow()
+})
+
+// regression: a stale dataset (ko days in the past, worker never flipped the fixture to
+// live/final) falls through HomeScreen's grace-window match to the S.nextMatch fallback.
+// The hero countdown used to render a permanently-pinned "-00:20:00" (the KICKOFF_GRACE_SEC
+// floor of the outer Math.max clamp) instead of stopping at zero once kickoff has passed.
+test('HomeScreen hero countdown clamps at zero (not negative) for a fully stale next fixture', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'gh', name: 'Ghana', group: 'L', pool: 'P', color: '#0a7', strength: 70 },
+        { code: 'mx', name: 'Mexico', group: 'L', pool: 'P', color: '#a30', strength: 60 },
+      ],
+      people: [{ id: 'p1', name: 'Jax', short: 'Jax', initials: 'J', av: '#000', avatarPath: null }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: 'L', matchday: 1, t1: 'gh', t2: 'mx', ko: '2020-01-01T00:00:00Z',
+      venue: 'V', city: 'C', status: 'upcoming', score: null, minute: null,
+      prob: { a: 50, d: 25, b: 25 }, stage: 'group',
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(
+    <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
+  )
+  expect(container.querySelector('.hero .vs-cd .cd').textContent).toBe('00:00:00')
 })

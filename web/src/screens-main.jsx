@@ -9,7 +9,7 @@ import {
 } from "./components.jsx";
 import { useSocial, getMe, toast, predictionLeaderboard } from "./social.js";
 import { winnerCodeOf, isShootoutKick } from "./lib/assemble.js";
-import { liveLabel } from "./lib/format.js";
+import { liveLabel, fmtPct } from "./lib/format.js";
 import { useCoins, coinsLeaderboard, canWager } from "./coins.js";
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 
@@ -267,7 +267,9 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           <div className="vs-cd">
             {live
               ? <>{spoilerHidden(next) ? <ScoreCover f={next} dark/> : <span className="cd">{next.score[0]}<PenScore pen={next.penScore} side={0} />{next.penScore ? " – " : "–"}{next.score[1]}<PenScore pen={next.penScore} side={1} /></span>}<span className="cdl">{[liveLabel(next), "LIVE"].filter(Boolean).join(" · ")}</span></>
-              : <><span className="cd">{cd.display}</span><span className="cdl">{cd.unit}</span></>}
+              // stale datasets can push `next` (the S.nextMatch fallback) minutes/days past
+              // its ko with nothing left to roll over to — never show negative digits, just 00:00:00
+              : <><span className="cd">{cd.s < 0 ? "00:00:00" : cd.display}</span><span className="cdl">{cd.unit}</span></>}
           </div>
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t2);}}>
             <Flag code={next.t2} w={46} h={34} />
@@ -482,7 +484,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
 
   const cols = S.vocab.standingsCols;
   const cellFor = (t, key) => {
-    if (key === "pct") return t.pct != null ? t.pct.toFixed(3).replace(/^0/, "") : "–";
+    if (key === "pct") return fmtPct(t.pct);
     if (key === "gd") {
       const gd = t.gd ?? (t.gf - t.ga);
       return gd > 0 ? `+${gd}` : gd;

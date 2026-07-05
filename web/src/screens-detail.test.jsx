@@ -101,7 +101,31 @@ test('MatchSheet header reads the sport vocab: "Full time · Group L" for footba
   expect(renderSheet(foot).container.querySelector('.sheet-head h3').textContent).toBe('Full time · Group L')
 
   const ball = sheetFixture(null, {}, [], { status: 'final', score: [2, 1], sport: 'basketball', group: '' })
-  expect(renderSheet(ball).container.querySelector('.sheet-head h3').textContent).toBe('Final · ')
+  expect(renderSheet(ball).container.querySelector('.sheet-head h3').textContent).toBe('Final') // no dangling " · " when group is empty
+})
+
+test('MatchSheet (basketball, no strength): center status label reads vocab-uppercased FINAL, no Strength captions, venue row has no dangling separator', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      competition: { sport: 'basketball', hasDraws: false, format: 'league' },
+      teams: [
+        { code: 'lal', name: 'Lakers', group: 'Western Conference', pool: null, color: '#552583', strength: null, squad: null },
+        { code: 'bos', name: 'Celtics', group: 'Eastern Conference', pool: null, color: '#007a33', strength: null, squad: null },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'm1', group: '', matchday: 0, t1: 'lal', t2: 'bos', ko: '2026-06-13T09:00:00Z',
+      venue: '', city: '', status: 'final', score: [101, 98], minute: null,
+      prob: null, stage: 'group', penScore: null, lineups: null, events: [], statistics: null,
+    }],
+    standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setSocialData({ support: {} })
+  const { container, queryByText } = renderSheet(S.fixture('m1'))
+  expect(container.querySelector('.vs-cd .cdl').textContent).toBe('FINAL') // GENERIC finalLabel 'Final', uppercased in JS (this span has no CSS transform)
+  expect(queryByText(/Strength/)).toBeNull() // both teams have strength: null
+  expect(container.querySelector('.venue-row').textContent.trim()).toBe('') // venue and city both empty → no dangling " · "
 })
 
 test('MatchSheet shows a Starting XI block with formations and players', () => {
@@ -224,6 +248,42 @@ test('TeamDetail displays shootout score next to regulation score in fixtures li
   expect(getByText('3')).toBeTruthy()
 })
 
+test('TeamDetail (basketball, league format, no draws): W-L + PCT tiles replace W-D-L/Goal-diff, no Strength tile/outlook tag, conference header verbatim, header chip shows pct', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      competition: { sport: 'basketball', hasDraws: false, format: 'league' },
+      teams: [
+        { code: 'lal', name: 'Lakers', group: 'Western Conference', pool: null, color: '#552583', strength: null, squad: null },
+        { code: 'bos', name: 'Celtics', group: 'Eastern Conference', pool: null, color: '#007a33', strength: null, squad: null },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [],
+    standings: {
+      'Western Conference': [
+        { code: 'lal', name: 'Lakers', played: 10, win: 6, draw: 0, loss: 4, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.6, pf: 1100, pa: 1080 },
+      ],
+      'Eastern Conference': [
+        { code: 'bos', name: 'Celtics', played: 10, win: 8, draw: 0, loss: 2, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.8, pf: 1150, pa: 1000 },
+      ],
+    },
+    photos: [], syncStatus: { stale: false },
+  }))
+  const { getByText, queryByText } = render(
+    <TeamDetail code="lal" onBack={noop} openMatch={noop} openPerson={noop} openUpload={noop} />
+  )
+  expect(queryByText('Strength')).toBeNull()          // (3a) no strength tile when t.strength is null
+  expect(getByText('W-L')).toBeTruthy()                // (3b) label
+  expect(getByText('6-4')).toBeTruthy()                // (3b) value, no draw segment
+  expect(queryByText('W-D-L')).toBeNull()
+  expect(getByText('PCT')).toBeTruthy()                // (3c) label
+  expect(getByText('.600')).toBeTruthy()               // (3c) value, formatted
+  expect(queryByText('Goal diff')).toBeNull()
+  expect(queryByText(/Long shot|Title contender|shout|toss-up|dark horse/)).toBeNull() // (3d) outlook tag hidden
+  expect(getByText('Western Conference')).toBeTruthy() // (4) conference header verbatim, not "Group Western Conference"
+  expect(queryByText(/^Group /)).toBeNull()
+  expect(getByText('1st · .600 pct')).toBeTruthy()     // (2) header chip shows pct, not pts
+})
 
 test('MatchSheet official-prediction bar is three-way (home / draw / away)', () => {
   const { container } = renderSheet(sheetFixture(null))
@@ -1051,6 +1111,51 @@ test('TeamsScreen filter chip label follows sport vocab: "By group" for football
   const ball = render(<TeamsScreen go={noop} openTeam={noop} />)
   expect(ball.getByText('By conference')).toBeTruthy()
   ball.unmount()
+})
+
+test('TeamsScreen group headings follow sport vocab: "Group A" for football, conference name verbatim for basketball', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'ar', name: 'Argentina', group: 'A', pool: 'P', color: '#0a7', strength: 90 }],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: { A: [] }, photos: [], syncStatus: { stale: false },
+  }))
+  const foot = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(foot.getByText('Group A')).toBeTruthy()
+  foot.unmount()
+
+  setSweepData(assembleSweep({
+    bootstrap: {
+      competition: { sport: 'basketball', hasDraws: false, format: 'league' },
+      teams: [{ code: 'bos', name: 'Celtics', group: 'Eastern Conference', pool: null, color: '#007a33', strength: null }],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: { 'Eastern Conference': [] }, photos: [], syncStatus: { stale: false },
+  }))
+  const ball = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(ball.getByText('Eastern Conference')).toBeTruthy() // not "Group Eastern Conference"
+  expect(ball.queryByText(/^Group /)).toBeNull()
+  ball.unmount()
+})
+
+test('TeamsScreen (basketball, league format) shows a pct chip instead of pts', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      competition: { sport: 'basketball', hasDraws: false, format: 'league' },
+      teams: [{ code: 'lal', name: 'Lakers', group: 'Western Conference', pool: null, color: '#552583', strength: null }],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [],
+    standings: { 'Western Conference': [
+      { code: 'lal', name: 'Lakers', played: 10, win: 6, draw: 0, loss: 4, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.6, pf: 1100, pa: 1080 },
+    ] },
+    photos: [], syncStatus: { stale: false },
+  }))
+  const { getByText, queryAllByText } = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(getByText('.600')).toBeTruthy()
+  expect(getByText('pct')).toBeTruthy()
+  expect(queryAllByText('pts').length).toBe(0)
 })
 
 // ---------------- PeopleScreen — Placement tab ----------------
