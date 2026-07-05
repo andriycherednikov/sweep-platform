@@ -9,6 +9,13 @@ vi.mock('./lib/accountClient.js', () => ({
   getAccount: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
   getAccountToken: vi.fn(() => null),
   clearAccountToken: vi.fn(),
+  // AccountHome (the signed-in view) loads these on mount — stub with an
+  // empty/fresh account so the "in" state renders without crashing.
+  getBilling: vi.fn(async () => ({ subscribed: false, subscriptionStatus: null, trialEndsAt: null, liveSweeps: 0, quantity: 0 })),
+  getAccountSweeps: vi.fn(async () => ([])),
+  archiveSweep: vi.fn(async () => ({})),
+  startCheckout: vi.fn(),
+  openPortal: vi.fn(),
 }))
 
 import { AccountRoot } from './AccountRoot.jsx'
@@ -42,11 +49,11 @@ test('a stored token is verified via getAccount(); a stale (401) token is cleare
   expect(await screen.findByPlaceholderText(/email/i)).toBeInTheDocument()
 })
 
-test('a valid stored token lands straight on the account home placeholder', async () => {
+test('a valid stored token lands straight on the account home (billing + sweeps load)', async () => {
   accountClient.getAccountToken.mockReturnValue('good-tok')
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  expect(await screen.findByText(/signed in/i)).toBeInTheDocument()
+  expect(await screen.findByText(/14-day free trial starts with your first sweep/i)).toBeInTheDocument()
 })
 
 test('submitting the email form calls requestLogin and shows the check-your-email message', async () => {

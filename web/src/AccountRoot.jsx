@@ -7,11 +7,7 @@
    ============================================================ */
 import { useEffect, useState } from "react";
 import { requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken } from "./lib/accountClient.js";
-
-// T12 replaces this with the real account home (sweeps list, billing, etc.).
-function AccountHome() {
-  return <p>Signed in.</p>;
-}
+import { AccountHome } from "./screens-account.jsx";
 
 function Entry() {
   const [status, setStatus] = useState(getAccountToken() ? "checking" : "anon"); // checking | anon | in

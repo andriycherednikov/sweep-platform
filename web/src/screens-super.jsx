@@ -10,7 +10,7 @@ import {
 } from "./api/client.js";
 
 /* readonly, tap-to-select link field — "copyable" without a clipboard dependency */
-function LinkField({ label, value }) {
+export function LinkField({ label, value }) {
   return (
     <label className="field" style={{ marginTop: 8 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: "var(--muted2)" }}>{label}</span>
