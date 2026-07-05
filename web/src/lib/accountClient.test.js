@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
-  requestLogin, redeemLogin, getBilling, startCheckout,
+  requestLogin, redeemLogin, getBilling, startCheckout, getCatalog,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -55,6 +55,22 @@ test('clearAccountToken removes a stored token', () => {
   setAccountToken('t1')
   clearAccountToken()
   expect(getAccountToken()).toBeNull()
+})
+
+test('getCatalog builds a query string from only the non-empty params and attaches the token header', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(200, []))
+  await getCatalog({ sport: 'basketball', q: 'nb' })
+  expect(fetch).toHaveBeenCalledWith('/api/catalog?sport=basketball&q=nb', expect.objectContaining({
+    method: 'GET',
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
+  }))
+})
+
+test('getCatalog with no params fetches the bare endpoint', async () => {
+  fetch.mockResolvedValueOnce(jsonResponse(200, []))
+  await getCatalog()
+  expect(fetch).toHaveBeenCalledWith('/api/catalog', expect.objectContaining({ method: 'GET' }))
 })
 
 test('startCheckout (bodyless POST) does not include content-type header or body', async () => {

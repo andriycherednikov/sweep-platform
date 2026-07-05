@@ -21,6 +21,10 @@ export async function redeemLogin(token) {
   return out.account
 }
 export const getAccount = () => call('GET', '/api/account')
+export const getCatalog = (params = {}) => {
+  const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
+  return call('GET', `/api/catalog${qs ? `?${qs}` : ''}`)
+}
 export const getAccountSweeps = () => call('GET', '/api/account/sweeps')
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
 export const getBilling = () => call('GET', '/api/account/billing')

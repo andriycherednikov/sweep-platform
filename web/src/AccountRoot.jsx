@@ -8,12 +8,14 @@
 import { useEffect, useState } from "react";
 import { requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken } from "./lib/accountClient.js";
 import { AccountHome } from "./screens-account.jsx";
+import { CatalogScreen } from "./screens-catalog.jsx";
 
-function Entry() {
-  const [status, setStatus] = useState(getAccountToken() ? "checking" : "anon"); // checking | anon | in
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [error, setError] = useState(false);
+// Shared token-check guard: checking (verifying a stored token) | anon | in.
+// Entry and RequireAccount both need it — this is the small guard the file
+// already builds ad hoc for Redeem/Landing, just given a name so /account/new
+// doesn't have to duplicate the getAccount() dance.
+function useAccountStatus() {
+  const [status, setStatus] = useState(getAccountToken() ? "checking" : "anon");
 
   useEffect(() => {
     if (!getAccountToken()) return;
@@ -26,6 +28,26 @@ function Entry() {
       });
     return () => { alive = false; };
   }, []);
+
+  return status;
+}
+
+function RequireAccount({ children }) {
+  const status = useAccountStatus();
+
+  useEffect(() => {
+    if (status === "anon") window.location.assign("/account");
+  }, [status]);
+
+  if (status !== "in") return <div className="sweep-gate" />;
+  return children;
+}
+
+function Entry() {
+  const status = useAccountStatus();
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState(false);
 
   if (status === "checking") return <div className="sweep-gate" />;
   if (status === "in") return <AccountHome />;
@@ -104,5 +126,12 @@ export function AccountRoot() {
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
   if (path === "/account/billing/success") return <Landing msg="Subscription active — thanks! Your sweeps stay live." />;
   if (path === "/account/billing/cancelled") return <Landing msg="Checkout cancelled. Nothing was charged." />;
+  if (path === "/account/new") {
+    return (
+      <RequireAccount>
+        <CatalogScreen onBack={() => window.location.assign("/account")} />
+      </RequireAccount>
+    );
+  }
   return <Entry />;
 }

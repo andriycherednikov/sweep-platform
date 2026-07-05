@@ -16,6 +16,8 @@ vi.mock('./lib/accountClient.js', () => ({
   archiveSweep: vi.fn(async () => ({})),
   startCheckout: vi.fn(),
   openPortal: vi.fn(),
+  // CatalogScreen (mounted at /account/new) loads this on mount.
+  getCatalog: vi.fn(async () => ([])),
 }))
 
 import { AccountRoot } from './AccountRoot.jsx'
@@ -94,4 +96,19 @@ test('the billing cancelled landing renders its message', () => {
   window.history.replaceState(null, '', '/account/billing/cancelled')
   render(<AccountRoot />)
   expect(screen.getByText(/checkout cancelled/i)).toBeInTheDocument()
+})
+
+test('/account/new with a valid token renders the catalog screen', async () => {
+  accountClient.getAccountToken.mockReturnValue('good-tok')
+  window.history.replaceState(null, '', '/account/new')
+  render(<AccountRoot />)
+  expect(await screen.findByText(/pick a competition/i)).toBeInTheDocument()
+})
+
+test('/account/new while signed out bounces back to /account', async () => {
+  window.history.replaceState(null, '', '/account/new')
+  const assign = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, assign }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/account'))
 })
