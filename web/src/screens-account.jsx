@@ -122,11 +122,19 @@ function SweepList({ sweeps, reload }) {
       <div className="empty">
         <div className="ic">🗂️</div>
         <h3>No sweeps yet</h3>
-        <p>Spin one up from the app to see it here.</p>
+        <p>Pick a competition and spin one up.</p>
+        <button className="cta" style={{ marginTop: 10 }} onClick={() => goTo("/account/new")}>
+          Set up your first sweep
+        </button>
       </div>
     );
   }
-  return active.map((s) => <SweepRow key={s.id} s={s} reload={reload} />);
+  return (
+    <>
+      {active.map((s) => <SweepRow key={s.id} s={s} reload={reload} />)}
+      <button className="allocbtn" onClick={() => goTo("/account/new")}>New sweep</button>
+    </>
+  );
 }
 
 export function AccountHome() {

@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
-  requestLogin, redeemLogin, getBilling, startCheckout, getCatalog,
+  requestLogin, redeemLogin, getBilling, startCheckout, getCatalog, createSweep,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -71,6 +71,25 @@ test('getCatalog with no params fetches the bare endpoint', async () => {
   fetch.mockResolvedValueOnce(jsonResponse(200, []))
   await getCatalog()
   expect(fetch).toHaveBeenCalledWith('/api/catalog', expect.objectContaining({ method: 'GET' }))
+})
+
+test('createSweep POSTs the provision body with the token header', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(201, { id: 'sw1' }))
+  const body = { name: 'NBA 2025', provider: 'p', leagueId: 'L2', season: '2025', wageringEnabled: false }
+  await createSweep(body)
+  expect(fetch).toHaveBeenCalledWith('/api/account/sweeps', expect.objectContaining({
+    method: 'POST',
+    body: JSON.stringify(body),
+    headers: expect.objectContaining({ 'x-account-token': 't1', 'content-type': 'application/json' }),
+  }))
+})
+
+test('a non-2xx response also carries the parsed body (sweep_cap cap)', async () => {
+  fetch.mockResolvedValueOnce(jsonResponse(403, { error: 'sweep_cap', cap: 3 }))
+  await expect(createSweep({ name: 'x' })).rejects.toMatchObject({
+    status: 403, code: 'sweep_cap', body: { error: 'sweep_cap', cap: 3 },
+  })
 })
 
 test('startCheckout (bodyless POST) does not include content-type header or body', async () => {

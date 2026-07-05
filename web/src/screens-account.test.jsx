@@ -141,3 +141,20 @@ test('sign out clears the account token and reloads', async () => {
   expect(clearAccountToken).toHaveBeenCalled()
   expect(window.location.reload).toHaveBeenCalled()
 })
+
+test('empty sweep list links to the catalog (Set up your first sweep)', async () => {
+  render(<AccountHome />)
+  await screen.findByText(/no sweeps yet/i)
+  fireEvent.click(screen.getByRole('button', { name: /set up your first sweep/i }))
+  expect(window.location.assign).toHaveBeenCalledWith('/account/new')
+})
+
+test('a non-empty sweep list shows a New sweep button to the catalog', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/m1', adminLink: 'https://h/g/m1/admin/a1' },
+  ])
+  render(<AccountHome />)
+  await screen.findByText('My NBA')
+  fireEvent.click(screen.getByRole('button', { name: /new sweep/i }))
+  expect(window.location.assign).toHaveBeenCalledWith('/account/new')
+})

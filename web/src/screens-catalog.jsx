@@ -8,7 +8,77 @@
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
 import { PageHeader } from "./components.jsx";
-import { getCatalog } from "./lib/accountClient.js";
+import { LinkField } from "./screens-super.jsx";
+import { getCatalog, createSweep } from "./lib/accountClient.js";
+
+// Provision error code → what the owner should do about it.
+const PROVISION_ERRORS = {
+  subscription_required: "Your trial has ended — subscribe to start new sweeps.",
+  unknown_competition: "That competition can't be set up right now.",
+};
+
+/* Provision overlay: name + wagering toggle → seconds-long synchronous feed
+   sync server-side, so the pending state is load-bearing, not decoration. */
+function ProvisionSheet({ league, season, onClose }) {
+  const [name, setName] = useState(`${league.name} ${season}`);
+  const [wagering, setWagering] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+  const [err, setErr] = useState(null); // { code, cap }
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      setDone(await createSweep({
+        name, provider: league.provider, leagueId: league.leagueId, season, wageringEnabled: wagering,
+      }));
+    } catch (e2) {
+      setErr({ code: e2.code, cap: e2.body?.cap });
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="overlay" onClick={busy ? undefined : onClose}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+        <div className="grab" />
+        <div className="sheet-head"><h3>{done ? "Your sweep is live" : "New sweep"}</h3></div>
+        <div className="sheet-body">
+          {done ? (
+            <>
+              <p className="sweep-card-sub">Share the member link with your group; keep the admin link to yourself.</p>
+              <LinkField label="Member link" value={done.memberLink} />
+              <LinkField label="Admin link" value={done.adminLink} />
+              <button className="cta" style={{ marginTop: 12 }} onClick={() => window.location.assign("/account")}>Done</button>
+            </>
+          ) : (
+            <form onSubmit={submit}>
+              <p className="sweep-card-sub">{league.name} · {season}</p>
+              <input
+                type="text" required placeholder="Sweep name" value={name}
+                onChange={(e) => setName(e.target.value)} style={{ width: "100%", marginBottom: 10 }}
+              />
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 12 }}>
+                <input type="checkbox" checked={wagering} onChange={(e) => setWagering(e.target.checked)} />
+                Enable Wagers (play-money betting)
+              </label>
+              <button className="cta" type="submit" disabled={busy}>Start sweep</button>
+              {busy && <p className="sweep-card-sub" style={{ marginTop: 8 }}>Setting up — fetching teams and games…</p>}
+              {err && (
+                <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>
+                  {err.code === "sweep_cap"
+                    ? `You've reached your sweep limit${err.cap ? ` (${err.cap})` : ""}. Archive one to make room.`
+                    : PROVISION_ERRORS[err.code] || "Something went wrong — try again."}
+                  {err.code === "subscription_required" && <> <a href="/account">Go to billing</a></>}
+                </p>
+              )}
+            </form>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const SEARCH_DEBOUNCE_MS = 300;
 
@@ -42,6 +112,9 @@ export function CatalogScreen({ onBack, onPick = () => {} }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [picked, setPicked] = useState(null); // { row, season } → provision sheet open
+
+  const pick = (row, season) => { onPick(row, season); setPicked({ row, season }); };
 
   // ponytail: below the 2-char search floor we just don't adopt the typed
   // value — debouncedQ stays put, so the fetch effect's deps don't change
@@ -100,10 +173,11 @@ export function CatalogScreen({ onBack, onPick = () => {} }) {
             <div className="empty"><div className="ic">🔍</div><h3>No competitions match.</h3></div>
           )}
           {!loading && !error && rows.map((row) => (
-            <CatalogRow key={`${row.provider}-${row.sport}-${row.leagueId}`} row={row} onPick={onPick} />
+            <CatalogRow key={`${row.provider}-${row.sport}-${row.leagueId}`} row={row} onPick={pick} />
           ))}
         </div>
       </div>
+      {picked && <ProvisionSheet league={picked.row} season={picked.season} onClose={() => setPicked(null)} />}
     </div>
   );
 }

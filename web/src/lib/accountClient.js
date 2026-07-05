@@ -11,7 +11,7 @@ async function call(method, path, body) {
   const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
   let data = null
   try { data = await res.json() } catch {}
-  if (!res.ok) throw Object.assign(new Error(data?.error || `HTTP ${res.status}`), { status: res.status, code: data?.error })
+  if (!res.ok) throw Object.assign(new Error(data?.error || `HTTP ${res.status}`), { status: res.status, code: data?.error, body: data })
   return data
 }
 export const requestLogin = (email) => call('POST', '/api/account/login', { email })
@@ -26,6 +26,7 @@ export const getCatalog = (params = {}) => {
   return call('GET', `/api/catalog${qs ? `?${qs}` : ''}`)
 }
 export const getAccountSweeps = () => call('GET', '/api/account/sweeps')
+export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
 export const getBilling = () => call('GET', '/api/account/billing')
 export const startCheckout = () => call('POST', '/api/account/billing/checkout')

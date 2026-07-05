@@ -6,10 +6,15 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // just re-queries it (no client-side filtering).
 vi.mock('./lib/accountClient.js', () => ({
   getCatalog: vi.fn(),
+  createSweep: vi.fn(),
+}))
+// LinkField pulls in the whole super console; stub it to keep this suite lean.
+vi.mock('./screens-super.jsx', () => ({
+  LinkField: ({ label, value }) => <input aria-label={label} readOnly value={value} />,
 }))
 
 import { CatalogScreen } from './screens-catalog.jsx'
-import { getCatalog } from './lib/accountClient.js'
+import { getCatalog, createSweep } from './lib/accountClient.js'
 
 const ROWS = [
   {
@@ -100,4 +105,77 @@ test('an empty result set shows the "No competitions match." empty state', async
   getCatalog.mockResolvedValue([])
   render(<CatalogScreen onBack={() => {}} onPick={() => {}} />)
   expect(await screen.findByText('No competitions match.')).toBeTruthy()
+})
+
+/* ---- provision sheet (B2) ---- */
+
+async function openSheet() {
+  render(<CatalogScreen onBack={() => {}} />)
+  await screen.findByText('NBA')
+  fireEvent.click(screen.getAllByRole('button', { name: /set up sweep/i })[1])
+  return screen.getByPlaceholderText(/sweep name/i)
+}
+
+test('picking a league opens the provision sheet with a prefilled name and wagering OFF', async () => {
+  const nameInput = await openSheet()
+  expect(nameInput).toHaveValue('NBA 2025')
+  expect(screen.getByRole('checkbox')).not.toBeChecked()
+})
+
+test('submitting shows a pending state while the provision is in flight', async () => {
+  createSweep.mockReturnValue(new Promise(() => {}))
+  await openSheet()
+  fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
+  expect(await screen.findByText(/setting up — fetching teams and games/i)).toBeTruthy()
+  expect(screen.getByRole('button', { name: /start sweep/i })).toBeDisabled()
+  expect(createSweep).toHaveBeenCalledWith({
+    name: 'NBA 2025', provider: 'p', leagueId: 'L2', season: '2025', wageringEnabled: false,
+  })
+})
+
+test('success shows the invite links and Done', async () => {
+  createSweep.mockResolvedValue({ id: 'sw9', name: 'NBA 2025', memberLink: 'https://h/g/m9', adminLink: 'https://h/g/m9/admin/a9' })
+  await openSheet()
+  fireEvent.click(screen.getByRole('checkbox')) // wagering ON rides through
+  fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
+  expect(await screen.findByLabelText('Member link')).toHaveValue('https://h/g/m9')
+  expect(screen.getByLabelText('Admin link')).toHaveValue('https://h/g/m9/admin/a9')
+  expect(screen.getByRole('button', { name: /done/i })).toBeTruthy()
+  expect(createSweep).toHaveBeenCalledWith(expect.objectContaining({ wageringEnabled: true }))
+})
+
+test('402 subscription_required maps to a billing CTA', async () => {
+  createSweep.mockRejectedValue(Object.assign(new Error('subscription_required'), {
+    status: 402, code: 'subscription_required', body: { error: 'subscription_required' },
+  }))
+  await openSheet()
+  fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
+  expect(await screen.findByText(/subscribe to start new sweeps/i)).toBeTruthy()
+  expect(screen.getByRole('link', { name: /go to billing/i })).toHaveAttribute('href', '/account')
+})
+
+test('403 sweep_cap renders the cap when the body carries it', async () => {
+  createSweep.mockRejectedValue(Object.assign(new Error('sweep_cap'), {
+    status: 403, code: 'sweep_cap', body: { error: 'sweep_cap', cap: 3 },
+  }))
+  await openSheet()
+  fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
+  expect(await screen.findByText(/sweep limit \(3\)/i)).toBeTruthy()
+})
+
+test('400 unknown_competition and 500 map to their messages; 500 re-enables the button', async () => {
+  createSweep.mockRejectedValueOnce(Object.assign(new Error('unknown_competition'), {
+    status: 400, code: 'unknown_competition', body: { error: 'unknown_competition' },
+  }))
+  await openSheet()
+  const btn = () => screen.getByRole('button', { name: /start sweep/i })
+  fireEvent.click(btn())
+  expect(await screen.findByText(/can't be set up right now/i)).toBeTruthy()
+
+  createSweep.mockRejectedValueOnce(Object.assign(new Error('provision_failed'), {
+    status: 500, code: 'provision_failed', body: { error: 'provision_failed' },
+  }))
+  fireEvent.click(btn())
+  expect(await screen.findByText(/something went wrong — try again/i)).toBeTruthy()
+  expect(btn()).not.toBeDisabled()
 })
