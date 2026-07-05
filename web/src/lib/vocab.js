@@ -7,14 +7,17 @@ const GENERIC = {
   koTabLabel: 'Playoffs', teamsIcon: 'shield',
   standingsCols: [['played', 'P'], ['win', 'W'], ['loss', 'L'], ['pct', 'PCT'], ['pf', 'PF'], ['pa', 'PA']],
   live: (f) => f.phase || '',
+  groupHeading: (k) => k,
 }
 const SPORT_VOCAB = {
   football: {
     ...GENERIC,
     noun: 'match', nounPlural: 'matches', finalLabel: 'Full time', ftShort: 'FT',
     koTabLabel: 'Knockouts', teamsIcon: 'ball',
-    standingsCols: [['played', 'P'], ['win', 'W'], ['draw', 'D'], ['loss', 'L'], ['gf', 'GF'], ['ga', 'GA'], ['pts', 'PTS']],
+    // pre-branch column set (WC visual parity): P W D L GD PTS — GD, not GF/GA.
+    standingsCols: [['played', 'P'], ['win', 'W'], ['draw', 'D'], ['loss', 'L'], ['gd', 'GD'], ['pts', 'PTS']],
     live: liveLabel,
+    groupHeading: (k) => `Group ${k}`,
   },
   basketball: GENERIC,
 }

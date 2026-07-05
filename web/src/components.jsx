@@ -548,7 +548,11 @@ function navItems() {
 export function BottomNav({ tab, go }) {
   useSocial(); // re-render on identity change so the Wagers tab appears/hides
   useOptOut(); // ...and on opt-out, so the tab disappears immediately
-  const tabs = navItems().filter(([id]) => id !== "coins" || canWager());
+  // pre-branch mobile bar had no Standings item for football (Knockouts covered it) —
+  // preserve that: drop Standings from the mobile bar only when Knockouts is present
+  // (sports without a knockout stage, e.g. NBA regular season, keep Standings here).
+  const hasKnockouts = tabsFor().includes("knockouts");
+  const tabs = navItems().filter(([id]) => (id !== "coins" || canWager()) && !(id === "standings" && hasKnockouts));
   return (
     <nav className="tabs">
       {tabs.map(([id,label,Ic])=>(

@@ -481,7 +481,11 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
   const { scrolled, onScroll } = useScrolled(scrollRef);
 
   const cols = S.vocab.standingsCols;
-  const cellFor = (t, key) => (key === "pct" ? (t.pct != null ? t.pct.toFixed(3).replace(/^0/, "") : "–") : t[key]);
+  const cellFor = (t, key) => {
+    if (key === "pct") return t.pct != null ? t.pct.toFixed(3).replace(/^0/, "") : "–";
+    if (key === "gd") return t.gd ?? (t.gf - t.ga);
+    return t[key];
+  };
   const showKoLink = S.competition?.format !== "league";
   const koLink = showKoLink
     ? <button className="iconbtn" onClick={openKnockouts} aria-label="Knockouts"><span style={{fontSize:17}}>🏆</span></button>
@@ -491,7 +495,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
     const table = S.standings[grp];
     return (
       <div className="stand">
-        <div className="gh"><b>{grp}</b><span className="leg"><i></i> Top 2 advance</span></div>
+        <div className="gh"><b>{S.vocab.groupHeading(grp)}</b><span className="leg"><i></i> Top 2 advance</span></div>
         <div className="strow">
           <span className="hd">#</span><span className="hd l">Team</span>
           {cols.map(([key,label])=> <span className="hd" key={key}>{label}</span>)}

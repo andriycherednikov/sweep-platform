@@ -968,6 +968,17 @@ test('BottomNav hides the Wagers tab once opted out', () => {
   expect(queryByText('Wagers')).not.toBeInTheDocument()
 })
 
+test('BottomNav composition: football (has knockouts) drops Standings; basketball (no knockouts) keeps it', () => {
+  setSweepData(assembleSweep(makeApi())) // football: format groups_then_ko → knockouts tab present
+  const foot = render(<BottomNav tab="home" go={() => {}} />)
+  expect(foot.queryByText('Standings')).not.toBeInTheDocument()
+  foot.unmount()
+
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' }))) // league format → no knockouts tab
+  const ball = render(<BottomNav tab="home" go={() => {}} />)
+  expect(ball.queryByText('Standings')).toBeInTheDocument()
+})
+
 test('OptOutButton renders a shield and fires onClick', () => {
   const onClick = vi.fn()
   const { getByLabelText } = render(<OptOutButton onClick={onClick} />)
