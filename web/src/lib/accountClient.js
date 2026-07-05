@@ -4,7 +4,8 @@ export const setAccountToken = (t) => { try { localStorage.setItem(KEY, t) } cat
 export const clearAccountToken = () => { try { localStorage.removeItem(KEY) } catch {} }
 
 async function call(method, path, body) {
-  const headers = { 'content-type': 'application/json' }
+  const headers = {}
+  if (body !== undefined) headers['content-type'] = 'application/json'
   const tok = getAccountToken()
   if (tok) headers['x-account-token'] = tok
   const res = await fetch(path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })

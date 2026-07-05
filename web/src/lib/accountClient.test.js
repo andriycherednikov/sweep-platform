@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
-  requestLogin, redeemLogin, getBilling,
+  requestLogin, redeemLogin, getBilling, startCheckout,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -55,4 +55,17 @@ test('clearAccountToken removes a stored token', () => {
   setAccountToken('t1')
   clearAccountToken()
   expect(getAccountToken()).toBeNull()
+})
+
+test('startCheckout (bodyless POST) does not include content-type header or body', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(200, { url: 'https://checkout.stripe.com/...' }))
+  await startCheckout()
+  expect(fetch).toHaveBeenCalledWith('/api/account/billing/checkout', expect.objectContaining({
+    method: 'POST',
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
+  }))
+  const callArgs = fetch.mock.calls[0][1]
+  expect(callArgs.headers['content-type']).toBeUndefined()
+  expect(callArgs.body).toBeUndefined()
 })
