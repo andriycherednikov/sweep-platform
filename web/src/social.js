@@ -58,6 +58,7 @@ export function supportOf(mid){
 export function mySupport(mid){ return meId ? ((support[mid]||{})[meId] || null) : null; }
 export function setSupport(mid, code){
   if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return; }
+  if (S.readOnly) { toast("Sweep is read-only"); return; }
   const prev = support;
   const m = Object.assign({}, support[mid] || {});
   if (m[meId] === code) { delete m[meId]; }

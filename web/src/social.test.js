@@ -13,7 +13,7 @@ import {
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
   predictionsOf, predictionAccuracy, setCurrentSweepId,
 } from './social.js'
-import { makeApi, makeFixture } from '../test/factories.js'
+import { makeApi, makeFixture, makeBootstrap } from '../test/factories.js'
 
 function seedFixture() {
   setSweepData(assembleSweep({
@@ -116,6 +116,14 @@ test('writes require identity — no me means no POST', () => {
   window.__sweepPickMe = vi.fn()
   setSupport('m1', 'hr')
   expect(window.__sweepPickMe).toHaveBeenCalled()
+  expect(postSupport).not.toHaveBeenCalled()
+})
+
+test('setSupport is blocked on readOnly sweeps — no POST, state unchanged', () => {
+  setSweepData(assembleSweep(makeApi({ bootstrap: makeBootstrap({ readOnly: true }) })))
+  setMe('p1')
+  setSupport('m1', 'hr')
+  expect(mySupport('m1')).toBe(null)
   expect(postSupport).not.toHaveBeenCalled()
 })
 

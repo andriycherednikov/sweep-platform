@@ -1044,7 +1044,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
 
           {/* back a team — locks once the match kicks off */}
           {(() => {
-            const locked = f.status !== "upcoming";
+            const locked = f.status !== "upcoming" || S.readOnly;
             return <>
           <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>{locked ? "Who'll win? · locked" : mySup ? "You're backing " + (mySup===DRAW ? "a draw" : S.team(mySup).name) : "Who'll win? · back a team"}</div>
           <div style={{display:"flex",gap:10,marginBottom:16,alignItems:"stretch"}}>
