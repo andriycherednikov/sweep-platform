@@ -2,7 +2,7 @@ import { expect, test, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
-import { StandingsScreen, HomeScreen } from './screens-main.jsx'
+import { StandingsScreen, HomeScreen, PickSheet } from './screens-main.jsx'
 import { makeApi, makeBootstrap } from '../test/factories.js'
 
 beforeEach(() => {
@@ -16,6 +16,20 @@ test('StandingsScreen renders basketball columns (W L PCT PF PA) and a conferenc
     expect(screen.getAllByText(label).length).toBeGreaterThan(0)
   }
   expect(screen.getByText('Eastern Conference')).toBeInTheDocument()
+})
+
+// regression: group order used to be Object.keys(S.standings) verbatim, which mirrors the
+// API route's key order — mirroring a stale/heap-order API response instead of sorting
+// alphabetically as the web-side belt.
+test('StandingsScreen sorts conference tables alphabetically (Eastern before Western) even if the data arrives in the opposite order', () => {
+  const standings = {
+    'Western Conference': [{ code: 'lal', name: 'Lakers', played: 2, win: 1, draw: 0, loss: 1, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.5, pf: 220, pa: 221 }],
+    'Eastern Conference': [{ code: 'bos', name: 'Celtics', played: 2, win: 2, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: 1, pf: 240, pa: 200 }],
+  }
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball', standings })))
+  const { container } = render(<StandingsScreen go={() => {}} openTeam={() => {}} openKnockouts={() => {}} />)
+  const headings = [...container.querySelectorAll('.gh b')].map((el) => el.textContent)
+  expect(headings).toEqual(['Eastern Conference', 'Western Conference'])
 })
 
 test('StandingsScreen (basketball, league format) shows no group-stage "advance" chip or legend', () => {
@@ -93,4 +107,17 @@ test('HomeScreen hero countdown clamps at zero (not negative) for a fully stale 
     <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
   )
   expect(container.querySelector('.hero .vs-cd .cd').textContent).toBe('00:00:00')
+})
+
+test('PickSheet team-filter group heading follows sport vocab: "Group A" for football, conference name verbatim for basketball', () => {
+  const noop = () => {}
+  setSweepData(assembleSweep(makeApi({ sport: 'football' })))
+  const foot = render(<PickSheet kind="team" onClose={noop} onPerson={noop} onTeam={noop} />)
+  expect(foot.getByText('Group A')).toBeTruthy()
+  foot.unmount()
+
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  const ball = render(<PickSheet kind="team" onClose={noop} onPerson={noop} onTeam={noop} />)
+  expect(ball.getByText('Eastern Conference')).toBeTruthy() // verbatim, no "Group" prefix
+  ball.unmount()
 })

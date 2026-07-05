@@ -882,6 +882,20 @@ test('PersonTeams shows names for <=2 teams, compact flags + count for more', ()
   expect(many.container.querySelectorAll('.tms-flags img').length).toBe(3)
 })
 
+// regression: PersonTeams used to render a raw <img src={S.flag(...)}>, a flagcdn URL that
+// 404s for logo-sports (basketball) — it must go through the emblem-aware <Flag> like every
+// other team image in the app.
+test('PersonTeams renders team logos via Flag (basketball, factory teams carry logos) — no raw flagcdn img', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  const { container } = render(<PersonTeams codes={['lal', 'bos']} />)
+  const imgs = [...container.querySelectorAll('img')]
+  expect(imgs.length).toBe(2)
+  for (const img of imgs) {
+    expect(img.className).toContain('emblem')
+    expect(img.getAttribute('src')).toMatch(/^https:\/\/x\//)
+  }
+})
+
 test('SpoilerToggle (compact) highlights only when privacy mode is on', () => {
   setSpoiler(false)
   const off = render(<SpoilerToggle compact />)

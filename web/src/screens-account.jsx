@@ -90,11 +90,13 @@ function BillingPanel({ billing }) {
 function SweepRow({ s, reload }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
 
   async function archive() {
     if (!confirm) { setConfirm(true); return; }
-    setBusy(true);
+    setBusy(true); setErr(false);
     try { await archiveSweep(s.id); await reload(); }
+    catch { setErr(true); setConfirm(false); }
     finally { setBusy(false); }
   }
 
@@ -108,6 +110,7 @@ function SweepRow({ s, reload }) {
           {confirm ? "Really archive?" : "Archive"}
         </button>
       </div>
+      {err && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>Archive failed — try again</p>}
     </div>
   );
 }
@@ -129,10 +132,14 @@ function SweepList({ sweeps, reload }) {
 export function AccountHome() {
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
+  const [loadErr, setLoadErr] = useState(false);
 
   const reload = useCallback(async () => {
-    const [b, s] = await Promise.all([getBilling(), getAccountSweeps()]);
-    setBilling(b); setSweeps(s);
+    setLoadErr(false);
+    try {
+      const [b, s] = await Promise.all([getBilling(), getAccountSweeps()]);
+      setBilling(b); setSweeps(s);
+    } catch { setLoadErr(true); }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -147,6 +154,7 @@ export function AccountHome() {
       <PageHeader title="My account" sub="Sweeps & billing" />
       <div className="scroll pad screen-anim" style={{ paddingTop: 12 }}>
         <div className="wrap super-wrap">
+          {loadErr && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>Something went wrong. Try again.</p>}
           {billing && <BillingPanel billing={billing} />}
           <SweepList sweeps={sweeps} reload={reload} />
           <button className="allocbtn" style={{ marginTop: 14 }} onClick={signOut}>Sign out</button>

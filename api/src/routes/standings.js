@@ -23,6 +23,10 @@ export async function standingsRoutes(app) {
     for (const g of Object.keys(tables)) {
       tables[g].sort((x, y) => y.pts - x.pts || (y.pct ?? 0) - (x.pct ?? 0) || y.gd - x.gd || y.gf - x.gf || x.name.localeCompare(y.name))
     }
-    return tables
+    // group order must be deterministic (not DB heap order) — key insertion order sorted
+    // alphabetically: Group A..L for football, Eastern before Western for NBA.
+    const sorted = {}
+    for (const g of Object.keys(tables).sort()) sorted[g] = tables[g]
+    return sorted
   })
 }

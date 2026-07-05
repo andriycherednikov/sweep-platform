@@ -257,7 +257,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
           <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : `NEXT ${S.vocab.noun.toUpperCase()}`}</span>
-          <span className="hero-when">{live ? "In play" : cd.s < 0 ? S.vocab.kickoffLabel : "Kicks off in"}</span>
+          <span className="hero-when">{live ? "In play" : cd.s < 0 ? S.vocab.kickoffLabel : S.vocab.startsInLabel}</span>
         </div>
         <div className="match-line">
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t1);}}>
@@ -454,7 +454,7 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
             <div>
               {groups.map(({g, teams})=>(
                 <div key={g} style={{marginBottom:14}}>
-                  <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>Group {g}</div>
+                  <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>{S.vocab.groupHeading(g)}</div>
                   {teams.map(t=>(
                     <div className="prow" key={t.code} onClick={()=>onTeam(t.code)} style={{padding:"8px 12px",marginBottom:7}}>
                       <Flag code={t.code} w={34} h={25} />
@@ -541,7 +541,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
               )}
             </div>
             <div className="standings-grid">
-              {Object.keys(S.standings).map(x=> <GroupTable key={x} grp={x}/>)}
+              {Object.keys(S.standings).sort().map(x=> <GroupTable key={x} grp={x}/>)}
             </div>
           </div>
         </div>
@@ -554,7 +554,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
       <AppHeader title="Standings" go={go} scrolled={scrolled} right={koLink} />
       <div className="scroll pad screen-anim" style={{paddingTop:12}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
-          {Object.keys(S.standings).map(x=> <GroupTable key={x} grp={x}/>)}
+          {Object.keys(S.standings).sort().map(x=> <GroupTable key={x} grp={x}/>)}
           <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
             Tables update automatically as results come in.
           </p>

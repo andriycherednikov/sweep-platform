@@ -83,6 +83,24 @@ test('sweep list renders links and archives with two-tap confirm', async () => {
   await waitFor(() => expect(archiveSweep).toHaveBeenCalledWith('sw1'))
 })
 
+test('archive failure shows an inline error and resets the confirm state', async () => {
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1', adminLink: 'https://h/admin/a1' }])
+  archiveSweep.mockRejectedValue(new Error('boom'))
+  render(<AccountHome />)
+  expect(await screen.findByText('My NBA')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /really archive\?/i }))
+  expect(await screen.findByText(/archive failed/i)).toBeTruthy()
+  expect(screen.getByRole('button', { name: /^archive$/i })).toBeTruthy() // confirm state reset
+})
+
+test('account load failure shows an inline error instead of a silent empty list', async () => {
+  getBilling.mockRejectedValue(new Error('boom'))
+  getAccountSweeps.mockRejectedValue(new Error('boom'))
+  render(<AccountHome />)
+  expect(await screen.findByText(/something went wrong/i)).toBeTruthy()
+})
+
 test('archived sweeps are filtered out', async () => {
   getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'Old One', competitionId: 'c1', archivedAt: '2026-01-01T00:00:00Z', createdAt: 'x', memberLink: 'https://h/g/m1', adminLink: 'https://h/admin/a1' }])
   render(<AccountHome />)

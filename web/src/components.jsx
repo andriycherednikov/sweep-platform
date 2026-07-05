@@ -63,7 +63,7 @@ export function PersonTeams({ codes, hideEliminated }) {
           const elim = S.isTeamEliminated(tc);
           return (
             <span className={"t" + (elim ? " is-elim" : "")} key={tc}>
-              <img className={"flag" + (elim ? " is-elim" : "")} src={S.flag(tc, 40)} alt="" />
+              <Flag code={tc} w={18} h={13} cls={elim ? "is-elim" : undefined} />
               {S.team(tc)?.name || tc}
             </span>
           );
@@ -75,7 +75,7 @@ export function PersonTeams({ codes, hideEliminated }) {
     <div className="tms tms-flags">
       {list.map((tc) => {
         const elim = S.isTeamEliminated(tc);
-        return <img className={"flag" + (elim ? " is-elim" : "")} key={tc} src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} />;
+        return <Flag code={tc} key={tc} w={22} h={16} cls={elim ? "is-elim" : undefined} />;
       })}
       <span className="tms-count">· {list.length} teams</span>
     </div>

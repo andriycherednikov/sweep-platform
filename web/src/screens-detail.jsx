@@ -413,12 +413,13 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
   const photos = S.photos.filter(p=>{ const fx = S.fixture(p.fixtureId); return p.status==="approved" && fx && (fx.t1===code || fx.t2===code); });
 
   const isTeamOut = S.isTeamEliminated(code);
+  const bg = S.emblemSrc(code, 320);
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <header className="top" style={{padding:0,overflow:"visible"}}>
         <div className="team-banner" style={{paddingTop:14}}>
-          <div className="bgflag" style={{backgroundImage:`url(${S.flag(code,320)})`}}></div>
+          {bg && <div className="bgflag" style={{backgroundImage:`url(${bg})`}}></div>}
           <div className="ov"></div>
           <div className="tb-inner">
             <div className="tb-top">
@@ -639,7 +640,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                           <i>v</i>
                           <Flag code={f.t2} w={22} h={16} />{S.team(f.t2).name}
                         </span>
-                        <span className="gpk-meta">{spoilerHidden(f) ? <Icon.eyeoff style={{width:13,height:13,stroke:"var(--muted2)"}}/> : f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
+                        <span className="gpk-meta">{spoilerHidden(f) ? <Icon.eyeoff style={{width:13,height:13,stroke:"var(--muted2)"}}/> : f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:S.vocab.ftShort):f.status==="live"?"LIVE":whenLabel(f)}</span>
                       </button>
                     ))}
                     {games.length===0 && <div className="gpk-empty">No games match “{q}”.</div>}
