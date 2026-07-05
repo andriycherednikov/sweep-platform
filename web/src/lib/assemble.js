@@ -145,11 +145,13 @@ export function assembleSweep(api) {
   const teamList = Object.keys(teams).map((c) => teams[c])
   const groups = [...new Set(teamList.map((t) => t.group))].sort()
 
-  // standings grouped + sorted (pts, gd, gf, name)
+  // standings: mirror /api/standings exactly — same keys (insertion order), same
+  // per-key row order. That route already groups (conference for NBA, letter group for
+  // football) and sorts (pts→pct→gd→gf→name) correctly per sport; rebuilding it here off
+  // t.group with soccer-only sort keys is what broke NBA (pct-ranked, not pts-ranked).
   const standings = {}
-  for (const t of teamList) (standings[t.group] = standings[t.group] || []).push(teams[t.code])
-  for (const g of Object.keys(standings)) {
-    standings[g].sort((x, y) => (y.pts - x.pts) || ((y.gf - y.ga) - (x.gf - x.ga)) || (y.gf - x.gf) || x.name.localeCompare(y.name))
+  for (const g of Object.keys(rawStandings)) {
+    standings[g] = rawStandings[g].map((row) => teams[row.code]).filter(Boolean)
   }
 
   // fixtures: Date kickoff + time labels + derby/doubleOwners from ownership

@@ -39,7 +39,10 @@ export function makeApi(over = {}) {
     standings: standings ?? (bball
       ? { 'Eastern Conference': [{ code: 'bos', name: 'Celtics', played: 2, win: 2, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: 1, pf: 240, pa: 200 }],
           'Western Conference': [{ code: 'lal', name: 'Lakers', played: 2, win: 1, draw: 0, loss: 1, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.5, pf: 220, pa: 221 }] }
-      : { A: [{ code: 'hr', name: 'Croatia', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 0, gd: 2, pts: 3, pct: null, pf: null, pa: null }] }),
+      : { A: [
+          { code: 'hr', name: 'Croatia', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 0, gd: 2, pts: 3, pct: null, pf: null, pa: null },
+          { code: 'br', name: 'Brazil', played: 1, win: 0, draw: 0, loss: 1, gf: 0, ga: 2, gd: -2, pts: 0, pct: null, pf: null, pa: null },
+        ] }),
     photos: [], syncStatus: {},
     ...rest,
   }

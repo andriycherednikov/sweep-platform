@@ -182,7 +182,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
                   {(sum.away.yellow || sum.away.red) ? <span className="res-cards"><CardChips red n={sum.away.red}/><CardChips n={sum.away.yellow}/></span> : null}
                   <span className="nm">{tb.name}</span><Flag code={f.t2} w={22} h={16}/>
                 </div>
-                <span className="ft">FT</span>
+                <span className="ft">{S.vocab.ftShort}</span>
               </div>
               {!spoilerHidden(f) && (sum.home.scorers.length || sum.away.scorers.length) ? (
                 <div className="res-extra">
@@ -256,8 +256,8 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
-          <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : "Next match"}</span>
-          <span className="hero-when">{live ? "In play" : cd.s < 0 ? "Kicking off" : "Kicks off in"}</span>
+          <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : `NEXT ${S.vocab.noun.toUpperCase()}`}</span>
+          <span className="hero-when">{live ? "In play" : cd.s < 0 ? S.vocab.kickoffLabel : "Kicks off in"}</span>
         </div>
         <div className="match-line">
           <div className="team" onClick={(e)=>{e.stopPropagation();openTeam(next.t1);}}>
@@ -489,7 +489,10 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
     }
     return t[key];
   };
-  const showKoLink = S.competition?.format !== "league";
+  // group-stage semantics (advance chips/legend) only apply to a groups-then-KO
+  // competition — a league (NBA regular season) has no "top N advance" cutoff here.
+  const groupStage = S.competition?.format !== "league";
+  const showKoLink = groupStage;
   const koLink = showKoLink
     ? <button className="iconbtn" onClick={openKnockouts} aria-label="Knockouts"><span style={{fontSize:17}}>🏆</span></button>
     : null;
@@ -498,7 +501,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
     const table = S.standings[grp];
     return (
       <div className="stand">
-        <div className="gh"><b>{S.vocab.groupHeading(grp)}</b><span className="leg"><i></i> Top 2 advance</span></div>
+        <div className="gh"><b>{S.vocab.groupHeading(grp)}</b>{groupStage && <span className="leg"><i></i> Top 2 advance</span>}</div>
         <div className="strow">
           <span className="hd">#</span><span className="hd l">Team</span>
           {cols.map(([key,label])=> <span className="hd" key={key}>{label}</span>)}
@@ -506,7 +509,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
         {table.map((t,i)=>{
           const isTeamOut = S.isTeamEliminated(t.code);
           return (
-            <div className={"strow"+(i<2?" q":i===2?" q3":"")+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={isTeamOut ? {opacity:0.45, filter:"grayscale(0.6)"} : {}}>
+            <div className={"strow"+(groupStage && i<2?" q":groupStage && i===2?" q3":"")+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={isTeamOut ? {opacity:0.45, filter:"grayscale(0.6)"} : {}}>
               <span className="pos">{i+1}</span>
               <span className="tm"><Flag code={t.code} w={22} h={16}/><span>{t.name}</span></span>
               {cols.map(([key,label])=> <span className={key==="pts" ? "pts" : "num"} key={key}>{cellFor(t,key)}</span>)}
@@ -527,10 +530,12 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
               <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
                 Tables update automatically as results come in — tap any team to open it.
               </div>
+              {groupStage && (
               <div className="legend">
                 <span><i style={{background:"var(--live)"}}></i> Advance</span>
                 <span><i style={{background:"var(--gold)"}}></i> Play-off (3rd)</span>
               </div>
+              )}
             </div>
             <div className="standings-grid">
               {S.groups.map(x=> <GroupTable key={x} grp={x}/>)}

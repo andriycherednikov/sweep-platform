@@ -503,4 +503,37 @@ it('attaches sport vocab', () => {
   expect(assembleSweep(makeApi({sport:'basketball'})).vocab.noun).toBe('game')
 })
 
+// standings must mirror /api/standings exactly (keys + per-key row order), not rebuild
+// via team.group + a soccer-shaped re-sort — that re-sort falls back to alphabetical
+// once pts/gd/gf are all 0, which silently un-sorts an NBA table ranked by pct.
+it('basketball standings mirror the route: conference keys in route order, rows pct-desc (not alphabetical)', () => {
+  const s = assembleSweep({
+    bootstrap: {
+      teams: [
+        { code: 'bos', name: 'Celtics', group: 'Eastern Conference', pool: null, color: '#007a33', strength: null },
+        { code: 'gsw', name: 'Warriors', group: 'Western Conference', pool: null, color: '#1d428a', strength: null },
+        { code: 'lal', name: 'Lakers', group: 'Western Conference', pool: null, color: '#552583', strength: null },
+      ],
+      people: [], ownership: {}, scoring: null,
+      competition: { sport: 'basketball', hasDraws: false, name: 'NBA', season: '2023-2024', format: 'league', logo: null },
+    },
+    fixtures: [],
+    standings: {
+      'Eastern Conference': [
+        { code: 'bos', name: 'Celtics', played: 10, win: 8, draw: 0, loss: 2, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.8, pf: 1000, pa: 950 },
+      ],
+      // route order is pct-desc: Warriors (.8) before Lakers (.3) — alphabetically
+      // (by name, the old re-sort's tiebreak) Lakers would come first. Mirroring
+      // must preserve the route's order, not re-sort it.
+      'Western Conference': [
+        { code: 'gsw', name: 'Warriors', played: 10, win: 8, draw: 0, loss: 2, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.8, pf: 990, pa: 940 },
+        { code: 'lal', name: 'Lakers', played: 10, win: 3, draw: 0, loss: 7, gf: 0, ga: 0, gd: 0, pts: 0, pct: 0.3, pf: 960, pa: 990 },
+      ],
+    },
+    photos: [],
+  })
+  expect(Object.keys(s.standings)).toEqual(['Eastern Conference', 'Western Conference'])
+  expect(s.standings['Western Conference'].map((t) => t.code)).toEqual(['gsw', 'lal'])
+})
+
 

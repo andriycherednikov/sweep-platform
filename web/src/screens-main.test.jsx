@@ -18,6 +18,14 @@ test('StandingsScreen renders basketball columns (W L PCT PF PA) and a conferenc
   expect(screen.getByText('Eastern Conference')).toBeInTheDocument()
 })
 
+test('StandingsScreen (basketball, league format) shows no group-stage "advance" chip or legend', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  render(<StandingsScreen go={() => {}} openTeam={() => {}} openKnockouts={() => {}} />)
+  expect(screen.queryByText(/Top 2 advance/i)).toBeNull()
+  expect(screen.queryByText('Advance')).toBeNull()
+  expect(screen.queryByText(/Play-off \(3rd\)/i)).toBeNull()
+})
+
 test('StandingsScreen renders football columns (P W D L GD PTS) and a "Group X" heading built from the bare wire group', () => {
   setSweepData(assembleSweep({
     bootstrap: {
@@ -28,7 +36,10 @@ test('StandingsScreen renders football columns (P W D L GD PTS) and a "Group X" 
       people: [], ownership: {}, scoring: null,
     },
     fixtures: [],
-    standings: { A: [{ code: 'hr', name: 'Croatia', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 0, pts: 3 }] },
+    standings: { A: [
+      { code: 'hr', name: 'Croatia', played: 1, win: 1, draw: 0, loss: 0, gf: 2, ga: 0, pts: 3 },
+      { code: 'br', name: 'Brazil', played: 1, win: 0, draw: 0, loss: 1, gf: 0, ga: 2, pts: 0 },
+    ] },
     photos: [], syncStatus: {},
   }))
   render(<StandingsScreen go={() => {}} openTeam={() => {}} openKnockouts={() => {}} />)

@@ -56,7 +56,13 @@ function sheetFixture(lineups, squads = {}, events = [], opts = {}) {
       venue: 'V', city: 'C', status, score, minute: null,
       prob: { a: 53, d: 26, b: 21 }, stage, penScore, lineups, events, statistics,
     }],
-    standings: {}, photos: [], syncStatus: { stale: false },
+    // realistic /api/standings shape: every team gets a row (zeros pre-kickoff), so
+    // TeamDetail's S.standings[t.group].findIndex(...) never sees an undefined group.
+    standings: { [group]: [
+      { code: 'hr', name: 'Croatia', played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: null, pf: null, pa: null },
+      { code: 'be', name: 'Belgium', played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: null, pf: null, pa: null },
+    ] },
+    photos: [], syncStatus: { stale: false },
   }))
   setSocialData({ support: {} })
   return S.fixture('m1')
@@ -203,7 +209,12 @@ test('TeamDetail displays shootout score next to regulation score in fixtures li
       id: 'm1', group: 'L', matchday: 2, t1: 'hr', t2: 'en', ko: '2026-06-13T22:00:00Z',
       venue: 'V', city: 'C', status: 'final', score: [1, 1], penScore: [4, 3], winnerCode: 'hr', minute: null, prob: null, stage: 'knockout',
     }],
-    standings: {}, photos: [], syncStatus: { stale: false },
+    // realistic /api/standings shape: every team gets a row (TeamDetail indexes S.standings[t.group]).
+    standings: { L: [
+      { code: 'hr', name: 'Croatia', played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: null, pf: null, pa: null },
+      { code: 'en', name: 'England', played: 0, win: 0, draw: 0, loss: 0, gf: 0, ga: 0, gd: 0, pts: 0, pct: null, pf: null, pa: null },
+    ] },
+    photos: [], syncStatus: { stale: false },
   }))
   const { getByText } = render(
     <TeamDetail code="hr" onBack={noop} openMatch={noop} openPerson={noop} openUpload={noop} />
