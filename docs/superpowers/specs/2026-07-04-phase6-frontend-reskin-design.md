@@ -250,6 +250,23 @@ checkpoint, GateBrand small-line removal, banner/landing copy.
 **GO/NO-GO checkpoint (§13 step 10): reskin half COMPLETE. AFK default =
 GO to Plan B (catalog + provision + my-sweeps polish), veto standing.**
 
+## 13b. Post-implementation — Plan B / self-serve half (2026-07-06, 74f252e..b591672)
+
+GO taken per the AFK default. Catalog screen (owner-implemented 6042bbc:
+server-filtered sport chips + search, season picker) + provision sheet
+(b591672: prefilled name, wagering toggle OFF-default, load-bearing pending
+copy, 402→billing-CTA / 403-cap / 400 / 500 error map, success LinkFields)
++ my-sweeps entry points. **api 416 / web 535 / build green.**
+Live-verified: NBA 2023-2024 provisioned through the UI (competition
+reused — zero feed spend), success links joined, 402 path verified
+organically on a canceled test account, Stripe quantity synced 2→1 via the
+two-tap archive. **PHASE 6 — the last build phase — is COMPLETE.** The
+self-serve loop is closed: magic-link → catalog → provision → invite links
+→ sport-native sweep UI, billed in Stripe test mode. What remains before
+launch is the first-deploy gate only (decision c, separate follow-up):
+trustProxy, infra repoint away from WC prod, production webhook + whsec,
+live keys, GA property + event renames.
+
 ## 14. Out of scope
 
 Wire renames (per b), deploy/infra/GA-property/live-keys (per c), fresh
