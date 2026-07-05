@@ -36,4 +36,5 @@ test('StandingsScreen renders football columns (P W D L GD PTS) and a "Group X" 
     expect(screen.getAllByText(label).length).toBeGreaterThan(0)
   }
   expect(screen.getByText('Group A')).toBeInTheDocument()
+  expect(screen.getByText('+2')).toBeInTheDocument()
 })

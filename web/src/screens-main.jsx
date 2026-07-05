@@ -483,7 +483,10 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
   const cols = S.vocab.standingsCols;
   const cellFor = (t, key) => {
     if (key === "pct") return t.pct != null ? t.pct.toFixed(3).replace(/^0/, "") : "–";
-    if (key === "gd") return t.gd ?? (t.gf - t.ga);
+    if (key === "gd") {
+      const gd = t.gd ?? (t.gf - t.ga);
+      return gd > 0 ? `+${gd}` : gd;
+    }
     return t[key];
   };
   const showKoLink = S.competition?.format !== "league";
