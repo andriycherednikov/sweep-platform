@@ -84,7 +84,7 @@ export function predictionLeaderboard(limit = 4){
     const [a, b] = f.score;
     // winnerCode (incl. penalty shootouts; 'DRAW' === DRAW sentinel) is the actual result;
     // score compare only as the no-winnerCode fallback. Keeps grading in step with coin payouts.
-    const result = f.winnerCode || (a > b ? f.t1 : b > a ? f.t2 : DRAW);
+    const result = f.winnerCode || (a > b ? f.t1 : b > a ? f.t2 : (S.competition.hasDraws ? DRAW : null));
     const picks = support[f.id];
     if (!picks) continue;
     for (const pid of Object.keys(picks)){
@@ -111,7 +111,7 @@ export function predictionsOf(personId){
     let verdict = null;
     if (f.status === "final" && f.score){
       const [a, b] = f.score;
-      const result = f.winnerCode || (a > b ? f.t1 : b > a ? f.t2 : DRAW);
+      const result = f.winnerCode || (a > b ? f.t1 : b > a ? f.t2 : (S.competition.hasDraws ? DRAW : null));
       verdict = pick === result ? "correct" : "wrong";
     }
     out.push({ f, pick, verdict });

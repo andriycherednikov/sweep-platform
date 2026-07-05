@@ -172,6 +172,19 @@ test('CrowdPick records a DRAW pick and POSTs it', () => {
   expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');
 });
 
+test('CrowdPick shows no draw zone on a no-draw sport, even at stage=group', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))   // NBA regular season maps stage:'group'
+  render(<CrowdPick f={SWEEP.fixtures[0]} locked={false} />)
+  expect(screen.queryByText('Draw')).toBeNull()
+  expect(screen.getByText(/Tap a team to call the winner/)).toBeTruthy()
+})
+
+test('CrowdPick keeps the draw zone on football group games', () => {
+  setSweepData(assembleSweep(makeApi()))
+  render(<CrowdPick f={SWEEP.fixtures[0]} locked={false} />)
+  expect(screen.getByText('Draw')).toBeTruthy()
+})
+
 test('ProbBar renders three segments (home / draw / away)', () => {
   const { container } = render(<ProbBar prob3={{ pa: 60, pd: 25, pb: 15 }} />)
   const segs = container.querySelectorAll('.prob-bar i')

@@ -13,6 +13,7 @@ import {
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
   predictionsOf, predictionAccuracy, setCurrentSweepId,
 } from './social.js'
+import { makeApi, makeFixture } from '../test/factories.js'
 
 function seedFixture() {
   setSweepData(assembleSweep({
@@ -50,6 +51,17 @@ test('setSupport optimistically sets backing and POSTs', () => {
   setSupport('m1', 'hr')
   expect(mySupport('m1')).toBe('hr')
   expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'hr')
+})
+
+test('predictionLeaderboard credits no one on a tied NBA final (no draws, no winnerCode)', () => {
+  setSweepData(assembleSweep(makeApi({
+    sport: 'basketball',
+    fixtures: [makeFixture({ id: 'm1', t1: 'lal', t2: 'bos', status: 'final', score: [100, 100], winnerCode: null })],
+  })))
+  setSocialData({ support: { m1: { p1: 'DRAW' } } })
+  const lb = predictionLeaderboard(4)
+  const p1 = lb.find(x => x.person.id === 'p1')
+  expect(p1).toMatchObject({ correct: 0, total: 1 })
 })
 
 test('predictionLeaderboard ranks people by correct crowd calls on finished matches', () => {

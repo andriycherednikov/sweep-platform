@@ -266,7 +266,7 @@ export function CrowdPick({ f, onToast, light, locked }) {
   const t1 = S.team(f.t1), t2 = S.team(f.t2);
   const sup = supportOf(f.id);
   const mine = mySupport(f.id);
-  const showDraw = f.stage === "group";
+  const showDraw = S.competition.hasDraws && f.stage === "group";
   const c1 = (sup[f.t1]||[]).length, c2 = (sup[f.t2]||[]).length, cd = (sup[DRAW]||[]).length;
   const total = c1 + c2 + (showDraw ? cd : 0);
   // once a match starts, calls lock — nothing to show if nobody called it

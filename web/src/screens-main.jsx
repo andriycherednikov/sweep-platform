@@ -275,7 +275,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
             <span className="nm">{t2.name.toUpperCase()}</span>
           </div>
         </div>
-        {!live && next.hasOdds && (next.stage === "knockout" ? <>
+        {!live && next.hasOdds && (!S.competition.hasDraws || next.stage === "knockout" ? <>
         {/* elimination match: two-way "to progress" odds, no draw */}
         <ProbBar prob2={next.prob2} />
         <div className="prob-key">
