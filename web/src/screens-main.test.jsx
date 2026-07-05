@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { StandingsScreen } from './screens-main.jsx'
-import { makeApi } from '../test/factories.js'
+import { makeApi, makeBootstrap } from '../test/factories.js'
 
 beforeEach(() => {
   localStorage.clear()
@@ -48,4 +48,21 @@ test('StandingsScreen renders football columns (P W D L GD PTS) and a "Group X" 
   }
   expect(screen.getByText('Group A')).toBeInTheDocument()
   expect(screen.getByText('+2')).toBeInTheDocument()
+})
+
+// regression: pre-fix wire (serializeCompetitor with no meta.group fallback) sent
+// teams[].group: null for NBA, so S.groups (derived from teams[].group) and
+// S.standings (mirrored from /api/standings, keyed by conference) were different key
+// spaces — S.standings[null] was undefined and GroupTable's .map crashed the app.
+// This must render safely (empty/keyed tables) no matter which key space is broken.
+test('StandingsScreen does not crash when basketball teams[].group is null (key-space mismatch)', () => {
+  const bootstrap = makeBootstrap({
+    sport: 'basketball',
+    teams: [
+      { code: 'lal', name: 'Lakers', group: null, pool: null, color: '#552583', logo: null, strength: null, squad: null },
+      { code: 'bos', name: 'Celtics', group: null, pool: null, color: '#007a33', logo: null, strength: null, squad: null },
+    ],
+  })
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball', bootstrap })))
+  expect(() => render(<StandingsScreen go={() => {}} openTeam={() => {}} openKnockouts={() => {}} />)).not.toThrow()
 })

@@ -424,7 +424,7 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
     ? S.people.filter(p => p.name.toLowerCase().includes(ql) || p.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.people;
   const groups = S.groups
-    .map(g => ({ g, teams: ql ? S.standings[g].filter(t => t.name.toLowerCase().includes(ql)) : S.standings[g] }))
+    .map(g => ({ g, teams: ql ? (S.standings[g] ?? []).filter(t => t.name.toLowerCase().includes(ql)) : (S.standings[g] ?? []) }))
     .filter(x => x.teams.length > 0);
   const empty = kind==="person" ? people.length===0 : groups.length===0;
   return (
@@ -499,6 +499,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
 
   function GroupTable({ grp }) {
     const table = S.standings[grp];
+    if (!table) return null; // ponytail: key-space mismatch guard — a bad/missing group key renders nothing, never crashes
     return (
       <div className="stand">
         <div className="gh"><b>{S.vocab.groupHeading(grp)}</b>{groupStage && <span className="leg"><i></i> Top 2 advance</span>}</div>
@@ -538,7 +539,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
               )}
             </div>
             <div className="standings-grid">
-              {S.groups.map(x=> <GroupTable key={x} grp={x}/>)}
+              {Object.keys(S.standings).map(x=> <GroupTable key={x} grp={x}/>)}
             </div>
           </div>
         </div>
@@ -551,7 +552,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
       <AppHeader title="Standings" go={go} scrolled={scrolled} right={koLink} />
       <div className="scroll pad screen-anim" style={{paddingTop:12}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
-          {S.groups.map(x=> <GroupTable key={x} grp={x}/>)}
+          {Object.keys(S.standings).map(x=> <GroupTable key={x} grp={x}/>)}
           <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
             Tables update automatically as results come in.
           </p>

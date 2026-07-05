@@ -54,6 +54,11 @@ test('serializeCompetitor carries logo', () => {
     .toBe('https://x/l.png')
 })
 
+test('serializeCompetitor falls back to meta.conference for group (NBA wire has no meta.group)', () => {
+  expect(serializeCompetitor({ code: 'lal', name: 'Lakers', color: '#552583', meta: { conference: 'Western Conference' } }).group)
+    .toBe('Western Conference')
+})
+
 test('serializeCompetitor matches the serializeTeam wire shape', () => {
   const meta = { group: 'A', pool: '1', strength: 80, squad: [{ name: 'X' }] }
   const c = { id: 'cp_hr', code: 'hr', name: 'Croatia', color: '#f00', meta }

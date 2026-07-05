@@ -25,7 +25,7 @@ export function serializeFixture(f) {
 }
 export function serializeCompetitor(c) {
   const m = c.meta ?? {}
-  return { code: c.code, name: c.name, group: m.group ?? null, pool: m.pool ?? null, color: c.color, logo: c.logo ?? null, strength: m.strength ?? null, squad: m.squad ?? null }
+  return { code: c.code, name: c.name, group: m.group ?? m.conference ?? null, pool: m.pool ?? null, color: c.color, logo: c.logo ?? null, strength: m.strength ?? null, squad: m.squad ?? null }
 }
 export function serializeEvent(row) {
   return serializeFixture(flattenEvent(row))

@@ -357,7 +357,7 @@ export function TeamsScreen({ go, openTeam }) {
               ? <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams match “{q}”.</p>
               : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} hideElim={hideElim} />
           ) : mode==="group" ? S.groups.map(g=>(
-            <TeamGroup key={g} title={"Group "+g} teams={S.standings[g]} openTeam={openTeam} rank hideElim={hideElim} />
+            <TeamGroup key={g} title={"Group "+g} teams={S.standings[g] ?? []} openTeam={openTeam} rank hideElim={hideElim} />
           )) : ["A","B"].map(pool=>(
             <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} hidePts />
           ))}
@@ -406,7 +406,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
   useSpoiler();
   const t = S.team(code);
   const fixtures = S.fixtures.filter(f=>f.t1===code||f.t2===code);
-  const pos = S.standings[t.group].findIndex(x=>x.code===code)+1;
+  const pos = (S.standings[t.group] ?? []).findIndex(x=>x.code===code)+1;
   // a team's photos = approved photos tagged to any game this team plays in
   const photos = S.photos.filter(p=>{ const fx = S.fixture(p.fixtureId); return p.status==="approved" && fx && (fx.t1===code || fx.t2===code); });
 
