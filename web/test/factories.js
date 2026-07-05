@@ -16,8 +16,10 @@ export function makeBootstrap(over = {}) {
   const bball = sport === 'basketball'
   return {
     teams: bball
-      ? [makeTeam({ code: 'lal', name: 'Lakers', group: null, color: '#552583', logo: 'https://x/lal.png', strength: null }),
-         makeTeam({ code: 'bos', name: 'Celtics', group: null, color: '#007a33', logo: 'https://x/bos.png', strength: null })]
+      // real wire shape: NBA competitors carry their conference in `group` (sync-competitors.js
+      // writes meta.group = conference) — matches the standings() below keyed by conference.
+      ? [makeTeam({ code: 'lal', name: 'Lakers', group: 'Western Conference', color: '#552583', logo: 'https://x/lal.png', strength: null }),
+         makeTeam({ code: 'bos', name: 'Celtics', group: 'Eastern Conference', color: '#007a33', logo: 'https://x/bos.png', strength: null })]
       : [makeTeam(), makeTeam({ code: 'br', name: 'Brazil', group: 'A', color: '#ff0' })],
     people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'A', av: '#333', avatarPath: null, adult: true, excluded: false, createdAt: null }],
     ownership: { p1: bball ? ['lal'] : ['hr'] },

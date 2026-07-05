@@ -14,6 +14,7 @@ import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
 import { useOptOut } from "./optout.js";
+import { tabsFor } from "./App.jsx";
 
 export { useSocial, getMe, setMe };
 
@@ -378,7 +379,7 @@ export function MatchCard({ f, onOpen, onToast }) {
       <CrowdPick f={f} onToast={onToast} locked={f.status !== "upcoming"} />
       <div className="mc-foot">
         <span className="venue"><Icon.pin style={{width:12,height:12,stroke:"var(--muted)"}}/> <span>{f.venue}{f.city ? " · "+f.city : ""}</span></span>
-        <span className="grp">GROUP {f.group}</span>
+        {f.group && <span className="grp">GROUP {f.group}</span>}
       </div>
     </article>
   );
@@ -525,16 +526,29 @@ export function PageHeader({ title, sub, onBack, right, tall, scrolled, go, desk
   );
 }
 
-/* bottom nav */
-const TABS = [
-  ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],
-  ["people","People",Icon.people],["teams","Teams",Icon.ball],["knockouts","Knockouts",Icon.bolt],
-  ["coins","Wagers",Icon.coin]
-];
+/* bottom nav + sidebar item metadata — ids/order come from tabsFor() (format- and
+   wagering-gated); label/icon overridden per sport via S.vocab where it applies. */
+const NAV_META = {
+  home:      ["Today", Icon.home],
+  schedule:  ["Schedule", Icon.cal],
+  people:    ["People", Icon.people],
+  teams:     ["Teams", Icon.ball],
+  standings: ["Standings", Icon.bars],
+  knockouts: ["Knockouts", Icon.bolt],
+  coins:     ["Wagers", Icon.coin],
+};
+function navItems() {
+  return ["home", ...tabsFor()].map((id) => {
+    const [label, Ic] = NAV_META[id];
+    if (id === "knockouts") return [id, S.vocab.koTabLabel, Ic];
+    if (id === "teams") return [id, label, S.vocab.teamsIcon === "ball" ? Icon.ball : Icon.shield];
+    return [id, label, Ic];
+  });
+}
 export function BottomNav({ tab, go }) {
   useSocial(); // re-render on identity change so the Wagers tab appears/hides
   useOptOut(); // ...and on opt-out, so the tab disappears immediately
-  const tabs = TABS.filter(([id]) => id !== "coins" || canWager());
+  const tabs = navItems().filter(([id]) => id !== "coins" || canWager());
   return (
     <nav className="tabs">
       {tabs.map(([id,label,Ic])=>(
@@ -581,18 +595,13 @@ export function useIsDesktop() {
   return d;
 }
 
-const SB_NAV = [
-  ["home","Today",Icon.home],["schedule","Schedule",Icon.cal],["people","People",Icon.people],
-  ["teams","Teams",Icon.ball],["standings","Standings",Icon.bars],["knockouts","Knockouts",Icon.bolt],
-  ["coins","Wagers",Icon.coin]
-];
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
   const showAdmin = canModerate(useSweep());
   useSocial(); // re-render on identity change so the Wagers item appears/hides
   useOptOut(); // ...and on opt-out
-  const nav = SB_NAV.filter(([id]) => id !== "coins" || canWager());
+  const nav = navItems().filter(([id]) => id !== "coins" || canWager());
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">

@@ -12,8 +12,9 @@ import { refreshAdminBadge } from "./admin.js";
 import { FloatingReactions } from "./FloatingReactions.jsx";
 import { InstallPrompt } from "./InstallPrompt.jsx";
 import {
-  HomeScreen, ScheduleScreen, StandingsScreen, KnockoutsScreen,
+  HomeScreen, ScheduleScreen, StandingsScreen,
 } from "./screens-main.jsx";
+import { KnockoutsScreen } from "./screens-bracket.jsx";
 import {
   PeopleScreen, PersonDetail, TeamsScreen, TeamDetail,
   UploadSheet, MatchSheet, AdminScreen, PhotoLightbox,
@@ -26,7 +27,13 @@ import { BetDetail } from "./screens-bet-detail.jsx";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { initAnalytics, trackPageview, trackEvent } from "./lib/analytics.js";
 
-const TABS = ["schedule", "people", "teams", "knockouts", "standings", "coins"];
+export function tabsFor() {
+  const t = ["schedule", "people", "teams"];
+  if (S.competition?.format !== "league") t.push("knockouts");
+  t.push("standings");
+  if (S.wageringEnabled !== false) t.push("coins");
+  return t;
+}
 
 /* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
 export function urlFor(v) {
@@ -47,11 +54,11 @@ export function readView(path) {
   const base = { tab: "home", overlay: null, modal: null, identity: false };
   if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
-  if (seg[0] === "knockouts") return { ...base, tab: "knockouts" };
+  if (seg[0] === "knockouts" && S.competition?.format !== "league") return { ...base, tab: "knockouts" };
   if (seg[0] === "admin") return { ...base, overlay: { type: "admin" } };
   if (seg[0] === "sweeps") return { ...base, overlay: { type: "sweeps" } };
   if (seg[0] === "super") return { ...base, overlay: { type: "super", token: parseSuperRoute(path).token } };
-  return { ...base, tab: TABS.includes(seg[0]) ? seg[0] : "home" };
+  return { ...base, tab: tabsFor().includes(seg[0]) ? seg[0] : "home" };
 }
 
 export default function App() {

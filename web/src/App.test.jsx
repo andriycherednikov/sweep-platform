@@ -30,13 +30,14 @@ vi.mock('./admin.js', () => ({
   useAdminBadge: vi.fn(() => ({ isAdmin: false, pending: 0 })),
 }))
 
-import App, { urlFor, readView } from './App.jsx'
+import App, { urlFor, readView, tabsFor } from './App.jsx'
 import * as client from './api/client.js'
 import { initAnalytics, trackPageview, trackEvent } from './lib/analytics.js'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
 import { addSweep } from './sweeps.js'
+import { makeApi } from '../test/factories.js'
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks()
@@ -142,4 +143,15 @@ test('the super pageview path sent to analytics excludes the token', async () =>
 test('readView maps /coins to the coins tab and urlFor round-trips', () => {
   expect(readView('/coins')).toMatchObject({ tab: 'coins' })
   expect(urlFor({ tab: 'coins' })).toBe('/coins')
+})
+
+test('league competitions have no knockouts tab or route', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  expect(tabsFor()).not.toContain('knockouts')
+  expect(readView('/knockouts').tab).toBe('home')   // route falls back
+})
+
+test('cup competitions keep knockouts', () => {
+  setSweepData(assembleSweep(makeApi()))
+  expect(tabsFor()).toContain('knockouts')
 })

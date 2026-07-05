@@ -12,7 +12,7 @@ vi.mock('./api/client.js', () => ({
 
 import { celebrate } from './lib/celebrate.js'
 import { PeopleScreen } from './screens-detail.jsx'
-import { KnockoutsScreen } from './screens-main.jsx'
+import { KnockoutsScreen } from './screens-bracket.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
