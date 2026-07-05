@@ -242,7 +242,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       {photo ? <>
       <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
         {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
-        {photoFx && <div className="badge"><img src={S.flag(photoFx.t1,40)} alt=""/><img src={S.flag(photoFx.t2,40)} alt=""/><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
+        {photoFx && <div className="badge"><Flag code={photoFx.t1} w={20} h={15} /><Flag code={photoFx.t2} w={20} h={15} /><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
         <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader}</small></div>
       </div>
       <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
@@ -384,7 +384,7 @@ export function ScheduleScreen({ go, openMatch, openPerson }) {
           {person ? <><Av p={person} size={18}/> {person.short}</> : <><Icon.people style={{width:13,height:13}}/> By person</>}
         </button>
         <button className={"fchip" + (team ? " on accent":"")} onClick={()=>setPick("team")}>
-          {team ? <><img src={S.flag(team,40)} alt=""/> {S.team(team).name}</> : <><Icon.ball style={{width:13,height:13}}/> By team</>}
+          {team ? <><Flag code={team} w={18} h={13} /> {S.team(team).name}</> : <><Icon.ball style={{width:13,height:13}}/> By team</>}
         </button>
       </div>
 
@@ -456,7 +456,7 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
                   <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>Group {g}</div>
                   {teams.map(t=>(
                     <div className="prow" key={t.code} onClick={()=>onTeam(t.code)} style={{padding:"8px 12px",marginBottom:7}}>
-                      <img className="flag" src={S.flag(t.code,80)} alt="" style={{width:34,height:25,borderRadius:4}}/>
+                      <Flag code={t.code} w={34} h={25} />
                       <div className="pi"><b style={{fontSize:16}}>{t.name}</b>
                         <div className="tms"><span className="t">{t.owners.length} owner{t.owners.length!==1?"s":""}</span></div></div>
                       <Icon.chev className="chev"/>

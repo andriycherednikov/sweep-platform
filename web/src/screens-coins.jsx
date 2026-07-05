@@ -53,16 +53,16 @@ export function SingleBetRow({ b, onMatch }) {
       <div className="coin-bs-content">
         {f && (
           <div className="coin-bs-event">
-            <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+            <Flag code={f.t1} w={16} h={11} />
             {S.team(f.t1)?.name || f.t1} v {S.team(f.t2)?.name || f.t2}
-            <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+            <Flag code={f.t2} w={16} h={11} />
           </div>
         )}
         <div className="coin-bs-body">
           <div className="coin-bs-main">
             <span className="coin-bs-mkt">{mktLabel}</span>
             <div className="coin-bs-sel">
-              {selFlag && <img className="flag" src={S.flag(selFlag, 40)} alt="" />}
+              {selFlag && <Flag code={selFlag} w={20} h={14} />}
               <span className="coin-bs-pick">{selLabel}</span>
             </div>
             {f && f.status === 'live' && (
@@ -137,15 +137,15 @@ export function ParlayCard({ p, onMatch }) {
                 <div className="coin-parlay-leg-body">
                   {lf && (
                     <div className="coin-bs-event">
-                      <img className="flag" src={S.flag(lf.t1, 40)} alt="" />
+                      <Flag code={lf.t1} w={15} h={10} />
                       {S.team(lf.t1)?.name || lf.t1} v {S.team(lf.t2)?.name || lf.t2}
-                      <img className="flag" src={S.flag(lf.t2, 40)} alt="" />
+                      <Flag code={lf.t2} w={15} h={10} />
                     </div>
                   )}
                   <div className="coin-bs-main">
                     <span className="coin-bs-mkt">{MARKET_LABELS[l.market] || l.market}</span>
                     <div className="coin-bs-sel">
-                      {legFlag && <img className="flag" src={S.flag(legFlag, 40)} alt="" />}
+                      {legFlag && <Flag code={legFlag} w={18} h={12} />}
                       <span className="coin-bs-pick">{betSelectionLabel(l)}</span>
                     </div>
                     {lf && lf.status === 'upcoming' && <div className="coin-bs-when">{lf.dateTimeLabel}</div>}
@@ -313,11 +313,11 @@ export function BetSheet({ f, market, selection, odds, onClose }) {
           {/* Match summary */}
           <div className="coin-bet-match">
             <div className="coin-bet-teams">
-              <img className="flag" src={S.flag(f.t1, 40)} alt="" />
+              <Flag code={f.t1} w={24} h={17} />
               <span>{t1?.name || f.t1}</span>
               <span className="coin-bet-vs">v</span>
               <span>{t2?.name || f.t2}</span>
-              <img className="flag" src={S.flag(f.t2, 40)} alt="" />
+              <Flag code={f.t2} w={24} h={17} />
             </div>
             <div className="coin-bet-selection">
               <span className="coin-sel-label">{label}</span>
@@ -775,7 +775,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
                                     aria-label={`${sel.key.toLowerCase()} odds ${sel.odds}`}
                                     onClick={(e) => openInlineBet(e, f, mktKey, sel.key, sel.odds)}
                                   >
-                                    {flagCode && <img className="coin-sel-bg" src={S.flag(flagCode, 160)} alt="" />}
+                                    {flagCode && (() => { const u = S.emblemSrc(flagCode, 160); return u ? <img className="coin-sel-bg" src={u} alt="" /> : null })()}
                                     <span className="coin-odds-side"><span className="nm">{label}</span></span>
                                     <span className="coin-odds-val">{sel.odds}</span>
                                   </button>

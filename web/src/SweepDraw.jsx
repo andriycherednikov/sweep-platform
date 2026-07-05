@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SWEEP as S, onSweepData } from './data.js'
-import { PersonAvatar, Icon } from './components.jsx'
+import { PersonAvatar, Icon, Flag } from './components.jsx'
 import { bulkPostOwnership } from './api/client.js'
 import { planSweep } from './lib/sweepDraw.js'
 
@@ -203,10 +203,10 @@ export function SweepDraw({ onToast, queryClient }) {
                       <b className="sweep-person-name">{p.name}</b>
                       <div className="sweep-slot">
                         {(p.teams || []).map((tc) => (
-                          <span className="t tc-flag sweep-old-flag" key={"o" + tc}><img className="flag" src={S.flag(tc, 40)} alt="" /></span>
+                          <span className="t tc-flag sweep-old-flag" key={"o" + tc}><Flag code={tc} w={25} h={18} /></span>
                         ))}
                         {fresh.map((tc) => (
-                          <span className="t tc-flag sweep-new-flag in" key={"n" + tc}><img className="flag" src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} /></span>
+                          <span className="t tc-flag sweep-new-flag in" key={"n" + tc}><Flag code={tc} w={25} h={18} /></span>
                         ))}
                       </div>
                     </div>
@@ -227,7 +227,7 @@ export function SweepDraw({ onToast, queryClient }) {
                 const total = existing.length + fresh.length
                 return (
                   <div className={"sweep-pool-team" + (activeRow?.teamCode === t.code ? " is-drawing" : "") + (total > 1 ? " is-multi" : "") + (total === 0 ? " is-empty" : "")} key={t.code}>
-                    <img className="flag" src={S.flag(t.code, 40)} alt="" />
+                    <Flag code={t.code} w={26} h={18} />
                     <span className="sweep-pool-name">{t.name}</span>
                     <div className="sweep-pool-owners">
                       {existing.map((o) => <OwnerChip key={"e" + o.id} person={byId[o.id] || o} />)}

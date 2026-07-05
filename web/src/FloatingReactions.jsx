@@ -4,7 +4,7 @@
 // (including the actor) sees them.
 import { useState, useEffect, useRef } from "react";
 import { SWEEP as S } from "./data.js";
-import { PersonAvatar } from "./components.jsx";
+import { PersonAvatar, Flag } from "./components.jsx";
 import { onNotification } from "./notifications.js";
 import { DRAW } from "./social.js";
 import { isSpoiler, isRevealed } from "./spoiler.js";
@@ -75,7 +75,7 @@ function BackReaction({ it }) {
         <b>
           {it.isDraw
             ? <><span aria-hidden="true" style={{ marginRight: 6 }}>🤝</span>Draw</>
-            : <><img className="flag" src={S.flag(it.team.code, 40)} alt="" />{it.team.name}</>}
+            : <><Flag code={it.team.code} w={22} h={16} />{it.team.name}</>}
         </b>
         <MatchupLine fx={it.fx} />
       </div>
@@ -108,7 +108,7 @@ function BetReaction({ it }) {
       <PersonAvatar p={it.person} cls="av" style={{ width: 40, height: 40, border: 0, margin: 0, fontSize: 15 }} />
       <div className="reaction-txt">
         <small>{it.person.short} backed</small>
-        <b>{flagCode ? <><img className="flag" src={S.flag(flagCode, 40)} alt="" />{label}</> : label}</b>
+        <b>{flagCode ? <><Flag code={flagCode} w={22} h={16} />{label}</> : label}</b>
         <span className="reaction-mkt">{marketName}</span>
         <MatchupLine fx={it.fx} />
       </div>
@@ -135,7 +135,7 @@ function MatchupLine({ fx, mid = "v" }) {
   const a = S.team(fx.t1), b = S.team(fx.t2);
   return (
     <span className="reaction-mu">
-      <img className="muflag" src={S.flag(a.code, 40)} alt="" />{a.name} {mid} {b.name}<img className="muflag" src={S.flag(b.code, 40)} alt="" />
+      <Flag code={a.code} w={15} h={11} cls="muflag" />{a.name} {mid} {b.name}<Flag code={b.code} w={15} h={11} cls="muflag" />
     </span>
   );
 }
@@ -151,7 +151,7 @@ function MatchReaction({ it }) {
         <span className="reaction-badge">⚽</span>
         <div className="reaction-txt">
           <small>Goal!{it.minute != null ? ` · ${it.minute}'` : ""}</small>
-          <b>{scorer && <img className="flag" src={S.flag(scorer.code, 40)} alt="" />}{it.player || scorer?.name}{tag}</b>
+          <b>{scorer && <Flag code={scorer.code} w={22} h={16} />}{it.player || scorer?.name}{tag}</b>
           <MatchupLine fx={it.fx} mid={score || "v"} />
         </div>
       </>
@@ -165,7 +165,7 @@ function MatchReaction({ it }) {
         <span className="reaction-badge">{red ? "🟥" : "🟨"}</span>
         <div className="reaction-txt">
           <small>{red ? "Red" : "Yellow"} card{it.minute != null ? ` · ${it.minute}'` : ""}</small>
-          <b>{team && <img className="flag" src={S.flag(team.code, 40)} alt="" />}{it.player || team?.name}</b>
+          <b>{team && <Flag code={team.code} w={22} h={16} />}{it.player || team?.name}</b>
           <MatchupLine fx={it.fx} />
         </div>
       </>
@@ -177,7 +177,7 @@ function MatchReaction({ it }) {
         <span className="reaction-badge">🟢</span>
         <div className="reaction-txt">
           <small>Kick-off</small>
-          <b><img className="flag" src={S.flag(a.code, 40)} alt="" />{a.name} v {b.name}<img className="flag" src={S.flag(b.code, 40)} alt="" /></b>
+          <b><Flag code={a.code} w={22} h={16} />{a.name} v {b.name}<Flag code={b.code} w={22} h={16} /></b>
           <span className="reaction-mu">Now live</span>
         </div>
       </>
@@ -188,7 +188,7 @@ function MatchReaction({ it }) {
       <span className="reaction-badge">🏁</span>
       <div className="reaction-txt">
         <small>Full time</small>
-        <b><img className="flag" src={S.flag(a.code, 40)} alt="" />{a.name} {score} {b.name}<img className="flag" src={S.flag(b.code, 40)} alt="" /></b>
+        <b><Flag code={a.code} w={22} h={16} />{a.name} {score} {b.name}<Flag code={b.code} w={22} h={16} /></b>
         <span className="reaction-mu">Result is in</span>
       </div>
     </>

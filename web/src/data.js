@@ -18,6 +18,9 @@ function emptySweep() {
     isTeamEliminated: (code) => false,
     isPersonEliminated: (id) => false,
     placementOf: (id) => null,
+    // pre-load default: treat as football (flagcdn) until real sweep data (and its
+    // own emblemSrc, which knows about per-sport logos) is set.
+    emblemSrc: (code, size) => flag(code, size),
     flag, gd, fmtTime, fmtDate, fmtDayKey, fmtWeekday,
     todayKey: fmtDayKey(new Date()),
   }
@@ -45,6 +48,7 @@ export function setSweepData(assembled) {
   SWEEP.isTeamEliminated = assembled.isTeamEliminated
   SWEEP.isPersonEliminated = assembled.isPersonEliminated
   SWEEP.placementOf = assembled.placementOf
+  SWEEP.emblemSrc = assembled.emblemSrc
   socialListeners.forEach((fn) => fn())
 }
 

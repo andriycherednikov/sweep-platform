@@ -228,7 +228,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             return (
               <div className={"teamtile" + (isTeamOut ? " is-eliminated" : "")} key={t.code} onClick={()=>openTeam(t.code)} style={isTeamOut ? {opacity:0.5, filter:"grayscale(0.6)"} : undefined}>
                 <div className="tcbar" style={{background:t.color}}></div>
-                <img className={"flag bigflag" + (isTeamOut ? " is-elim" : "")} src={S.flag(t.code,160)} alt="" style={isTeamOut ? {filter:"grayscale(1)", opacity:0.4} : undefined}/>
+                <Flag code={t.code} w={50} h={36} cls={"bigflag" + (isTeamOut ? " is-elim" : "")} />
                 <div className="ti">
                   <b>{t.name}{isTeamOut && <span className="elim-badge">OUT</span>}</b>
                   <div className="sub"><span className="poolbadge">Pool {t.pool}</span><span>Group {t.group}</span><span>{t.outlook}</span></div>
@@ -382,7 +382,7 @@ export function TeamGroup({ title, teams, openTeam, rank, hideElim, hidePts }) {
           return (
             <div className={"prow"+(myTeams.indexOf(t.code)>=0?" mine":"")+(isTeamOut?" is-eliminated":"")} key={t.code} onClick={()=>openTeam(t.code)} style={{padding:"9px 12px", ...(isTeamOut ? {opacity:0.5, filter:"grayscale(0.6)"} : {})}}>
               {rank && <span className="pos" style={{width:14,fontFamily:"'Barlow Condensed'",fontWeight:800,color:i<2?"var(--live)":i===2?"var(--gold)":"var(--muted2)"}}>{i+1}</span>}
-              <img className={"flag" + (isTeamOut ? " is-elim" : "")} src={S.flag(t.code,160)} alt="" style={{width:40,height:29,borderRadius:5, ...(isTeamOut ? {filter:"grayscale(1)", opacity:0.4} : {})}}/>
+              <Flag code={t.code} w={40} h={29} cls={isTeamOut ? "is-elim" : undefined} />
               <div className="pi">
                 <b>{t.name}{isTeamOut && <span className="elim-badge">OUT</span>}</b>
                 <div className="tms">
@@ -421,7 +421,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
           <div className="tb-inner">
             <div className="tb-top">
               <button className="backbtn" onClick={onBack}><Icon.back/></button>
-              <img className="flag" src={S.flag(code,320)} alt=""/>
+              <Flag code={code} w={62} h={46} />
               <div className="tb-id" style={{flex:1, minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   <h2 style={{margin:0}}>{t.name}</h2>
@@ -623,9 +623,9 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                     {games.map((f)=>(
                       <button key={f.id} ref={f.id===scrollToId?targetRef:null} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(f.id)}>
                         <span className="gpk-teams">
-                          <img src={S.flag(f.t1,40)} alt=""/>{S.team(f.t1).name}
+                          <Flag code={f.t1} w={22} h={16} />{S.team(f.t1).name}
                           <i>v</i>
-                          <img src={S.flag(f.t2,40)} alt=""/>{S.team(f.t2).name}
+                          <Flag code={f.t2} w={22} h={16} />{S.team(f.t2).name}
                         </span>
                         <span className="gpk-meta">{spoilerHidden(f) ? <Icon.eyeoff style={{width:13,height:13,stroke:"var(--muted2)"}}/> : f.status==="final"?(f.score?`${f.score[0]}–${f.score[1]}`:"FT"):f.status==="live"?"LIVE":whenLabel(f)}</span>
                       </button>
@@ -670,7 +670,7 @@ export function PhotoLightbox({ photo, onClose, openMatch }) {
         <div className="lb-meta">
           {fx && (
             <button className="lb-team" onClick={()=>{ onClose(); openMatch && openMatch(fx); }}>
-              <img src={S.flag(fx.t1,40)} alt=""/><img src={S.flag(fx.t2,40)} alt=""/>
+              <Flag code={fx.t1} w={24} h={17} /><Flag code={fx.t2} w={24} h={17} />
               <span>{S.team(fx.t1).name} v {S.team(fx.t2).name}</span>
             </button>
           )}
@@ -1006,7 +1006,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                     {cols.map(([code, sh])=>(
                       <div key={code} style={{flex:1,minWidth:0,background:"var(--card)",border:"1px solid var(--line)",borderRadius:12,padding:"11px"}}>
                         <div onClick={()=>openTeam(code)} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}>
-                          <img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/>
+                          <Flag code={code} w={20} h={15} />
                           <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{S.team(code)?.name || code}</b>
                           {sh.formation && <span style={{marginLeft:"auto",fontSize:12,color:"var(--muted)",fontWeight:700,letterSpacing:.4}}>{sh.formation}</span>}
                         </div>
@@ -1023,7 +1023,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
           <div style={{display:"flex",gap:10,marginBottom:16}}>
             {[["t1",f.t1],["t2",f.t2]].map(([k,code])=>(
               <div key={k} style={{flex:1,background:"var(--card)",border:"1px solid var(--line)",borderRadius:12,padding:"11px"}}>
-                <div onClick={()=>openTeam(code)} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}><img className="flag" src={S.flag(code,40)} style={{width:20,height:15}} alt=""/><b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15}}>{S.team(code).name}</b></div>
+                <div onClick={()=>openTeam(code)} style={{display:"flex",alignItems:"center",gap:7,marginBottom:9,cursor:"pointer"}}><Flag code={code} w={20} h={15} /><b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15}}>{S.team(code).name}</b></div>
                 {o[k].length>0 ? o[k].map(p=>(
                   <div key={p.id} onClick={()=>openPerson(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:"pointer"}}>
                     <PersonAvatar p={p} cls="av" style={{width:33,height:33,border:0,margin:0,fontSize:14}}/>
@@ -1054,7 +1054,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
                   onClick={locked ? undefined : ()=>{ setSupport(f.id, code); onToast(on?"Support removed":"Backing "+label+" 📣"); }}
                   style={{flex:1,minWidth:0,textAlign:"left",display:"flex",flexDirection:"column",alignItems:"flex-start",background:on?"#fff6f3":"var(--card)",border:`1.5px solid ${on?"var(--accent)":"var(--line)"}`,borderRadius:12,padding:"11px",cursor:locked?"default":"pointer",transition:"border-color .15s, background .15s"}}>
                   <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:backers.length>0?9:3,width:"100%",minWidth:0}}>
-                    {!isDraw && <img className="flag" src={S.flag(code,40)} style={{width:20,height:15,flexShrink:0}} alt=""/>}
+                    {!isDraw && <Flag code={code} w={20} h={15} />}
                     <b style={{fontFamily:"'Barlow Condensed'",fontWeight:700,fontSize:15,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{label}</b>
                   </div>
                   {backers.length>0
@@ -1212,7 +1212,7 @@ function TeamChips({ codes, max = 8 }) {
   const extra = codes.length - shown.length;
   return (
     <div className="tms tms-wrap">
-      {shown.map((tc) => <span className="t tc-flag" key={tc}><img className="flag" src={S.flag(tc, 40)} alt={S.team(tc)?.name || tc} /></span>)}
+      {shown.map((tc) => <span className="t tc-flag" key={tc}><Flag code={tc} w={22} h={16} /></span>)}
       {extra > 0 && <span className="t tc-more">+{extra}</span>}
     </div>
   );
@@ -1234,7 +1234,7 @@ function TeamPicker({ selected, onToggle, hideCodes }) {
       <div className="gamepick">
         {list.map((t) => (
           <button key={t.code} type="button" className={"gpk" + (selected.has(t.code) ? " on" : "")} onClick={() => onToggle(t.code)}>
-            <span className="gpk-teams"><img src={S.flag(t.code, 40)} alt="" />{t.name}</span>
+            <span className="gpk-teams"><Flag code={t.code} w={22} h={16} />{t.name}</span>
             {selected.has(t.code) && <span className="gpk-meta"><Icon.check /></span>}
           </button>
         ))}
@@ -1285,7 +1285,7 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
               <div className="tms tms-wrap alloc-chips">
                 {[...sel].map((tc) => (
                   <button type="button" className="t t-chip" key={tc} onClick={() => toggle(tc)} aria-label={"Remove " + (S.team(tc)?.name || tc)}>
-                    <img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc)?.name || tc}<Icon.x />
+                    <Flag code={tc} w={20} h={14} />{S.team(tc)?.name || tc}<Icon.x />
                   </button>
                 ))}
               </div>
@@ -1386,7 +1386,7 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
             {currentCodes.length === 0 && <span className="tc-none">No teams yet</span>}
             {currentCodes.map((tc) => (
               <button type="button" className="t t-chip" key={tc} onClick={() => removeTeam(tc)} aria-label={"Unallocate " + (S.team(tc)?.name || tc)}>
-                <img className="flag" src={S.flag(tc, 40)} alt="" />{S.team(tc)?.name || tc}<Icon.x />
+                <Flag code={tc} w={20} h={14} />{S.team(tc)?.name || tc}<Icon.x />
               </button>
             ))}
           </div>
@@ -1590,7 +1590,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
             <div className="queueitem" key={p.id}>
               <div className="qimg" style={{backgroundImage:`url(${p.fileUrl})`,backgroundSize:"cover",backgroundPosition:"center"}}>
                 <div className="lbl">{p.kind==="profile"?"PROFILE":"FAN PHOTO"}</div>
-                {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><img src={S.flag(fx.t1,40)} alt=""/><img src={S.flag(fx.t2,40)} alt=""/><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
+                {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><Flag code={fx.t1} w={18} h={13} /><Flag code={fx.t2} w={18} h={13} /><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
                 {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
               </div>
               <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>

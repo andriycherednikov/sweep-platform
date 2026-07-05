@@ -133,6 +133,15 @@ export function assembleSweep(api) {
     }
   }
   const team = (code) => teams[code]
+  // emblem-aware team identity: a team's own logo (any sport) beats the football flag
+  // fallback; a non-football team with no logo returns null so Flag renders a monogram.
+  const isFootball = (bootstrap.competition ?? { sport: 'football' }).sport === 'football'
+  const emblemSrc = (code, size) => {
+    const t = teams[code]
+    if (t?.logo) return t.logo
+    if (isFootball) return flag(code, size)
+    return null
+  }
   const teamList = Object.keys(teams).map((c) => teams[c])
   const groups = [...new Set(teamList.map((t) => t.group))].sort()
 
@@ -327,6 +336,6 @@ export function assembleSweep(api) {
     readOnly: bootstrap.readOnly === true,
     wageringEnabled: bootstrap.wageringEnabled !== false,
     vocab: vocabFor((bootstrap.competition ?? {}).sport || 'football'),
-    team, fixture, flag, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, placementOf, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
+    team, fixture, flag, emblemSrc, gd, ownersOf, ownersForFixture, isTeamEliminated, isPersonEliminated, placementOf, fmtTime, fmtDate, fmtDayKey, fmtWeekday, todayKey,
   }
 }

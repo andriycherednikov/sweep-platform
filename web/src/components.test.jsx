@@ -1,6 +1,6 @@
 // web/src/components.test.jsx
 import { expect, test, beforeEach, afterEach, vi } from 'vitest'
-import { render, fireEvent, renderHook, act } from '@testing-library/react'
+import { render, screen, fireEvent, renderHook, act } from '@testing-library/react'
 
 vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
@@ -8,7 +8,7 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
-import { Av, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor } from './components.jsx'
+import { Av, Flag, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
 import { HomeScreen, KnockoutsScreen } from './screens-main.jsx'
@@ -16,6 +16,7 @@ import { setSweepData, SWEEP } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
 import { optOut } from './optout.js'
+import { makeApi } from '../test/factories.js'
 
 const S = SWEEP
 
@@ -44,6 +45,27 @@ test('Av renders an <img> when avatarPath is present', () => {
   const img = container.querySelector('img')
   expect(img).not.toBeNull()
   expect(img.getAttribute('src')).toBe('/photos/x.jpg')
+})
+
+test('Flag renders the club logo when the team has one', () => {
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
+  render(<Flag code="lal" w={24} h={24} />)
+  expect(screen.getByRole('img').src).toBe('https://x/lal.png')
+})
+
+test('Flag falls back to a colored monogram when no logo and not football', () => {
+  const api = makeApi({ sport: 'basketball' })
+  api.bootstrap.teams[0].logo = null
+  setSweepData(assembleSweep(api))
+  const { container } = render(<Flag code="lal" w={24} h={24} />)
+  expect(container.querySelector('.emblem-mono')).toBeTruthy()
+  expect(container.querySelector('.emblem-mono').textContent).toBe('LA')
+})
+
+test('Flag keeps flagcdn for football teams', () => {
+  setSweepData(assembleSweep(makeApi()))
+  render(<Flag code="hr" w={24} h={17} />)
+  expect(screen.getByRole('img').src).toContain('flagcdn.com')
 })
 
 const F = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming' }

@@ -146,7 +146,7 @@ export function BetDetail({ fixtureId, onBack, openMatch }) {
                     if (before === 0 && betslipCount() === 1) setSlipOpen(true) // open only on the first selection
                   }}
                 >
-                  {fc && <img className="coin-sel-bg" src={S.flag(fc, 160)} alt="" />}
+                  {fc && (() => { const u = S.emblemSrc(fc, 160); return u ? <img className="coin-sel-bg" src={u} alt="" /> : null })()}
                   <span className="coin-mkt-lbl"><span className="nm">{selLabel(k, s, f)}</span></span>
                   <span className="coin-mkt-odds">{s.odds}</span>
                 </button>

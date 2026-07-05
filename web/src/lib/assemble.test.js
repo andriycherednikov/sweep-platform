@@ -477,6 +477,17 @@ it('threads competition/readOnly/wageringEnabled into the sweep object', () => {
   expect(s.teams.lal.logo).toBe('https://x/lal.png')
   expect(s.teams.lal.pct).toBe(0.5) // pct rides on standings rows (Western Conference row in the factory default)
 })
+
+// emblemSrc: logo (any sport) beats the football flagcdn fallback; non-football with no logo → null (Flag renders a monogram)
+test('emblemSrc prefers a team logo (basketball) over flagcdn', () => {
+  const s = assembleSweep(makeApi({ sport: 'basketball' }))
+  expect(s.emblemSrc('lal', 160)).toBe('https://x/lal.png')
+})
+
+test('emblemSrc falls back to flagcdn for football teams (no logo)', () => {
+  const s = assembleSweep(api)
+  expect(s.emblemSrc('hr', 40)).toContain('flagcdn')
+})
 it('defaults the seams when bootstrap predates them', () => {
   const api = makeApi(); delete api.bootstrap.competition; delete api.bootstrap.readOnly; delete api.bootstrap.wageringEnabled
   const s = assembleSweep(api)

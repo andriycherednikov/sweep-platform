@@ -130,7 +130,14 @@ export function OptOutButton({ onClick }) {
 }
 
 export function Flag({ code, w, h, cls }) {
-  return <img className={"flag " + (cls||"")} src={S.flag(code, 160)} alt="" style={{ width:w, height:h }} />;
+  const src = S.emblemSrc ? S.emblemSrc(code, Math.max(w || 0, 80)) : S.flag(code, 80);
+  const t = S.team(code);
+  if (src) {
+    const alt = t?.name || code || "";
+    return <img className={(t?.logo ? "emblem " : "flag ") + (cls||"")} src={src} alt={alt} style={{ width:w, height:h }} />;
+  }
+  const mono = (t?.name || code || "?").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
+  return <span className={"emblem-mono " + (cls||"")} style={{ width:w, height:h, background: t?.color || "#5b6f8e" }}>{mono}</span>;
 }
 
 /* avatar */

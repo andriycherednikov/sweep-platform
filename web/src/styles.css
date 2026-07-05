@@ -21,6 +21,10 @@ body{
 .cond{font-family:'Barlow Condensed',sans-serif;}
 .semi{font-family:'Barlow Semi Condensed',sans-serif;}
 img.flag{display:block; object-fit:cover; border-radius:3px; box-shadow:0 0 0 1px rgba(11,31,58,.12);}
+/* square club emblems (logo or monogram) alongside the 3:2 flag boxes */
+img.emblem{display:block; object-fit:contain; border-radius:4px; background:#fff2;}
+.emblem-mono{display:inline-flex; align-items:center; justify-content:center;
+  border-radius:4px; color:#fff; font-weight:700; font-size:10px; letter-spacing:.5px;}
 button{font-family:inherit; cursor:pointer; border:0; background:none; color:inherit;}
 a{color:inherit; text-decoration:none;}
 
