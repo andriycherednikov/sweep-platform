@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { CoinsScreen, ParlayCard } from './screens-coins.jsx'
+import { CoinsScreen, ParlayCard, WagersInfoSheet } from './screens-coins.jsx'
 import { setWalletData, canWager } from './coins.js'
 import { clearBetslip, betslipLegs } from './betslip.js'
 import { setMe } from './social.js'
@@ -121,14 +121,22 @@ test('My bets lists open and settled bets and filters', () => {
 })
 
 test('My bets shows the team flag for ml and hcap picks, not just 1x2', () => {
+  // add ml, hcap, and toq markets to f1
+  S.fixtures[0].markets = {
+    ...S.fixtures[0].markets,
+    ml: { book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 1.6 }, { key: 'AWAY', label: 'Away', odds: 2.3 }] },
+    hcap: { book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 1.9 }, { key: 'AWAY', label: 'Away', odds: 1.9 }] },
+    toq: { book: 'Pinnacle', selections: [{ key: 'HOME', label: 'Home', odds: 1.5 }, { key: 'AWAY', label: 'Away', odds: 2.5 }] },
+  }
   setWalletData({ balance: 800, weeklyGrant: 1000, leaderboard: [], bets: {
     open: [
       { id: 'b3', fixtureId: 'f1', market: 'ml', selection: 'HOME', stake: 50, odds: 1.6, potentialPayout: 80, status: 'open' },
       { id: 'b4', fixtureId: 'f1', market: 'hcap', selection: 'AWAY', stake: 50, odds: 1.9, potentialPayout: 95, status: 'open' },
+      { id: 'b5', fixtureId: 'f1', market: 'toq', selection: 'HOME', stake: 50, odds: 1.5, potentialPayout: 75, status: 'open' },
     ], settled: [] } })
   render(<CoinsScreen go={() => {}} openBet={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: /my bets/i }))
-  expect(document.querySelectorAll('.coin-bs-sel img.flag').length).toBe(2)
+  expect(document.querySelectorAll('.coin-bs-sel img.flag').length).toBe(3)
 })
 
 test('My bets renders a parlay card with leg count and payout', () => {
@@ -212,5 +220,18 @@ test('clicking an individual parlay leg calls onMatch with fixtureId', () => {
   expect(leg).toBeTruthy()
   fireEvent.click(leg)
   expect(onMatch).toHaveBeenCalledWith('f1')
+})
+
+test('WagersInfoSheet renders grant text with "each week" when no fixtures (no drop)', () => {
+  S.fixtures = []
+  render(<WagersInfoSheet onClose={() => {}} onOptOut={() => {}} />)
+  // find the grant span containing both "each week" and the full text
+  const grantSpan = screen.getByText(/Everyone starts with/)
+  // assert it contains exactly one occurrence of "each week"
+  const grantText = grantSpan.textContent
+  const matches = grantText.match(/each week/g) || []
+  expect(matches.length).toBe(1)
+  // assert it ends with "while the season runs."
+  expect(grantText).toMatch(/while the season runs\.$/)
 })
 

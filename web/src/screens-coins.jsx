@@ -21,10 +21,10 @@ function selectionLabel(selection, f) {
   return selection
 }
 
-// the team flag for a team selection (Match Winner / First Half / Moneyline / Handicap home/away), else null
+// the team flag for a team selection (Match Winner / First Half / Moneyline / Handicap home/away / To Qualify), else null
 function betSelectionFlag(b) {
   const f = S.fixture(b.fixtureId)
-  if ((b.market === '1x2' || b.market === 'fh1x2' || b.market === 'ml' || b.market === 'hcap') && f) {
+  if ((b.market === '1x2' || b.market === 'fh1x2' || b.market === 'ml' || b.market === 'hcap' || b.market === 'toq') && f) {
     if (b.selection === 'HOME') return f.t1
     if (b.selection === 'AWAY') return f.t2
   }
