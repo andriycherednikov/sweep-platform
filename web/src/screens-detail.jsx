@@ -421,7 +421,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
           <div className="tb-inner">
             <div className="tb-top">
               <button className="backbtn" onClick={onBack}><Icon.back/></button>
-              <Flag code={code} w={62} h={46} />
+              <Flag code={code} w={62} h={46} res={320} />
               <div className="tb-id" style={{flex:1, minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   <h2 style={{margin:0}}>{t.name}</h2>

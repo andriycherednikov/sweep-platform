@@ -129,8 +129,8 @@ export function OptOutButton({ onClick }) {
   );
 }
 
-export function Flag({ code, w, h, cls }) {
-  const src = S.emblemSrc ? S.emblemSrc(code, Math.max(w || 0, 80)) : S.flag(code, 80);
+export function Flag({ code, w, h, cls, res }) {
+  const src = S.emblemSrc ? S.emblemSrc(code, res || 160) : S.flag(code, res || 160);
   const t = S.team(code);
   if (src) {
     const alt = t?.name || code || "";
