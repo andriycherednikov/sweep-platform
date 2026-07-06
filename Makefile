@@ -2,15 +2,16 @@
 # Wraps the npm workspace + db commands. Run `make` (or `make help`) to list targets.
 #
 # Notes:
-#   - Dev uses the shared host Postgres on :5432 (the `sweep` DB). It's expected to be running.
+#   - Dev uses the host Postgres on :5432 (the `sweep_platform` DB). It's expected to be running.
 #   - DB / worker targets read DATABASE_URL (+ API_FOOTBALL_KEY) from the git-ignored ./.env.
 #   - `make test` (api) needs Docker running — it spins up an ephemeral Postgres via Testcontainers.
+#   - No deploy targets yet: no production exists for this repo. The WC app's deploy
+#     block was removed — re-add against platform infra when it exists.
 
 .DEFAULT_GOAL := help
-.PHONY: help install dev dev-api dev-web test test-api test-web build \
-        worker sync crosswalk cutover db-migrate db-seed import-roster \
-        provision db-reset psql admin-hash clean \
-        build-staging deploy-staging deploy staging docker-cleanup
+.PHONY: help install dev dev-front dev-api dev-web test test-api test-web build \
+        worker sync crosswalk cutover db-migrate db-seed \
+        provision db-reset psql admin-hash clean
 
 help: ## Show this help
 	@echo "The Sweep — make targets:"
@@ -68,27 +69,24 @@ cutover: ## Re-pin teams to the real WC-2026 field
 	npm run cutover -w api
 
 # ---- database ----
-db-migrate: ## Apply Drizzle migrations to the sweep DB
+db-migrate: ## Apply Drizzle migrations to the dev DB
 	npm run db:migrate -w api
 
 db-seed: ## Seed reference data (teams/people/ownership/scoring)
 	npm run db:seed -w api
 
-import-roster: ## Import the real roster (48 players + 96 picks)
-	npm run import:roster -w api
-
-provision: db-migrate db-seed import-roster crosswalk cutover ## Full fresh-DB setup, in order
+provision: db-migrate db-seed crosswalk cutover ## Full fresh-DB setup, in order
 	@echo "Provisioned. Run 'make sync' (or 'make worker') to pull live football data."
 
-db-reset: ## DANGER: drop & recreate the public schema in the sweep dev DB
+db-reset: ## DANGER: drop & recreate the public schema in the dev DB
 	@set -a; . ./.env; set +a; \
-		echo "This DROPS ALL TABLES in the sweep dev DB ($$DATABASE_URL)."; \
+		echo "This DROPS ALL TABLES in the dev DB ($$DATABASE_URL)."; \
 		read -p "Type 'reset' to continue: " c; \
 		[ "$$c" = reset ] || { echo "aborted"; exit 1; }; \
 		psql "$$DATABASE_URL" -c "drop schema public cascade; create schema public;"; \
 		echo "Schema reset. Run 'make provision' to reload."
 
-psql: ## Open a SQL shell on the sweep dev DB
+psql: ## Open a SQL shell on the dev DB
 	@set -a; . ./.env; set +a; psql "$$DATABASE_URL"
 
 # ---- misc ----
@@ -98,59 +96,3 @@ admin-hash: ## Generate a bcrypt admin passcode hash:  make admin-hash PASS=1234
 
 clean: ## Remove build output + local photo uploads (keeps node_modules)
 	rm -rf web/dist photos-data api/photos-data
-
-# =============================================================================
-# DOCKER BUILD & DEPLOY  (server is x86_64; we cross-build amd64 from arm64 Mac)
-# =============================================================================
-# Images are built for linux/amd64, pushed to GCP Artifact Registry, and pulled
-# on the shared server. The app plugs into the shared Postgres + shared Caddy
-# (see docker/README.md). The compose file + .env.docker must already live at
-# $(STAGING_DIR) on the server (one-time scp — see README).
-
-REGISTRY       := australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep
-API_IMAGE      := $(REGISTRY)/sweep-api
-WEB_IMAGE      := $(REGISTRY)/sweep-web
-STAGING_HOST   := root@134.199.153.212
-STAGING_DIR    := /root/sweep
-STAGING_DOMAIN := sweep.andriycherednikov.com
-
-GREEN  := \033[0;32m
-YELLOW := \033[1;33m
-BLUE   := \033[0;34m
-RED    := \033[0;31m
-NC     := \033[0m
-
-build-staging: ## Build + push amd64 api & web images to Artifact Registry
-	@echo "$(BLUE)Building & pushing images for $(STAGING_DOMAIN)...$(NC)"
-	cd docker && chmod +x build-and-push.sh && ./build-and-push.sh
-	@echo "$(GREEN)Images pushed$(NC)"
-
-deploy-staging: build-staging ## Build, push, then pull & restart on the server
-	@echo "$(BLUE)Deploying The Sweep to $(STAGING_HOST)$(NC)"
-	@echo "$(YELLOW)[1/3] Authenticating Docker with GCP on the server...$(NC)"
-	@TOKEN=$$(gcloud auth print-access-token) && \
-		ssh $(STAGING_HOST) "echo '$$TOKEN' | docker login -u oauth2accesstoken --password-stdin australia-southeast1-docker.pkg.dev"
-	@echo "$(YELLOW)[2/3] Pulling and restarting containers...$(NC)"
-	@ssh $(STAGING_HOST) "cd $(STAGING_DIR) && docker compose pull && docker compose up -d"
-	@echo "$(YELLOW)[3/3] Verifying api health (retries while the container boots)...$(NC)"
-	@ssh $(STAGING_HOST) 'for i in $$(seq 1 20); do \
-		if docker exec sweep-api node -e "fetch(\"http://127.0.0.1:3000/api/health\").then(r=>r.json()).then(j=>process.exit(j.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then echo OK; exit 0; fi; \
-		sleep 3; \
-	done; exit 1' && \
-		echo "$(GREEN)Deploy complete → https://$(STAGING_DOMAIN)$(NC)" || \
-		(echo "$(RED)Health check failed — check: ssh $(STAGING_HOST) 'cd $(STAGING_DIR) && docker compose logs'$(NC)" && exit 1)
-
-deploy: deploy-staging   ## Alias of deploy-staging
-staging: deploy-staging  ## Alias of deploy-staging
-
-docker-cleanup: ## Remove old (non-:latest) image versions from Artifact Registry
-	@for img in $(API_IMAGE) $(WEB_IMAGE); do \
-		echo "$(YELLOW)Cleaning $$img...$(NC)"; \
-		gcloud artifacts docker images list $$img --include-tags \
-			--format="csv[no-heading](version,tags)" 2>/dev/null | \
-			while IFS=, read -r digest tags; do \
-				echo "$$tags" | grep -q "latest" || { \
-					echo "  deleting $$digest"; \
-					gcloud artifacts docker images delete "$$img@$$digest" --quiet --delete-tags 2>/dev/null || true; }; \
-			done; \
-	done

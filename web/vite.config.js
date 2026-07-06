@@ -6,6 +6,7 @@ import { pwaOptions } from './pwa.config.js'
 export default defineConfig({
   plugins: [react(), VitePWA(pwaOptions)],
   server: {
+    host: '127.0.0.1', // ::1-only default breaks 127.0.0.1 browsing (platform-mode cookie isolation)
     proxy: {
       '/api': 'http://localhost:3000',
       '/photos': 'http://localhost:3000', // approved photos are served by the api (Caddy in prod)
