@@ -4,6 +4,7 @@ import App from "./App.jsx";
 import { SweepProvider } from "./SweepProvider.jsx";
 import { SuperRoot } from "./SuperRoot.jsx";
 import { AccountRoot } from "./AccountRoot.jsx";
+import { Pricing } from "./screens-pricing.jsx";
 import { registerServiceWorker } from "./lib/registerSW.js";
 import { joinFromLocation } from "./lib/bootstrapJoin.js";
 import { parseSuperRoute } from "./lib/superRoute.js";
@@ -14,7 +15,12 @@ import "./desktop.css";
 const root = ReactDOM.createRoot(document.getElementById("appmount"));
 const sup = parseSuperRoute(window.location.pathname);
 
-if (window.location.pathname.startsWith("/account")) {
+if (window.location.pathname === "/pricing") {
+  // Marketing page: no sweep session, no account token, so it mounts standalone
+  // rather than behind the Gate (which would 401 a signed-out visitor).
+  root.render(<Pricing />);
+  registerServiceWorker();
+} else if (window.location.pathname.startsWith("/account")) {
   // The account shell is header-token auth (x-account-token), not the sweep
   // session cookie — mount it standalone like /super, otherwise the Gate's
   // bootstrap 401 would block a signed-out visitor before they can sign in.
