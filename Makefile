@@ -81,7 +81,11 @@ deploy: ## Build+push amd64 images, sync compose, roll out on the server
 
 deploy-status: ## Deployed container state + public health check
 	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose ps'
-	@curl -fsS https://sweep-portal.yowiebay.au/api/health && echo
+	@# containers need a few seconds after `up -d` — poll rather than fail on the first 502
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+		curl -fsS https://sweep-portal.yowiebay.au/api/health && echo && exit 0; \
+		sleep 3; \
+	done; echo "health check never came up"; exit 1
 
 logs: ## Tail a deployed service log:  make logs S=api|worker|web|migrate
 	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose logs -f --tail=100 $(S)'
