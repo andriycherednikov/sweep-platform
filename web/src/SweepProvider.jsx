@@ -95,6 +95,33 @@ function Gate({ children }) {
   }
   if (isError && is401(error)) {
     const sweeps = listSweeps()
+    // No session AND nothing on this device → a stranger at the front door, not a
+    // locked-out member. Sell the product and route to sign-up; the invite path is
+    // the aside (a member with a link never lands here — the link joins them first).
+    if (sweeps.length === 0) {
+      return (
+        <div data-testid="sweep-landing" className="sweep-gate">
+          <GateBrand />
+          <div className="landing-wrap">
+            <h1 className="landing-h">Run a sweep on any season</h1>
+            <p className="landing-sub">
+              Everyone draws teams out of the hat. Fixtures, scores and standings keep
+              themselves up to date all season — you just argue about it.
+            </p>
+            <a className="sweep-retry landing-cta" href="/account">Start free</a>
+            <p className="landing-note">14-day trial, no card. Then $5 a month per sweep.</p>
+            <ul className="landing-points">
+              <li><b>Pick a competition</b>Premier League, La Liga, Serie A, Bundesliga, Ligue 1, NBA or the World Cup.</li>
+              <li><b>Draw the teams, then leave it</b>Results, tables and finishing order update themselves.</li>
+              <li><b>Wagering if you want it</b>Play-money markets on every game — off unless you switch it on.</li>
+            </ul>
+            <p className="landing-aside">
+              Been sent an invite link? Just open it — you don’t need an account to join a sweep.
+            </p>
+          </div>
+        </div>
+      )
+    }
     return (
       <div data-testid="sweep-pick" className="sweep-gate">
         <GateBrand />
@@ -105,7 +132,7 @@ function Gate({ children }) {
             </svg>
           </div>
           <h2 className="sweep-card-h">Pick a sweep</h2>
-          {sweeps.length > 0 ? (
+          {sweeps.length > 0 && (
             <>
               <p className="sweep-card-sub">Jump back into one of your sweeps.</p>
               <ul className="sweep-pick-list">
@@ -119,10 +146,8 @@ function Gate({ children }) {
                 ))}
               </ul>
             </>
-          ) : (
-            <p className="sweep-card-sub">You need an invite link to join a sweep. Ask whoever runs your sweep for the link.</p>
           )}
-          {/* The platform host's only other door: run your own sweep instead of joining one. */}
+          {/* The other door: run your own sweep instead of joining someone else's. */}
           <p className="sweep-card-sub">Running your own sweep?</p>
           <a className="sweep-retry" href="/account">Sign in</a>
         </div>

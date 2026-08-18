@@ -108,28 +108,20 @@ test('switching identity refetches the wallet for the newly-viewed person', asyn
   await waitFor(() => expect(myWallet().balance).toBe(777))
 })
 
-test('a 401 on bootstrap with no stored sweeps → "invite link needed" empty state', async () => {
+// A visitor with no session and no sweeps on this device is a STRANGER, not a
+// locked-out member: the platform root is the product's front door, so it sells
+// the thing and routes to sign-up — the invite path is the aside, not the answer.
+test('a 401 with no stored sweeps → the product landing, not the member picker', async () => {
   vi.resetModules()
   localStorage.clear()
   mock401()
   const { SweepProvider } = await import('./SweepProvider.jsx')
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
-  await waitFor(() => expect(screen.getByTestId('sweep-pick')).toBeInTheDocument())
+  await waitFor(() => expect(screen.getByTestId('sweep-landing')).toBeInTheDocument())
   expect(screen.queryByText('app-ready')).toBeNull()
-  expect(screen.queryByTestId('sweep-error')).toBeNull()
-  expect(screen.getByText(/invite link/i)).toBeInTheDocument()
-})
-
-// The platform host has no other front door: a visitor with no invite must be able
-// to reach the account flow to sign in and provision one, or the root is a dead end.
-test('the 401 gate always offers the owner route to /account', async () => {
-  vi.resetModules()
-  localStorage.clear()
-  mock401()
-  const { SweepProvider } = await import('./SweepProvider.jsx')
-  render(<SweepProvider><div>app-ready</div></SweepProvider>)
-  const link = await screen.findByRole('link', { name: /sign in/i })
-  expect(link).toHaveAttribute('href', '/account')
+  expect(screen.queryByTestId('sweep-pick')).toBeNull()
+  expect(screen.getByRole('link', { name: /start free/i })).toHaveAttribute('href', '/account')
+  expect(screen.getByText(/invite link/i)).toBeInTheDocument() // members still told what to do
 })
 
 test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, queryClient)', async () => {
@@ -149,6 +141,8 @@ test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, quer
   expect(switchTo).toHaveBeenCalledTimes(1)
   expect(switchTo.mock.calls[0][0]).toEqual({ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' })
   expect(switchTo.mock.calls[0][1]).toHaveProperty('invalidateQueries')
+  // a returning member may also own sweeps — the owner route stays reachable
+  expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/account')
 })
 
 test('a successful load backfills the sweep name into the store via addSweep', async () => {
