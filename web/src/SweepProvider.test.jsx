@@ -120,7 +120,9 @@ test('a 401 with no stored sweeps → the product landing, not the member picker
   await waitFor(() => expect(screen.getByTestId('sweep-landing')).toBeInTheDocument())
   expect(screen.queryByText('app-ready')).toBeNull()
   expect(screen.queryByTestId('sweep-pick')).toBeNull()
-  expect(screen.getByRole('link', { name: /start free/i })).toHaveAttribute('href', '/account')
+  const starts = screen.getAllByRole('link', { name: /start free/i })
+  expect(starts.length).toBeGreaterThan(0)
+  starts.forEach((a) => expect(a).toHaveAttribute('href', '/account'))
   expect(screen.getByText(/invite link/i)).toBeInTheDocument() // members still told what to do
 })
 

@@ -7,6 +7,7 @@ import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep, switchTo } from './sweeps.js'
+import { Landing } from './screens-landing.jsx'
 
 const is401 = (err) => /HTTP 401/.test(err?.message || '')
 
@@ -98,30 +99,8 @@ function Gate({ children }) {
     // No session AND nothing on this device → a stranger at the front door, not a
     // locked-out member. Sell the product and route to sign-up; the invite path is
     // the aside (a member with a link never lands here — the link joins them first).
-    if (sweeps.length === 0) {
-      return (
-        <div data-testid="sweep-landing" className="sweep-gate">
-          <GateBrand />
-          <div className="landing-wrap">
-            <h1 className="landing-h">Run a sweep on any season</h1>
-            <p className="landing-sub">
-              Everyone draws teams out of the hat. Fixtures, scores and standings keep
-              themselves up to date all season — you just argue about it.
-            </p>
-            <a className="sweep-retry landing-cta" href="/account">Start free</a>
-            <p className="landing-note">14-day trial, no card. Then $5 a month per sweep.</p>
-            <ul className="landing-points">
-              <li><b>Pick a competition</b>Premier League, La Liga, Serie A, Bundesliga, Ligue 1, NBA or the World Cup.</li>
-              <li><b>Draw the teams, then leave it</b>Results, tables and finishing order update themselves.</li>
-              <li><b>Wagering if you want it</b>Play-money markets on every game — off unless you switch it on.</li>
-            </ul>
-            <p className="landing-aside">
-              Been sent an invite link? Just open it — you don’t need an account to join a sweep.
-            </p>
-          </div>
-        </div>
-      )
-    }
+    if (sweeps.length === 0) return <Landing />
+
     return (
       <div data-testid="sweep-pick" className="sweep-gate">
         <GateBrand />
