@@ -55,10 +55,10 @@ docker exec vcv-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 **Stripe:** create a webhook endpoint at
-`https://sweep-portal.yowiebay.au/api/stripe/webhook` for
-`checkout.session.completed`, `customer.subscription.updated`,
-`customer.subscription.deleted`, `invoice.payment_failed`; put its signing
-secret in `STRIPE_WEBHOOK_SECRET`.
+`https://sweep-portal.yowiebay.au/api/stripe/webhook` for the three events the
+handler acts on — `checkout.session.completed`,
+`customer.subscription.updated`, `customer.subscription.deleted` — and put its
+signing secret in `STRIPE_WEBHOOK_SECRET`.
 
 ## Deploy
 
