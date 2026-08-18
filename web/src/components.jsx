@@ -14,6 +14,7 @@ import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
 import { useOptOut } from "./optout.js";
+import { SweepMark } from "./lib/mark.jsx";
 import { tabsFor } from "./App.jsx";
 
 export { useSocial, getMe, setMe };
@@ -426,7 +427,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           </button>
         ) : (
         <button className="brand brand-btn" onClick={toTop} aria-label={home ? "Scroll to top" : "Today"}>
-          <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
+          <div className="mark"><SweepMark title="The Sweep"/></div>
           <div className={"brand-tx" + (home ? "" : " alt")}>
             <b>{home ? "THE SWEEP" : title}</b>
             {(home || sub) && <small>{home ? (S.competition?.name ? S.competition.name.toUpperCase() : "") : sub}</small>}
@@ -518,7 +519,7 @@ export function PageHeader({ title, sub, onBack, right, tall, scrolled, go, desk
         {onBack
           ? <button className="backbtn" onClick={onBack}><Icon.back/></button>
           : go && <button className="brand brand-btn phead-brand" onClick={()=> go("home")} aria-label="Home">
-              <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
+              <div className="mark"><SweepMark title="The Sweep"/></div>
             </button>}
         <div style={{minWidth:0, flex:1}}>
           <h1>{title}</h1>
@@ -616,7 +617,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
-        <div className="mark"><img src="/trophy.png" alt="The Sweep"/></div>
+        <div className="mark"><SweepMark title="The Sweep"/></div>
         <div><b>THE SWEEP</b><small>{S.competition?.name ? S.competition.name.toUpperCase() : ""}</small></div>
       </button>
       <div className="sb-sec">Browse</div>

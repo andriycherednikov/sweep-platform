@@ -69,3 +69,11 @@ test('a drawn game stays in home order rather than crowning the home side', asyn
   expect(rail.textContent.replace(/\s+/g, ' ')).toMatch(/Egypt ?1 ?– ?1 ?South Africa/)
   expect(rail.querySelector('b')).toBeNull()   // nobody is bolded as the winner
 })
+
+/* The fork shipped with FIFA's World Cup trophy as the mark. It is not ours and
+   this is not a World Cup product — nothing may reference it again. */
+test('the marketing pages carry our own mark, never the World Cup trophy', () => {
+  const { container } = render(<Landing />)
+  expect(container.innerHTML).not.toMatch(/trophy/i)
+  expect(container.querySelector('svg')).toBeTruthy()
+})

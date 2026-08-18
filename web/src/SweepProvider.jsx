@@ -8,6 +8,7 @@ import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep, switchTo } from './sweeps.js'
 import { Landing } from './screens-landing.jsx'
+import { SweepMark } from './lib/mark.jsx'
 
 const is401 = (err) => /HTTP 401/.test(err?.message || '')
 
@@ -28,7 +29,7 @@ const queryClient = new QueryClient({
 function GateBrand() {
   return (
     <div className="sweep-brand">
-      <img className="sweep-brand-mark" src="/trophy.png" alt="" />
+      <SweepMark className="sweep-brand-mark" />
       <div className="sweep-brand-word"><b>THE SWEEP</b></div>
     </div>
   )
