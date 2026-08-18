@@ -500,7 +500,7 @@ test('SweepsSheet leaving the active sweep removes it from the store and logs ou
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
   const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
-  await act(async () => { fireEvent.click(getAllByLabelText(/remove/i)[0]) })  // first row = sw_a (active)
+  await act(async () => { fireEvent.click(getAllByLabelText(/sign out of/i)[0]) })  // first row = sw_a (active)
   expect(listSweeps().map((s) => s.sweepId)).toEqual(['sw_b'])
   expect(postLogout).toHaveBeenCalled()
 })
@@ -510,7 +510,7 @@ test('SweepsSheet leaving the active sweep invalidates the sweep query so the Ga
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
   const qc = { invalidateQueries: vi.fn() }
   const { getAllByLabelText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
-  await act(async () => { fireEvent.click(getAllByLabelText(/remove/i)[0]) })  // first row = sw_a (active)
+  await act(async () => { fireEvent.click(getAllByLabelText(/sign out of/i)[0]) })  // first row = sw_a (active)
   expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
 })
 
@@ -546,8 +546,10 @@ test('SweepsSheet shows a friendly fallback when a stored sweep has no name', ()
   expect(queryByText('sw_zz')).toBeNull()  // never show the raw id as a name
 })
 
-/* "My sweeps" switcher visibility — only worth showing once the device has joined
-   more than one sweep (with 0–1 there's nothing to switch to). */
+/* "My sweeps" visibility — shown as soon as the device has joined ANY sweep. The
+   sheet is not only a switcher: it holds Leave, which is the only way out of a
+   sweep session. Gating it on 2+ sweeps trapped the single-sweep case (the normal
+   one) with no sign-out at all. */
 
 test('useSweeps re-renders subscribers when sweeps are added and removed', () => {
   const { result } = renderHook(() => useSweeps())
@@ -560,8 +562,13 @@ test('useSweeps re-renders subscribers when sweeps are added and removed', () =>
   expect(result.current).toHaveLength(1)
 })
 
-test('Sidebar hides "My sweeps" with one joined sweep', () => {
+test('Sidebar shows "My sweeps" with one joined sweep — it is the way to leave it', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByText('My sweeps')).toBeInTheDocument()
+})
+
+test('Sidebar hides "My sweeps" with no joined sweeps', () => {
   const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
   expect(queryByText('My sweeps')).toBeNull()
 })
@@ -573,8 +580,13 @@ test('Sidebar shows "My sweeps" with two joined sweeps', () => {
   expect(getByText('My sweeps')).toBeInTheDocument()
 })
 
-test('HomeHeader hides the switch-sweep button with one joined sweep', () => {
+test('HomeHeader shows the sweeps button with one joined sweep', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
+  expect(getByLabelText(/my sweeps/i)).toBeInTheDocument()
+})
+
+test('HomeHeader hides the sweeps button with no joined sweeps', () => {
   const { queryByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(queryByLabelText(/my sweeps/i)).toBeNull()
 })

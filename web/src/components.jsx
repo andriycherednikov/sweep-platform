@@ -444,7 +444,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           {home && <div className="tz"><b>{fmtDate(new Date())}</b></div>}
           {replaceSpoiler != null ? replaceSpoiler : <SpoilerToggle compact/>}
           {right}
-          {onSweeps && sweeps.length > 1 && (
+          {onSweeps && sweeps.length > 0 && (
             <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             </button>
@@ -638,7 +638,9 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
       <div className="sb-foot">
         <SpoilerToggle/>
         <IdentityControl dark/>
-        {onSweeps && sweeps.length > 1 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
+        {/* Shown from the first sweep: the sheet holds Leave, the only exit from a
+            sweep session. Gating it on 2+ left the single-sweep case with none. */}
+        {onSweeps && sweeps.length > 0 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>
@@ -761,7 +763,8 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
                         </div>
                       </button>
                       <button className="rowicon" aria-label={`Rename ${label(s)}`} title="Rename" onClick={()=>startEdit(s)}><Icon.swap/></button>
-                      <button className="rowicon danger" aria-label={`Remove ${label(s)}`} title="Remove" onClick={()=>onLeave(s)}><Icon.trash/></button>
+                      <button className="rowicon danger" aria-label={s.sweepId===activeSweepId ? `Sign out of ${label(s)}` : `Leave ${label(s)}`}
+                        title={s.sweepId===activeSweepId ? "Sign out" : "Leave"} onClick={()=>onLeave(s)}><Icon.trash/></button>
                     </>
                   )}
                 </div>
