@@ -1,12 +1,16 @@
 /* ============================================================
    THE SWEEP — logged-out front door (platform host).
 
-   A marketing surface, deliberately calmer than the app: mixed-case
-   Bricolage display over the app's navy, glass panels, one accent.
-   Price lives on /pricing — the front page sells the thing, the top
-   bar is where you go to find what it costs.
+   A marketing surface, deliberately calmer than the app: an
+   Instrument Serif headline over the app's navy, DM Sans for prose,
+   one accent. Price lives on /pricing — the front page sells the
+   thing, the top bar is where you go to find what it costs.
+
+   Motion has one job here: the results rail is live data, so the page
+   demonstrates the promise (the season keeps its own score) instead
+   of only claiming it. Everything else reveals once, on entry.
    ============================================================ */
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 
 /** The app shell is a fixed-viewport frame (#appmount is 100vh on desktop, body is
  *  flex-centred). A marketing page has to scroll the document instead — otherwise
@@ -42,6 +46,76 @@ const STEPS = [
   ["Draw the teams",
    "Allocate from the hat once. After that the results, the ladder and the finishing order look after themselves."],
 ]
+
+/** Reveal-on-scroll for anything marked data-reveal. One observer for the page;
+ *  elements start hidden in CSS and stay visible once seen (no re-hiding on scroll
+ *  back, which reads as jitter). Reduced-motion callers get everything at once. */
+export function useReveal() {
+  useEffect(() => {
+    const nodes = Array.from(document.querySelectorAll("[data-reveal]"))
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || !("IntersectionObserver" in window)) {
+      nodes.forEach((n) => n.classList.add("is-in"))
+      return
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return
+        e.target.classList.add("is-in")
+        io.unobserve(e.target)
+      })
+    }, { rootMargin: "0px 0px -12% 0px", threshold: 0.12 })
+    nodes.forEach((n) => io.observe(n))
+    return () => io.disconnect()
+  }, [])
+}
+
+/** The results rail: real finished games off /api/public/results, newest first.
+ *  Renders nothing at all when the feed is empty or unreachable — an empty
+ *  scoreboard is worse than no scoreboard. */
+export function ResultsTicker() {
+  const [rows, setRows] = useState([])
+  const alive = useRef(true)
+
+  useEffect(() => {
+    alive.current = true
+    fetch("/api/public/results")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => { if (alive.current && Array.isArray(d)) setRows(d.slice(0, 12)) })
+      .catch(() => {})
+    return () => { alive.current = false }
+  }, [])
+
+  if (!rows.length) return null
+
+  const item = (r, k) => {
+    // a drawn game has no winner to lead with — keep it in home order and let both
+    // sides read level, rather than implying the home side won it
+    const drawn = !r.home.won && !r.away.won
+    const [first, second] = drawn || r.home.won ? [r.home, r.away] : [r.away, r.home]
+    return (
+      <span className="lp-tick" key={k}>
+        {drawn ? <span>{first.name}</span> : <b>{first.name}</b>}
+        <span className="lp-tick-score">{first.score}</span>
+        <span className="lp-tick-dash">–</span>
+        <span className={"lp-tick-score" + (drawn ? "" : " lp-tick-lost")}>{second.score}</span>
+        <span className={drawn ? "" : "lp-tick-lost"}>{second.name}</span>
+      </span>
+    )
+  }
+
+  return (
+    <div className="lp-ticker" aria-label="Recent results">
+      <span className="lp-ticker-tag"><i className="lp-ticker-dot" />Recent results</span>
+      <div className="lp-ticker-window">
+        {/* two identical runs so the loop has no seam */}
+        <div className="lp-ticker-rail">
+          <span className="lp-ticker-run">{rows.map((r, i) => item(r, `a${i}`))}</span>
+          <span className="lp-ticker-run" aria-hidden="true">{rows.map((r, i) => item(r, `b${i}`))}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function LandingNav() {
   return (
@@ -87,35 +161,40 @@ export function LandingFoot() {
 
 export function Landing() {
   useMarketingShell()
+  useReveal()
   return (
     <div data-testid="sweep-landing" className="lp">
       <LandingNav />
+      <ResultsTicker />
 
       <section className="lp-hero">
-        <span className="lp-pill">Football, basketball — any two-team sport</span>
-        <h1 className="lp-h1">The sweep your group already runs, minus the admin</h1>
-        <p className="lp-lede">
-          Everyone draws teams out of the hat. From there the fixtures, the scores,
-          the ladder and who's still alive keep themselves up to date — all season,
-          from one link.
+        <span className="lp-pill lp-in">Football, basketball — any two-team sport</span>
+        <h1 className="lp-h1">
+          <span className="lp-mask"><span>Everyone draws a team.</span></span>
+          <span className="lp-mask"><span><em>Nobody</em> keeps the sheet.</span></span>
+        </h1>
+        <p className="lp-lede lp-in lp-in-2">
+          Pick a competition, send one link, pull the teams out of the hat. From there
+          the fixtures, the scores and the ladder look after themselves — right through
+          to the finishing order.
         </p>
-        <div className="lp-hero-cta">
+        <div className="lp-hero-cta lp-in lp-in-2">
           <a className="lp-btn lp-btn-lg" href="/account">Start free</a>
           <span className="lp-microcopy">14 days free · no card</span>
         </div>
 
-        <figure className="lp-stage">
+        <figure className="lp-stage lp-in lp-in-3">
           <img className="lp-stage-img" src="/marketing/app-teams.webp" width="1400" height="706"
                alt="Every team in the sweep with the person who drew it, eliminated sides greyed out" />
         </figure>
       </section>
 
-      <section className="lp-strip" aria-label="Competitions you can run a sweep on">
+      <section className="lp-strip" data-reveal aria-label="Competitions you can run a sweep on">
         {COMPETITIONS.map((c) => <span className="lp-chip" key={c}>{c}</span>)}
         <span className="lp-chip lp-chip-more">+ more each season</span>
       </section>
 
-      <section className="lp-sec" id="how">
+      <section className="lp-sec" id="how" data-reveal>
         <p className="lp-eyebrow">How it works</p>
         <h2 className="lp-h2">Three steps, then it runs itself</h2>
         <div className="lp-cards">
@@ -140,7 +219,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="lp-sec" id="inside">
+      <section className="lp-sec" id="inside" data-reveal>
         <p className="lp-eyebrow">Inside a sweep</p>
         <h2 className="lp-h2">Everything the group argues about, on screen</h2>
 
@@ -190,7 +269,7 @@ export function Landing() {
         </div>
       </section>
 
-      <section className="lp-final">
+      <section className="lp-final" data-reveal>
         <h2 className="lp-h2">Start one before the season does</h2>
         <p className="lp-final-b">
           Two weeks free, no card. Bring the group in with a link and let the feed do

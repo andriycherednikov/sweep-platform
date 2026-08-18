@@ -25,6 +25,7 @@ import { sweepResolver } from './sweeps/resolve.js'
 import { readOnlyGate } from './sweeps/read-only.js'
 import { accountRoutes } from './routes/account.js'
 import { catalogRoutes } from './routes/catalog.js'
+import { publicRoutes } from './routes/public.js'
 import { billingRoutes } from './routes/billing.js'
 import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { providerFor } from './providers/registry.js'
@@ -93,5 +94,6 @@ export function buildApp(db, opts = {}) {
   app.register(billingRoutes)
   app.register(stripeWebhookRoutes)
   app.register(catalogRoutes)
+  app.register(publicRoutes)
   return app
 }
