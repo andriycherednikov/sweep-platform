@@ -30,7 +30,10 @@ import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { providerFor } from './providers/registry.js'
 
 export function buildApp(db, opts = {}) {
-  const app = Fastify({ logger: opts.logger ?? false })
+  // trustProxy: 1 = the single hop in front of us (the shared Caddy, which overwrites
+  // X-Forwarded-For with the real client). Without it every request looks like it came
+  // from the proxy and the per-client rate limits become one shared bucket.
+  const app = Fastify({ logger: opts.logger ?? false, trustProxy: 1 })
   app.decorate('db', db)
   app.decorate('bus', opts.bus ?? createBus())
   app.decorate('publish', opts.publish ?? ((event) => app.bus.publish(event)))
