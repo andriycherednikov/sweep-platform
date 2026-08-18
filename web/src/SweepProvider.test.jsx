@@ -120,6 +120,18 @@ test('a 401 on bootstrap with no stored sweeps → "invite link needed" empty st
   expect(screen.getByText(/invite link/i)).toBeInTheDocument()
 })
 
+// The platform host has no other front door: a visitor with no invite must be able
+// to reach the account flow to sign in and provision one, or the root is a dead end.
+test('the 401 gate always offers the owner route to /account', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  const link = await screen.findByRole('link', { name: /sign in/i })
+  expect(link).toHaveAttribute('href', '/account')
+})
+
 test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, queryClient)', async () => {
   vi.resetModules()
   localStorage.clear()

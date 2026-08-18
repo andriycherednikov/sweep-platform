@@ -122,6 +122,9 @@ function Gate({ children }) {
           ) : (
             <p className="sweep-card-sub">You need an invite link to join a sweep. Ask whoever runs your sweep for the link.</p>
           )}
+          {/* The platform host's only other door: run your own sweep instead of joining one. */}
+          <p className="sweep-card-sub">Running your own sweep?</p>
+          <a className="sweep-retry" href="/account">Sign in</a>
         </div>
       </div>
     )
