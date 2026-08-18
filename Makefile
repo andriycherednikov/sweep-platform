@@ -5,13 +5,13 @@
 #   - Dev uses the host Postgres on :5432 (the `sweep_platform` DB). It's expected to be running.
 #   - DB / worker targets read DATABASE_URL (+ API_FOOTBALL_KEY) from the git-ignored ./.env.
 #   - `make test` (api) needs Docker running — it spins up an ephemeral Postgres via Testcontainers.
-#   - No deploy targets yet: no production exists for this repo. The WC app's deploy
-#     block was removed — re-add against platform infra when it exists.
+#   - `make deploy` ships to the portal test server (sweep-portal.yowiebay.au); it
+#     needs Docker + `gcloud auth login` and ssh access to the box.
 
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-front dev-api dev-web test test-api test-web build \
         worker sync crosswalk cutover db-migrate db-seed \
-        provision db-reset psql admin-hash clean
+        provision db-reset psql admin-hash clean deploy deploy-status logs
 
 help: ## Show this help
 	@echo "The Sweep — make targets:"
@@ -67,6 +67,24 @@ crosswalk: ## Fill team_crosswalk provider ids from API-Football
 
 cutover: ## Re-pin teams to the real WC-2026 field
 	npm run cutover -w api
+
+# ---- deploy (portal test server) ----
+SERVER    ?= root@134.199.153.212
+REMOTE_DIR ?= /root/sweep-portal
+S         ?= api
+
+deploy: ## Build+push amd64 images, sync compose, roll out on the server
+	./docker/build-and-push.sh
+	scp docker/docker-compose.yml $(SERVER):$(REMOTE_DIR)/docker-compose.yml
+	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose pull && docker compose up -d'
+	@$(MAKE) --no-print-directory deploy-status
+
+deploy-status: ## Deployed container state + public health check
+	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose ps'
+	@curl -fsS https://sweep-portal.yowiebay.au/api/health && echo
+
+logs: ## Tail a deployed service log:  make logs S=api|worker|web|migrate
+	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose logs -f --tail=100 $(S)'
 
 # ---- database ----
 db-migrate: ## Apply Drizzle migrations to the dev DB

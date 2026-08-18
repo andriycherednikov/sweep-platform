@@ -20,6 +20,9 @@ COPY web/package.json ./web/
 RUN npm ci --ignore-scripts
 
 COPY web ./web
+# GA4 measurement id, baked into the bundle. Empty = analytics off (the default).
+ARG VITE_GA_ID=""
+ENV VITE_GA_ID=$VITE_GA_ID
 RUN npm run build -w web
 
 # ---- runtime stage: tiny static file server ----

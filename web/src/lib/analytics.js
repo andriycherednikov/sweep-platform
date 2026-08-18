@@ -1,13 +1,12 @@
 /* ============================================================
    THE SWEEP — GA4 analytics. The ONLY contact with Google.
    Loads gtag.js in PRODUCTION BUILDS ONLY; a silent no-op in
-   dev and tests, so nothing phones home there. A GA4 Measurement
-   ID is public (visible in any GA page's HTML), so it lives in
-   source as a default; VITE_GA_ID overrides it ("" disables).
+   dev and tests, so nothing phones home there. The platform has
+   no GA property of its own yet, so analytics stay OFF unless the
+   build supplies VITE_GA_ID (a GA4 Measurement ID is public).
    ============================================================ */
 
-const ENV_ID = import.meta.env.VITE_GA_ID
-const GA_ID = ENV_ID === undefined ? 'G-6PZ0DXRS2D' : ENV_ID
+const GA_ID = import.meta.env.VITE_GA_ID ?? ''
 
 let initialized = false
 

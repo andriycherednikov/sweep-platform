@@ -1,0 +1,68 @@
+# =============================================================================
+# Sweep Portal — Caddy site block
+# =============================================================================
+# Snippet to append to the shared /root/caddy/Caddyfile on the server. The
+# shared `vcv-caddy` holds :80/:443 and reaches our containers by name over the
+# shared `simulation-network`. TLS is automatic once DNS points here.
+#
+# HOW TO APPLY:
+#   1. Back up:   cp /root/caddy/Caddyfile /root/caddy/Caddyfile.bak
+#   2. Append:    cat sweep-portal.Caddyfile >> /root/caddy/Caddyfile
+#   3. Reload:    docker exec vcv-caddy caddy reload --config /etc/caddy/Caddyfile
+#
+# ⚠️ Append ONLY after sweep-portal.yowiebay.au's A record resolves to this host
+# (DNS-only, no proxy) — otherwise Caddy's ACME challenge fails on a loop and
+# can trip Let's Encrypt rate limits.
+#
+# This host IS the platform host (PLATFORM_HOST in .env.docker): an
+# unauthenticated visitor gets the account landing, and /g/<token> links mint a
+# session scoped to that one sweep.
+# =============================================================================
+
+sweep-portal.yowiebay.au {
+
+	encode gzip
+
+	# API — Fastify. flush_interval -1 disables response buffering so the
+	# Server-Sent Events stream (/api/stream) flushes immediately.
+	handle /api/* {
+		reverse_proxy portal-api:3000 {
+			flush_interval -1
+			header_up Host {host}
+			header_up X-Real-IP {remote}
+			header_up X-Forwarded-For {remote}
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Forwarded-Host {host}
+		}
+	}
+
+	# Approved fan/profile photos — served by the api off the photos volume.
+	handle /photos/* {
+		reverse_proxy portal-api:3000 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	# Everything else — the static SPA (internal Caddy w/ history fallback).
+	# Join links (/g/<token>…), /account/* and /super are SPA routes handled
+	# client-side, so they fall through to here.
+	handle /* {
+		header {
+			Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+			X-Content-Type-Options nosniff
+			X-Frame-Options SAMEORIGIN
+			Referrer-Policy strict-origin-when-cross-origin
+		}
+		reverse_proxy portal-web:80 {
+			header_up Host {host}
+			header_up X-Forwarded-Proto {scheme}
+		}
+	}
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}

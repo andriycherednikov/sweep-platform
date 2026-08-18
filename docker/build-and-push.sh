@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# The Sweep — Docker Build & Push to GCP Artifact Registry
+# Sweep Portal — Docker Build & Push to GCP Artifact Registry
 # ============================================================
 # Builds the api and web images for linux/amd64 (the server's arch — the dev
 # Mac is arm64, so we cross-build via buildx + QEMU) and pushes them.
@@ -14,8 +14,8 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC
 
 REGISTRY="australia-southeast1-docker.pkg.dev/formal-triode-465902-n1/sweep"
 VERSION="${VERSION:-latest}"
-API_IMAGE="${REGISTRY}/sweep-api"
-WEB_IMAGE="${REGISTRY}/sweep-web"
+API_IMAGE="${REGISTRY}/sweep-portal-api"
+WEB_IMAGE="${REGISTRY}/sweep-portal-web"
 PLATFORM="linux/amd64"
 
 info()  { echo -e "${YELLOW}ℹ $1${NC}"; }
@@ -49,6 +49,7 @@ setup_buildx() {
 
 build_image() {
   local image_name="$1" dockerfile="$2" service="$3"
+  shift 3
   header "Building $service image ($PLATFORM)"
   info "Image:      $image_name:$VERSION"
   info "Dockerfile: $dockerfile"
@@ -57,13 +58,14 @@ build_image() {
     --file "$dockerfile" \
     --tag "$image_name:$VERSION" \
     --tag "$image_name:latest" \
+    "$@" \
     --push \
     "$PROJECT_DIR"
   ok "$service image built and pushed"
 }
 
 main() {
-  header "The Sweep — Docker Build & Push"
+  header "Sweep Portal — Docker Build & Push"
   echo "  Registry: $REGISTRY"
   echo "  Version:  $VERSION"
   echo "  Platform: $PLATFORM"
@@ -71,12 +73,13 @@ main() {
   check_gcloud
   setup_buildx
   build_image "$API_IMAGE" "$PROJECT_DIR/api/Dockerfile" "API"
-  build_image "$WEB_IMAGE" "$PROJECT_DIR/web/Dockerfile" "Web"
+  # VITE_GA_ID is baked at build time; empty (the default) = analytics off.
+  build_image "$WEB_IMAGE" "$PROJECT_DIR/web/Dockerfile" "Web" --build-arg "VITE_GA_ID=${VITE_GA_ID:-}"
   header "Done"
   echo "  ${API_IMAGE}:${VERSION}"
   echo "  ${WEB_IMAGE}:${VERSION}"
   echo ""
-  echo -e "${YELLOW}Next: on the server →${NC} cd /root/sweep && docker compose pull && docker compose up -d"
+  echo -e "${YELLOW}Next: on the server →${NC} cd /root/sweep-portal && docker compose pull && docker compose up -d"
 }
 
 main "$@"
