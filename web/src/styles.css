@@ -1033,7 +1033,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   font-variation-settings:'wdth' 108; }
 .lp-card-h, .lp-tile-h{ font-family:'Archivo',system-ui,sans-serif; font-weight:700; }
 .lp-h1 em, .lp-h2 em{ font-family:'Caveat',cursive; font-style:normal; font-weight:700;
-  font-size:1.18em; line-height:.8; color:var(--lp-soft); }
+  font-size:1.4em; line-height:.8; margin:0 .07em; color:var(--lp-soft); }
 /* the wordmark IS the logo — Caveat, and nothing else uses it */
 .lp-brand span, .sweep-brand-word b, .brand b, .sb-brand b{
   font-family:'Caveat',cursive; font-weight:700; text-transform:none; }
@@ -1161,7 +1161,9 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
    Entrance plays once: each headline line lifts out from behind its own mask,
    the rest fades up behind it. Sections below the fold reveal as they arrive.
    The one thing that keeps moving is the results rail — that is the promise. */
-.lp-mask{ display:block; overflow:hidden; }
+/* the lift animation needs the clip; Caveat's descenders (every, y, g) hang below the
+   line box, so grow the clipped box and pull the next line back up by the same amount. */
+.lp-mask{ display:block; overflow:hidden; padding-bottom:.16em; margin-bottom:-.16em; }
 .lp-mask > span{ display:block; animation:lpLift .9s cubic-bezier(.16,.84,.3,1) both; }
 .lp-mask:nth-child(2) > span{ animation-delay:.12s; }
 @keyframes lpLift{ from{ transform:translateY(105%); } }
