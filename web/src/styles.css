@@ -1275,37 +1275,46 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   font-family:inherit; font-size:14px; font-weight:600; text-align:left;
   background:none; color:var(--ink2); }
 .ac-nav-i:hover{ background:var(--glass); color:var(--ink); }
-.ac-nav-i.is-here{ background:var(--glass2); color:#fff; box-shadow:inset 3px 0 0 var(--lp-accent); }
+.ac-nav-i.is-here{ background:var(--glass2); color:#fff; }
 .ac-nav-i span{ font-size:12px; font-weight:700; color:var(--lp-accent); }
 .ac-side-foot{ margin-top:auto; display:flex; flex-direction:column; gap:9px; }
 
-.ac-main{ padding:38px 30px 60px; background:var(--lp-bg); }
+/* the work happens on paper: the dark rail frames a light, readable pane */
+.ac-main{ min-height:100dvh; padding:38px 30px 60px; background:var(--paper); color:var(--paper-ink);
+  --edge:rgba(32,30,29,.13); --ink:#201e1d; --ink2:#5f5b58; --ink3:#8a8481;
+  --glass:rgba(32,30,29,.035); --glass2:rgba(32,30,29,.07); }
 .ac-col{ max-width:720px; margin:0 auto; }
 .ac-h1{ margin:10px 0 6px; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
-  font-size:34px; letter-spacing:-1px; color:#fff; }
+  font-size:34px; letter-spacing:-1px; color:var(--paper-ink); }
 .ac-sub{ margin:0 0 26px; font-size:14.5px; line-height:1.6; color:var(--ink2); }
 .ac-stack{ display:flex; flex-direction:column; gap:16px; }
 .ac-price{ margin:6px 0 0; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
-  font-size:22px; letter-spacing:-.5px; color:#fff; }
+  font-size:22px; letter-spacing:-.5px; color:var(--paper-ink); }
 .ac-price span{ margin-left:6px; font-size:13px; font-weight:500; letter-spacing:0;
   color:var(--ink2); }
-.ac-card{ padding:20px 20px 18px; border-radius:16px; background:var(--lp-surface);
-  border:1px solid var(--edge); }
+.ac-card{ padding:20px 20px 18px; border-radius:16px; background:#fff;
+  border:1px solid var(--edge); box-shadow:0 10px 24px -20px rgba(32,30,29,.5); }
 .ac-card-top{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .ac-card-h{ margin:0; font-family:'Archivo',system-ui,sans-serif; font-weight:700;
-  font-size:19px; letter-spacing:-.3px; color:#fff; }
+  font-size:19px; letter-spacing:-.3px; color:var(--paper-ink); }
 .ac-b{ margin:10px 0 0; font-size:14px; line-height:1.6; color:var(--ink2); }
-.ac-warn{ margin:10px 0 0; font-size:13.5px; line-height:1.6; color:var(--lp-soft); }
+.ac-warn{ margin:10px 0 0; font-size:13.5px; line-height:1.6; color:var(--lp-accent); }
 .ac-pill{ flex-shrink:0; padding:4px 10px 5px; border-radius:999px; font-size:11px;
   font-weight:700; letter-spacing:1.4px; text-transform:uppercase;
   background:var(--glass); border:1px solid var(--edge); color:var(--ink2); }
-.ac-pill.is-warn{ background:rgba(236,48,19,.14); border-color:rgba(236,48,19,.4);
-  color:var(--lp-soft); }
+.ac-pill.is-warn{ background:rgba(236,48,19,.09); border-color:rgba(236,48,19,.35);
+  color:var(--lp-accent); }
+/* what this sweep costs, and the one control that changes it */
+.ac-tier{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-top:16px; padding-top:14px; border-top:1px solid var(--edge); }
+.ac-ghost.is-go{ color:var(--lp-accent); border-color:rgba(236,48,19,.35); }
+.ac-ghost.is-go:hover{ background:rgba(236,48,19,.07); color:var(--lp-accent); }
 .ac-btn{ border:0; cursor:pointer; font-size:22px; }
 .ac-ghost{ padding:7px 14px 8px; border-radius:9px; cursor:pointer; font-family:inherit;
   font-size:13px; font-weight:600; color:var(--ink2);
   background:var(--glass); border:1px solid var(--edge); }
 .ac-ghost:hover{ background:var(--glass2); color:var(--ink); }
+.ac-side .ac-ghost:hover{ color:#fff; }
 .ac-ghost.is-danger:hover{ color:var(--lp-soft); border-color:rgba(236,48,19,.45); }
 .ac-ghost:disabled{ opacity:.55; cursor:default; }
 

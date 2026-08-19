@@ -39,16 +39,23 @@ function LinkField({ label, value }) {
   );
 }
 
-function BillingPanel({ billing }) {
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(false);
-
+/** Billing is one account-level subscription priced per running sweep, so the
+ *  state is shared: the sweep cards show what it means for that sweep, the
+ *  panel speaks for the account before the first sweep exists. */
+function useBilling(billing) {
   const now = Date.now();
   const trialEndsMs = billing.trialEndsAt ? new Date(billing.trialEndsAt).getTime() : null;
-  const fresh = !billing.subscribed && !trialEndsMs;
-  const trialing = !billing.subscribed && trialEndsMs && trialEndsMs > now;
-  const lapsed = !billing.subscribed && trialEndsMs && trialEndsMs <= now;
-  const daysLeft = trialing ? Math.ceil((trialEndsMs - now) / DAY_MS) : 0;
+  return {
+    fresh: !billing.subscribed && !trialEndsMs,
+    trialing: !billing.subscribed && trialEndsMs && trialEndsMs > now,
+    lapsed: !billing.subscribed && trialEndsMs && trialEndsMs <= now,
+    daysLeft: trialEndsMs ? Math.ceil((trialEndsMs - now) / DAY_MS) : 0,
+  };
+}
+
+function useBillingActions() {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(false);
 
   async function subscribe() {
     setBusy(true); setErr(false);
@@ -70,6 +77,13 @@ function BillingPanel({ billing }) {
     } finally { setBusy(false); }
   }
 
+  return { busy, err, subscribe, manage };
+}
+
+/** Account-level billing, shown while there is no sweep to hang it off. */
+function BillingPanel({ billing }) {
+  const { fresh, trialing, lapsed, daysLeft } = useBilling(billing);
+  const { busy, err, subscribe, manage } = useBillingActions();
   const state = billing.subscribed ? "Subscribed" : trialing ? "Trial" : lapsed ? "Trial ended" : "Not started";
 
   return (
@@ -113,10 +127,20 @@ function BillingPanel({ billing }) {
   );
 }
 
-function SweepRow({ s, reload }) {
+function SweepRow({ s, billing, reload }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const { trialing, lapsed, daysLeft } = useBilling(billing);
+  const acts = useBillingActions();
+
+  const tier = billing.subscribed
+    ? { label: "Paid", tone: "" }
+    : trialing
+      ? { label: `Free trial · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left`, tone: "" }
+      : lapsed
+        ? { label: "Read-only", tone: " is-warn" }
+        : { label: "Free", tone: "" };
 
   async function archive() {
     if (!confirm) { setConfirm(true); return; }
@@ -136,12 +160,23 @@ function SweepRow({ s, reload }) {
       </div>
       <LinkField label="Member link — send this to the group" value={s.memberLink} />
       <LinkField label="Admin link — keep this one to yourself" value={s.adminLink} />
+      <div className="ac-tier">
+        <span className={"ac-pill" + tier.tone}>{tier.label}</span>
+        {billing.subscribed ? (
+          <button className="ac-ghost" disabled={acts.busy} onClick={acts.manage}>Manage billing</button>
+        ) : (
+          <button className="ac-ghost is-go" disabled={acts.busy} onClick={acts.subscribe}>
+            {lapsed ? "Subscribe to reopen" : "Subscribe · $5/mo"}
+          </button>
+        )}
+      </div>
+      {acts.err && <p className="ac-warn">Something went wrong. Try again.</p>}
       {err && <p className="ac-warn">Archive failed — try again</p>}
     </section>
   );
 }
 
-function SweepList({ sweeps, reload }) {
+function SweepList({ sweeps, billing, reload }) {
   const active = sweeps.filter((s) => !s.archivedAt);
   if (active.length === 0) {
     return (
@@ -152,12 +187,11 @@ function SweepList({ sweeps, reload }) {
       </section>
     );
   }
-  return active.map((s) => <SweepRow key={s.id} s={s} reload={reload} />);
+  return active.map((s) => <SweepRow key={s.id} s={s} billing={billing} reload={reload} />);
 }
 
 export function AccountHome() {
   useMarketingShell();
-  const [view, setView] = useState("sweeps");
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
@@ -178,11 +212,6 @@ export function AccountHome() {
   }
 
   const live = sweeps.filter((s) => !s.archivedAt).length;
-  const nav = (key, label, badge) => (
-    <button className={"ac-nav-i" + (view === key ? " is-here" : "")} onClick={() => setView(key)}>
-      {label}{badge !== undefined && <span>{badge}</span>}
-    </button>
-  );
 
   return (
     <div className="lp ac">
@@ -190,8 +219,7 @@ export function AccountHome() {
       <aside className="ac-side">
         <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
         <nav className="ac-nav">
-          {nav("sweeps", "Sweeps", live)}
-          {nav("billing", "Billing")}
+          <button className="ac-nav-i is-here">Sweeps<span>{live}</span></button>
         </nav>
         <div className="ac-side-foot">
           <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>New sweep</button>
@@ -202,17 +230,13 @@ export function AccountHome() {
       <main className="ac-main">
         <div className="ac-col">
           <p className="lp-eyebrow">My account</p>
-          <h1 className="ac-h1">{view === "billing" ? "Billing" : "Your sweeps"}</h1>
-          <p className="ac-sub">
-            {view === "billing"
-              ? "One subscription covers every sweep you keep running."
-              : "Each sweep has two links: one for the group, one you keep."}
-          </p>
+          <h1 className="ac-h1">Your sweeps</h1>
+          <p className="ac-sub">Each sweep has two links: one for the group, one you keep.</p>
           {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
           <div className="ac-stack">
-            {view === "billing"
-              ? billing && <BillingPanel billing={billing} />
-              : <SweepList sweeps={sweeps} reload={reload} />}
+            {billing && <SweepList sweeps={sweeps} billing={billing} reload={reload} />}
+            {/* nothing to bill against yet — the account speaks for itself */}
+            {billing && live === 0 && <BillingPanel billing={billing} />}
           </div>
         </div>
       </main>

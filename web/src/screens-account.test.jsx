@@ -35,16 +35,10 @@ afterEach(() => {
   Object.defineProperty(window, 'location', { value: originalLocation, configurable: true, writable: true })
 })
 
-// Billing lives behind its own rail item now — every billing assertion opens it first.
-async function openBilling() {
-  fireEvent.click(await screen.findByRole('button', { name: /^billing$/i }))
-}
-
 test('fresh account: explains the trial', async () => {
   getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: null, liveSweeps: 0, quantity: 0 })
   getAccountSweeps.mockResolvedValue([])
   render(<AccountHome />)
-  await openBilling()
   expect(await screen.findByText(/14-day free trial starts with your first sweep/i)).toBeTruthy()
 })
 
@@ -53,7 +47,6 @@ test('trialing: countdown + subscribe CTA calls checkout and redirects', async (
   getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: future, liveSweeps: 0, quantity: 0 })
   startCheckout.mockResolvedValue({ url: 'https://stripe.example/checkout/1' })
   render(<AccountHome />)
-  await openBilling()
   expect(await screen.findByText(/day.*left in your.*trial/i)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /subscribe/i }))
   await waitFor(() => expect(startCheckout).toHaveBeenCalled())
@@ -64,7 +57,6 @@ test('subscribed: shows live sweep count and Manage billing (portal)', async () 
   getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 2, quantity: 2 })
   openPortal.mockResolvedValue({ url: 'https://stripe.example/portal/1' })
   render(<AccountHome />)
-  await openBilling()
   expect(await screen.findByText(/2 live sweeps/i)).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /manage billing/i }))
   await waitFor(() => expect(openPortal).toHaveBeenCalled())
@@ -75,7 +67,6 @@ test('lapsed: subscribe CTA + read-only warning', async () => {
   const past = new Date(Date.now() - 86400000).toISOString()
   getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: past, liveSweeps: 1, quantity: 0 })
   render(<AccountHome />)
-  await openBilling()
   expect(await screen.findByText(/read-only/i)).toBeTruthy()
   expect(screen.getByRole('button', { name: /subscribe/i })).toBeTruthy()
 })
@@ -123,7 +114,6 @@ test('subscribe: a 409 already_subscribed falls back to the portal', async () =>
   startCheckout.mockRejectedValue(Object.assign(new Error('Conflict'), { status: 409, code: 'already_subscribed' }))
   openPortal.mockResolvedValue({ url: 'https://stripe.example/portal/2' })
   render(<AccountHome />)
-  await openBilling()
   fireEvent.click(await screen.findByRole('button', { name: /subscribe/i }))
   await waitFor(() => expect(openPortal).toHaveBeenCalled())
   await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('https://stripe.example/portal/2'))
@@ -134,7 +124,6 @@ test('manage billing: a 409 not_subscribed falls back to checkout', async () => 
   openPortal.mockRejectedValue(Object.assign(new Error('Conflict'), { status: 409, code: 'not_subscribed' }))
   startCheckout.mockResolvedValue({ url: 'https://stripe.example/checkout/2' })
   render(<AccountHome />)
-  await openBilling()
   fireEvent.click(await screen.findByRole('button', { name: /manage billing/i }))
   await waitFor(() => expect(startCheckout).toHaveBeenCalled())
   await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('https://stripe.example/checkout/2'))
@@ -143,7 +132,6 @@ test('manage billing: a 409 not_subscribed falls back to checkout', async () => 
 test('subscribed + past_due shows a soft payment warning', async () => {
   getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'past_due', trialEndsAt: null, liveSweeps: 1, quantity: 1 })
   render(<AccountHome />)
-  await openBilling()
   expect(await screen.findByText(/payment failed|past due/i)).toBeTruthy()
 })
 
