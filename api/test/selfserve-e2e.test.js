@@ -47,10 +47,10 @@ beforeAll(async () => {
   await db.insert(catalogLeague).values([
     { id: 'apibasketball:12', provider: 'apibasketball', providerLeagueId: '12', name: 'NBA', type: 'League',
       country: { name: 'USA', code: 'US', flag: null }, curated: true,
-      seasons: [{ season: '2023-2024', start: '2023-10-05', end: '2024-06-18', current: false, standings: true, odds: false }] },
+      seasons: [{ season: '2023-2024', start: '2023-10-05', end: '2099-06-18', current: false, standings: true, odds: false }] },  // end far out: a finished season is not provisionable
     { id: 'apifootball:39', provider: 'apifootball', providerLeagueId: '39', name: 'Premier League', type: 'League',
       country: { name: 'England', code: 'GB-ENG', flag: null }, curated: true,
-      seasons: [{ season: '2025', start: '2025-08-15', end: '2026-05-24', current: false, standings: true, odds: false }] },
+      seasons: [{ season: '2025', start: '2025-08-15', end: '2099-05-24', current: false, standings: true, odds: false }] },
   ]).onConflictDoNothing()
 })
 afterAll(async () => {
@@ -86,6 +86,7 @@ test('§5 flow: sign in → browse → provision both sports → member link wor
     payload: { name: 'Footy', provider: 'apifootball', leagueId: '39', season: '2025' } })).json()
   expect(nba.competitionId).toBe(NBA_ID)
   expect(epl.competitionId).toBe(EPL_ID)
+  await app.fillsIdle()   // the sweep answers immediately; its feed lands behind the response
 
   // 4. the member link works: fixtures served through the frozen wire, scoped per sweep
   const fixtures = await app.inject({ method: 'GET', url: '/api/fixtures',

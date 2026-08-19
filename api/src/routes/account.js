@@ -4,9 +4,9 @@ import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount } from '../accounts/billing.js'
 import { seasonInWindow } from '../providers/registry.js'
-import { addCompetition } from '../worker/add-competition.js'
 import { syncCompetitors } from '../worker/sync-competitors.js'
 import { syncBaseline } from '../worker/baseline-sync.js'
+import { sportOf } from '../providers/registry.js'
 import { links } from './sweeps.js'
 
 const loginBody = {
@@ -65,6 +65,22 @@ export async function accountRoutes(app) {
 
   const accountGuard = requireAccount(app)
 
+  /** Teams and fixtures are a slow round-trip to the provider, and nobody should sit
+   *  and watch it: the sweep is real and shareable the moment its row lands, and the
+   *  feed fills in behind it. ponytail: in-process fire-and-forget, no job queue —
+   *  the periodic worker sync is the backstop if this process dies mid-fill. */
+  function fillCompetition(providerKey, comp) {
+    const provider = app.providerFor({ provider: providerKey })
+    const p = (async () => {
+      await syncCompetitors(app.db, provider, comp)
+      const b = await syncBaseline(app.db, provider, comp)
+      app.log.info({ competitionId: comp.id, fixtures: b?.fixtures }, 'competition filled')
+    })()
+      .catch((err) => app.log.error({ err, competitionId: comp.id }, 'competition fill failed'))
+      .finally(() => app.fills.delete(p))
+    app.fills.add(p)
+  }
+
   app.post('/api/account/sweeps', { preHandler: accountGuard, schema: { body: provisionBody } }, async (req, reply) => {
     const { name, provider: providerKey, leagueId, season } = req.body
     const [cl] = await app.db.select().from(catalogLeague).where(eq(catalogLeague.id, `${providerKey}:${leagueId}`))
@@ -73,6 +89,7 @@ export async function accountRoutes(app) {
     if (!seasonOk) return reply.code(400).send({ error: 'unknown_competition' })
 
     const compId = `${providerKey}:${leagueId}:${season}`
+    let fill = null
     try {
       const result = await app.db.transaction(async (tx) => {
         // Serialize per-account provisions: cap/quantity check-then-insert sits behind a row lock,
@@ -96,19 +113,19 @@ export async function accountRoutes(app) {
           : Number(process.env.ACCOUNT_SWEEP_CAP ?? 3)   // the P3 constant survives as the TRIAL cap
         if (mine.length >= cap) return { code: 403, body: { error: 'sweep_cap', cap } }
 
-        const provider = app.providerFor({ provider: providerKey })
         let [comp] = await tx.select().from(competition).where(eq(competition.id, compId))
         if (!comp) {
-          await addCompetition(tx, provider, {
-            provider: providerKey, leagueId, season,
-            league: { name: cl.name, type: cl.type, logo: cl.logo }, // from the persisted catalog — never a live catalog call
-          })
+          // the row itself is cheap and comes from the persisted catalog — never a live call
+          comp = {
+            id: compId, provider: providerKey, sport: sportOf(providerKey),
+            leagueId: String(leagueId), season: String(season),
+            format: cl.type === 'League' ? 'league' : 'groups_then_ko', name: cl.name, logo: cl.logo,
+          }
+          await tx.insert(competition).values(comp)
+          fill = comp
         } else {
           const [ev] = await tx.select({ id: event.id }).from(event).where(eq(event.competitionId, compId)).limit(1)
-          if (!ev) { // eventless leftover (dead CLI/worker baseline) — finish the job before binding
-            await syncCompetitors(tx, provider, comp)
-            await syncBaseline(tx, provider, comp)
-          }
+          if (!ev) fill = comp // eventless leftover (dead CLI/worker baseline) — finish the job behind the response
         }
         const id = `sw_${newToken(12)}`
         const memberToken = newToken(), adminToken = newToken()
@@ -120,6 +137,7 @@ export async function accountRoutes(app) {
         const [row] = await tx.select().from(sweep).where(eq(sweep.id, id))
         return { code: 201, body: { id, name: row.name, competitionId: compId, memberToken, adminToken, ...links(app, row) } }
       })
+      if (result.code === 201 && fill) fillCompetition(providerKey, fill)
       return reply.code(result.code).send(result.body)
     } catch (e) {
       req.log.error({ err: e, competitionId: compId }, 'provision failed')

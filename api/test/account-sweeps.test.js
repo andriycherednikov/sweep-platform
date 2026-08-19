@@ -81,6 +81,7 @@ test('provision creates competition once, reuses it after, owns the sweeps', asy
   const b1 = r1.json()
   expect(b1.competitionId).toBe(NBA_ID)
   expect(b1.memberLink).toContain(`/g/${b1.memberToken}`)
+  await app.fillsIdle()   // provision answers before the feed lands; the fill follows it
   expect((await db.select().from(event).where(eq(event.competitionId, NBA_ID))).length).toBeGreaterThan(0)
 
   const evCount = (await db.select().from(event).where(eq(event.competitionId, NBA_ID))).length
@@ -109,21 +110,23 @@ test('cap blocks the 4th sweep; archive frees the slot; ownership scoped', async
   expect((await app.inject({ method: 'POST', url: '/api/account/sweeps/default/archive', ...M })).statusCode).toBe(404)
 })
 
-test('feed failure mid-provision → stable provision_failed, no internals leaked, no sweep', async () => {
+test('a feed that is down does not block provisioning — the sweep exists, empty, and fills later', async () => {
   feedDown = true
   try {
     const res = await app.inject({ method: 'POST', url: '/api/account/sweeps', headers: { 'x-account-token': 'failsession' },
       payload: { name: 'Doomed', provider: 'apibasketball', leagueId: '12', season: '2022-2023' } })
-    expect(res.statusCode).toBe(500)
-    expect(res.json()).toEqual({ error: 'provision_failed' })
+    expect(res.statusCode).toBe(201)
     expect(res.body).not.toContain('ECONNRESET') // internal feed error must not reach the client
-    expect(await db.select().from(sweep).where(eq(sweep.accountId, 'ac_fail'))).toHaveLength(0)
-    // txn rollback: the failed provision leaves NOTHING behind (P4 behavior change, approved)
-    expect(await db.select().from(competition).where(eq(competition.id, FAIL_ID))).toHaveLength(0)
-  } finally { feedDown = false }
+    await app.fillsIdle()                        // the fill fails in the background, and is logged, not thrown
+    expect(await db.select().from(sweep).where(eq(sweep.accountId, 'ac_fail'))).toHaveLength(1)
+    expect((await db.select().from(event).where(eq(event.competitionId, FAIL_ID)))).toHaveLength(0)
+  } finally {
+    feedDown = false
+    await db.delete(sweep).where(eq(sweep.accountId, 'ac_fail'))
+  }
 })
 
-test('eventless competition (earlier provision died mid-baseline) is re-synced before binding', async () => {
+test('eventless competition (earlier provision died mid-baseline) is re-synced when the next sweep binds', async () => {
   // seed an eventless competition (as left by a dead CLI/worker baseline) — the feed-hiccup recovery path
   await db.insert(competition).values({ id: FAIL_ID, provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2022-2023', format: 'league', name: 'NBA' }).onConflictDoNothing()
   expect(await db.select().from(event).where(eq(event.competitionId, FAIL_ID))).toHaveLength(0)
@@ -136,6 +139,7 @@ test('eventless competition (earlier provision died mid-baseline) is re-synced b
   } finally { gameIdOffset = false }
   expect(res.statusCode).toBe(201)
   expect(res.json().competitionId).toBe(FAIL_ID)
+  await app.fillsIdle()
   expect((await db.select().from(event).where(eq(event.competitionId, FAIL_ID))).length).toBeGreaterThan(0)
   expect((await db.select().from(competitor).where(eq(competitor.competitionId, FAIL_ID))).length).toBeGreaterThan(0)
 })

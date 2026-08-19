@@ -60,6 +60,10 @@ export function buildApp(db, opts = {}) {
   app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
   // adapter resolution seam — tests inject recorded providers; live code gets the registry
   app.decorate('providerFor', opts.providerFor ?? providerFor)
+  // Feed fills started by a request but not waited on by it (see routes/account.js).
+  // Tests await fillsIdle() where they need the data; production never waits.
+  app.decorate('fills', new Set())
+  app.decorate('fillsIdle', () => Promise.allSettled([...app.fills]))
   // magic-link delivery seam — console logger IS dev mode; a real provider is an ops decision (P4+)
   app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
   // Stripe seam (P4): tests inject a fake; dev without a key runs fine (billing routes 503).
