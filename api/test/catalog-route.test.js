@@ -12,26 +12,26 @@ beforeAll(async () => {
   await db.insert(account).values({ id: 'ac_cat', email: 'cat@x.test' }).onConflictDoNothing()
   await db.insert(accountSession).values({ token: 'catsession', accountId: 'ac_cat', expiresAt: new Date(Date.now() + 3600_000) })
   await db.insert(catalogLeague).values([
-    { id: 'apifootball:39', provider: 'apifootball', providerLeagueId: '39', name: 'Premier League', type: 'League',
+    { id: 'apifootball:3939', provider: 'apifootball', providerLeagueId: '3939', name: 'Premier League', type: 'League',
       country: { name: 'England', code: 'GB-ENG', flag: null }, curated: true,
       seasons: [
         { season: '2027', start: '2027-08-21', end: '2028-05-30', current: false, standings: false, odds: false }, // no standings → not provisionable
         { season: '2026', start: '2026-08-15', end: '2027-05-24', current: true, standings: true, odds: false },
         { season: '2024', start: '2024-08-16', end: '2025-05-25', current: false, standings: true, odds: false }, // over → nothing to sweep
       ] },
-    { id: 'apibasketball:12', provider: 'apibasketball', providerLeagueId: '12', name: 'NBA', type: 'League',
+    { id: 'apibasketball:1212', provider: 'apibasketball', providerLeagueId: '1212', name: 'NBA', type: 'League',
       country: { name: 'USA', code: 'US', flag: null }, curated: true,
       seasons: [
         { season: '2025-2026', start: '2025-09-30', end: '2026-06-18', current: false, standings: true, odds: false }, // outside the free window
         { season: '2024-2025', start: '2024-10-05', end: '2099-06-18', current: false, standings: true, odds: false },
       ] },
-    { id: 'apifootball:999', provider: 'apifootball', providerLeagueId: '999', name: 'Obscure NotCurated League', type: 'League',
+    { id: 'apifootball:9999', provider: 'apifootball', providerLeagueId: '9999', name: 'Obscure NotCurated League', type: 'League',
       country: { name: 'England', code: null, flag: null }, curated: false,
       seasons: [{ season: '2025', start: '2025-01-01', end: '2025-12-31', current: false, standings: true, odds: false }] },
   ])
 })
 afterAll(async () => {
-  await db.delete(catalogLeague).where(inArray(catalogLeague.id, ['apifootball:39', 'apibasketball:12', 'apifootball:999']))
+  await db.delete(catalogLeague).where(inArray(catalogLeague.id, ['apifootball:3939', 'apibasketball:1212', 'apifootball:9999']))
   await db.delete(accountSession).where(eq(accountSession.token, 'catsession'))
   await db.delete(account).where(eq(account.id, 'ac_cat'))
   await app.close(); await pool.end()
@@ -45,7 +45,7 @@ test('catalog returns curated rows with only provisionable seasons', async () =>
   const rows = res.json()
   expect(rows.map((r) => r.name).sort()).toEqual(['NBA', 'Premier League']) // non-curated invisible
   const epl = rows.find((r) => r.name === 'Premier League')
-  expect(epl).toMatchObject({ provider: 'apifootball', sport: 'football', leagueId: '39' })
+  expect(epl).toMatchObject({ provider: 'apifootball', sport: 'football', leagueId: '3939' })
   expect(epl.seasons.map((s) => s.season)).toEqual(['2026']) // 2027 dropped: standings:false — 2024 dropped: already over
   const nba = rows.find((r) => r.name === 'NBA')
   expect(nba.seasons.map((s) => s.season)).toEqual(['2024-2025']) // 2025-2026 dropped: window

@@ -47,6 +47,33 @@ test('zero live sweeps → checkout succeeds with quantity 1', async () => {
   expect(stripeFake.calls.customersCreate).toHaveLength(1) // not recreated
 })
 
+test('confirm: the return from checkout is verified against Stripe, not trusted', async () => {
+  // a session belonging to someone else must not activate this account
+  const foreign = fakeStripe({ session: { id: 'cs_foreign_1', status: 'complete', payment_status: 'paid', client_reference_id: 'ac_someone_else', customer: 'cus_x', subscription: 'sub_x' } })
+  const appX = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: foreign, stripePriceId: 'price_test5' })
+  await appX.ready()
+  const bad = await appX.inject({ method: 'POST', url: '/api/account/billing/confirm', ...M, payload: { sessionId: 'cs_foreign_1' } })
+  expect(bad.statusCode).toBe(404)
+  await appX.close()
+
+  // an unpaid session reports back as pending, and changes nothing
+  const unpaid = fakeStripe({ session: { id: 'cs_pending_1', status: 'open', payment_status: 'unpaid', client_reference_id: 'ac_bill', customer: 'cus_fake1', subscription: null } })
+  const appP = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: unpaid, stripePriceId: 'price_test5' })
+  await appP.ready()
+  const pending = await appP.inject({ method: 'POST', url: '/api/account/billing/confirm', ...M, payload: { sessionId: 'cs_pending_1' } })
+  expect(pending.statusCode).toBe(200)
+  expect(pending.json()).toMatchObject({ subscribed: false })
+  await appP.close()
+
+  // the real thing: the account is reconciled from Stripe without waiting for the webhook
+  const ok = await app.inject({ method: 'POST', url: '/api/account/billing/confirm', ...M, payload: { sessionId: 'cs_fake1' } })
+  expect(ok.statusCode).toBe(200)
+  expect(ok.json()).toMatchObject({ subscribed: true, subscriptionStatus: 'active' })
+  const [acct] = await db.select().from(account).where(eq(account.id, 'ac_bill'))
+  expect(acct).toMatchObject({ stripeSubscriptionId: 'sub_fake1', stripeSubscriptionItemId: 'si_fake1', subscriptionStatus: 'active' })
+  await db.update(account).set({ subscriptionStatus: null, stripeSubscriptionId: null, stripeSubscriptionItemId: null }).where(eq(account.id, 'ac_bill'))
+})
+
 test('status + portal + already-subscribed guard', async () => {
   const s1 = (await app.inject({ method: 'GET', url: '/api/account/billing', ...M })).json()
   expect(s1).toMatchObject({ subscribed: false, subscriptionStatus: null, liveSweeps: 1, quantity: 0 })

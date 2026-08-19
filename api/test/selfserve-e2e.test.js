@@ -54,6 +54,7 @@ beforeAll(async () => {
   ]).onConflictDoNothing()
 })
 afterAll(async () => {
+  await app.fillsIdle()   // no background fill may outlive the suite that started it
   await db.delete(sweep).where(inArray(sweep.competitionId, [NBA_ID, EPL_ID]))
   for (const id of [NBA_ID, EPL_ID]) {
     await db.delete(event).where(eq(event.competitionId, id))

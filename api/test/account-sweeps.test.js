@@ -45,6 +45,7 @@ beforeAll(async () => {
   }).onConflictDoNothing()
 })
 afterAll(async () => {
+  await app.fillsIdle()   // no background fill may outlive the suite that started it
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_sw'))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_fail'))
   await db.delete(sweep).where(eq(sweep.accountId, 'ac_lapse'))

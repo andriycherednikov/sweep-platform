@@ -1086,7 +1086,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 
 /* section shell --------------------------------------------------------- */
 .lp-sec{ max-width:var(--shell); margin:0 auto; padding:104px 26px 0; scroll-margin-top:76px; }
-.lp-eyebrow{ margin:0; font-family:'Caveat',cursive; font-weight:700; font-size:24px;
+.lp-eyebrow{ margin:0; font-family:'Caveat',cursive; font-weight:700; font-size:30px;
   line-height:1; letter-spacing:0; color:var(--lp-accent); }
 .lp-h2{ margin:12px 0 0; max-width:20ch; font-size:clamp(28px,3.4vw,40px); line-height:1.06; letter-spacing:-1px; color:#fff; }
 

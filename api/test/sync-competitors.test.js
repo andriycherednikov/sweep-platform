@@ -8,7 +8,9 @@ import { createRecordedBasketballProvider } from '../src/providers/recorded-bask
 
 const { pool, db } = openTestDb()
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
-const NBA = { id: 'apibasketball:12:2023-2024', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024' }
+// a season of its own: the provision suites fill 'apibasketball:12:2023-2024' in the
+// background now, and sharing an id with them made this suite's counts a race
+const NBA = { id: 'apibasketball:12:2023-2024-synctest', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: '2023-2024-synctest' }
 
 afterAll(async () => {
   await db.delete(event).where(eq(event.competitionId, NBA.id))

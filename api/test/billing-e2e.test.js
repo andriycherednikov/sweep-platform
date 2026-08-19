@@ -38,6 +38,7 @@ beforeAll(async () => {
   }).onConflictDoNothing()
 })
 afterAll(async () => {
+  await app.fillsIdle()   // a background feed fill must not write into rows we are deleting
   await db.delete(billingEvent).where(inArray(billingEvent.stripeEventId, ['evt_e2e_co', 'evt_e2e_del', 'evt_e2e_renew']))
   await db.delete(sweep).where(inArray(sweep.competitionId, [NBA_ID]))
   for (const id of [NBA_ID]) {

@@ -6,7 +6,10 @@
    reach the sign-in flow without a sweep session existing yet.
    ============================================================ */
 import { useEffect, useState } from "react";
-import { requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken } from "./lib/accountClient.js";
+import {
+  requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken,
+  confirmCheckout, getBilling,
+} from "./lib/accountClient.js";
 import { AccountHome } from "./screens-account.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
 import { useMarketingShell } from "./screens-landing.jsx";
@@ -147,6 +150,47 @@ function Redeem({ token }) {
   );
 }
 
+/** Coming back from Stripe is just a URL the browser was handed — it proves nothing.
+ *  Ask the API to check the session against Stripe, and say what is actually true:
+ *  active, still settling, or a return we can't tie to a payment. */
+function BillingReturn() {
+  const [state, setState] = useState("checking"); // checking | active | pending | unknown
+
+  useEffect(() => {
+    const sessionId = new URLSearchParams(window.location.search).get("session_id");
+    let alive = true;
+    let tries = 0;
+
+    async function check() {
+      try {
+        const b = sessionId ? await confirmCheckout(sessionId) : await getBilling();
+        if (!alive) return;
+        if (b.subscribed) return setState("active");
+        // the webhook may still be in flight — give it a few seconds before saying so
+        if (++tries < 5) return void setTimeout(check, 2000);
+        setState("pending");
+      } catch {
+        if (alive) setState(sessionId ? "unknown" : "pending");
+      }
+    }
+    check();
+    return () => { alive = false; };
+  }, []);
+
+  const copy = {
+    checking: ["Billing", "Checking with *Stripe*", "One moment — confirming the payment against your checkout session."],
+    active: ["Billing", "You're *set*", "Your subscription is active and your sweeps stay live."],
+    pending: ["Billing", "Still *settling*", "Stripe has your payment but has not confirmed it yet. This can take a minute; your account picks it up on its own."],
+    unknown: ["Billing", "Can't *confirm* that", "We could not match this return to a payment on your account. If you were charged, open billing from your account and it will show there."],
+  }[state];
+
+  return (
+    <AuthPanel tag={copy[0]} title={copy[1]} lede={copy[2]}>
+      {state !== "checking" && <a className="lp-btn au-btn" href="/account">Back to my account</a>}
+    </AuthPanel>
+  );
+}
+
 function Landing({ title, msg }) {
   return (
     <AuthPanel tag="Billing" title={title} lede={msg}>
@@ -158,8 +202,7 @@ function Landing({ title, msg }) {
 export function AccountRoot() {
   const path = window.location.pathname;
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
-  if (path === "/account/billing/success")
-    return <Landing title="You're *set*" msg="Subscription active — thanks! Your sweeps stay live." />;
+  if (path === "/account/billing/success") return <BillingReturn />;
   if (path === "/account/billing/cancelled")
     return <Landing title="No *charge*" msg="Checkout cancelled. Nothing was charged." />;
   if (path === "/account/new") {

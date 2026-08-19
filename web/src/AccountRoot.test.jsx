@@ -12,6 +12,7 @@ vi.mock('./lib/accountClient.js', () => ({
   // AccountHome (the signed-in view) loads these on mount — stub with an
   // empty/fresh account so the "in" state renders without crashing.
   getBilling: vi.fn(async () => ({ subscribed: false, subscriptionStatus: null, trialEndsAt: null, liveSweeps: 0, quantity: 0 })),
+  confirmCheckout: vi.fn(async () => ({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 1, quantity: 1 })),
   getAccountSweeps: vi.fn(async () => ([])),
   archiveSweep: vi.fn(async () => ({})),
   startCheckout: vi.fn(),
@@ -85,11 +86,19 @@ test('a 401 (used/expired) redeem shows the link-expired message with a way back
   expect(screen.getByRole('link', { name: /back to my account/i })).toHaveAttribute('href', '/account')
 })
 
-test('the billing success landing renders its message', () => {
-  window.history.replaceState(null, '', '/account/billing/success')
+test('the billing return confirms the checkout session against Stripe before claiming success', async () => {
+  window.history.replaceState(null, '', '/account/billing/success?session_id=cs_test_123')
   render(<AccountRoot />)
-  expect(screen.getByText(/subscription active/i)).toBeInTheDocument()
+  await waitFor(() => expect(accountClient.confirmCheckout).toHaveBeenCalledWith('cs_test_123'))
+  expect(await screen.findByRole('heading', { name: /you're set/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /back to my account/i })).toBeInTheDocument()
+})
+
+test('a return Stripe cannot match reports that, instead of claiming a payment', async () => {
+  accountClient.confirmCheckout.mockRejectedValueOnce(Object.assign(new Error('HTTP 404'), { status: 404 }))
+  window.history.replaceState(null, '', '/account/billing/success?session_id=cs_bogus')
+  render(<AccountRoot />)
+  expect(await screen.findByRole('heading', { name: /can.t confirm that/i })).toBeInTheDocument()
 })
 
 test('the billing cancelled landing renders its message', () => {
