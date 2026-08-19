@@ -81,7 +81,7 @@ test('a 401 (used/expired) redeem shows the link-expired message with a way back
   accountClient.redeemLogin.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
   window.history.replaceState(null, '', '/account/login/badtoken')
   render(<AccountRoot />)
-  expect(await screen.findByText(/link expired/i)).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: /link expired/i })).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /back to my account/i })).toHaveAttribute('href', '/account')
 })
 

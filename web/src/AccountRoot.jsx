@@ -16,13 +16,14 @@ import { useMarketingShell } from "./screens-landing.jsx";
  *  different product. One panel, one field — the flow really is that short. */
 function AuthPanel({ tag, title, lede, children, foot }) {
   useMarketingShell();
+  // *stars* mark the word the accent underlines, same convention as the hero lines
+  const marked = title.split(/\*(.+?)\*/).map((part, i) => (i % 2 ? <u key={i}>{part}</u> : part));
   return (
     <div className="lp au">
       <a className="lp-brand au-brand" href="/"><span>The Sweep</span></a>
       <div className="au-panel">
         <p className="au-tag">{tag}</p>
-        <h1 className="au-h">{title}</h1>
-        <span className="au-rule" aria-hidden="true" />
+        <h1 className="au-h">{marked}</h1>
         <p className="au-lede">{lede}</p>
         {children}
       </div>
@@ -84,7 +85,7 @@ function Entry() {
     return (
       <AuthPanel
         tag="Check your email"
-        title="Link sent"
+        title="Link *sent*"
         lede={<>We sent a sign-in link to <b>{email}</b>. It works once, and it expires in 15 minutes.</>}
         foot={<>(dev: the link is printed on the API console)</>}
       >
@@ -98,7 +99,7 @@ function Entry() {
   return (
     <AuthPanel
       tag="Start free"
-      title="Run your sweep"
+      title="Run *your* sweep"
       lede="One link signs you in and creates your account. No password to invent, no card to enter."
       foot={<>Already running one? The same link signs you back in.</>}
     >
@@ -138,7 +139,7 @@ function Redeem({ token }) {
   return (
     <AuthPanel
       tag="Sign in"
-      title="Link expired"
+      title="Link *expired*"
       lede="That sign-in link has expired or was already used. Ask for a fresh one — it takes a second."
     >
       <a className="lp-btn au-btn" href="/account">Back to my account</a>
@@ -158,9 +159,9 @@ export function AccountRoot() {
   const path = window.location.pathname;
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
   if (path === "/account/billing/success")
-    return <Landing title="You're set" msg="Subscription active — thanks! Your sweeps stay live." />;
+    return <Landing title="You're *set*" msg="Subscription active — thanks! Your sweeps stay live." />;
   if (path === "/account/billing/cancelled")
-    return <Landing title="No charge" msg="Checkout cancelled. Nothing was charged." />;
+    return <Landing title="No *charge*" msg="Checkout cancelled. Nothing was charged." />;
   if (path === "/account/new") {
     return (
       <RequireAccount>

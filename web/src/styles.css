@@ -1236,11 +1236,11 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   box-shadow:0 34px 70px -34px rgba(0,0,0,.85); }
 .au-tag{ margin:0; font-size:11.5px; font-weight:600; letter-spacing:3px;
   text-transform:uppercase; color:var(--lp-accent); }
-.au-h{ margin:8px 0 0; font-family:'Caveat',cursive; font-weight:700; font-size:46px;
-  line-height:.95; color:#fff; }
-.au-rule{ display:block; width:78px; height:4px; margin-top:10px; border-radius:2px;
-  background:var(--lp-accent); }
-.au-lede{ margin:16px 0 0; font-size:14.5px; line-height:1.6; color:var(--ink2); }
+.au-h{ margin:8px 0 6px; font-family:'Caveat',cursive; font-weight:700; font-size:46px;
+  line-height:1.05; color:#fff; }
+/* the accent underlines the word the sentence turns on, rather than the whole line */
+.au-h u{ text-decoration:none; box-shadow:inset 0 -5px 0 -1px var(--lp-accent); }
+.au-lede{ margin:14px 0 0; font-size:14.5px; line-height:1.6; color:var(--ink2); }
 .au-form{ margin-top:20px; padding-top:20px; border-top:1px solid var(--edge); }
 .au-label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink2); }
 .au-input{ width:100%; margin-top:7px; padding:12px 14px; border-radius:10px;
