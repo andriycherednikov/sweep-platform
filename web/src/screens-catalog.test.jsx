@@ -20,12 +20,12 @@ const ROWS = [
   {
     provider: 'p', sport: 'football', leagueId: 'L1', name: 'Premier League', type: 'league',
     logo: 'https://x/pl.png', country: { name: 'England', code: 'EN', flag: null },
-    seasons: [{ season: '2025-2026', current: true }, { season: '2024-2025', current: false }],
+    seasons: [{ season: '2025-2026', current: true, start: '2025-08-15' }, { season: '2026-2027', current: false, start: '2099-09-01' }],
   },
   {
     provider: 'p', sport: 'basketball', leagueId: 'L2', name: 'NBA', type: 'league',
     logo: null, country: { name: 'USA' },
-    seasons: [{ season: '2025', current: true }, { season: '2024', current: false }],
+    seasons: [{ season: '2025', current: true, start: '2025-10-01' }, { season: '2026', current: false, start: '2026-01-01' }],
   },
 ]
 
@@ -34,22 +34,23 @@ beforeEach(() => {
   getCatalog.mockResolvedValue(ROWS)
 })
 
-test('renders one row per league: logo null-guarded, name, country, season select defaults to the newest', async () => {
+test('renders one card per provisionable season: logo null-guarded, name, country, when it runs', async () => {
   const { container } = render(<CatalogScreen onBack={() => {}} onPick={() => {}} />)
-  expect(await screen.findByText('Premier League')).toBeTruthy()
-  expect(screen.getByText('England')).toBeTruthy()
-  expect(screen.getByText('NBA')).toBeTruthy()
-  expect(screen.getByText('USA')).toBeTruthy()
-  expect(container.querySelectorAll('img')).toHaveLength(1) // NBA's null logo renders no <img>
+  expect(await screen.findAllByText('Premier League')).toHaveLength(2)   // one card per season
+  expect(screen.getAllByText('England')).toHaveLength(2)
+  expect(screen.getAllByText('NBA')).toHaveLength(2)
+  expect(screen.getAllByText('USA')).toHaveLength(2)
+  expect(container.querySelectorAll('img')).toHaveLength(2) // NBA's null logo renders no <img>
 
-  const selects = screen.getAllByRole('combobox')
-  expect(selects[0]).toHaveValue('2025-2026')
-  expect(selects[1]).toHaveValue('2025')
+  expect(screen.queryAllByRole('combobox')).toHaveLength(0) // seasons are stated, not chosen
+  expect(screen.getByText('2025-2026')).toBeTruthy()
+  expect(screen.getAllByText(/starts .*2099/i)).toHaveLength(1)
+  expect(screen.getAllByText('in progress').length).toBeGreaterThan(0)
 })
 
 test('clicking a sport chip re-queries the server with that sport (not a client-side filter)', async () => {
   render(<CatalogScreen onBack={() => {}} onPick={() => {}} />)
-  await screen.findByText('Premier League')
+  await screen.findAllByText('Premier League')
   expect(getCatalog).toHaveBeenNthCalledWith(1, {})
 
   fireEvent.click(screen.getByRole('button', { name: /basketball/i }))
@@ -59,7 +60,7 @@ test('clicking a sport chip re-queries the server with that sport (not a client-
 
 test('typing 1 character does not re-query; 2 characters triggers a query with q', async () => {
   render(<CatalogScreen onBack={() => {}} onPick={() => {}} />)
-  await screen.findByText('Premier League')
+  await screen.findAllByText('Premier League')
   expect(getCatalog).toHaveBeenCalledTimes(1)
 
   const input = screen.getByPlaceholderText(/search/i)
@@ -72,17 +73,14 @@ test('typing 1 character does not re-query; 2 characters triggers a query with q
   expect(getCatalog).toHaveBeenNthCalledWith(2, { q: 'nb' })
 })
 
-test('"Set up sweep" calls onPick with the row and the selected season', async () => {
+test('"Set up sweep" calls onPick with the row and that card\'s season', async () => {
   const onPick = vi.fn()
   render(<CatalogScreen onBack={() => {}} onPick={onPick} />)
-  await screen.findByText('NBA')
-
-  const selects = screen.getAllByRole('combobox')
-  fireEvent.change(selects[1], { target: { value: '2024' } })
+  await screen.findAllByText('NBA')
 
   const buttons = screen.getAllByRole('button', { name: /set up sweep/i })
-  fireEvent.click(buttons[1])
-  expect(onPick).toHaveBeenCalledWith(ROWS[1], '2024')
+  fireEvent.click(buttons[3])   // NBA's second season card
+  expect(onPick).toHaveBeenCalledWith(ROWS[1], '2026')
 })
 
 test('shows a loading line while the initial fetch is in flight', () => {
@@ -98,7 +96,7 @@ test('a failed fetch shows an inline error with a retry that re-queries', async 
 
   getCatalog.mockResolvedValueOnce(ROWS)
   fireEvent.click(screen.getByRole('button', { name: /retry/i }))
-  expect(await screen.findByText('Premier League')).toBeTruthy()
+  expect(await screen.findAllByText('Premier League')).toBeTruthy()
 })
 
 test('an empty result set shows the "No competitions match." empty state', async () => {
@@ -111,8 +109,8 @@ test('an empty result set shows the "No competitions match." empty state', async
 
 async function openSheet() {
   render(<CatalogScreen onBack={() => {}} />)
-  await screen.findByText('NBA')
-  fireEvent.click(screen.getAllByRole('button', { name: /set up sweep/i })[1])
+  await screen.findAllByText('NBA')
+  fireEvent.click(screen.getAllByRole('button', { name: /set up sweep/i })[2])   // NBA's first season card
   return screen.getByPlaceholderText(/sweep name/i)
 }
 
@@ -126,7 +124,7 @@ test('submitting shows a pending state while the provision is in flight', async 
   createSweep.mockReturnValue(new Promise(() => {}))
   await openSheet()
   fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
-  expect(await screen.findByText(/setting up — fetching teams and games/i)).toBeTruthy()
+  expect(await screen.findByText(/creating your sweep/i)).toBeTruthy()
   expect(screen.getByRole('button', { name: /start sweep/i })).toBeDisabled()
   expect(createSweep).toHaveBeenCalledWith({
     name: 'NBA 2025', provider: 'p', leagueId: 'L2', season: '2025', wageringEnabled: false,

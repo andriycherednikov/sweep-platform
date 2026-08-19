@@ -44,7 +44,10 @@ function ProvisionSheet({ league, season, onClose }) {
         <h2 className="ac-sheet-h">{done ? "Your sweep is live" : `${league.name} · ${season}`}</h2>
         {done ? (
           <>
-            <p className="ac-b">Share the member link with your group; keep the admin link to yourself.</p>
+            <p className="ac-b">
+              Share the member link with your group; keep the admin link to yourself.
+              Teams and fixtures are still landing from the feed — they appear on their own.
+            </p>
             <LinkField label="Member link" value={done.memberLink} />
             <LinkField label="Admin link" value={done.adminLink} />
             <button className="lp-btn ac-btn" onClick={() => goTo("/account")}>Done</button>
@@ -60,7 +63,7 @@ function ProvisionSheet({ league, season, onClose }) {
               Enable Wagers (play-money betting)
             </label>
             <button className="lp-btn ac-btn" type="submit" disabled={busy}>Start sweep</button>
-            {busy && <p className="ac-b">Setting up — fetching teams and games…</p>}
+            {busy && <p className="ac-b">Creating your sweep…</p>}
             {err && (
               <p className="ac-warn">
                 {err.code === "sweep_cap"
@@ -82,9 +85,20 @@ function cap(s) {
   return s ? s[0].toUpperCase() + s.slice(1) : s;
 }
 
-function CatalogRow({ row, onPick }) {
-  const [season, setSeason] = useState(row.seasons?.[0]?.season);
+const DATE_FMT = { day: "numeric", month: "short", year: "numeric" };
 
+/** Only unfinished seasons reach us, so a season is either under way or still
+ *  to come — say which, because "2026" alone doesn't tell you when it starts. */
+function seasonWhen(s) {
+  const starts = s.start ? Date.parse(s.start) : NaN;
+  return Number.isFinite(starts) && starts > Date.now()
+    ? `starts ${new Date(starts).toLocaleDateString(undefined, DATE_FMT)}`
+    : "in progress";
+}
+
+/* One card per season a sweep can actually start on — nothing to choose from a
+   menu, so the season and when it runs are simply stated. */
+function CatalogRow({ row, s, onPick }) {
   return (
     <div className="ac-row">
       {row.logo && <img className="ac-row-logo" src={row.logo} alt="" width={30} height={30} />}
@@ -92,10 +106,11 @@ function CatalogRow({ row, onPick }) {
         <b>{row.name}</b>
         {row.country?.name && <span>{row.country.name}</span>}
       </div>
-      <select className="ac-select" value={season} onChange={(e) => setSeason(e.target.value)}>
-        {(row.seasons || []).map((s) => <option key={s.season} value={s.season}>{s.season}</option>)}
-      </select>
-      <button className="ac-ghost is-go" onClick={() => onPick(row, season)}>Set up sweep</button>
+      <span className="ac-row-when">
+        <b>{s.season}</b>
+        <span>{seasonWhen(s)}</span>
+      </span>
+      <button className="ac-ghost is-go" onClick={() => onPick(row, s.season)}>Set up sweep</button>
     </div>
   );
 }
@@ -139,14 +154,7 @@ export function CatalogScreen({ onBack, onPick = () => {} }) {
   const sports = useMemo(() => Array.from(new Set(rows.map((r) => r.sport))), [rows]);
 
   return (
-    <Console
-      nav={
-        <>
-          <button className="ac-nav-i" onClick={onBack}>Sweeps</button>
-          <button className="ac-nav-i is-here">New sweep</button>
-        </>
-      }
-    >
+    <Console here="new">
       <p className="lp-eyebrow">New sweep</p>
       <h1 className="ac-h1">Pick a competition</h1>
       <p className="ac-sub">The sweep binds to one season of one competition and pulls its own fixtures.</p>
@@ -181,9 +189,9 @@ export function CatalogScreen({ onBack, onPick = () => {} }) {
       )}
       {!loading && !error && (
         <div className="ac-rows">
-          {rows.map((row) => (
-            <CatalogRow key={`${row.provider}-${row.sport}-${row.leagueId}`} row={row} onPick={pick} />
-          ))}
+          {rows.flatMap((row) => (row.seasons || []).map((s) => (
+            <CatalogRow key={`${row.provider}-${row.sport}-${row.leagueId}-${s.season}`} row={row} s={s} onPick={pick} />
+          )))}
         </div>
       )}
       {picked && <ProvisionSheet league={picked.row} season={picked.season} onClose={() => setPicked(null)} />}

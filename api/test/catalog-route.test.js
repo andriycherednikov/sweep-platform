@@ -15,14 +15,15 @@ beforeAll(async () => {
     { id: 'apifootball:39', provider: 'apifootball', providerLeagueId: '39', name: 'Premier League', type: 'League',
       country: { name: 'England', code: 'GB-ENG', flag: null }, curated: true,
       seasons: [
-        { season: '2026', start: '2026-08-21', end: '2027-05-30', current: true, standings: false, odds: false }, // unstarted → not provisionable
-        { season: '2025', start: '2025-08-15', end: '2026-05-24', current: false, standings: true, odds: false },
+        { season: '2027', start: '2027-08-21', end: '2028-05-30', current: false, standings: false, odds: false }, // no standings → not provisionable
+        { season: '2026', start: '2026-08-15', end: '2027-05-24', current: true, standings: true, odds: false },
+        { season: '2024', start: '2024-08-16', end: '2025-05-25', current: false, standings: true, odds: false }, // over → nothing to sweep
       ] },
     { id: 'apibasketball:12', provider: 'apibasketball', providerLeagueId: '12', name: 'NBA', type: 'League',
       country: { name: 'USA', code: 'US', flag: null }, curated: true,
       seasons: [
-        { season: '2025-2026', start: '2025-09-30', end: '2026-06-18', current: false, standings: true, odds: false }, // outside free window
-        { season: '2023-2024', start: '2023-10-05', end: '2024-06-18', current: false, standings: true, odds: false },
+        { season: '2025-2026', start: '2025-09-30', end: '2026-06-18', current: false, standings: true, odds: false }, // outside the free window
+        { season: '2024-2025', start: '2024-10-05', end: '2099-06-18', current: false, standings: true, odds: false },
       ] },
     { id: 'apifootball:999', provider: 'apifootball', providerLeagueId: '999', name: 'Obscure NotCurated League', type: 'League',
       country: { name: 'England', code: null, flag: null }, curated: false,
@@ -45,9 +46,9 @@ test('catalog returns curated rows with only provisionable seasons', async () =>
   expect(rows.map((r) => r.name).sort()).toEqual(['NBA', 'Premier League']) // non-curated invisible
   const epl = rows.find((r) => r.name === 'Premier League')
   expect(epl).toMatchObject({ provider: 'apifootball', sport: 'football', leagueId: '39' })
-  expect(epl.seasons.map((s) => s.season)).toEqual(['2025']) // 2026 dropped: standings:false
+  expect(epl.seasons.map((s) => s.season)).toEqual(['2026']) // 2027 dropped: standings:false — 2024 dropped: already over
   const nba = rows.find((r) => r.name === 'NBA')
-  expect(nba.seasons.map((s) => s.season)).toEqual(['2023-2024']) // 2025-2026 dropped: window
+  expect(nba.seasons.map((s) => s.season)).toEqual(['2024-2025']) // 2025-2026 dropped: window
 })
 
 test('sport + q filters, auth required', async () => {
