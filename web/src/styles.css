@@ -80,7 +80,7 @@ a{color:inherit; text-decoration:none;}
 .brand{display:flex; align-items:center; gap:9px;}
 .brand .mark{width:26px; height:50px; border-radius:0; background:transparent; box-shadow:none; display:flex; align-items:center; justify-content:center;}
 .mark img{width:100%; height:100%; object-fit:contain; display:block; filter:drop-shadow(0 2px 3px rgba(0,0,0,.3));}
-.brand b{font-family:'Barlow Condensed'; font-weight:800; font-size:20px; letter-spacing:.5px; line-height:1; white-space:nowrap;}
+.brand b{font-weight:700; font-size:26px; letter-spacing:.2px; line-height:1; white-space:nowrap;}
 .brand small{display:block; font-size:9.5px; letter-spacing:2.5px; color:#9fb6d6; font-weight:600; white-space:nowrap;}
 /* page/coins variant of the brand title (menu name / balance) — uppercase to
    match the THE SWEEP wordmark; trophy + chip stay home-size. */
@@ -174,7 +174,7 @@ a{color:inherit; text-decoration:none;}
 }
 .home-flow .brand .mark, .home-flow .brand b, .home-flow .brand small{ transition:none; }
 .home-flow .brand .mark{ width:calc(26px - 6px * var(--p, 0)); height:calc(50px - 16px * var(--p, 0)); }
-.home-flow .brand b{ font-size:calc(20px - 4px * var(--p, 0)); }
+.home-flow .brand b{ font-size:calc(26px - 5px * var(--p, 0)); }
 .home-flow .brand small{ opacity:calc(1 - var(--p, 0)); }
 /* fade the full identity (+ date) to 0 EARLY (by ~⅓ scroll) so the avatar is already
    invisible before max-height clips it into a half-moon; height keeps collapsing unseen. */
@@ -972,7 +972,7 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 
 .sweep-brand{ display:flex; flex-direction:column; align-items:center; gap:11px; animation:sweepRise .55s cubic-bezier(.2,.7,.2,1) both; }
 .sweep-brand-mark{ width:60px; height:60px; object-fit:contain; filter:drop-shadow(0 12px 22px rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(233,79,55,.28)); }
-.sweep-brand-word b{ display:block; font-family:'Barlow Condensed'; font-weight:800; font-size:26px; letter-spacing:.6px; line-height:.95; color:#fff; }
+.sweep-brand-word b{ display:block; font-weight:700; font-size:34px; letter-spacing:.2px; line-height:.95; color:#fff; }
 .sweep-brand-word small{ display:block; margin-top:3px; font-size:10px; letter-spacing:4px; font-weight:600; color:#9fb6d6; }
 
 .sweep-card{ width:100%; max-width:340px; padding:26px 22px; border-radius:20px;
@@ -1005,38 +1005,45 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
    Calmer than the app on purpose. Mixed-case Bricolage display over the same
    navy, glass panels, one accent, and screenshots presented as the product
    rather than as decoration. ========================================== */
-body.marketing{ display:block; background:#08142a; }
+body.marketing{ display:block; background:#0f1620; }
 body.marketing #root{ display:block; min-height:0; }
 body.marketing #appmount{ height:auto; }
 /* the phone/desktop frame is what actually pins the shell to the viewport */
 body.marketing .device{ height:auto; max-height:none; overflow:visible; border-radius:0; padding:0; box-shadow:none; background:transparent; }
 
 .lp{
-  --ink:#eef4fc; --ink2:#a7bad3; --ink3:#7f95b3;
-  --glass:rgba(255,255,255,.045); --glass2:rgba(255,255,255,.07); --edge:rgba(255,255,255,.10);
-  --paper:#f4efe5; --paper-ink:#22304a; --shell:1120px;
+  /* palette and type lifted from the reference design: warm-red accent on a cool
+     ink ground, Archivo throughout, Caveat reserved for the wordmark. */
+  --ink:#f2f4f6; --ink2:#93a1b0; --ink3:#6b7a8b;
+  --lp-bg:#0f1620; --lp-surface:#1a2431; --lp-accent:#ec3013; --lp-lift:#ff563c; --lp-soft:#ff9783;
+  --glass:rgba(242,244,246,.045); --glass2:rgba(242,244,246,.07); --edge:rgba(242,244,246,.13);
+  --paper:#f8f4f4; --paper-ink:#201e1d; --shell:1120px;
   min-height:100dvh; width:100%; overflow-x:clip;
-  color:var(--ink); text-align:left; font-family:'DM Sans',system-ui,sans-serif;
+  color:var(--ink); text-align:left; font-family:'Archivo',system-ui,sans-serif;
   background:
-    radial-gradient(58% 40% at 78% -6%, rgba(233,79,55,.22), transparent 62%),
-    radial-gradient(52% 38% at 12% -4%, rgba(56,116,196,.30), transparent 66%),
-    linear-gradient(180deg, #0d2141 0%, #0a1830 42%, #08142a 100%);
+    radial-gradient(58% 40% at 78% -6%, rgba(236,48,19,.20), transparent 62%),
+    radial-gradient(52% 38% at 12% -4%, rgba(61,77,94,.42), transparent 66%),
+    linear-gradient(180deg, #16202c 0%, var(--lp-bg) 44%, #0c121a 100%);
 }
 .lp img{ display:block; max-width:100%; height:auto; }
-.lp ::selection{ background:rgba(233,79,55,.35); }
+.lp ::selection{ background:rgba(236,48,19,.4); }
 .lp a{ text-decoration:none; }
-.lp a:focus-visible, .lp button:focus-visible{ outline:2px solid var(--accent2); outline-offset:3px; border-radius:8px; }
+.lp a:focus-visible, .lp button:focus-visible{ outline:2px solid var(--lp-soft); outline-offset:3px; border-radius:8px; }
 
-.lp-h1, .lp-h2, .lp-plan-n{ font-family:'Instrument Serif',Georgia,serif; font-weight:400; }
-.lp-card-h, .lp-tile-h{ font-family:'DM Sans',system-ui,sans-serif; font-weight:700; }
-.lp-h1 em, .lp-h2 em{ font-style:italic; color:#f2a58c; }
+.lp-h1, .lp-h2, .lp-plan-n{ font-family:'Archivo',system-ui,sans-serif; font-weight:800;
+  font-variation-settings:'wdth' 108; }
+.lp-card-h, .lp-tile-h{ font-family:'Archivo',system-ui,sans-serif; font-weight:700; }
+.lp-h1 em, .lp-h2 em{ font-style:normal; color:var(--lp-soft); }
+/* the wordmark IS the logo — Caveat, and nothing else uses it */
+.lp-brand span, .sweep-brand-word b, .brand b, .sb-brand b{
+  font-family:'Caveat',cursive; font-weight:700; text-transform:none; }
 
 /* nav ------------------------------------------------------------------ */
 .lp-nav{ position:sticky; top:0; z-index:20; backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
-  background:rgba(8,20,42,.72); border-bottom:1px solid rgba(255,255,255,.07); }
+  background:rgba(15,22,32,.78); border-bottom:1px solid rgba(242,244,246,.09); }
 .lp-nav-in{ max-width:var(--shell); margin:0 auto; padding:13px 26px; display:flex; align-items:center; gap:26px; }
 .lp-brand{ display:flex; align-items:center; gap:9px; color:var(--ink); }
-.lp-brand span{ font-family:'Instrument Serif',Georgia,serif; font-weight:400; font-size:21px; letter-spacing:.1px; }
+.lp-brand span{ font-size:27px; line-height:1; letter-spacing:.2px; }
 .lp-links{ display:flex; gap:24px; margin-left:8px; }
 .lp-links a{ font-size:14.5px; font-weight:500; color:var(--ink2); transition:color .15s; }
 .lp-links a:hover{ color:var(--ink); }
@@ -1045,10 +1052,10 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-ghost:hover{ color:var(--ink); }
 
 .lp-btn{ display:inline-block; padding:10px 20px; border-radius:11px; color:#fff; font-weight:600; font-size:14.5px;
-  letter-spacing:.1px; background:linear-gradient(165deg, var(--accent2), var(--accentd));
-  box-shadow:0 10px 24px -12px rgba(233,79,55,.9), inset 0 1px 0 rgba(255,255,255,.22);
+  letter-spacing:.1px; background:linear-gradient(165deg, var(--lp-lift), var(--lp-accent));
+  box-shadow:0 10px 24px -12px rgba(236,48,19,.9), inset 0 1px 0 rgba(255,255,255,.22);
   transition:transform .15s, filter .15s, box-shadow .15s; }
-.lp-btn:hover{ transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 16px 30px -12px rgba(233,79,55,.95), inset 0 1px 0 rgba(255,255,255,.28); }
+.lp-btn:hover{ transform:translateY(-1px); filter:brightness(1.05); box-shadow:0 16px 30px -12px rgba(236,48,19,.95), inset 0 1px 0 rgba(255,255,255,.28); }
 .lp-btn-lg{ padding:14px 30px; font-size:16px; border-radius:13px; }
 
 /* hero ----------------------------------------------------------------- */
@@ -1056,7 +1063,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-hero-tight{ padding-bottom:8px; }
 .lp-pill{ display:inline-block; padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:600;
   letter-spacing:.2px; color:#d8e5f5; background:var(--glass); border:1px solid var(--edge); }
-.lp-h1{ margin:20px auto 0; max-width:22ch; font-size:clamp(38px,4.3vw,58px); line-height:1.08; letter-spacing:-.4px; color:#fff; }
+.lp-h1{ margin:20px auto 0; max-width:19ch; font-size:clamp(38px,4.4vw,58px); line-height:1.02; letter-spacing:-1.4px; color:#fff; }
 .lp-h1-sm{ max-width:20ch; font-size:clamp(34px,4.2vw,50px); }
 .lp-lede{ margin:18px auto 0; max-width:52ch; font-size:16.5px; line-height:1.65; color:var(--ink2); }
 .lp-hero-cta{ margin-top:30px; display:flex; align-items:center; justify-content:center; gap:16px; flex-wrap:wrap; }
@@ -1065,7 +1072,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* the product, presented ------------------------------------------------ */
 .lp-stage{ position:relative; margin:60px auto 0; max-width:var(--shell); }
 .lp-stage::before{ content:""; position:absolute; inset:-8% -6% -22%; border-radius:50%; z-index:0;
-  background:radial-gradient(58% 52% at 50% 45%, rgba(233,79,55,.28), transparent 70%); filter:blur(46px); }
+  background:radial-gradient(58% 52% at 50% 45%, rgba(236,48,19,.28), transparent 70%); filter:blur(46px); }
 .lp-stage-img{ position:relative; z-index:1; width:100%; border-radius:16px; border:1px solid var(--edge);
   box-shadow:0 50px 90px -35px rgba(0,0,0,.92), 0 2px 0 rgba(255,255,255,.06) inset; }
 
@@ -1077,14 +1084,14 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 
 /* section shell --------------------------------------------------------- */
 .lp-sec{ max-width:var(--shell); margin:0 auto; padding:104px 26px 0; scroll-margin-top:76px; }
-.lp-eyebrow{ margin:0; font-weight:500; font-size:12px; letter-spacing:3px; text-transform:uppercase; color:#e07a5f; }
-.lp-h2{ margin:12px 0 0; max-width:22ch; font-size:clamp(30px,3.6vw,44px); line-height:1.08; letter-spacing:-.3px; color:#fff; }
+.lp-eyebrow{ margin:0; font-weight:600; font-size:11.5px; letter-spacing:3px; text-transform:uppercase; color:var(--lp-soft); }
+.lp-h2{ margin:12px 0 0; max-width:20ch; font-size:clamp(28px,3.4vw,40px); line-height:1.06; letter-spacing:-1px; color:#fff; }
 
 /* how it works ---------------------------------------------------------- */
 .lp-cards{ margin-top:40px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
 .lp-card{ padding:24px 22px 26px; border-radius:18px; background:var(--glass); border:1px solid var(--edge);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.05); }
-.lp-card-n{ display:inline-block; font-family:'Instrument Serif',Georgia,serif; font-size:19px; color:#e07a5f; }
+.lp-card-n{ display:inline-block; font-weight:800; font-size:12.5px; letter-spacing:1.6px; color:var(--lp-soft); }
 .lp-card-h{ margin:10px 0 8px; font-size:20px; letter-spacing:-.4px; color:#fff; }
 .lp-card-b{ margin:0; font-size:14.5px; line-height:1.65; color:var(--ink2); }
 
@@ -1099,8 +1106,8 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   box-shadow:0 12px 22px -14px rgba(0,0,0,.95);
   transform:rotate(calc((var(--i) % 3 - 1) * .7deg));
   animation:lpSlip .5s cubic-bezier(.2,.7,.2,1) both; animation-delay:calc(var(--i) * 55ms); }
-.lp-slip b{ font-weight:700; font-size:12px; letter-spacing:.4px;
-  color:var(--accentd); border-right:1px solid rgba(34,48,74,.2); padding-right:8px; }
+.lp-slip b{ font-weight:800; font-size:12px; letter-spacing:.4px;
+  color:var(--lp-accent); border-right:1px solid rgba(32,30,29,.2); padding-right:8px; }
 .lp-draw-cap{ margin:14px 0 0; font-size:13px; color:var(--ink3); }
 
 /* bento ------------------------------------------------------------------ */
@@ -1124,9 +1131,9 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-final{ max-width:760px; margin:120px auto 0; padding:0 26px; text-align:center; }
 .lp-final .lp-h2{ margin-left:auto; margin-right:auto; }
 .lp-final-b{ margin:14px auto 26px; max-width:46ch; font-size:16px; line-height:1.65; color:var(--ink2); }
-.lp-foot{ margin-top:104px; border-top:1px solid rgba(255,255,255,.07); }
+.lp-foot{ margin-top:104px; border-top:1px solid rgba(242,244,246,.09); }
 .lp-foot-in{ max-width:var(--shell); margin:0 auto; padding:26px 26px 60px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
-.lp-brand-sm span{ font-size:15px; }
+.lp-brand-sm span{ font-size:21px; }
 .lp-foot-note{ margin:0; font-size:13px; color:var(--ink3); }
 .lp-foot-links{ margin-left:auto; display:flex; gap:18px; }
 .lp-foot-links a{ font-size:13.5px; font-weight:500; color:var(--ink2); }
@@ -1137,12 +1144,12 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-plan-card{ padding:34px 30px 30px; border-radius:22px; text-align:center; border:1px solid var(--edge);
   background:linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.025));
   box-shadow:0 40px 80px -40px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.08); }
-.lp-plan-n{ margin:0; font-size:64px; line-height:1; letter-spacing:-1px; color:#fff; }
-.lp-plan-n span{ font-family:'DM Sans',sans-serif; font-size:17px; font-weight:500; letter-spacing:0; color:var(--ink3); }
+.lp-plan-n{ margin:0; font-size:60px; line-height:1; letter-spacing:-2px; color:#fff; }
+.lp-plan-n span{ font-family:'Archivo',sans-serif; font-size:17px; font-weight:500; letter-spacing:0; color:var(--ink3); }
 .lp-plan-sub{ margin:10px 0 22px; font-size:14px; color:var(--ink2); }
 .lp-plan-list{ margin:28px 0 0; padding:0; list-style:none; text-align:left; display:flex; flex-direction:column; gap:11px; }
 .lp-plan-list li{ position:relative; padding-left:26px; font-size:14.5px; line-height:1.55; color:var(--ink2); }
-.lp-plan-list li::before{ content:"✓"; position:absolute; left:0; top:0; font-weight:700; color:var(--accent2); }
+.lp-plan-list li::before{ content:"✓"; position:absolute; left:0; top:0; font-weight:700; color:var(--lp-soft); }
 .lp-qa{ margin-top:34px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
 .lp-qa-item{ padding:22px 22px 24px; border-radius:18px; background:var(--glass); border:1px solid var(--edge); }
 
@@ -1164,10 +1171,10 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 
 /* results rail — live finished games, looping seamlessly, paused on hover */
 .lp-ticker{ display:flex; align-items:center; gap:16px; padding:11px 0 11px 26px;
-  border-bottom:1px solid rgba(255,255,255,.07); background:rgba(8,20,42,.55); overflow:hidden; }
+  border-bottom:1px solid rgba(242,244,246,.09); background:var(--lp-surface); overflow:hidden; }
 .lp-ticker-tag{ display:flex; align-items:center; gap:7px; flex-shrink:0; font-size:10.5px; font-weight:500;
-  letter-spacing:1.8px; text-transform:uppercase; color:var(--accent2); }
-.lp-ticker-dot{ width:7px; height:7px; border-radius:50%; background:var(--accent2); display:inline-block;
+  letter-spacing:1.8px; text-transform:uppercase; color:var(--lp-soft); }
+.lp-ticker-dot{ width:7px; height:7px; border-radius:50%; background:var(--lp-soft); display:inline-block;
   animation:lpPulse 1.9s ease-in-out infinite; }
 @keyframes lpPulse{ 0%,100%{ opacity:.3; } 50%{ opacity:1; } }
 .lp-ticker-window{ overflow:hidden; flex-grow:1;

@@ -429,7 +429,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
         <button className="brand brand-btn" onClick={toTop} aria-label={home ? "Scroll to top" : "Today"}>
           <div className="mark"><SweepMark title="The Sweep"/></div>
           <div className={"brand-tx" + (home ? "" : " alt")}>
-            <b>{home ? "THE SWEEP" : title}</b>
+            <b>{home ? "The Sweep" : title}</b>
             {(home || sub) && <small>{home ? (S.competition?.name ? S.competition.name.toUpperCase() : "") : sub}</small>}
           </div>
         </button>
@@ -618,7 +618,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
         <div className="mark"><SweepMark title="The Sweep"/></div>
-        <div><b>THE SWEEP</b><small>{S.competition?.name ? S.competition.name.toUpperCase() : ""}</small></div>
+        <div><b>The Sweep</b><small>{S.competition?.name ? S.competition.name.toUpperCase() : ""}</small></div>
       </button>
       <div className="sb-sec">Browse</div>
       <nav className="sb-nav">

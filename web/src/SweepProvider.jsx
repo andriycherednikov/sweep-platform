@@ -30,7 +30,7 @@ function GateBrand() {
   return (
     <div className="sweep-brand">
       <SweepMark className="sweep-brand-mark" />
-      <div className="sweep-brand-word"><b>THE SWEEP</b></div>
+      <div className="sweep-brand-word"><b>The Sweep</b></div>
     </div>
   )
 }
