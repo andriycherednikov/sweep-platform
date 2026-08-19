@@ -29,16 +29,15 @@ export function useMarketingShell() {
 
 // The pairings in the draw band are the ones visible in the screenshots below,
 // so the page and the shots tell the same story.
-// [initials, person colour, team, team monogram, team colour]. ponytail: monogram
-// crests, not the clubs' real logos — the feed's marks are trademarked and this is
-// a marketing page, not sweep data. The app renders the real ones from the feed.
+// [face, team, crest]. The faces are generated, not photographs of anyone —
+// a sweep is a group of people, so the slips show people, not initials.
 const SLIPS = [
-  ["AM", "#c2410c", "Houston Rockets", "HOU", "#ce1141"],
-  ["JB", "#1d4ed8", "Brooklyn Nets", "BKN", "#1d1d1d"],
-  ["PN", "#0f766e", "LA Lakers", "LAL", "#552583"],
-  ["TA", "#7c3aed", "Milwaukee Bucks", "MIL", "#00471b"],
-  ["NF", "#b91c1c", "Toronto Raptors", "TOR", "#753bbd"],
-  ["SW", "#0369a1", "Indiana Pacers", "IND", "#002d62"],
+  ["p3", "Houston Rockets", "hou"],
+  ["p2", "Brooklyn Nets", "bkn"],
+  ["p5", "LA Lakers", "lal"],
+  ["p4", "Milwaukee Bucks", "mil"],
+  ["p6", "Toronto Raptors", "tor"],
+  ["p1", "Indiana Pacers", "ind"],
 ]
 
 const COMPETITIONS = [
@@ -46,13 +45,23 @@ const COMPETITIONS = [
 ]
 
 // The hero line rotates per visit — same promise, three different angles at it.
+// Two lines each; *stars* mark the word that gets the hand-written Caveat.
 // ponytail: random on load, not a timed cycle; a line that swaps under you mid-read
 // is a gimmick, and re-running the entrance mask animation costs more than it buys.
 const HEADLINES = [
-  ["Be the one who runs the sweep.", "Not the one ", "updating", " it."],
-  ["You start it.", "The group ", "never", " shuts up about it."],
-  ["Be the reason everyone cares", "about a ", "Tuesday", " night game."],
+  ["Be the one who runs the sweep.", "Not the one *updating* it."],
+  ["You start it.", "The group *never* shuts up about it."],
+  ["Be the reason *everyone*", "cares about a Tuesday night game."],
 ]
+
+/** "Not the one *updating* it." → text with the starred word in <em> (Caveat). */
+function HeroLine({ line }) {
+  return (
+    <span className="lp-mask">
+      <span>{line.split(/\*(.+?)\*/).map((part, i) => (i % 2 ? <em key={i}>{part}</em> : part))}</span>
+    </span>
+  )
+}
 
 const STEPS = [
   ["Pick the competition",
@@ -201,17 +210,15 @@ export function LandingFoot() {
 export function Landing() {
   useMarketingShell()
   useReveal()
-  const [[line1, pre, em, post]] = useState(() => [HEADLINES[Math.floor(Math.random() * HEADLINES.length)]])
+  const [headline] = useState(() => HEADLINES[Math.floor(Math.random() * HEADLINES.length)])
   return (
     <div data-testid="sweep-landing" className="lp">
       <LandingNav />
       <ResultsTicker />
 
       <section className="lp-hero">
-        <p className="lp-kicker lp-in">1,600+ leagues and tournaments, one sweep at a time</p>
         <h1 className="lp-h1">
-          <span className="lp-mask"><span>{line1}</span></span>
-          <span className="lp-mask"><span>{pre}<em>{em}</em>{post}</span></span>
+          {headline.map((line) => <HeroLine key={line} line={line} />)}
         </h1>
         <p className="lp-lede lp-in lp-in-2">
           Pick a competition, send one link, pull the teams out of the hat. From there
@@ -231,6 +238,7 @@ export function Landing() {
 
       <section className="lp-strip" data-reveal aria-label="Competitions you can run a sweep on">
         <p>{COMPETITIONS.join("  ·  ")}<span className="lp-strip-more">  ·  more each season</span></p>
+        <p className="lp-kicker">1,600+ leagues and tournaments, one sweep at a time</p>
       </section>
 
       <section className="lp-sec" id="how" data-reveal>
@@ -248,10 +256,10 @@ export function Landing() {
 
         <div className="lp-draw">
           <div className="lp-draw-rail" aria-label="An example draw">
-            {SLIPS.map(([who, whoColor, team, mono, teamColor], i) => (
+            {SLIPS.map(([face, team, crest], i) => (
               <span className="lp-slip" key={team} style={{ "--i": i }}>
-                <b className="lp-av" style={{ background: whoColor }}>{who}</b>
-                <span className="lp-crest" style={{ background: teamColor }}>{mono}</span>
+                <img className="lp-av" src={`/marketing/faces/${face}.webp`} alt="" loading="lazy" />
+                <img className="lp-crest" src={`/marketing/teams/${crest}.webp`} alt="" loading="lazy" />
                 {team}
               </span>
             ))}
