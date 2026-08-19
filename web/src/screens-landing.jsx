@@ -29,13 +29,16 @@ export function useMarketingShell() {
 
 // The pairings in the draw band are the ones visible in the screenshots below,
 // so the page and the shots tell the same story.
+// [initials, person colour, team, team monogram, team colour]. ponytail: monogram
+// crests, not the clubs' real logos — the feed's marks are trademarked and this is
+// a marketing page, not sweep data. The app renders the real ones from the feed.
 const SLIPS = [
-  ["AM", "Houston Rockets"],
-  ["JB", "Brooklyn Nets"],
-  ["PN", "LA Lakers"],
-  ["TA", "Milwaukee Bucks"],
-  ["NF", "Toronto Raptors"],
-  ["SW", "Indiana Pacers"],
+  ["AM", "#c2410c", "Houston Rockets", "HOU", "#ce1141"],
+  ["JB", "#1d4ed8", "Brooklyn Nets", "BKN", "#1d1d1d"],
+  ["PN", "#0f766e", "LA Lakers", "LAL", "#552583"],
+  ["TA", "#7c3aed", "Milwaukee Bucks", "MIL", "#00471b"],
+  ["NF", "#b91c1c", "Toronto Raptors", "TOR", "#753bbd"],
+  ["SW", "#0369a1", "Indiana Pacers", "IND", "#002d62"],
 ]
 
 const COMPETITIONS = [
@@ -245,9 +248,11 @@ export function Landing() {
 
         <div className="lp-draw">
           <div className="lp-draw-rail" aria-label="An example draw">
-            {SLIPS.map(([who, team], i) => (
+            {SLIPS.map(([who, whoColor, team, mono, teamColor], i) => (
               <span className="lp-slip" key={team} style={{ "--i": i }}>
-                <b>{who}</b>{team}
+                <b className="lp-av" style={{ background: whoColor }}>{who}</b>
+                <span className="lp-crest" style={{ background: teamColor }}>{mono}</span>
+                {team}
               </span>
             ))}
           </div>

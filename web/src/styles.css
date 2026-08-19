@@ -1089,7 +1089,8 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* how it works ---------------------------------------------------------- */
 .lp-cards{ margin-top:40px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
 .lp-card{ padding:18px 0 0; border-top:1px solid var(--edge); }
-.lp-card-n{ display:inline-block; font-weight:800; font-size:12.5px; letter-spacing:1.6px; color:var(--lp-soft); }
+.lp-card-n{ display:inline-block; font-family:'Caveat',cursive; font-weight:700; font-size:30px;
+  line-height:1; letter-spacing:0; color:var(--lp-accent); }
 .lp-card-h{ margin:10px 0 8px; font-size:20px; letter-spacing:-.4px; color:#fff; }
 .lp-card-b{ margin:0; font-size:14.5px; line-height:1.65; color:var(--ink2); }
 
@@ -1097,14 +1098,17 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-draw{ margin-top:46px; }
 .lp-draw-rail{ display:flex; gap:10px; overflow:hidden; padding:2px 0;
   -webkit-mask-image:linear-gradient(90deg,#000 82%,transparent); mask-image:linear-gradient(90deg,#000 82%,transparent); }
-.lp-slip{ display:inline-flex; align-items:baseline; gap:8px; padding:8px 13px 9px; border-radius:6px;
+.lp-slip{ display:inline-flex; align-items:center; gap:8px; padding:8px 13px 9px; border-radius:6px;
   background:var(--paper); color:var(--paper-ink); white-space:nowrap;
   font-family:ui-monospace,"SFMono-Regular",Menlo,monospace; font-size:12.5px; letter-spacing:-.2px;
   box-shadow:0 12px 22px -14px rgba(0,0,0,.95);
   transform:rotate(calc((var(--i) % 3 - 1) * .7deg));
   animation:lpSlip .5s cubic-bezier(.2,.7,.2,1) both; animation-delay:calc(var(--i) * 55ms); }
-.lp-slip b{ font-weight:800; font-size:12px; letter-spacing:.4px;
-  color:var(--lp-accent); border-right:1px solid rgba(32,30,29,.2); padding-right:8px; }
+/* same round marks as the app: initials avatar for the person, monogram crest for the team */
+.lp-av, .lp-crest{ flex-shrink:0; width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  font-family:'Archivo',system-ui,sans-serif; font-weight:800; color:#fff; letter-spacing:.2px; }
+.lp-slip b.lp-av{ font-size:9.5px; }
+.lp-crest{ font-size:8.5px; }
 .lp-draw-cap{ margin:14px 0 0; font-size:13px; color:var(--ink3); }
 
 /* bento ------------------------------------------------------------------ */
