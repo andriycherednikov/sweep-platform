@@ -55,3 +55,14 @@ export async function sendTrialReminders(db, sendMail = consoleMail, now = new D
   }
   return due.length
 }
+
+/** What a Stripe subscription says about its own end. `current_period_end` moved onto
+ *  the items in recent API versions, so read either — an account that cannot say when
+ *  a cancelled subscription stops is worse than one that shows nothing. */
+export function renewalOf(sub) {
+  const secs = sub?.current_period_end ?? sub?.items?.data?.[0]?.current_period_end ?? null
+  return {
+    cancelAtPeriodEnd: !!sub?.cancel_at_period_end,
+    currentPeriodEnd: secs ? new Date(secs * 1000) : null,
+  }
+}

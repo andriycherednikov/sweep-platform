@@ -10,6 +10,7 @@ import {
   requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken,
   confirmCheckout, getBilling,
 } from "./lib/accountClient.js";
+import { fmtDay } from "./screens-account.jsx";
 import { AccountHome } from "./screens-account.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
 import { useMarketingShell } from "./screens-landing.jsx";
@@ -191,6 +192,42 @@ function BillingReturn() {
   );
 }
 
+/** Where the Stripe portal hands the owner back. Coming back from a cancel and being
+ *  told nothing is the worst version of this screen: read the account and say what
+ *  now happens, and when. */
+function BillingUpdated() {
+  const [billing, setBilling] = useState(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    getBilling()
+      .then((b) => { if (alive) setBilling(b); })
+      .catch(() => { if (alive) setFailed(true); });
+    return () => { alive = false; };
+  }, []);
+
+  if (!billing && !failed)
+    return <AuthPanel tag="Billing" title="One *moment*" lede="Reading your subscription…" />;
+
+  const ends = billing?.currentPeriodEnd ? fmtDay(billing.currentPeriodEnd) : null;
+  const [title, lede] = failed
+    ? ["Couldn't *check*", "We could not read your subscription just now. Open your account and it will show there."]
+    : billing.subscribed && billing.cancelAtPeriodEnd
+      ? ["Cancelled — *no* renewal", ends
+          ? `Your subscription stops on ${ends}. Everything keeps running until then, and nothing more is charged.`
+          : "Your subscription will not renew. Everything keeps running to the end of the paid period."]
+      : billing.subscribed
+        ? ["Subscription *active*", ends ? `Next renewal ${ends}. Your sweeps stay live.` : "Your sweeps stay live."]
+        : ["Subscription *ended*", "Your sweeps are read-only until you subscribe again. Nothing was deleted."];
+
+  return (
+    <AuthPanel tag="Billing" title={title} lede={lede}>
+      <a className="lp-btn au-btn" href="/account">Back to my account</a>
+    </AuthPanel>
+  );
+}
+
 function Landing({ title, msg }) {
   return (
     <AuthPanel tag="Billing" title={title} lede={msg}>
@@ -203,6 +240,7 @@ export function AccountRoot() {
   const path = window.location.pathname;
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
   if (path === "/account/billing/success") return <BillingReturn />;
+  if (path === "/account/billing/updated") return <BillingUpdated />;
   if (path === "/account/billing/cancelled")
     return <Landing title="No *charge*" msg="Checkout cancelled. Nothing was charged." />;
   if (path === "/account/new") {

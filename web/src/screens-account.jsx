@@ -88,7 +88,17 @@ function useBilling(billing) {
     trialing: !billing.subscribed && trialEndsMs && trialEndsMs > now,
     lapsed: !billing.subscribed && trialEndsMs && trialEndsMs <= now,
     daysLeft: trialEndsMs ? Math.ceil((trialEndsMs - now) / DAY_MS) : 0,
+    stopping: !!(billing.subscribed && billing.cancelAtPeriodEnd),
+    endsOn: billing.currentPeriodEnd ? fmtDay(billing.currentPeriodEnd) : null,
   };
+}
+
+/** "12 Sep 2026" — the only thing an owner actually wants after cancelling. */
+export function fmtDay(iso) {
+  const t = Date.parse(iso);
+  return Number.isFinite(t)
+    ? new Date(t).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" })
+    : null;
 }
 
 function useBillingActions() {
@@ -105,9 +115,9 @@ function useBillingActions() {
     } finally { setBusy(false); }
   }
 
-  async function manage() {
+  async function manage(flow) {
     setBusy(true); setErr(false);
-    try { goTo((await openPortal()).url); }
+    try { goTo((await openPortal(flow)).url); }
     catch (e) {
       if (e.code === "not_subscribed") {
         try { goTo((await startCheckout()).url); } catch { setErr(true); }
@@ -156,7 +166,7 @@ function BillingPanel({ billing }) {
           {billing.subscriptionStatus === "past_due" && (
             <p className="ac-warn">Your last payment failed — update your card to avoid losing access.</p>
           )}
-          <button className="ac-ghost" disabled={busy} onClick={manage}>Manage billing</button>
+          <button className="ac-ghost" disabled={busy} onClick={() => manage()}>Manage billing</button>
         </>
       )}
 
@@ -169,10 +179,12 @@ function SweepRow({ s, billing, reload }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
-  const { trialing, lapsed, daysLeft } = useBilling(billing);
+  const { trialing, lapsed, daysLeft, stopping, endsOn } = useBilling(billing);
   const acts = useBillingActions();
 
-  const tier = billing.subscribed
+  const tier = stopping
+    ? { label: endsOn ? `Paid · stops ${endsOn}` : "Paid · stops at period end", tone: " is-warn" }
+    : billing.subscribed
     ? { label: "Paid", tone: "" }
     : trialing
       ? { label: `Free trial · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left`, tone: "" }
@@ -201,7 +213,14 @@ function SweepRow({ s, billing, reload }) {
       <div className="ac-tier">
         <span className={"ac-pill" + tier.tone}>{tier.label}</span>
         {billing.subscribed ? (
-          <button className="ac-ghost" disabled={acts.busy} onClick={acts.manage}>Manage billing</button>
+          <span className="ac-tier-acts">
+            <button className="ac-ghost" disabled={acts.busy} onClick={() => acts.manage()}>Manage billing</button>
+            {!stopping && (
+              <button className="ac-ghost is-danger" disabled={acts.busy} onClick={() => acts.manage("cancel")}>
+                Cancel subscription
+              </button>
+            )}
+          </span>
         ) : (
           <button className="ac-ghost is-go" disabled={acts.busy} onClick={acts.subscribe}>
             {lapsed ? "Subscribe to reopen" : "Subscribe · $5/mo"}

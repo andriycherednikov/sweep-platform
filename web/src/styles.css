@@ -1304,6 +1304,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* what this sweep costs, and the one control that changes it */
 .ac-tier{ display:flex; align-items:center; justify-content:space-between; gap:12px;
   margin-top:16px; padding-top:14px; border-top:1px solid var(--edge); }
+.ac-tier-acts{ display:flex; gap:8px; }
 .ac-ghost.is-go{ color:var(--lp-accent); border-color:rgba(236,48,19,.35); }
 .ac-ghost.is-go:hover{ background:rgba(236,48,19,.07); color:var(--lp-accent); }
 .ac-btn{ border:0; cursor:pointer; font-size:22px; }

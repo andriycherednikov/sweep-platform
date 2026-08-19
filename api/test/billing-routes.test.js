@@ -47,6 +47,35 @@ test('zero live sweeps → checkout succeeds with quantity 1', async () => {
   expect(stripeFake.calls.customersCreate).toHaveLength(1) // not recreated
 })
 
+test('cancel flow: the portal is opened on the cancel step and hands the owner back to us', async () => {
+  await db.update(account).set({ subscriptionStatus: 'active', stripeSubscriptionId: 'sub_fake1' }).where(eq(account.id, 'ac_bill'))
+  const r = await app.inject({ method: 'POST', url: '/api/account/billing/portal', ...M, payload: { flow: 'cancel' } })
+  expect(r.statusCode).toBe(200)
+  const params = stripeFake.calls.portalCreate.at(-1)
+  expect(params).toMatchObject({
+    customer: 'cus_fake1',
+    return_url: 'https://platform.test/account/billing/updated',
+    flow_data: {
+      type: 'subscription_cancel',
+      subscription_cancel: { subscription: 'sub_fake1' },
+      after_completion: { type: 'redirect', redirect: { return_url: 'https://platform.test/account/billing/updated' } },
+    },
+  })
+  // the plain portal keeps its own shape: no flow, same landing
+  await app.inject({ method: 'POST', url: '/api/account/billing/portal', ...M })
+  expect(stripeFake.calls.portalCreate.at(-1).flow_data).toBeUndefined()
+  await db.update(account).set({ subscriptionStatus: null, stripeSubscriptionId: null }).where(eq(account.id, 'ac_bill'))
+})
+
+test('billing status reports a subscription that is set to stop, and when', async () => {
+  const ends = new Date('2099-09-12T00:00:00Z')
+  await db.update(account).set({ subscriptionStatus: 'active', cancelAtPeriodEnd: true, currentPeriodEnd: ends }).where(eq(account.id, 'ac_bill'))
+  const s = (await app.inject({ method: 'GET', url: '/api/account/billing', ...M })).json()
+  expect(s).toMatchObject({ subscribed: true, cancelAtPeriodEnd: true })
+  expect(new Date(s.currentPeriodEnd).toISOString()).toBe(ends.toISOString())
+  await db.update(account).set({ subscriptionStatus: null, cancelAtPeriodEnd: false, currentPeriodEnd: null }).where(eq(account.id, 'ac_bill'))
+})
+
 test('confirm: the return from checkout is verified against Stripe, not trusted', async () => {
   // a session belonging to someone else must not activate this account
   const foreign = fakeStripe({ session: { id: 'cs_foreign_1', status: 'complete', payment_status: 'paid', client_reference_id: 'ac_someone_else', customer: 'cus_x', subscription: 'sub_x' } })

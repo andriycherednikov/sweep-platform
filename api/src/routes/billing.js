@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { account } from '../db/schema.js'
 import { requireAccount } from '../accounts/auth.js'
-import { GOOD_STANDING, liveSweepCount, syncQuantity } from '../accounts/billing.js'
+import { GOOD_STANDING, liveSweepCount, syncQuantity, renewalOf } from '../accounts/billing.js'
 
 /** Owner-facing billing surface (decision c: API-only — Stripe hosts every page we'd otherwise build). */
 export async function billingRoutes(app) {
@@ -36,20 +36,34 @@ export async function billingRoutes(app) {
     return reply.code(result.code).send(result.body)
   })
 
+  // body is optional here ({ flow: 'cancel' } or nothing at all), so it is read, not schema'd
   app.post('/api/account/billing/portal', { preHandler: accountGuard, config: limited }, async (req, reply) => {
     if (!app.stripe) return reply.code(503).send({ error: 'billing_unconfigured' })
     const [acct] = await app.db.select().from(account).where(eq(account.id, req.account.id))
     if (!acct.stripeCustomerId) return reply.code(409).send({ error: 'not_subscribed' })
-    const sess = await app.stripe.billingPortal.sessions.create({
-      customer: acct.stripeCustomerId, return_url: `https://${app.platformHost}/account`,
-    })
+    const returnUrl = `https://${app.platformHost}/account/billing/updated`
+    const params = { customer: acct.stripeCustomerId, return_url: returnUrl }
+    // The plain portal leaves you sitting on Stripe's confirmation page; a cancel flow
+    // finishes by sending you back here, where we can say what actually happens next.
+    if (req.body?.flow === 'cancel' && acct.stripeSubscriptionId) {
+      params.flow_data = {
+        type: 'subscription_cancel',
+        subscription_cancel: { subscription: acct.stripeSubscriptionId },
+        after_completion: { type: 'redirect', redirect: { return_url: returnUrl } },
+      }
+    }
+    const sess = await app.stripe.billingPortal.sessions.create(params)
     return { url: sess.url }
   })
 
   const statusOf = async (db, acct) => {
     const liveSweeps = await liveSweepCount(db, acct.id)
     const subscribed = GOOD_STANDING.includes(acct.subscriptionStatus)
-    return { subscribed, subscriptionStatus: acct.subscriptionStatus, trialEndsAt: acct.trialEndsAt, liveSweeps, quantity: subscribed ? liveSweeps : 0 }
+    return {
+      subscribed, subscriptionStatus: acct.subscriptionStatus, trialEndsAt: acct.trialEndsAt,
+      cancelAtPeriodEnd: acct.cancelAtPeriodEnd, currentPeriodEnd: acct.currentPeriodEnd,
+      liveSweeps, quantity: subscribed ? liveSweeps : 0,
+    }
   }
 
   app.get('/api/account/billing', { preHandler: accountGuard }, async (req) => {
@@ -84,6 +98,7 @@ export async function billingRoutes(app) {
       await tx.update(account).set({
         stripeCustomerId: sess.customer, stripeSubscriptionId: sub.id,
         stripeSubscriptionItemId: sub.items.data[0].id, subscriptionStatus: sub.status,
+        ...renewalOf(sub),
       }).where(eq(account.id, acct.id))
       const [fresh] = await tx.select().from(account).where(eq(account.id, acct.id))
       await syncQuantity(app.stripe, fresh, await liveSweepCount(tx, fresh.id))

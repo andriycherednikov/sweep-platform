@@ -101,6 +101,17 @@ test('a return Stripe cannot match reports that, instead of claiming a payment',
   expect(await screen.findByRole('heading', { name: /can.t confirm that/i })).toBeInTheDocument()
 })
 
+test('returning from a cancel says it stops, and when', async () => {
+  accountClient.getBilling.mockResolvedValueOnce({
+    subscribed: true, subscriptionStatus: 'active', cancelAtPeriodEnd: true,
+    currentPeriodEnd: '2099-09-12T00:00:00.000Z', trialEndsAt: null, liveSweeps: 2, quantity: 2,
+  })
+  window.history.replaceState(null, '', '/account/billing/updated')
+  render(<AccountRoot />)
+  expect(await screen.findByRole('heading', { name: /cancelled — no renewal/i })).toBeInTheDocument()
+  expect(screen.getByText(/stops on .*2099/i)).toBeInTheDocument()
+})
+
 test('the billing cancelled landing renders its message', () => {
   window.history.replaceState(null, '', '/account/billing/cancelled')
   render(<AccountRoot />)

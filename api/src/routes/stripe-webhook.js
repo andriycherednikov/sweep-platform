@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { account, billingEvent } from '../db/schema.js'
-import { liveSweepCount, syncQuantity } from '../accounts/billing.js'
+import { liveSweepCount, syncQuantity, renewalOf } from '../accounts/billing.js'
 
 /** Own plugin scope: the raw-body parser below applies ONLY to routes registered here —
  *  constructEvent must see the exact request bytes, not parsed JSON. */
@@ -37,6 +37,7 @@ export async function stripeWebhookRoutes(app) {
           await tx.update(account).set({
             stripeCustomerId: obj.customer, stripeSubscriptionId: sub.id,
             stripeSubscriptionItemId: sub.items.data[0].id, subscriptionStatus: sub.status,
+            ...renewalOf(sub),
           }).where(eq(account.id, accountId))
           const [acct] = await tx.select().from(account).where(eq(account.id, accountId))
           if (acct) await syncQuantity(app.stripe, acct, await liveSweepCount(tx, acct.id)) // count may have moved since session creation
@@ -44,7 +45,7 @@ export async function stripeWebhookRoutes(app) {
         }
       } else if (ev.type === 'customer.subscription.updated' || ev.type === 'customer.subscription.deleted') {
         const status = ev.type.endsWith('deleted') ? 'canceled' : obj.status
-        const rows = await tx.update(account).set({ subscriptionStatus: status })
+        const rows = await tx.update(account).set({ subscriptionStatus: status, ...renewalOf(obj) })
           .where(eq(account.stripeSubscriptionId, obj.id)).returning({ id: account.id })
         if (rows.length) await tx.update(billingEvent).set({ accountId: rows[0].id }).where(eq(billingEvent.stripeEventId, ev.id))
       } // everything else: audit row only

@@ -31,4 +31,4 @@ export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/arch
 export const getBilling = () => call('GET', '/api/account/billing')
 export const confirmCheckout = (sessionId) => call('POST', '/api/account/billing/confirm', { sessionId })
 export const startCheckout = () => call('POST', '/api/account/billing/checkout')
-export const openPortal = () => call('POST', '/api/account/billing/portal')
+export const openPortal = (flow) => call('POST', '/api/account/billing/portal', flow ? { flow } : undefined)

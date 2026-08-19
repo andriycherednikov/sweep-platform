@@ -150,6 +150,10 @@ export const account = pgTable('account', {
   stripeSubscriptionId: text('stripe_subscription_id'),
   stripeSubscriptionItemId: text('stripe_subscription_item_id'),
   subscriptionStatus: text('subscription_status'),
+  // cancel-at-period-end is not a status of its own in Stripe: the subscription stays
+  // 'active' and simply stops renewing, so the end date is the only honest thing to show.
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').notNull().default(false),
+  currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
   trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),      // one cardless trial clock per account, set at first provision
   trialReminderSentAt: timestamp('trial_reminder_sent_at', { withTimezone: true }),
 })
