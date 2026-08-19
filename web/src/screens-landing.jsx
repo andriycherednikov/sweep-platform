@@ -238,7 +238,7 @@ export function Landing() {
 
       <section className="lp-strip" data-reveal aria-label="Competitions you can run a sweep on">
         <p>{COMPETITIONS.join("  ·  ")}<span className="lp-strip-more">  ·  more each season</span></p>
-        <p className="lp-kicker">1,600+ leagues and tournaments, one sweep at a time</p>
+        <p className="lp-strip-note">1,600+ leagues and tournaments, one sweep at a time</p>
       </section>
 
       <section className="lp-sec" id="how" data-reveal>
