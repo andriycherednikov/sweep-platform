@@ -1265,20 +1265,30 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* account home — a two-column console on the same skin as the front door ---- */
 .ac{ display:grid; grid-template-columns:236px minmax(0,1fr); align-items:start;
   min-height:100dvh; text-align:left; }
+/* the rail sits deeper than the page it frames — same ink, one step back */
 .ac-side{ position:sticky; top:0; display:flex; flex-direction:column; gap:26px;
-  height:100dvh; padding:26px 20px; border-right:1px solid var(--edge); }
+  height:100dvh; padding:26px 20px; background:#0a1017; border-right:1px solid var(--edge); }
 .ac-brand{ font-size:25px; }
 .ac-nav{ display:flex; flex-direction:column; gap:2px; }
-.ac-nav a{ display:flex; align-items:center; justify-content:space-between; gap:8px;
-  padding:9px 11px; border-radius:9px; font-size:14px; font-weight:600; color:var(--ink2); }
-.ac-nav a:hover{ background:var(--glass); color:var(--ink); }
-.ac-nav a span{ font-size:12px; font-weight:700; color:var(--lp-accent); }
+.ac-nav-i{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+  width:100%; padding:9px 11px; border:0; border-radius:9px; cursor:pointer;
+  font-family:inherit; font-size:14px; font-weight:600; text-align:left;
+  background:none; color:var(--ink2); }
+.ac-nav-i:hover{ background:var(--glass); color:var(--ink); }
+.ac-nav-i.is-here{ background:var(--glass2); color:#fff; box-shadow:inset 3px 0 0 var(--lp-accent); }
+.ac-nav-i span{ font-size:12px; font-weight:700; color:var(--lp-accent); }
 .ac-side-foot{ margin-top:auto; display:flex; flex-direction:column; gap:9px; }
 
-.ac-main{ max-width:760px; padding:34px 30px 60px; }
-.ac-h1{ margin:10px 0 26px; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
+.ac-main{ padding:38px 30px 60px; background:var(--lp-bg); }
+.ac-col{ max-width:720px; margin:0 auto; }
+.ac-h1{ margin:10px 0 6px; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
   font-size:34px; letter-spacing:-1px; color:#fff; }
+.ac-sub{ margin:0 0 26px; font-size:14.5px; line-height:1.6; color:var(--ink2); }
 .ac-stack{ display:flex; flex-direction:column; gap:16px; }
+.ac-price{ margin:6px 0 0; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
+  font-size:22px; letter-spacing:-.5px; color:#fff; }
+.ac-price span{ margin-left:6px; font-size:13px; font-weight:500; letter-spacing:0;
+  color:var(--ink2); }
 .ac-card{ padding:20px 20px 18px; border-radius:16px; background:var(--lp-surface);
   border:1px solid var(--edge); }
 .ac-card-top{ display:flex; align-items:center; justify-content:space-between; gap:14px; }
@@ -1318,6 +1328,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   .ac-side{ position:static; height:auto; flex-direction:row; align-items:center;
     gap:14px; padding:16px 18px; border-right:0; border-bottom:1px solid var(--edge); }
   .ac-nav{ flex-direction:row; }
+  .ac-nav-i{ width:auto; }
   .ac-side-foot{ margin-top:0; margin-left:auto; flex-direction:row; align-items:center; }
   .ac-side-foot .ac-btn{ font-size:19px; padding:5px 15px 7px; }
   .ac-main{ padding:24px 18px 48px; }

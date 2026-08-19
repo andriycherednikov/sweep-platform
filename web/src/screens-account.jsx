@@ -73,9 +73,12 @@ function BillingPanel({ billing }) {
   const state = billing.subscribed ? "Subscribed" : trialing ? "Trial" : lapsed ? "Trial ended" : "Not started";
 
   return (
-    <section className="ac-card" id="billing">
+    <section className="ac-card">
       <div className="ac-card-top">
-        <h2 className="ac-card-h">Billing</h2>
+        <div>
+          <h2 className="ac-card-h">The Sweep subscription</h2>
+          <p className="ac-price">$5<span>/month per running sweep</span></p>
+        </div>
         <span className={"ac-pill" + (lapsed || billing.subscriptionStatus === "past_due" ? " is-warn" : "")}>{state}</span>
       </div>
 
@@ -154,6 +157,7 @@ function SweepList({ sweeps, reload }) {
 
 export function AccountHome() {
   useMarketingShell();
+  const [view, setView] = useState("sweeps");
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
@@ -174,6 +178,11 @@ export function AccountHome() {
   }
 
   const live = sweeps.filter((s) => !s.archivedAt).length;
+  const nav = (key, label, badge) => (
+    <button className={"ac-nav-i" + (view === key ? " is-here" : "")} onClick={() => setView(key)}>
+      {label}{badge !== undefined && <span>{badge}</span>}
+    </button>
+  );
 
   return (
     <div className="lp ac">
@@ -181,8 +190,8 @@ export function AccountHome() {
       <aside className="ac-side">
         <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
         <nav className="ac-nav">
-          <a href="#sweeps">Sweeps <span>{live}</span></a>
-          <a href="#billing">Billing</a>
+          {nav("sweeps", "Sweeps", live)}
+          {nav("billing", "Billing")}
         </nav>
         <div className="ac-side-foot">
           <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>New sweep</button>
@@ -191,12 +200,20 @@ export function AccountHome() {
       </aside>
 
       <main className="ac-main">
-        <p className="lp-eyebrow">My account</p>
-        <h1 className="ac-h1">Your sweeps</h1>
-        {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
-        <div className="ac-stack" id="sweeps">
-          <SweepList sweeps={sweeps} reload={reload} />
-          {billing && <BillingPanel billing={billing} />}
+        <div className="ac-col">
+          <p className="lp-eyebrow">My account</p>
+          <h1 className="ac-h1">{view === "billing" ? "Billing" : "Your sweeps"}</h1>
+          <p className="ac-sub">
+            {view === "billing"
+              ? "One subscription covers every sweep you keep running."
+              : "Each sweep has two links: one for the group, one you keep."}
+          </p>
+          {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
+          <div className="ac-stack">
+            {view === "billing"
+              ? billing && <BillingPanel billing={billing} />
+              : <SweepList sweeps={sweeps} reload={reload} />}
+          </div>
         </div>
       </main>
     </div>

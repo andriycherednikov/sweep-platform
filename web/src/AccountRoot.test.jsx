@@ -55,7 +55,7 @@ test('a valid stored token lands straight on the account home (billing + sweeps 
   accountClient.getAccountToken.mockReturnValue('good-tok')
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  expect(await screen.findByText(/14-day free trial starts with your first sweep/i)).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: /your sweeps/i })).toBeInTheDocument()
 })
 
 test('submitting the email form calls requestLogin and shows the check-your-email message', async () => {
