@@ -4,8 +4,7 @@
    same standalone pattern as screens-super.jsx.
    ============================================================ */
 import { useState, useEffect, useCallback } from "react";
-import { PageHeader } from "./components.jsx";
-import { LinkField } from "./screens-super.jsx";
+import { useMarketingShell } from "./screens-landing.jsx";
 import {
   getBilling, getAccountSweeps, archiveSweep,
   startCheckout, openPortal, clearAccountToken,
@@ -14,6 +13,31 @@ import {
 const DAY_MS = 86400000;
 
 function goTo(url) { window.location.assign(url); }
+
+/** A share link is here to be copied, so the copy sits on the field itself.
+ *  The input stays a real input — selecting the text by hand still works, and
+ *  clipboard access is not a given in every browser or embedded webview. */
+function LinkField({ label, value }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1600);
+    } catch { /* no clipboard: the field is still selectable */ }
+  }
+
+  return (
+    <label className="ac-link">
+      <span className="ac-link-l">{label}</span>
+      <span className="ac-link-row">
+        <input readOnly value={value} onFocus={(e) => e.target.select()} onClick={(e) => e.target.select()} />
+        <button type="button" onClick={copy}>{copied ? "Copied" : "Copy"}</button>
+      </span>
+    </label>
+  );
+}
 
 function BillingPanel({ billing }) {
   const [busy, setBusy] = useState(false);
@@ -46,44 +70,43 @@ function BillingPanel({ billing }) {
     } finally { setBusy(false); }
   }
 
-  return (
-    <div className="block" style={{ padding: "12px 14px", marginBottom: 14 }}>
-      <div style={{ fontFamily: "'Barlow Condensed'", fontWeight: 800, fontSize: 16, marginBottom: 4 }}>Billing</div>
+  const state = billing.subscribed ? "Subscribed" : trialing ? "Trial" : lapsed ? "Trial ended" : "Not started";
 
-      {fresh && (
-        <p style={{ fontSize: 13, color: "var(--muted)" }}>Your 14-day free trial starts with your first sweep.</p>
-      )}
+  return (
+    <section className="ac-card" id="billing">
+      <div className="ac-card-top">
+        <h2 className="ac-card-h">Billing</h2>
+        <span className={"ac-pill" + (lapsed || billing.subscriptionStatus === "past_due" ? " is-warn" : "")}>{state}</span>
+      </div>
+
+      {fresh && <p className="ac-b">Your 14-day free trial starts with your first sweep.</p>}
 
       {trialing && (
         <>
-          <p style={{ fontSize: 13, color: "var(--muted)" }}>
-            {daysLeft} day{daysLeft === 1 ? "" : "s"} left in your free trial.
-          </p>
-          <button className="cta" disabled={busy} onClick={subscribe} style={{ marginTop: 8 }}>Subscribe</button>
+          <p className="ac-b">{daysLeft} day{daysLeft === 1 ? "" : "s"} left in your free trial.</p>
+          <button className="lp-btn ac-btn" disabled={busy} onClick={subscribe}>Subscribe</button>
         </>
       )}
 
       {lapsed && (
         <>
-          <p style={{ fontSize: 13, color: "var(--accent)" }}>Your trial has ended — sweeps are read-only until you subscribe.</p>
-          <button className="cta" disabled={busy} onClick={subscribe} style={{ marginTop: 8 }}>Subscribe</button>
+          <p className="ac-warn">Your trial has ended — sweeps are read-only until you subscribe.</p>
+          <button className="lp-btn ac-btn" disabled={busy} onClick={subscribe}>Subscribe</button>
         </>
       )}
 
       {billing.subscribed && (
         <>
-          <p style={{ fontSize: 13, color: "var(--muted)" }}>
-            {billing.liveSweeps} live sweep{billing.liveSweeps === 1 ? "" : "s"}
-          </p>
+          <p className="ac-b">{billing.liveSweeps} live sweep{billing.liveSweeps === 1 ? "" : "s"}</p>
           {billing.subscriptionStatus === "past_due" && (
-            <p style={{ fontSize: 13, color: "var(--accent)" }}>Your last payment failed — update your card to avoid losing access.</p>
+            <p className="ac-warn">Your last payment failed — update your card to avoid losing access.</p>
           )}
-          <button className="allocbtn" disabled={busy} onClick={manage} style={{ marginTop: 8 }}>Manage billing</button>
+          <button className="ac-ghost" disabled={busy} onClick={manage}>Manage billing</button>
         </>
       )}
 
-      {err && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>Something went wrong. Try again.</p>}
-    </div>
+      {err && <p className="ac-warn">Something went wrong. Try again.</p>}
+    </section>
   );
 }
 
@@ -101,17 +124,17 @@ function SweepRow({ s, reload }) {
   }
 
   return (
-    <div className="block" style={{ padding: "12px 14px", marginBottom: 10 }}>
-      <b style={{ fontFamily: "'Barlow Condensed'", fontWeight: 800, fontSize: 16 }}>{s.name}</b>
-      <LinkField label="Member link" value={s.memberLink} />
-      <LinkField label="Admin link" value={s.adminLink} />
-      <div className="super-actions">
-        <button className="allocbtn danger" disabled={busy} onClick={archive}>
+    <section className="ac-card">
+      <div className="ac-card-top">
+        <h3 className="ac-card-h">{s.name}</h3>
+        <button className="ac-ghost is-danger" disabled={busy} onClick={archive}>
           {confirm ? "Really archive?" : "Archive"}
         </button>
       </div>
-      {err && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>Archive failed — try again</p>}
-    </div>
+      <LinkField label="Member link — send this to the group" value={s.memberLink} />
+      <LinkField label="Admin link — keep this one to yourself" value={s.adminLink} />
+      {err && <p className="ac-warn">Archive failed — try again</p>}
+    </section>
   );
 }
 
@@ -119,25 +142,18 @@ function SweepList({ sweeps, reload }) {
   const active = sweeps.filter((s) => !s.archivedAt);
   if (active.length === 0) {
     return (
-      <div className="empty">
-        <div className="ic">🗂️</div>
-        <h3>No sweeps yet</h3>
-        <p>Pick a competition and spin one up.</p>
-        <button className="cta" style={{ marginTop: 10 }} onClick={() => goTo("/account/new")}>
-          Set up your first sweep
-        </button>
-      </div>
+      <section className="ac-card ac-empty">
+        <h3 className="ac-card-h">No sweeps yet</h3>
+        <p className="ac-b">Pick a competition and spin one up — the fixtures come with it.</p>
+        <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
+      </section>
     );
   }
-  return (
-    <>
-      {active.map((s) => <SweepRow key={s.id} s={s} reload={reload} />)}
-      <button className="allocbtn" onClick={() => goTo("/account/new")}>New sweep</button>
-    </>
-  );
+  return active.map((s) => <SweepRow key={s.id} s={s} reload={reload} />);
 }
 
 export function AccountHome() {
+  useMarketingShell();
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
@@ -157,17 +173,32 @@ export function AccountHome() {
     window.location.reload();
   }
 
+  const live = sweeps.filter((s) => !s.archivedAt).length;
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <PageHeader title="My account" sub="Sweeps & billing" />
-      <div className="scroll pad screen-anim" style={{ paddingTop: 12 }}>
-        <div className="wrap super-wrap">
-          {loadErr && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>Something went wrong. Try again.</p>}
-          {billing && <BillingPanel billing={billing} />}
-          <SweepList sweeps={sweeps} reload={reload} />
-          <button className="allocbtn" style={{ marginTop: 14 }} onClick={signOut}>Sign out</button>
+    <div className="lp ac">
+      {/* the side rail is the account's spine: brand, where things are, what to do next */}
+      <aside className="ac-side">
+        <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
+        <nav className="ac-nav">
+          <a href="#sweeps">Sweeps <span>{live}</span></a>
+          <a href="#billing">Billing</a>
+        </nav>
+        <div className="ac-side-foot">
+          <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>New sweep</button>
+          <button className="ac-ghost" onClick={signOut}>Sign out</button>
         </div>
-      </div>
+      </aside>
+
+      <main className="ac-main">
+        <p className="lp-eyebrow">My account</p>
+        <h1 className="ac-h1">Your sweeps</h1>
+        {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
+        <div className="ac-stack" id="sweeps">
+          <SweepList sweeps={sweeps} reload={reload} />
+          {billing && <BillingPanel billing={billing} />}
+        </div>
+      </main>
     </div>
   );
 }
