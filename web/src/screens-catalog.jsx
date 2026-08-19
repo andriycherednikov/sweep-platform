@@ -7,8 +7,7 @@
    GET /api/catalog rather than filtering the already-loaded rows.
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
-import { PageHeader } from "./components.jsx";
-import { LinkField } from "./screens-super.jsx";
+import { Console, LinkField, goTo } from "./screens-account.jsx";
 import { getCatalog, createSweep } from "./lib/accountClient.js";
 
 // Provision error code → what the owner should do about it.
@@ -39,42 +38,39 @@ function ProvisionSheet({ league, season, onClose }) {
   }
 
   return (
-    <div className="overlay" onClick={busy ? undefined : onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
-        <div className="grab" />
-        <div className="sheet-head"><h3>{done ? "Your sweep is live" : "New sweep"}</h3></div>
-        <div className="sheet-body">
-          {done ? (
-            <>
-              <p className="sweep-card-sub">Share the member link with your group; keep the admin link to yourself.</p>
-              <LinkField label="Member link" value={done.memberLink} />
-              <LinkField label="Admin link" value={done.adminLink} />
-              <button className="cta" style={{ marginTop: 12 }} onClick={() => window.location.assign("/account")}>Done</button>
-            </>
-          ) : (
-            <form onSubmit={submit}>
-              <p className="sweep-card-sub">{league.name} · {season}</p>
-              <input
-                type="text" required placeholder="Sweep name" value={name}
-                onChange={(e) => setName(e.target.value)} style={{ width: "100%", marginBottom: 10 }}
-              />
-              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 12 }}>
-                <input type="checkbox" checked={wagering} onChange={(e) => setWagering(e.target.checked)} />
-                Enable Wagers (play-money betting)
-              </label>
-              <button className="cta" type="submit" disabled={busy}>Start sweep</button>
-              {busy && <p className="sweep-card-sub" style={{ marginTop: 8 }}>Setting up — fetching teams and games…</p>}
-              {err && (
-                <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>
-                  {err.code === "sweep_cap"
-                    ? `You've reached your sweep limit${err.cap ? ` (${err.cap})` : ""}. Archive one to make room.`
-                    : PROVISION_ERRORS[err.code] || "Something went wrong — try again."}
-                  {err.code === "subscription_required" && <> <a href="/account">Go to billing</a></>}
-                </p>
-              )}
-            </form>
-          )}
-        </div>
+    <div className="ac-scrim" onClick={busy ? undefined : onClose}>
+      <div className="ac-sheet" onClick={(e) => e.stopPropagation()}>
+        <p className="lp-eyebrow">{done ? "Ready" : "New sweep"}</p>
+        <h2 className="ac-sheet-h">{done ? "Your sweep is live" : `${league.name} · ${season}`}</h2>
+        {done ? (
+          <>
+            <p className="ac-b">Share the member link with your group; keep the admin link to yourself.</p>
+            <LinkField label="Member link" value={done.memberLink} />
+            <LinkField label="Admin link" value={done.adminLink} />
+            <button className="lp-btn ac-btn" onClick={() => goTo("/account")}>Done</button>
+          </>
+        ) : (
+          <form onSubmit={submit}>
+            <label className="ac-field">
+              <span>What the group will call it</span>
+              <input type="text" required placeholder="Sweep name" value={name} onChange={(e) => setName(e.target.value)} />
+            </label>
+            <label className="ac-check">
+              <input type="checkbox" checked={wagering} onChange={(e) => setWagering(e.target.checked)} />
+              Enable Wagers (play-money betting)
+            </label>
+            <button className="lp-btn ac-btn" type="submit" disabled={busy}>Start sweep</button>
+            {busy && <p className="ac-b">Setting up — fetching teams and games…</p>}
+            {err && (
+              <p className="ac-warn">
+                {err.code === "sweep_cap"
+                  ? `You've reached your sweep limit${err.cap ? ` (${err.cap})` : ""}. Archive one to make room.`
+                  : PROVISION_ERRORS[err.code] || "Something went wrong — try again."}
+                {err.code === "subscription_required" && <> <a className="ac-link-a" href="/account">Go to billing</a></>}
+              </p>
+            )}
+          </form>
+        )}
       </div>
     </div>
   );
@@ -90,16 +86,16 @@ function CatalogRow({ row, onPick }) {
   const [season, setSeason] = useState(row.seasons?.[0]?.season);
 
   return (
-    <div className="block" style={{ padding: "12px 14px", marginBottom: 10, display: "flex", alignItems: "center", gap: 12 }}>
-      {row.logo && <img src={row.logo} alt="" width={28} height={28} style={{ borderRadius: 6, flexShrink: 0 }} />}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <b style={{ fontFamily: "'Barlow Condensed'", fontWeight: 800, fontSize: 16 }}>{row.name}</b>
-        {row.country?.name && <div style={{ fontSize: 12.5, color: "var(--muted)" }}>{row.country.name}</div>}
+    <div className="ac-row">
+      {row.logo && <img className="ac-row-logo" src={row.logo} alt="" width={30} height={30} />}
+      <div className="ac-row-id">
+        <b>{row.name}</b>
+        {row.country?.name && <span>{row.country.name}</span>}
       </div>
-      <select value={season} onChange={(e) => setSeason(e.target.value)}>
+      <select className="ac-select" value={season} onChange={(e) => setSeason(e.target.value)}>
         {(row.seasons || []).map((s) => <option key={s.season} value={s.season}>{s.season}</option>)}
       </select>
-      <button className="allocbtn primary" onClick={() => onPick(row, season)}>Set up sweep</button>
+      <button className="ac-ghost is-go" onClick={() => onPick(row, season)}>Set up sweep</button>
     </div>
   );
 }
@@ -143,41 +139,54 @@ export function CatalogScreen({ onBack, onPick = () => {} }) {
   const sports = useMemo(() => Array.from(new Set(rows.map((r) => r.sport))), [rows]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      <PageHeader title="New sweep" sub="Pick a competition" onBack={onBack} />
-      <div className="filterbar">
-        <button className={"fchip" + (!sport ? " on" : "")} onClick={() => setSport(null)}>All</button>
-        {sports.map((sp) => (
-          <button key={sp} className={"fchip" + (sport === sp ? " on accent" : "")} onClick={() => setSport(sp)}>
-            {cap(sp)}
-          </button>
-        ))}
+    <Console
+      nav={
+        <>
+          <button className="ac-nav-i" onClick={onBack}>Sweeps</button>
+          <button className="ac-nav-i is-here">New sweep</button>
+        </>
+      }
+    >
+      <p className="lp-eyebrow">New sweep</p>
+      <h1 className="ac-h1">Pick a competition</h1>
+      <p className="ac-sub">The sweep binds to one season of one competition and pulls its own fixtures.</p>
+
+      <div className="ac-tools">
+        <div className="ac-chips">
+          <button className={"ac-chip" + (!sport ? " is-on" : "")} onClick={() => setSport(null)}>All</button>
+          {sports.map((sp) => (
+            <button key={sp} className={"ac-chip" + (sport === sp ? " is-on" : "")} onClick={() => setSport(sp)}>
+              {cap(sp)}
+            </button>
+          ))}
+        </div>
+        <input
+          className="ac-search"
+          type="text"
+          placeholder="Search competitions"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
       </div>
-      <div className="scroll pad screen-anim" style={{ paddingTop: 12 }}>
-        <div className="wrap super-wrap">
-          <input
-            type="text"
-            placeholder="Search competitions"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            style={{ marginBottom: 12, width: "100%" }}
-          />
-          {loading && <p className="sweep-card-sub">Loading…</p>}
-          {error && (
-            <div style={{ marginTop: 8 }}>
-              <p style={{ fontSize: 12.5, color: "var(--accent)" }}>Something went wrong. Try again.</p>
-              <button className="allocbtn" onClick={() => setReloadKey((k) => k + 1)}>Retry</button>
-            </div>
-          )}
-          {!loading && !error && rows.length === 0 && (
-            <div className="empty"><div className="ic">🔍</div><h3>No competitions match.</h3></div>
-          )}
-          {!loading && !error && rows.map((row) => (
+
+      {loading && <p className="ac-b">Loading…</p>}
+      {error && (
+        <div className="ac-card">
+          <p className="ac-warn">Something went wrong. Try again.</p>
+          <button className="ac-ghost" onClick={() => setReloadKey((k) => k + 1)}>Retry</button>
+        </div>
+      )}
+      {!loading && !error && rows.length === 0 && (
+        <div className="ac-card ac-empty"><h3 className="ac-card-h">No competitions match.</h3></div>
+      )}
+      {!loading && !error && (
+        <div className="ac-rows">
+          {rows.map((row) => (
             <CatalogRow key={`${row.provider}-${row.sport}-${row.leagueId}`} row={row} onPick={pick} />
           ))}
         </div>
-      </div>
+      )}
       {picked && <ProvisionSheet league={picked.row} season={picked.season} onClose={() => setPicked(null)} />}
-    </div>
+    </Console>
   );
 }

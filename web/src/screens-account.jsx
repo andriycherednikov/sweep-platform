@@ -12,12 +12,30 @@ import {
 
 const DAY_MS = 86400000;
 
-function goTo(url) { window.location.assign(url); }
+export function goTo(url) { window.location.assign(url); }
+
+/** The account console shell: a dark rail carrying the brand and where you are,
+ *  a light pane carrying the work. Every signed-in page outside a sweep uses it. */
+export function Console({ nav, foot, children }) {
+  useMarketingShell();
+  return (
+    <div className="lp ac">
+      <aside className="ac-side">
+        <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
+        <nav className="ac-nav">{nav}</nav>
+        {foot && <div className="ac-side-foot">{foot}</div>}
+      </aside>
+      <main className="ac-main">
+        <div className="ac-col">{children}</div>
+      </main>
+    </div>
+  );
+}
 
 /** A share link is here to be copied, so the copy sits on the field itself.
  *  The input stays a real input — selecting the text by hand still works, and
  *  clipboard access is not a given in every browser or embedded webview. */
-function LinkField({ label, value }) {
+export function LinkField({ label, value }) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -191,7 +209,6 @@ function SweepList({ sweeps, billing, reload }) {
 }
 
 export function AccountHome() {
-  useMarketingShell();
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
@@ -214,32 +231,24 @@ export function AccountHome() {
   const live = sweeps.filter((s) => !s.archivedAt).length;
 
   return (
-    <div className="lp ac">
-      {/* the side rail is the account's spine: brand, where things are, what to do next */}
-      <aside className="ac-side">
-        <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
-        <nav className="ac-nav">
-          <button className="ac-nav-i is-here">Sweeps<span>{live}</span></button>
-        </nav>
-        <div className="ac-side-foot">
+    <Console
+      nav={<button className="ac-nav-i is-here">Sweeps<span>{live}</span></button>}
+      foot={
+        <>
           <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>New sweep</button>
           <button className="ac-ghost" onClick={signOut}>Sign out</button>
-        </div>
-      </aside>
-
-      <main className="ac-main">
-        <div className="ac-col">
-          <p className="lp-eyebrow">My account</p>
-          <h1 className="ac-h1">Your sweeps</h1>
-          <p className="ac-sub">Each sweep has two links: one for the group, one you keep.</p>
-          {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
-          <div className="ac-stack">
-            {billing && <SweepList sweeps={sweeps} billing={billing} reload={reload} />}
-            {/* nothing to bill against yet — the account speaks for itself */}
-            {billing && live === 0 && <BillingPanel billing={billing} />}
-          </div>
-        </div>
-      </main>
-    </div>
+        </>
+      }
+    >
+      <p className="lp-eyebrow">My account</p>
+      <h1 className="ac-h1">Your sweeps</h1>
+      <p className="ac-sub">Each sweep has two links: one for the group, one you keep.</p>
+      {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
+      <div className="ac-stack">
+        {billing && <SweepList sweeps={sweeps} billing={billing} reload={reload} />}
+        {/* nothing to bill against yet — the account speaks for itself */}
+        {billing && live === 0 && <BillingPanel billing={billing} />}
+      </div>
+    </Console>
   );
 }
