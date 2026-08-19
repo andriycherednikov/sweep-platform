@@ -50,7 +50,7 @@ const COMPETITIONS = [
 // is a gimmick, and re-running the entrance mask animation costs more than it buys.
 const HEADLINES = [
   ["Be the one who *runs* the sweep.", "Not the one updating it."],
-  ["You start it.", "The group *never* shuts up about it."],
+  ["*You* start it.", "The group never shuts up about it."],
   ["Be the reason *everyone*", "cares about a Tuesday night game."],
 ]
 
