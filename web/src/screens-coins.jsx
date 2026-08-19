@@ -1,7 +1,6 @@
 /* ============================================================
    THE SWEEP — Coins screen: wallet, bettable matches, bet history
    ============================================================ */
-import { SweepMark } from "./lib/mark.jsx";
 import { useState, useRef, useEffect } from 'react'
 import { SWEEP as S } from './data.js'
 import { getMe } from './social.js'
@@ -226,7 +225,7 @@ export function WalletHeader({ onBack, go, scrolled, onInfo, onOptOut }) {
         {onBack
           ? <button className="coin-back" onClick={onBack} aria-label="Back"><Icon.back /></button>
           : go
-          ? <button className="brand brand-btn phead-brand" onClick={() => go("home")} aria-label="Home"><div className="mark"><SweepMark title="The Sweep"/></div></button>
+          ? <button className="brand brand-btn phead-brand" onClick={() => go("home")} aria-label="Home"></button>
           : <span className="coin-back coin-back-ghost" aria-hidden="true" />}
         {me ? (
           <div className="coin-balance-row">

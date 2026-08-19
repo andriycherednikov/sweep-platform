@@ -71,9 +71,13 @@ test('a drawn game stays in home order rather than crowning the home side', asyn
 })
 
 /* The fork shipped with FIFA's World Cup trophy as the mark. It is not ours and
-   this is not a World Cup product — nothing may reference it again. */
-test('the marketing pages carry our own mark, never the World Cup trophy', () => {
+   this is not a World Cup product — nothing may reference it again. The logo is
+   now the wordmark alone: no tile, no glyph, just "The Sweep" in the hand. */
+test('the logo is the wordmark alone, and the trophy never comes back', () => {
   const { container } = render(<Landing />)
   expect(container.innerHTML).not.toMatch(/trophy/i)
-  expect(container.querySelector('svg')).toBeTruthy()
+  // the only images on the page are product screenshots — nothing beside the wordmark
+  const brand = container.querySelector('.lp-brand')
+  expect(brand.querySelector('img, svg')).toBeNull()
+  expect(screen.getAllByText('The Sweep').length).toBeGreaterThan(0)
 })

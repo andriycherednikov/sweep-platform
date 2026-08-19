@@ -11,7 +11,6 @@
    of only claiming it. Everything else reveals once, on entry.
    ============================================================ */
 import { useEffect, useRef, useState } from "react"
-import { SweepMark } from "./lib/mark.jsx"
 
 /** The app shell is a fixed-viewport frame (#appmount is 100vh on desktop, body is
  *  flex-centred). A marketing page has to scroll the document instead — otherwise
@@ -123,7 +122,6 @@ export function LandingNav() {
     <header className="lp-nav">
       <div className="lp-nav-in">
         <a className="lp-brand" href="/">
-          <SweepMark size={26} />
           <span>The Sweep</span>
         </a>
         <nav className="lp-links">
@@ -145,7 +143,6 @@ export function LandingFoot() {
     <footer className="lp-foot">
       <div className="lp-foot-in">
         <div className="lp-brand lp-brand-sm">
-          <SweepMark size={22} />
           <span>The Sweep</span>
         </div>
         <p className="lp-foot-note">
