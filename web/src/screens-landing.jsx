@@ -19,7 +19,11 @@ import { useEffect, useRef, useState } from "react"
 export function useMarketingShell() {
   useEffect(() => {
     document.body.classList.add("marketing")
-    return () => document.body.classList.remove("marketing")
+    document.documentElement.classList.add("marketing-scroll")
+    return () => {
+      document.body.classList.remove("marketing")
+      document.documentElement.classList.remove("marketing-scroll")
+    }
   }, [])
 }
 
@@ -117,7 +121,32 @@ export function ResultsTicker() {
   )
 }
 
+/** Which nav item is "here": the pricing page by path, or whichever section of
+ *  the landing is currently in view. Highlighting the wrong one is worse than
+ *  highlighting none, so nothing is active until a section actually arrives. */
+export function useActiveNav() {
+  const [active, setActive] = useState(
+    () => (typeof location !== "undefined" && location.pathname === "/pricing" ? "pricing" : null))
+
+  useEffect(() => {
+    if (location.pathname === "/pricing") return
+    const sections = ["how", "inside"].map((id) => document.getElementById(id)).filter(Boolean)
+    if (!sections.length || !("IntersectionObserver" in window)) return
+    const io = new IntersectionObserver((entries) => {
+      const seen = entries.filter((e) => e.isIntersecting)
+      if (seen.length) setActive(seen[seen.length - 1].target.id)
+      else if (window.scrollY < 200) setActive(null)   // back at the top: nothing is "here"
+    }, { rootMargin: "-45% 0px -45% 0px" })
+    sections.forEach((el) => io.observe(el))
+    return () => io.disconnect()
+  }, [])
+
+  return active
+}
+
 export function LandingNav() {
+  const active = useActiveNav()
+  const cls = (key) => (active === key ? "is-here" : undefined)
   return (
     <header className="lp-nav">
       <div className="lp-nav-in">
@@ -125,9 +154,9 @@ export function LandingNav() {
           <span>The Sweep</span>
         </a>
         <nav className="lp-links">
-          <a href="/#how">How it works</a>
-          <a href="/#inside">Inside a sweep</a>
-          <a href="/pricing">Pricing</a>
+          <a className={cls("how")} href="/#how">How it works</a>
+          <a className={cls("inside")} href="/#inside">Inside a sweep</a>
+          <a className={cls("pricing")} href="/pricing">Pricing</a>
         </nav>
         <div className="lp-nav-cta">
           <a className="lp-ghost" href="/account">Sign in</a>
@@ -166,7 +195,7 @@ export function Landing() {
       <ResultsTicker />
 
       <section className="lp-hero">
-        <span className="lp-pill lp-in">Football, basketball — any two-team sport</span>
+        <p className="lp-kicker lp-in">Football, basketball — any two-team sport</p>
         <h1 className="lp-h1">
           <span className="lp-mask"><span>Everyone draws a team.</span></span>
           <span className="lp-mask"><span><em>Nobody</em> keeps the sheet.</span></span>
@@ -188,8 +217,7 @@ export function Landing() {
       </section>
 
       <section className="lp-strip" data-reveal aria-label="Competitions you can run a sweep on">
-        {COMPETITIONS.map((c) => <span className="lp-chip" key={c}>{c}</span>)}
-        <span className="lp-chip lp-chip-more">+ more each season</span>
+        <p>{COMPETITIONS.join("  ·  ")}<span className="lp-strip-more">  ·  more each season</span></p>
       </section>
 
       <section className="lp-sec" id="how" data-reveal>
@@ -254,16 +282,14 @@ export function Landing() {
             </div>
             <img src="/marketing/app-today.webp" alt="Match day view showing the next game and both teams' owners" loading="lazy" />
           </article>
+        </div>
 
-          <article className="lp-tile lp-tile-plain">
-            <div className="lp-tile-copy">
-              <h3 className="lp-tile-h">Wagering, only if you want it</h3>
-              <p className="lp-tile-b">
-                Switch it on and everyone gets play money for head-to-head, totals and
-                handicap markets. Switch it off and nobody sees it. No real money, either way.
-              </p>
-            </div>
-          </article>
+        <div className="lp-aside">
+          <h3 className="lp-aside-h">Wagering, only if you want it</h3>
+          <p className="lp-aside-b">
+            Switch it on and everyone gets play money for head-to-head, totals and handicap
+            markets. Switch it off and nobody sees it. No real money changes hands either way.
+          </p>
         </div>
       </section>
 

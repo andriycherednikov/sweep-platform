@@ -1005,6 +1005,8 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
    Calmer than the app on purpose. Mixed-case Bricolage display over the same
    navy, glass panels, one accent, and screenshots presented as the product
    rather than as decoration. ========================================== */
+html.marketing-scroll{ scroll-behavior:smooth; }
+@media (prefers-reduced-motion: reduce){ html.marketing-scroll{ scroll-behavior:auto; } }
 body.marketing{ display:block; background:#0f1620; }
 body.marketing #root{ display:block; min-height:0; }
 body.marketing #appmount{ height:auto; }
@@ -1030,7 +1032,8 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-h1, .lp-h2, .lp-plan-n{ font-family:'Archivo',system-ui,sans-serif; font-weight:800;
   font-variation-settings:'wdth' 108; }
 .lp-card-h, .lp-tile-h{ font-family:'Archivo',system-ui,sans-serif; font-weight:700; }
-.lp-h1 em, .lp-h2 em{ font-style:normal; color:var(--lp-soft); }
+.lp-h1 em, .lp-h2 em{ font-family:'Caveat',cursive; font-style:normal; font-weight:700;
+  font-size:1.18em; line-height:.8; color:var(--lp-soft); }
 /* the wordmark IS the logo — Caveat, and nothing else uses it */
 .lp-brand span, .sweep-brand-word b, .brand b, .sb-brand b{
   font-family:'Caveat',cursive; font-weight:700; text-transform:none; }
@@ -1044,6 +1047,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-links{ display:flex; gap:24px; margin-left:8px; }
 .lp-links a{ font-size:14.5px; font-weight:500; color:var(--ink2); transition:color .15s; }
 .lp-links a:hover{ color:var(--ink); }
+.lp-links a.is-here{ color:var(--ink); }
 .lp-nav-cta{ margin-left:auto; display:flex; align-items:center; gap:12px; }
 .lp-ghost{ font-size:14.5px; font-weight:600; color:var(--ink2); padding:8px 10px; transition:color .15s; }
 .lp-ghost:hover{ color:var(--ink); }
@@ -1058,8 +1062,7 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* hero ----------------------------------------------------------------- */
 .lp-hero{ max-width:var(--shell); margin:0 auto; padding:76px 26px 0; text-align:center; }
 .lp-hero-tight{ padding-bottom:8px; }
-.lp-pill{ display:inline-block; padding:6px 14px; border-radius:999px; font-size:12.5px; font-weight:600;
-  letter-spacing:.2px; color:#d8e5f5; background:var(--lp-surface); border:1px solid var(--edge); }
+.lp-kicker{ margin:0; font-size:12px; font-weight:600; letter-spacing:3px; text-transform:uppercase; color:var(--lp-soft); }
 .lp-h1{ margin:20px auto 0; max-width:19ch; font-size:clamp(38px,4.4vw,58px); line-height:1.02; letter-spacing:-1.4px; color:#fff; }
 .lp-h1-sm{ max-width:20ch; font-size:clamp(34px,4.2vw,50px); }
 .lp-lede{ margin:18px auto 0; max-width:52ch; font-size:16.5px; line-height:1.65; color:var(--ink2); }
@@ -1074,10 +1077,9 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   box-shadow:0 50px 90px -35px rgba(0,0,0,.92), 0 2px 0 rgba(255,255,255,.06) inset; }
 
 /* competition strip ----------------------------------------------------- */
-.lp-strip{ max-width:var(--shell); margin:56px auto 0; padding:0 26px; display:flex; flex-wrap:wrap; justify-content:center; gap:9px; }
-.lp-chip{ padding:7px 14px; border-radius:999px; font-size:13.5px; font-weight:500; color:#cbdaee;
-  background:var(--lp-surface); border:1px solid var(--edge); }
-.lp-chip-more{ color:var(--ink3); background:transparent; border-style:dashed; }
+.lp-strip{ max-width:var(--shell); margin:56px auto 0; padding:0 26px; text-align:center; }
+.lp-strip p{ margin:0; font-size:14.5px; font-weight:500; line-height:2; color:var(--ink2); }
+.lp-strip-more{ color:var(--ink3); }
 
 /* section shell --------------------------------------------------------- */
 .lp-sec{ max-width:var(--shell); margin:0 auto; padding:104px 26px 0; scroll-margin-top:76px; }
@@ -1086,14 +1088,13 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 
 /* how it works ---------------------------------------------------------- */
 .lp-cards{ margin-top:40px; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px; }
-.lp-card{ padding:24px 22px 26px; border-radius:18px; background:var(--lp-surface); border:1px solid var(--edge); }
+.lp-card{ padding:18px 0 0; border-top:1px solid var(--edge); }
 .lp-card-n{ display:inline-block; font-weight:800; font-size:12.5px; letter-spacing:1.6px; color:var(--lp-soft); }
 .lp-card-h{ margin:10px 0 8px; font-size:20px; letter-spacing:-.4px; color:#fff; }
 .lp-card-b{ margin:0; font-size:14.5px; line-height:1.65; color:var(--ink2); }
 
 /* the draw — paper against the glass ------------------------------------ */
-.lp-draw{ margin-top:34px; padding:24px 22px 22px; border-radius:18px; border:1px solid var(--edge);
-  background:var(--lp-surface); }
+.lp-draw{ margin-top:46px; }
 .lp-draw-rail{ display:flex; gap:10px; overflow:hidden; padding:2px 0;
   -webkit-mask-image:linear-gradient(90deg,#000 82%,transparent); mask-image:linear-gradient(90deg,#000 82%,transparent); }
 .lp-slip{ display:inline-flex; align-items:baseline; gap:8px; padding:8px 13px 9px; border-radius:6px;
@@ -1107,6 +1108,13 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-draw-cap{ margin:14px 0 0; font-size:13px; color:var(--ink3); }
 
 /* bento ------------------------------------------------------------------ */
+/* the wagering note: a statement held by a rule, not a half-empty card */
+.lp-aside{ margin-top:44px; padding-top:22px; border-top:1px solid var(--edge); display:grid;
+  grid-template-columns:minmax(0,.42fr) minmax(0,.58fr); gap:32px; align-items:start; }
+.lp-aside-h{ margin:0; font-family:'Archivo',system-ui,sans-serif; font-weight:700; font-size:20px;
+  letter-spacing:-.3px; color:#fff; }
+.lp-aside-b{ margin:0; max-width:60ch; font-size:15px; line-height:1.7; color:var(--ink2); }
+
 .lp-bento{ margin-top:40px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
 .lp-tile{ position:relative; min-height:360px; overflow:hidden; border-radius:20px; border:1px solid var(--edge);
   background:var(--lp-surface); display:flex; flex-direction:column; }
@@ -1119,8 +1127,6 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-tile img{ flex:1 1 auto; min-height:0; margin:22px 0 -1px 26px; width:calc(100% - 26px);
   object-fit:cover; object-position:left top; border-top-left-radius:12px;
   border-top:1px solid var(--edge); border-left:1px solid var(--edge); box-shadow:0 -18px 40px -26px rgba(0,0,0,.9); }
-.lp-tile-plain{ grid-column:1 / -1; justify-content:center; }
-.lp-tile-plain .lp-tile-copy{ padding:28px 26px 30px; }
 
 /* closing band + footer --------------------------------------------------- */
 .lp-final{ max-width:760px; margin:120px auto 0; padding:0 26px; text-align:center; }
@@ -1144,8 +1150,8 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .lp-plan-list{ margin:28px 0 0; padding:0; list-style:none; text-align:left; display:flex; flex-direction:column; gap:11px; }
 .lp-plan-list li{ position:relative; padding-left:26px; font-size:14.5px; line-height:1.55; color:var(--ink2); }
 .lp-plan-list li::before{ content:"✓"; position:absolute; left:0; top:0; font-weight:700; color:var(--lp-soft); }
-.lp-qa{ margin-top:34px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; }
-.lp-qa-item{ padding:22px 22px 24px; border-radius:18px; background:var(--lp-surface); border:1px solid var(--edge); }
+.lp-qa{ margin-top:34px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:30px 44px; }
+.lp-qa-item{ padding:18px 0 0; border-top:1px solid var(--edge); }
 
 /* motion ------------------------------------------------------------------
    Entrance plays once: each headline line lifts out from behind its own mask,
@@ -1189,8 +1195,8 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 @media (max-width:900px){
   .lp-links{ display:none; }
   .lp-hero{ padding-top:62px; }
-  .lp-cards, .lp-bento, .lp-qa{ grid-template-columns:minmax(0,1fr); }
-  .lp-tile-wide, .lp-tile-plain{ grid-column:auto; }
+  .lp-cards, .lp-bento, .lp-qa, .lp-aside{ grid-template-columns:minmax(0,1fr); }
+  .lp-tile-wide{ grid-column:auto; }
   .lp-tile{ min-height:0; }
   .lp-sec{ padding-top:76px; }
   .lp-final{ margin-top:88px; }

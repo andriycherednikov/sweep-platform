@@ -31,7 +31,7 @@ export function Pricing() {
       <LandingNav />
 
       <section className="lp-hero lp-hero-tight">
-        <span className="lp-pill">Pricing</span>
+        <p className="lp-kicker">Pricing</p>
         <h1 className="lp-h1 lp-h1-sm">One price, per sweep, per month</h1>
         <p className="lp-lede">
           Start with two weeks free and no card. Keep it running for the price of a
