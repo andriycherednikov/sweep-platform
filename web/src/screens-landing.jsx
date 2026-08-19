@@ -130,7 +130,6 @@ export function ResultsTicker() {
 
   return (
     <div className="lp-ticker" aria-label="Recent results">
-      <span className="lp-ticker-tag"><i className="lp-ticker-dot" />Recent results</span>
       <div className="lp-ticker-window">
         {/* two identical runs so the loop has no seam */}
         <div className="lp-ticker-rail">

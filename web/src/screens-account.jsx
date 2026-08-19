@@ -16,14 +16,34 @@ export function goTo(url) { window.location.assign(url); }
 
 /** The account console shell: a dark rail carrying the brand and where you are,
  *  a light pane carrying the work. Every signed-in page outside a sweep uses it. */
-export function Console({ nav, foot, children }) {
+export function Console({ here, children }) {
   useMarketingShell();
+  const item = (key, label, badge) => (
+    <button
+      className={"ac-nav-i" + (here === key ? " is-here" : "") + (key === "new" ? " is-go" : "")}
+      onClick={() => goTo(key === "sweeps" ? "/account" : "/account/new")}
+    >
+      {label}{badge !== undefined && <span>{badge}</span>}
+    </button>
+  );
+
+  function signOut() {
+    clearAccountToken();
+    window.location.reload();
+  }
+
   return (
     <div className="lp ac">
       <aside className="ac-side">
         <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
-        <nav className="ac-nav">{nav}</nav>
-        {foot && <div className="ac-side-foot">{foot}</div>}
+        <nav className="ac-nav">
+          {item("sweeps", "Sweeps")}
+        </nav>
+        <div className="ac-side-foot">
+          <button className={"lp-btn ac-btn" + (here === "new" ? " is-here" : "")}
+                  onClick={() => goTo("/account/new")}>New sweep</button>
+          <button className="ac-ghost" onClick={signOut}>Sign out</button>
+        </div>
       </aside>
       <main className="ac-main">
         <div className="ac-col">{children}</div>
@@ -223,23 +243,10 @@ export function AccountHome() {
 
   useEffect(() => { reload(); }, [reload]);
 
-  function signOut() {
-    clearAccountToken();
-    window.location.reload();
-  }
-
   const live = sweeps.filter((s) => !s.archivedAt).length;
 
   return (
-    <Console
-      nav={<button className="ac-nav-i is-here">Sweeps<span>{live}</span></button>}
-      foot={
-        <>
-          <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>New sweep</button>
-          <button className="ac-ghost" onClick={signOut}>Sign out</button>
-        </>
-      }
-    >
+    <Console here="sweeps">
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">Your sweeps</h1>
       <p className="ac-sub">Each sweep has two links: one for the group, one you keep.</p>
