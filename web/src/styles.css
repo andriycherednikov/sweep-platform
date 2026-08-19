@@ -1226,6 +1226,42 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   .lp-btn:hover{ transform:none; }
 }
 
+/* the front door (sign in / billing returns) — the marketing skin on one panel,
+   so arriving from the landing page never feels like a different product ------ */
+.au{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:20px; min-height:100dvh; padding:44px 22px; text-align:left; }
+.au-brand{ font-size:27px; }
+.au-panel{ width:100%; max-width:400px; padding:28px 26px 24px; border-radius:18px;
+  background:var(--lp-surface); border:1px solid var(--edge);
+  box-shadow:0 34px 70px -34px rgba(0,0,0,.85); }
+.au-tag{ margin:0; font-size:11.5px; font-weight:600; letter-spacing:3px;
+  text-transform:uppercase; color:var(--lp-accent); }
+.au-h{ margin:8px 0 0; font-family:'Caveat',cursive; font-weight:700; font-size:46px;
+  line-height:.95; color:#fff; }
+.au-rule{ display:block; width:78px; height:4px; margin-top:10px; border-radius:2px;
+  background:var(--lp-accent); }
+.au-lede{ margin:16px 0 0; font-size:14.5px; line-height:1.6; color:var(--ink2); }
+.au-form{ margin-top:20px; padding-top:20px; border-top:1px solid var(--edge); }
+.au-label{ display:block; font-size:12.5px; font-weight:600; color:var(--ink2); }
+.au-input{ width:100%; margin-top:7px; padding:12px 14px; border-radius:10px;
+  font-family:inherit; font-size:15px; color:var(--ink);
+  background:var(--glass); border:1px solid var(--edge); }
+.au-input::placeholder{ color:var(--ink3); }
+.au-input:focus{ outline:none; border-color:var(--lp-soft); background:var(--glass2); }
+.au-btn{ display:block; width:100%; margin-top:16px; padding:9px 20px 11px; border:0;
+  font-size:26px; text-align:center; cursor:pointer; }
+/* the reassurance line carries the accent tick the reference design uses */
+.au-note{ display:flex; align-items:center; gap:9px; margin:16px 0 0; font-size:13px;
+  line-height:1.5; color:var(--ink2); }
+.au-note::before{ content:""; flex-shrink:0; width:8px; height:8px; border-radius:2px;
+  background:var(--lp-accent); }
+.au-err{ margin:12px 0 0; font-size:13px; color:var(--lp-soft); }
+.au-alt{ margin-top:14px; padding:0; border:0; background:none; cursor:pointer;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--lp-soft); }
+.au-alt:hover{ color:var(--lp-lift); }
+.au-foot{ margin:0; max-width:400px; font-size:12.5px; line-height:1.6; color:var(--ink3);
+  text-align:center; }
+
 @keyframes sweepspin { to { transform:rotate(360deg); } }
 @keyframes sweepRise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce){

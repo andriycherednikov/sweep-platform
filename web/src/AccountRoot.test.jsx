@@ -38,7 +38,7 @@ afterEach(() => {
 test('unauthenticated /account renders the sign-in email form (no stale getAccount check)', () => {
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  expect(screen.getByPlaceholderText(/email/i)).toBeInTheDocument()
+  expect(screen.getByLabelText(/email/i)).toBeInTheDocument()
   expect(accountClient.getAccount).not.toHaveBeenCalled()
 })
 
@@ -48,7 +48,7 @@ test('a stored token is verified via getAccount(); a stale (401) token is cleare
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
   await waitFor(() => expect(accountClient.clearAccountToken).toHaveBeenCalled())
-  expect(await screen.findByPlaceholderText(/email/i)).toBeInTheDocument()
+  expect(await screen.findByLabelText(/email/i)).toBeInTheDocument()
 })
 
 test('a valid stored token lands straight on the account home (billing + sweeps load)', async () => {
@@ -61,7 +61,7 @@ test('a valid stored token lands straight on the account home (billing + sweeps 
 test('submitting the email form calls requestLogin and shows the check-your-email message', async () => {
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  fireEvent.change(screen.getByPlaceholderText(/email/i), { target: { value: 'me@example.com' } })
+  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'me@example.com' } })
   fireEvent.click(screen.getByRole('button', { name: /send/i }))
   await waitFor(() => expect(accountClient.requestLogin).toHaveBeenCalledWith('me@example.com'))
   expect(await screen.findByText(/check your email/i)).toBeInTheDocument()

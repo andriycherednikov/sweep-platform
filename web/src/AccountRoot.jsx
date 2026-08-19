@@ -9,6 +9,27 @@ import { useEffect, useState } from "react";
 import { requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken } from "./lib/accountClient.js";
 import { AccountHome } from "./screens-account.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
+import { useMarketingShell } from "./screens-landing.jsx";
+
+/** The front door wears the marketing skin, not the in-sweep shell: a signed-out
+ *  visitor arriving from the landing page should not feel handed off to a
+ *  different product. One panel, one field — the flow really is that short. */
+function AuthPanel({ tag, title, lede, children, foot }) {
+  useMarketingShell();
+  return (
+    <div className="lp au">
+      <a className="lp-brand au-brand" href="/"><span>The Sweep</span></a>
+      <div className="au-panel">
+        <p className="au-tag">{tag}</p>
+        <h1 className="au-h">{title}</h1>
+        <span className="au-rule" aria-hidden="true" />
+        <p className="au-lede">{lede}</p>
+        {children}
+      </div>
+      {foot && <p className="au-foot">{foot}</p>}
+    </div>
+  );
+}
 
 // Shared token-check guard: checking (verifying a stored token) | anon | in.
 // Entry and RequireAccount both need it — this is the small guard the file
@@ -59,30 +80,45 @@ function Entry() {
     catch { setError(true); }
   }
 
+  if (sent)
+    return (
+      <AuthPanel
+        tag="Check your email"
+        title="Link sent"
+        lede={<>We sent a sign-in link to <b>{email}</b>. It works once, and it expires in 15 minutes.</>}
+        foot={<>(dev: the link is printed on the API console)</>}
+      >
+        <p className="au-note">Nothing in your inbox? Look in spam, or send it again.</p>
+        <button type="button" className="au-alt" onClick={() => setSent(false)}>
+          Use a different email
+        </button>
+      </AuthPanel>
+    );
+
   return (
-    <div className="sweep-gate">
-      <div className="sweep-card">
-        <h2 className="sweep-card-h">Sign in</h2>
-        {sent ? (
-          <p className="sweep-card-sub">
-            Check your email — the sign-in link is valid for 15 minutes.
-            <br />(dev: the link is printed on the API console)
-          </p>
-        ) : (
-          <form onSubmit={submit}>
-            <input
-              type="email"
-              required
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-            <button type="submit">Send link</button>
-            {error && <p className="sweep-card-sub">Something went wrong. Try again.</p>}
-          </form>
-        )}
-      </div>
-    </div>
+    <AuthPanel
+      tag="Start free"
+      title="Run your sweep"
+      lede="One link signs you in and creates your account. No password to invent, no card to enter."
+      foot={<>Already running one? The same link signs you back in.</>}
+    >
+      <form className="au-form" onSubmit={submit}>
+        <label className="au-label" htmlFor="au-email">Email</label>
+        <input
+          id="au-email"
+          className="au-input"
+          type="email"
+          required
+          placeholder="you@example.com"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <button type="submit" className="lp-btn au-btn">Send my link</button>
+        <p className="au-note">14 days free · no card · leave any time</p>
+        {error && <p className="au-err">Something went wrong. Try again.</p>}
+      </form>
+    </AuthPanel>
   );
 }
 
@@ -100,32 +136,31 @@ function Redeem({ token }) {
   if (!error) return <div className="sweep-gate" />;
 
   return (
-    <div className="sweep-gate">
-      <div className="sweep-card">
-        <h2 className="sweep-card-h">Link expired</h2>
-        <p className="sweep-card-sub">That sign-in link has expired or was already used.</p>
-        <a href="/account">Back to my account</a>
-      </div>
-    </div>
+    <AuthPanel
+      tag="Sign in"
+      title="Link expired"
+      lede="That sign-in link has expired or was already used. Ask for a fresh one — it takes a second."
+    >
+      <a className="lp-btn au-btn" href="/account">Back to my account</a>
+    </AuthPanel>
   );
 }
 
-function Landing({ msg }) {
+function Landing({ title, msg }) {
   return (
-    <div className="sweep-gate">
-      <div className="sweep-card">
-        <p className="sweep-card-sub">{msg}</p>
-        <a href="/account">Back to my account</a>
-      </div>
-    </div>
+    <AuthPanel tag="Billing" title={title} lede={msg}>
+      <a className="lp-btn au-btn" href="/account">Back to my account</a>
+    </AuthPanel>
   );
 }
 
 export function AccountRoot() {
   const path = window.location.pathname;
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
-  if (path === "/account/billing/success") return <Landing msg="Subscription active — thanks! Your sweeps stay live." />;
-  if (path === "/account/billing/cancelled") return <Landing msg="Checkout cancelled. Nothing was charged." />;
+  if (path === "/account/billing/success")
+    return <Landing title="You're set" msg="Subscription active — thanks! Your sweeps stay live." />;
+  if (path === "/account/billing/cancelled")
+    return <Landing title="No charge" msg="Checkout cancelled. Nothing was charged." />;
   if (path === "/account/new") {
     return (
       <RequireAccount>
