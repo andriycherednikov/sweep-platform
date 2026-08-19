@@ -42,9 +42,18 @@ const COMPETITIONS = [
   "Premier League", "La Liga", "Serie A", "Bundesliga", "Ligue 1", "NBA", "World Cup",
 ]
 
+// The hero line rotates per visit — same promise, three different angles at it.
+// ponytail: random on load, not a timed cycle; a line that swaps under you mid-read
+// is a gimmick, and re-running the entrance mask animation costs more than it buys.
+const HEADLINES = [
+  ["Be the one who runs the sweep.", "Not the one ", "updating", " it."],
+  ["You start it.", "The group ", "never", " shuts up about it."],
+  ["Be the reason everyone cares", "about a ", "Tuesday", " night game."],
+]
+
 const STEPS = [
   ["Pick the competition",
-   "Choose a league and season, or a tournament. The sweep binds to it and pulls its own fixtures."],
+   "Football, basketball — any two-team sport. Choose a league and season, or a tournament, and the sweep pulls its own fixtures."],
   ["Send one link",
    "Your group taps it and they're in. No accounts to make, nothing to install."],
   ["Draw the teams",
@@ -189,16 +198,17 @@ export function LandingFoot() {
 export function Landing() {
   useMarketingShell()
   useReveal()
+  const [[line1, pre, em, post]] = useState(() => [HEADLINES[Math.floor(Math.random() * HEADLINES.length)]])
   return (
     <div data-testid="sweep-landing" className="lp">
       <LandingNav />
       <ResultsTicker />
 
       <section className="lp-hero">
-        <p className="lp-kicker lp-in">Football, basketball — any two-team sport</p>
+        <p className="lp-kicker lp-in">1,600+ leagues and tournaments, one sweep at a time</p>
         <h1 className="lp-h1">
-          <span className="lp-mask"><span>Everyone draws a team.</span></span>
-          <span className="lp-mask"><span><em>Nobody</em> keeps the sheet.</span></span>
+          <span className="lp-mask"><span>{line1}</span></span>
+          <span className="lp-mask"><span>{pre}<em>{em}</em>{post}</span></span>
         </h1>
         <p className="lp-lede lp-in lp-in-2">
           Pick a competition, send one link, pull the teams out of the hat. From there
