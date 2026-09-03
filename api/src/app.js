@@ -31,10 +31,13 @@ import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { providerFor } from './providers/registry.js'
 
 export function buildApp(db, opts = {}) {
-  // trustProxy: 1 = the single hop in front of us (the shared Caddy, which overwrites
-  // X-Forwarded-For with the real client). Without it every request looks like it came
+  // Trust the forwarded headers only from the shared Caddy, which overwrites
+  // X-Forwarded-For with the real client. Without this every request looks like it came
   // from the proxy and the per-client rate limits become one shared bucket.
-  const app = Fastify({ logger: opts.logger ?? false, trustProxy: 1 })
+  // Identified by address, not by hop count: fastify 5.12 disabled numeric trustProxy
+  // (GHSA-3m5p-2c4r-xxw2) because a direct client can supply as many hops as it likes.
+  // Caddy reaches us over the compose network, so the peer is always loopback or private.
+  const app = Fastify({ logger: opts.logger ?? false, trustProxy: 'loopback, uniquelocal' })
   app.decorate('db', db)
   app.decorate('bus', opts.bus ?? createBus())
   app.decorate('publish', opts.publish ?? ((event) => app.bus.publish(event)))
