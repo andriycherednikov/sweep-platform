@@ -50,7 +50,7 @@ export function isLineupWindow(now, kickoffs, leadMin = 45) {
  * or not-yet-published fetch never wipes prior lineups.
  * @returns {Promise<number>} count of fixtures whose lineups were stored
  */
-export async function pollLineups(db, provider, fixtures, crosswalk, publish = () => {}) {
+export async function pollLineups(db, provider, fixtures, crosswalk, publish = () => {}, competitionId = null) {
   let updated = 0
   let checked = 0
   for (const f of fixtures) {
@@ -66,7 +66,7 @@ export async function pollLineups(db, provider, fixtures, crosswalk, publish = (
       publish({ type: 'lineups', fixtureId: f.id })
     } catch { /* best-effort per fixture */ }
   }
-  await db.insert(syncLog).values({ source: 'api-football', kind: 'lineups', status: 'ok', counts: { checked, updated } })
+  await db.insert(syncLog).values({ source: 'api-football', competitionId, kind: 'lineups', status: 'ok', counts: { checked, updated } })
   return updated
 }
 
@@ -78,7 +78,7 @@ export async function pollLineups(db, provider, fixtures, crosswalk, publish = (
  * @param {string[]} ids fixtures whose kickoff window is currently active
  * @returns {Promise<number>} count of fixtures changed
  */
-export async function pollLive(db, provider, ids, publish = () => {}) {
+export async function pollLive(db, provider, ids, publish = () => {}, competitionId = null) {
   if (!ids || ids.length === 0) return 0
   try {
     const fetched = await provider.fetchResults(ids)
@@ -108,10 +108,10 @@ export async function pollLive(db, provider, ids, publish = () => {}) {
       updated++
       publish({ type: 'score', fixtureId: f.id, status: f.status, score: [f.score1, f.score2], minute: f.minute, phase: f.phase ?? null })
     }
-    await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'ok', counts: { polled: ids.length, updated } })
+    await db.insert(syncLog).values({ source: 'api-football', competitionId, kind: 'live', status: 'ok', counts: { polled: ids.length, updated } })
     return updated
   } catch (err) {
-    await db.insert(syncLog).values({ source: 'api-football', kind: 'live', status: 'error', error: String(err?.message ?? err) })
+    await db.insert(syncLog).values({ source: 'api-football', competitionId, kind: 'live', status: 'error', error: String(err?.message ?? err) })
     throw err
   }
 }
@@ -126,7 +126,7 @@ export async function pollLive(db, provider, ids, publish = () => {}) {
  * Best-effort per fixture: a fetch error for one fixture never blocks the others.
  * @returns {Promise<number>} count of events published
  */
-export async function pollEvents(db, provider, ids, crosswalk, publish = () => {}) {
+export async function pollEvents(db, provider, ids, crosswalk, publish = () => {}, competitionId = null) {
   if (!ids || ids.length === 0) return 0
   const rows = (await db.select().from(event).where(inArray(event.id, ids))).map(flattenEvent)
   const byId = new Map(rows.map((r) => [r.id, r]))
@@ -155,7 +155,7 @@ export async function pollEvents(db, provider, ids, crosswalk, publish = () => {
       }
     } catch { /* best-effort per fixture */ }
   }
-  await db.insert(syncLog).values({ source: 'api-football', kind: 'events', status: 'ok', counts: { polled: ids.length, emitted } })
+  await db.insert(syncLog).values({ source: 'api-football', competitionId, kind: 'events', status: 'ok', counts: { polled: ids.length, emitted } })
   return emitted
 }
 
@@ -167,7 +167,7 @@ export async function pollEvents(db, provider, ids, crosswalk, publish = () => {
  * skipped so an unchanged fixture costs no write.
  * @returns {Promise<number>} count of fixtures whose statistics changed
  */
-export async function pollStatistics(db, provider, ids, crosswalk) {
+export async function pollStatistics(db, provider, ids, crosswalk, competitionId = null) {
   if (!ids || ids.length === 0) return 0
   const rows = (await db.select().from(event).where(inArray(event.id, ids))).map(flattenEvent)
   const byId = new Map(rows.map((r) => [r.id, r]))
@@ -188,7 +188,7 @@ export async function pollStatistics(db, provider, ids, crosswalk) {
       updated++
     } catch { /* best-effort per fixture */ }
   }
-  await db.insert(syncLog).values({ source: 'api-football', kind: 'statistics', status: 'ok', counts: { polled: ids.length, updated } })
+  await db.insert(syncLog).values({ source: 'api-football', competitionId, kind: 'statistics', status: 'ok', counts: { polled: ids.length, updated } })
   return updated
 }
 
@@ -207,7 +207,7 @@ function stableStr(v) {
  * manual run can populate just a handful. Reuses pollStatistics (idempotent, best-effort).
  * @returns {Promise<{checked:number, updated:number}>} finals examined and ones that got stats
  */
-export async function backfillFinalStatistics(db, provider, crosswalk, { limit } = {}) {
+export async function backfillFinalStatistics(db, provider, crosswalk, { limit } = {}, competitionId = null) {
   // jsonb `->` returns SQL NULL only when the key is absent (a stored JSON null wouldn't
   // match) — pollStatistics only ever writes real objects, so absent-key is the case that
   // means "never polled".
@@ -217,7 +217,7 @@ export async function backfillFinalStatistics(db, provider, crosswalk, { limit }
   if (limit) q = q.limit(limit)
   const rows = await q
   if (rows.length === 0) return { checked: 0, updated: 0 }
-  const updated = await pollStatistics(db, provider, rows.map((r) => r.id), crosswalk)
+  const updated = await pollStatistics(db, provider, rows.map((r) => r.id), crosswalk, competitionId)
   return { checked: rows.length, updated }
 }
 
@@ -231,10 +231,10 @@ export async function backfillFinalStatistics(db, provider, crosswalk, { limit }
  * cheap SELECT.
  * @returns {Promise<number>} number of finished fixtures backfilled
  */
-export async function backfillFinalEvents(db, provider, crosswalk) {
+export async function backfillFinalEvents(db, provider, crosswalk, competitionId = null) {
   const rows = await db.select({ id: event.id }).from(event)
     .where(and(eq(event.status, 'final'), sql`(${event.detail} -> 'events') IS NULL`))
   if (rows.length === 0) return 0
-  await pollEvents(db, provider, rows.map((r) => r.id), crosswalk) // no publish → silent baseline
+  await pollEvents(db, provider, rows.map((r) => r.id), crosswalk, () => {}, competitionId) // no publish → silent baseline
   return rows.length
 }

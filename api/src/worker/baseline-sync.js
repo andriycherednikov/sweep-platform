@@ -201,16 +201,16 @@ export async function syncBaseline(db, provider, competition) {
     // Only for sports whose adapter carries the /events capability at all.
     let eventsBackfilled = 0
     if (provider.fetchEvents) {
-      try { eventsBackfilled = await backfillFinalEvents(db, provider, crosswalk) } catch { /* best-effort */ }
+      try { eventsBackfilled = await backfillFinalEvents(db, provider, crosswalk, competition.id) } catch { /* best-effort */ }
     }
 
     await db.insert(syncLog).values({
-      source: competition.provider, kind: 'baseline', status: 'ok',
+      source: competition.provider, competitionId: competition.id, kind: 'baseline', status: 'ok',
       counts: { fixtures: fixtures.length, standings: realStandings.length, probs: probById.size, eventsBackfilled },
     })
     return { fixtures: fixtures.length, standings: realStandings.length, newlyFinal }
   } catch (err) {
-    await db.insert(syncLog).values({ source: competition.provider, kind: 'baseline', status: 'error', error: String(err?.message ?? err) })
+    await db.insert(syncLog).values({ source: competition.provider, competitionId: competition.id, kind: 'baseline', status: 'error', error: String(err?.message ?? err) })
     throw err
   }
 }

@@ -17,7 +17,7 @@ try {
   const [defaultCompetition] = await db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1)
   if (!defaultCompetition) { console.error('no competition found — run competition:add or db:seed first'); process.exit(1) }
   const crosswalk = await resolveCrosswalk(db, defaultCompetition.id)
-  const { checked, updated } = await backfillFinalStatistics(db, provider, crosswalk, { limit })
+  const { checked, updated } = await backfillFinalStatistics(db, provider, crosswalk, { limit }, defaultCompetition.id)
   console.log(`stats backfill ok: checked ${checked} final fixture(s), stored stats for ${updated}`)
 } catch (e) {
   console.error('stats backfill FAILED:', e.message)

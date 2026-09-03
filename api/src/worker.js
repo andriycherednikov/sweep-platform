@@ -114,14 +114,14 @@ setInterval(async () => {
         const liveIds = fixturesToPoll(rows, now)
         if (liveIds.length) {
           const prevFinal = new Set(rows.filter((r) => r.status === 'final').map((r) => r.id))
-          const n = await pollLive(db, provider, liveIds, (e) => publish(db, e))
+          const n = await pollLive(db, provider, liveIds, (e) => publish(db, e), competitionId)
           if (n) console.log(`[live] updated ${n}`)
           // events poll AFTER scores, so a goal notification carries the just-updated score
           const crosswalk = await resolveCrosswalk(db, competitionId) // static within a match window — resolve once per tick
-          const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev))
+          const e = await pollEvents(db, provider, liveIds, crosswalk, (ev) => publish(db, ev), competitionId)
           if (e) console.log(`[events] ${e} new`)
           // per-team match statistics (shots/possession/corners/fouls) — passive panel, no SSE
-          const st = await pollStatistics(db, provider, liveIds, crosswalk)
+          const st = await pollStatistics(db, provider, liveIds, crosswalk, competitionId)
           if (st) console.log(`[stats] updated ${st}`)
           // any polled fixture just go final? recompute the table now + queue an official reconcile
           const after = await db.select({ id: event.id, status: event.status }).from(event).where(inArray(event.id, liveIds))
@@ -144,7 +144,7 @@ setInterval(async () => {
         if (isLineupWindow(now, kickoffs)) {
           const candidates = rows.filter((r) => !r.detail?.lineups && isLineupWindow(now, [new Date(r.ko)]))
           if (candidates.length) {
-            const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, competitionId), (e) => publish(db, e))
+            const m = await pollLineups(db, provider, candidates, await resolveCrosswalk(db, competitionId), (e) => publish(db, e), competitionId)
             if (m) console.log(`[lineups] updated ${m}`)
           }
         }

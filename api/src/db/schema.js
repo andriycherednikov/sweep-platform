@@ -51,11 +51,17 @@ export const syncLog = pgTable('sync_log', {
   id: serial('id').primaryKey(),
   ranAt: timestamp('ran_at', { withTimezone: true }).notNull().defaultNow(),
   source: text('source').notNull(),
+  // Which competition this run was for. Null for genuinely global runs (catalog refresh)
+  // and for rows written before the column existed. No FK on purpose: this is an
+  // append-only log, and a log write must never fail because of what it points at.
+  competitionId: text('competition_id'),
   kind: text('kind').notNull(),
   status: text('status').notNull(),
   counts: jsonb('counts'),
   error: text('error'),
-})
+}, (t) => ({
+  lookupIdx: index('sync_log_competition_kind_ran_at_idx').on(t.competitionId, t.kind, t.ranAt),
+}))
 
 export const support = pgTable('support', {
   sweepId: text('sweep_id').notNull(),
