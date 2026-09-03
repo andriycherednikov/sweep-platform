@@ -1,0 +1,9 @@
+# A capability link IS the credential — /g/<token> grants access to a sweep to anyone
+# holding it. Keeping those out of an index is the difference between a private group
+# and a public one, so they are disallowed even though nothing links to them.
+User-agent: *
+Disallow: /g/
+Disallow: /account
+Disallow: /super
+
+Sitemap: https://sweep-portal.yowiebay.au/sitemap.xml

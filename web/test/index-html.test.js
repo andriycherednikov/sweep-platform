@@ -18,6 +18,17 @@ describe('index.html iOS standalone metas', () => {
     expect(html).toMatch(/<meta\s+name="theme-color"\s+content="#0b1f3a"\s*\/?>/)
   })
   test('title is sport-neutral (no hardcoded competition name)', () => {
-    expect(html).toMatch(/<title>The Sweep<\/title>/)
+    const title = html.match(/<title>(.*?)<\/title>/)?.[1] ?? ''
+    expect(title).toMatch(/The Sweep/)
+    // the point of this test, which pinning the exact string only enforced by accident:
+    // the platform is multi-sport, so no one competition may be named in the title
+    expect(title).not.toMatch(/world cup|premier league|nba|nfl|la liga|serie a|bundesliga/i)
+  })
+
+  test('carries the metadata a share or a crawler needs', () => {
+    expect(html).toMatch(/<meta name="description" content="[^"]{50,}"/)
+    expect(html).toMatch(/<meta property="og:image" content="https:\/\/[^"]+\/og\.png"/)
+    expect(html).toMatch(/<meta name="twitter:card" content="summary_large_image"/)
+    expect(html).toMatch(/<link rel="canonical"/)
   })
 })
