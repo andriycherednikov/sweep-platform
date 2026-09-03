@@ -65,6 +65,17 @@ test('trial → checkout → quantity → lapse (read-only + polling drop) → r
   const sweepId = p.json().id
   const [acct1] = await db.select().from(account).where(eq(account.id, 'ac_e2e'))
   expect(acct1.trialEndsAt.getTime()).toBeGreaterThan(Date.now())
+
+  // The recorded NBA feed is the 2023-24 season, which is long over — and a finished
+  // competition is now dropped from polling and from billing on purpose (src/season.js).
+  // This test is about the subscription lifecycle, not about season end, so give the
+  // competition a fixture still to be played and keep the two concerns apart.
+  await app.fillsIdle()
+  const [tA, tB] = await db.select().from(competitor).where(eq(competitor.competitionId, NBA_ID)).limit(2)
+  await db.insert(event).values({
+    id: 'e2e_still_to_play', competitionId: NBA_ID, c1Code: tA.code, c2Code: tB.code,
+    startUtc: new Date(Date.now() + 30 * 86400_000), status: 'upcoming',
+  })
   expect((await activeCompetitions(db)).map((c) => c.id)).toContain(NBA_ID)
 
   // 2. checkout url + completed webhook → subscribed, quantity 1

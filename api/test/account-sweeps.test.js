@@ -234,6 +234,16 @@ test('provision omitting wageringEnabled defaults the row to false', async () =>
 })
 
 test('archive re-asserts stripe quantity for subscribed accounts', async () => {
+  // The recorded NBA feed is the 2023-24 season, which is long over — and a finished
+  // competition no longer counts toward the bill on purpose (src/season.js). This test is
+  // about archive re-asserting the quantity, not about season end, so give the
+  // competition a fixture still to be played: the 1 below then means one live sweep.
+  await app.fillsIdle()
+  const [tA, tB] = await db.select().from(competitor).where(eq(competitor.competitionId, NBA_ID)).limit(2)
+  await db.insert(event).values({
+    id: 'acct_still_to_play', competitionId: NBA_ID, c1Code: tA.code, c2Code: tB.code,
+    startUtc: new Date(Date.now() + 30 * 86400_000), status: 'upcoming',
+  })
   stripeFake.calls.subUpdate.length = 0
   const mine = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: { 'x-account-token': 'lapsesession' } })).json()
   const target = mine.find((s) => s.name === 'PaidTwo')

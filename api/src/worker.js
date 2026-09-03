@@ -8,7 +8,8 @@ import { pollLive, pollEvents, pollStatistics, pollLineups, fixturesToPoll, isLi
 import { resolveCrosswalk } from './worker/crosswalk.js'
 import { activeCompetitions } from './worker/active-competitions.js'
 import { cleanupExpiredAuth } from './accounts/auth.js'
-import { sendTrialReminders } from './accounts/billing.js'
+import { sendTrialReminders, reassertQuantities } from './accounts/billing.js'
+import Stripe from 'stripe'
 import { publish } from './events/notify.js'
 import { recomputeStandings } from './worker/recompute-standings.js'
 import { settleBets, settleStaleBets } from './wagering/settle.js'
@@ -18,6 +19,7 @@ import { event } from './db/schema.js'
 
 const pool = createPool()
 const db = createDb(pool)
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null
 
 async function baseline(reason, { syncRosters = false } = {}) {
   const comps = await activeCompetitions(db)
@@ -57,6 +59,15 @@ async function daily() {
   catch (e) { console.error('[daily] auth cleanup failed:', e.message) }
   try { const n = await sendTrialReminders(db); if (n) console.log(`[daily] trial reminders sent: ${n}`) }
   catch (e) { console.error('[daily] trial reminders failed:', e.message) }
+  // A season ending is not a change anybody fires, so quantities are re-asserted daily
+  // rather than only when a sweep is added or archived.
+  try {
+    const { updated, payingForNothing } = await reassertQuantities(db, stripe)
+    if (updated) console.log(`[daily] billing quantity re-asserted for ${updated} account(s)`)
+    if (payingForNothing.length) {
+      console.warn(`[daily] paying with nothing running (floored at 1, not cancelled): ${payingForNothing.join(', ')}`)
+    }
+  } catch (e) { console.error('[daily] quantity re-assert failed:', e.message) }
   for (const key of PROVIDER_KEYS) {
     try { await syncCatalog(db, key, providerFor({ provider: key })) }
     catch (e) { console.error(`[daily] catalog ${key} failed:`, e.message) }
