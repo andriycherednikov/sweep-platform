@@ -45,3 +45,43 @@ test('winnerSideToResult throws on a garbage side instead of leaking DRAW past t
   expect(() => winnerSideToResult('banana', 'basketball')).toThrow(/unknown winner side/)
   expect(() => winnerSideToResult('banana', 'football')).toThrow(/unknown winner side/)
 })
+
+// API-Sports answers a refused request with HTTP 200 and an `errors` object.
+// Before this guard the body sailed through as success: `response` was absent,
+// mappers read `j.response ?? []`, and the live poller logged status:'ok'.
+test('get() throws on an API-Sports error body served as HTTP 200', async () => {
+  const client = createApiSportsClient({
+    base: 'https://x.test', apiKey: 'k', retryDelayMs: 1,
+    fetch: async () => okJson({
+      errors: { plan: 'Free plans do not have access to this season, try from 2022 to 2024.' },
+      results: 0, response: [],
+    }),
+  })
+  await expect(client.get('/fixtures')).rejects.toThrow(/plan: Free plans do not have access/)
+})
+
+test('get() treats the healthy empty-array errors field as success', async () => {
+  const client = createApiSportsClient({
+    base: 'https://x.test', apiKey: 'k',
+    fetch: async () => okJson({ errors: [], results: 1, response: [{ id: 1 }] }),
+  })
+  expect(await client.get('/fixtures')).toEqual({ errors: [], results: 1, response: [{ id: 1 }] })
+})
+
+test('get() does not spend retries on an error body — no backoff fixes a plan or a quota', async () => {
+  let n = 0
+  const client = createApiSportsClient({
+    base: 'https://x.test', apiKey: 'k', retryDelayMs: 1,
+    fetch: async () => { n++; return okJson({ errors: { requests: 'You have reached the request limit for the day' } }) },
+  })
+  await expect(client.get('/fixtures')).rejects.toThrow(/requests: You have reached/)
+  expect(n).toBe(1)
+})
+
+test('get() names the path and reports every error key it was given', async () => {
+  const client = createApiSportsClient({
+    base: 'https://x.test', apiKey: 'k', retryDelayMs: 1,
+    fetch: async () => okJson({ errors: { token: 'bad key', rateLimit: 'too many' } }),
+  })
+  await expect(client.get('/games')).rejects.toThrow(/api-sports \/games → token: bad key; rateLimit: too many/)
+})
