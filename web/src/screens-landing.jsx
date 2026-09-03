@@ -199,6 +199,8 @@ export function LandingFoot() {
         </p>
         <nav className="lp-foot-links">
           <a href="/pricing">Pricing</a>
+          <a href="/terms">Terms</a>
+          <a href="/privacy">Privacy</a>
           <a href="/account">Sign in</a>
         </nav>
       </div>
