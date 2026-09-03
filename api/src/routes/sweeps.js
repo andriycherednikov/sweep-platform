@@ -215,7 +215,9 @@ export async function sweepsRoutes(app) {
     } catch (e) {
       // pk(person_id, competitor_id) violation → this person already owns this team.
       // Co-ownership is allowed: a different person owning the same team is NOT a conflict.
-      if (e?.code === '23505') return reply.code(409).send({ error: 'already_owned' })
+      // drizzle 0.45 wraps driver errors in DrizzleQueryError, so the pg code sits one
+      // level down; read both so this survives whichever shape reaches us.
+      if ((e?.code ?? e?.cause?.code) === '23505') return reply.code(409).send({ error: 'already_owned' })
       throw e
     }
     return reply.code(201).send({ personId, teamCode })

@@ -61,3 +61,8 @@ npm run build               # web production build
   (the live WC app's dev data).
 - No production exists for this repo yet; the inherited `Makefile`/`infra/` deploy
   targets still point at WC prod — do not deploy until they're repointed.
+- The **root** `package.json` carries `drizzle-orm` in devDependencies purely so npm
+  hoists it beside `drizzle-kit`. Without it npm nests the copy under `api/`, and
+  `drizzle-kit generate` — which resolves `drizzle-orm/version` from its own location
+  at the root — dies with "Please install latest version of drizzle-orm". Keep the two
+  versions in step with `api/package.json`, and don't delete it as a duplicate.

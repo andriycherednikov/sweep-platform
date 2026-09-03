@@ -15,6 +15,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
-    "husky": "^9.1.7"
+    "husky": "^9.1.7",
+    "drizzle-orm": "^0.45.2"
   }
 }
