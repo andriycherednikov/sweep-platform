@@ -10,3 +10,4 @@ docker/.env.docker
 .claude/settings.local.json
 photos-data/
 api/photos-data/
+.playwright-mcp/
