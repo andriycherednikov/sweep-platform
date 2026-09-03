@@ -53,7 +53,13 @@ export function buildApp(db, opts = {}) {
   app.register(fstatic, { root: store.approvedDir, prefix: '/photos/', decorateReply: false })
 
   app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
-  app.decorate('sessionSecret', opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret')
+  // Signs the admin/member session cookies, so a default is role forgery for anyone who
+  // has read this repo. Compose won't catch a missing one: `required: true` on the
+  // env_file asserts the file exists, not that anything inside it is set.
+  const sessionSecret = opts.sessionSecret ?? process.env.SESSION_SECRET
+    ?? (process.env.NODE_ENV === 'production' ? null : 'dev-insecure-secret')
+  if (!sessionSecret) throw new Error('SESSION_SECRET must be set in production')
+  app.decorate('sessionSecret', sessionSecret)
   // Host that serves token-scoped sweeps. Required in production; a non-routable
   // sentinel in dev/test so it never collides with localhost (which → default sweep).
   const platformHost = opts.platformHost ?? process.env.PLATFORM_HOST
@@ -77,7 +83,7 @@ export function buildApp(db, opts = {}) {
   app.decorate('stripe', opts.stripe ?? (stripeKey ? new Stripe(stripeKey) : null))
   app.decorate('stripeWebhookSecret', opts.stripeWebhookSecret ?? process.env.STRIPE_WEBHOOK_SECRET ?? '')
   app.decorate('stripePriceId', opts.stripePriceId ?? process.env.STRIPE_PRICE_ID ?? '')
-  app.register(cookie, { secret: opts.sessionSecret ?? process.env.SESSION_SECRET ?? 'dev-insecure-secret' })
+  app.register(cookie, { secret: sessionSecret })
   app.register(rateLimit, { global: false })
 
   app.get('/api/health', async () => ({ ok: true }))
