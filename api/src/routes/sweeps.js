@@ -4,6 +4,7 @@ import { sweep, person, ownership, competition, competitor } from '../db/schema.
 import { newToken } from '../sweeps/tokens.js'
 import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSuper, requireSweep } from '../sweeps/auth.js'
 import { codeToCompetitorId } from './competitors.js'
+import { correctFixture } from '../corrections.js'
 
 const sessionBody = {
   type: 'object', required: ['token'], additionalProperties: false,
@@ -20,6 +21,20 @@ const createBody = {
 const rotateBody = {
   type: 'object', required: ['which'], additionalProperties: false,
   properties: { which: { type: 'string', enum: ['member', 'admin'] } },
+}
+// A score correction is competition-level — every sweep following that competition sees
+// it — so it belongs to the operator, not to a group admin whose authority stops at their
+// own sweep. `reason` is required: a silent correction is indistinguishable from a bug.
+const correctBody = {
+  type: 'object', required: ['score1', 'score2', 'reason'], additionalProperties: false,
+  properties: {
+    score1: { type: 'integer', minimum: 0, maximum: 200 },
+    score2: { type: 'integer', minimum: 0, maximum: 200 },
+    status: { type: 'string', enum: ['final', 'scheduled', 'live'] },
+    reg: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 200 }, minItems: 2, maxItems: 2 },
+    pen: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 200 }, minItems: 2, maxItems: 2 },
+    reason: { type: 'string', minLength: 3, maxLength: 200 },
+  },
 }
 const patchBody = {
   type: 'object', additionalProperties: false, minProperties: 1,
@@ -134,6 +149,12 @@ export async function sweepsRoutes(app) {
     if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
     await app.db.update(sweep).set({ archivedAt: null }).where(eq(sweep.id, id))
     return { id, archived: false }
+  })
+
+  app.post('/api/super/fixtures/:id/correct', { preHandler: superGuard, schema: { body: correctBody } }, async (req, reply) => {
+    const out = await correctFixture(app.db, req.params.id, req.body, app.publish)
+    if (!out) return reply.code(404).send({ error: 'unknown_fixture' })
+    return out
   })
 
   const groupAdmin = requireSweep(['admin'])
