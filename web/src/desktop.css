@@ -30,7 +30,7 @@
   .sb-brand{ display:flex; align-items:center; gap:11px; padding:0 4px 24px; position:relative; z-index:1; }
   .sb-brand .mark{ width:34px; height:62px; border-radius:0; background:transparent; box-shadow:none; display:flex; align-items:center; justify-content:center; }
   .sb-brand b{ font-weight:700; font-size:25px; letter-spacing:.2px; line-height:1.05; white-space:nowrap; }
-  .sb-brand small{ display:block; font-size:9.5px; letter-spacing:2.5px; color:#6b7a8b; font-weight:600; margin-top:3px; white-space:nowrap; }
+  .sb-brand small{ display:block; font-size:12px; letter-spacing:1.6px; color:var(--accent); font-weight:800; margin-top:5px; white-space:nowrap; }
   .sb-sec{ font-family:'Barlow Semi Condensed'; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#6b7a8b; padding:14px 11px 7px; position:relative; z-index:1; }
   .sb-nav{ display:flex; flex-direction:column; gap:2px; position:relative; z-index:1; }
   .sb-item{ display:flex; align-items:center; gap:12px; padding:9px 11px; border-radius:9px; color:#93a1b0; font-family:'Archivo',system-ui,sans-serif; font-weight:600; font-size:14px; transition:background .15s,color .15s; cursor:pointer; border:0; background:none; width:100%; text-align:left; }
@@ -49,12 +49,11 @@
 
   /* ---- main ---- */
   .deskmain{ flex:1; min-width:0; position:relative; background:#dde0e4; }
-  .deskmain-rel{ position:relative; height:100vh; overflow:hidden; }
+  .deskmain-rel{ position:relative; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
+  /* the stage the absolute screens stack in — starts below the read-only banner
+     instead of behind it, so the banner takes space rather than covering a row */
+  .deskstage{ position:relative; flex:1; min-height:0; }
   .deskscreen{ position:absolute; inset:0; width:100%; max-width:none; margin:0; display:flex; flex-direction:column; background:var(--bg); box-shadow:none; }
-  /* .deskscreen is absolutely positioned (inset:0), so it paints over any static
-     sibling regardless of DOM order — lift the banner the same way .sidebar's
-     decorative ::after is countered above. */
-  .deskmain-rel .ro-banner{ position:relative; z-index:1; }
 
   /* the per-screen bottom tab bar is replaced by the sidebar */
   .deskmain .tabs{ display:none; }

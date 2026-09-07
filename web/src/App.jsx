@@ -184,8 +184,13 @@ export default function App() {
         <main className="deskmain">
           <div className="deskmain-rel">
             <ReadOnlyBanner/>
-            <div className={"deskscreen" + (tab==="standings" && !overlay ? " wide" : "")}>{base}</div>
-            {ov && <div className="deskscreen" style={{zIndex:ovZ, background:"var(--bg)"}}>{ov}</div>}
+            {/* The screens are absolute (inset:0) so they can stack; the banner is a
+                flex sibling above their stage rather than a layer over it, otherwise
+                it covers whatever the screen puts in its first row. */}
+            <div className="deskstage">
+              <div className={"deskscreen" + (tab==="standings" && !overlay ? " wide" : "")}>{base}</div>
+              {ov && <div className="deskscreen" style={{zIndex:ovZ, background:"var(--bg)"}}>{ov}</div>}
+            </div>
           </div>
         </main>
         {modals}
