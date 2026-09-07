@@ -55,13 +55,18 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   // negative time) for KICKOFF_GRACE_SEC, so a slightly-late start doesn't prematurely roll
   // to the next match before the worker flips its status to "live".
   const KICKOFF_GRACE_SEC = 20 * 60;
+  // null twice in a sweep's life: before the feed has filled the competition, and again
+  // once the last game is played. The hero is the only thing that needs one — everything
+  // below it (results, winners, people) reads fine without, so the page loses a band
+  // rather than the whole app.
   const next = S.liveMatch
     || S.fixtures.find(f => f.status === "upcoming" && (f.ko.getTime() - Date.now()) / 1000 > -KICKOFF_GRACE_SEC)
-    || S.nextMatch;
-  const live = next.status === "live";
-  const t1 = S.team(next.t1), t2 = S.team(next.t2);
-  const o = S.ownersForFixture(next);
-  const cd = useCountdown(Math.max(-KICKOFF_GRACE_SEC, Math.floor((next.ko.getTime() - Date.now()) / 1000)));
+    || S.nextMatch
+    || null;
+  const live = next?.status === "live";
+  const t1 = next && S.team(next.t1), t2 = next && S.team(next.t2);
+  const o = next ? S.ownersForFixture(next) : { t1: [], t2: [] };
+  const cd = useCountdown(next ? Math.max(-KICKOFF_GRACE_SEC, Math.floor((next.ko.getTime() - Date.now()) / 1000)) : 0);
 
   useSocial(); // re-render on identity / support changes
   useSpoiler();
@@ -71,7 +76,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
   const order = { live:0, upcoming:1, final:2 };
   // soonest games, in natural order — your games are highlighted inline (not floated to the top)
   const nextMatches = S.fixtures
-    .filter(f => f.status !== "final" && f.id !== next.id)
+    .filter(f => f.status !== "final" && f.id !== next?.id)
     .sort((a,b)=> (order[a.status]-order[b.status]) || (a.ko-b.ko))
     .slice(0,16);
   const results = S.fixtures.filter(f => f.status === "final").sort((a,b)=> b.ko - a.ko).slice(0,6);
@@ -254,6 +259,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       <HomeHeader onAdmin={onAdmin} go={go} onSweeps={onSweeps} scrolled={scrolled} progress={progress} scrollRef={scrollRef} headRef={headRef}/>
 
       {/* hero next match — tap the banner to open the match; inner taps keep their own action */}
+      {next && (
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
           <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : `NEXT ${S.vocab.noun.toUpperCase()}`}</span>
@@ -307,6 +313,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
           </div>
         </div>
       </section>
+      )}
 
       <div className="wrap">
        <div className="deskhome">

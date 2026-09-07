@@ -121,3 +121,19 @@ test('PickSheet team-filter group heading follows sport vocab: "Group A" for foo
   expect(ball.getByText('Eastern Conference')).toBeTruthy() // verbatim, no "Group" prefix
   ball.unmount()
 })
+
+// Day one of every sweep: the competition exists but the feed hasn't filled it yet, so
+// there is no fixture to fall back to and assemble's nextMatch is null. HomeScreen read
+// next.status straight off it and white-screened the whole app — the first thing a paying
+// customer saw. (A finished season still has a hero: assemble falls back to fixtures[0].)
+test('HomeScreen renders without a hero when there is no next match (empty competition)', () => {
+  setSweepData(assembleSweep({
+    bootstrap: { teams: [], people: [], ownership: {}, scoring: null },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(
+    <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
+  )
+  expect(container.querySelector('.hero')).toBeNull()
+})
