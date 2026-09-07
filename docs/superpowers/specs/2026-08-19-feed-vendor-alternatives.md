@@ -337,3 +337,80 @@ been apportioned), the domain, and an email sender that does not exist yet
 (SES or Resend both round to $0 at this volume). Stripe is already netted out
 above at 2.9% + 30¢, which is **8.9% on a $5 charge** — a larger proportional
 cost than the feed once ULTRA is spread over more than a handful of sweeps.
+
+---
+
+# 12. Pre-live: buy PRO, and the reasoning behind §11 that doesn't survive
+
+§11 says buy ULTRA. That holds **from the first paying customer**, not before it,
+and the difference is worth being explicit about because §10's headline argument
+quietly assumes something that is false right now.
+
+> "$10/month buys more headroom than a day of engineering."
+
+That is a trade of money against engineering time, and it only holds when
+engineering time has an opportunity cost — i.e. when there is revenue to chase
+instead. Pre-live there is none. Engineering time is the resource we have and
+money is the one we don't, which is the exact opposite trade. Pre-live, §3's
+original ordering — fix the poller — is the right one after all.
+
+## What PRO actually carries
+
+§3's ~3,730 req/day is a worst case: EPL-class, **10 concurrent** matches, a
+160-tick window. A real matchweek splits across Saturday and Sunday. Per fixture
+played the current code costs ~320 (2 calls/tick × 160 ticks) + ~30 lineups;
+`pollLive` is batched at 20 fixtures/call so it is ~160/day shared however many
+are live.
+
+| A day with | ≈req/day | % of PRO's 7,500 |
+|---|---|---|
+| no matches (baseline + odds only) | ~70 | 1% |
+| 2 matches | ~870 | 12% |
+| one league's typical Saturday (5) | ~1,980 | 26% |
+| one league's big Saturday (6) | ~2,330 | 31% |
+| two leagues peaking the same day | ~4,600 | 61% |
+| three leagues peaking the same day | ~6,900 | **92%** |
+| §3's worst case (10 concurrent) | ~3,730 | 50% |
+
+**PRO carries two competitions comfortably and three at the edge.** After B/C/D
+(~45% of current) that becomes four to five. Pre-live we choose which
+competitions exist, so the edge is never reached by accident.
+
+## Why the downside is small now, and large later
+
+Exhausting the daily quota fails every request until 00:00 UTC — no overage, no
+grace. Pre-live that is a test sweep showing stale scores for an afternoon.
+Post-live it is a customer watching a match that never updates. Same bug,
+different blast radius, and that is the whole reason the tier recommendation
+flips at launch rather than at some request count.
+
+Two things make PRO safe enough to run deliberately close to its ceiling:
+
+- **Change A shipped** (`74182b1`). Quota exhaustion presents exactly like a
+  plan refusal — HTTP 200, `errors` populated, empty `response` — so before it
+  landed, running near a ceiling was genuinely reckless. Now it throws and lands
+  in `sync_log`.
+- **The quota is in every response header, and we ignore it.** Verified live:
+  `x-ratelimit-requests-limit` / `-remaining` (daily) and `x-ratelimit-limit` /
+  `-remaining` (per minute). `api-sports-base.js` reads neither. Logging the
+  daily remaining turns "are we near the ceiling?" from a dashboard visit into
+  something `sync_log` answers. ~30 minutes, and it is the thing that makes
+  choosing the smaller plan a decision rather than a gamble.
+
+## Decision
+
+**PRO, $19, monthly, now.** Upgrade to ULTRA at whichever comes first:
+
+1. The **first paying customer** — the blast radius changes, not the arithmetic.
+2. A **third distinct live competition** provisioned.
+3. Any day over **~5,000 requests** (66% of quota), which the header logging
+   above is what makes visible.
+4. Any quota error in `sync_log`, now that they are no longer silent.
+
+Upgrading mid-month appears not to waste the remainder — *"if you already have a
+current subscription, the remaining duration will be added to the new
+subscription"* — but that sentence is about duration, not value, and it is not
+obvious how it treats a tier change. **Worth one question to their chat before
+relying on it**; if it does not carry over, upgrade at a month boundary instead.
+
+Over a six-month pre-live, PRO is $114 against ULTRA's $174.
