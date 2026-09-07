@@ -98,7 +98,23 @@ function Gate({ children }) {
     // No session AND nothing on this device → a stranger at the front door, not a
     // locked-out member. Sell the product and route to sign-up; the invite path is
     // the aside (a member with a link never lands here — the link joins them first).
-    if (sweeps.length === 0) return <Landing />
+    // …unless they arrived on a dead invite link (rotated, archived, mistyped): they
+    // were sent here on purpose, so say the link is dead rather than sell them the app.
+    if (sweeps.length === 0) {
+      if (!new URLSearchParams(window.location.search).has('join')) return <Landing />
+      return (
+        <div data-testid="sweep-join-failed" className="sweep-gate">
+          <GateBrand />
+          <div className="sweep-card">
+            <h2 className="sweep-card-h">That invite link didn't work</h2>
+            <p className="sweep-card-sub">
+              It may have been replaced or the sweep closed. Ask whoever runs your sweep for a fresh link.
+            </p>
+            <a className="sweep-retry" href="/">Start your own sweep</a>
+          </div>
+        </div>
+      )
+    }
 
     return (
       <div data-testid="sweep-pick" className="sweep-gate">

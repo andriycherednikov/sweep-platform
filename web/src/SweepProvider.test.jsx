@@ -126,6 +126,21 @@ test('a 401 with no stored sweeps → the product landing, not the member picker
   expect(screen.getByText(/invite link/i)).toBeInTheDocument() // members still told what to do
 })
 
+// A dead invite link (rotated, archived, typo'd) is the one case where the stranger
+// is NOT a stranger — they were sent here on purpose. Selling them the product answers
+// nothing; tell them the link is dead so they go ask the organiser for a fresh one.
+test('a 401 after a failed join → the dead-link card, not the landing', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  window.history.replaceState({}, '', '/?join=failed')
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByTestId('sweep-join-failed')).toBeInTheDocument())
+  expect(screen.queryByTestId('sweep-landing')).toBeNull()
+  window.history.replaceState({}, '', '/')
+})
+
 test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, queryClient)', async () => {
   vi.resetModules()
   localStorage.clear()

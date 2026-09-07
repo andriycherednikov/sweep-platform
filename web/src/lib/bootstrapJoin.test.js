@@ -34,12 +34,15 @@ test('admin link → exchanges the ADMIN token (admin wins over member)', async 
   expect(history.replaceState).toHaveBeenCalledWith({}, '', '/')
 })
 
-test('a failed exchange still strips the URL (no token left in the address bar)', async () => {
+// The token still goes, but the failure has to survive the strip: without a marker
+// the Gate cannot tell a dead invite from a stranger, and shows the invitee the
+// marketing page — the one screen that answers none of their questions.
+test('a failed exchange strips the token and flags the failure', async () => {
   const postSession = vi.fn(async () => { throw new Error('POST /api/session failed: HTTP 401') })
   const history = fakeHistory()
   await joinFromLocation({ pathname: '/g/badtoken000000000000' }, history, postSession)
   expect(postSession).toHaveBeenCalledWith('badtoken000000000000')
-  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/')
+  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/?join=failed')
 })
 
 test('a successful join persists the real link token via addSweep (name null pre-bootstrap)', async () => {
