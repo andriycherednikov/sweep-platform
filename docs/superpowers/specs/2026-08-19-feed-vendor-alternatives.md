@@ -202,3 +202,138 @@ before promising wagering on it.
   additional licenses"*.
 - **Mid-season backfill** — a sweep created in March for an August season. Free tiers
   are season-gated; odds windows are narrow. Unbudgeted.
+
+---
+
+# Revision — 2026-09-03, read from the logged-in dashboard
+
+Re-checked against `dashboard.api-football.com` (the account's own subscription
+pages, not the public marketing pages the original pass used). Three things
+change, one of them the headline recommendation.
+
+## 8. What this pass got wrong
+
+| §4 said | Dashboard says **[verified 2026-09-03]** |
+|---|---|
+| "**No bundle exists.** One key authenticates against every sport host, but each carries its own independent quota" | An **ALL-SPORTS** plan exists: `/subscription/all`. PRO **$99/mo**, ULTRA $139, MEGA $169 — and the quota is *per API*, so ALL-SPORTS PRO is 7,500/day on each of 12 sports (football, AFL, baseball, basketball, F1, handball, hockey, MMA, NBA, NFL, rugby, volleyball) |
+| "PRO's per-minute rate limit — **unread**" (§7 open question) | Published: Free **10 r/m**, PRO **300 r/m**, ULTRA **450 r/m**, MEGA **900 r/m**, Custom 1200 r/m. Our tick at 10 concurrent matches × 3 calls = **30 r/m**, an order of magnitude under PRO. **This open question is closed, and change E fits.** |
+| Implicitly: PRO is the tier to reason about | PRO is the *worst value per request* of the three. See §10 |
+
+Per-sport prices are confirmed unchanged: football PRO $19 / ULTRA $29 / MEGA
+$39; basketball (and every other sport) PRO $15 / ULTRA $25 / MEGA $35. The
+−30% 12-month discount is real: football PRO $228 → **$159.60**, ALL-SPORTS PRO
+$1,188 → **$831.60**.
+
+Also on the dashboard, and material:
+
+> **There is no automatic renewal.** Once your subscription expires you revert
+> to the Free plan.
+
+The transaction log shows exactly two payments — `2026-06-09 $19` and
+`2026-07-09 $19`, both Football PRO, 1 month. So the key lapsed on ~9 August
+and the feed has been dead for about four weeks. That is not a billing
+oversight to fix once; it is a **standing operational hazard** with no vendor
+safety net, and it is the strongest possible argument for the `j.errors` guard
+(shipped 2026-09-03, `74182b1`).
+
+## 9. The bundle: ignore it until seven sports
+
+Buying individually costs `19 + 15(N−1)`. ALL-SPORTS PRO is $99 flat.
+
+| Sports | Individually | ALL-SPORTS | Cheaper |
+|---|---|---|---|
+| 1 | $19 | $99 | individual |
+| 2 | $34 | $99 | individual |
+| 5 | $79 | $99 | individual |
+| 6 | $94 | $99 | individual |
+| **7** | **$109** | **$99** | **bundle** |
+| 12 | $184 | $99 | bundle |
+
+Crossover is **7 sports**, and it is identical on the annual plan (both scale
+by the same −30%: `159.60 + 126(N−1)` vs `831.60` also crosses at 7). The
+bundle is not a discount on what we need now — it is a discount on breadth we
+do not have customers for. §5's "buy a sport when a paying sweep asks for it"
+stands unchanged.
+
+## 10. The real finding: the tier, not the poller
+
+§3 framed the poller as the cost problem and change E as the way to reach
+$1–2/competition/month. That was true *on PRO*. It is not true in general,
+because within one sport the tiers are priced per request very differently:
+
+| Plan | $/mo | req/day | **$ per 1,000 req/day** |
+|---|---|---|---|
+| Football PRO | $19 | 7,500 | $2.53 |
+| Football **ULTRA** | **$29** | **75,000** | **$0.39** |
+| Football MEGA | $39 | 150,000 | $0.26 |
+
+**ULTRA is 10× the quota for 1.5× the price.** Scaling §3's peak model
+(~3,730 req/day/competition today, ~1,670 after A–D) by quota:
+
+| Competitions carried, peak matchday | PRO $19 | ULTRA $29 | MEGA $39 |
+|---|---|---|---|
+| Today (no code changes) | **2** | **20** | 40 |
+| After A–D (~1 day's work) | 4 | 44 | 89 |
+| After A–E (1–2 days more) | 15–25 | 150–250 | 300–500 |
+
+And the same table as cost per competition per month:
+
+| | PRO $19 | ULTRA $29 | MEGA $39 |
+|---|---|---|---|
+| Today | $9.50 | **$1.45** | $0.98 |
+| After A–D | $4.75 | **$0.66** | $0.44 |
+| After A–E | $0.76–1.27 | $0.12–0.19 | $0.08–0.13 |
+
+Target was $1–2/competition/month. **ULTRA clears it today, with no code
+changes at all.** §3's conclusion — "A–D alone doesn't reach it; A–E does" —
+was an artefact of assuming PRO.
+
+The ordering that follows is uncomfortable but plain: **$10/month buys more
+headroom than a day of engineering.** A–D still halves the bill and shrinks the
+blast radius of a stuck fixture, and change A is mandatory regardless — but
+none of it is the gate on unit economics any more. The tier is.
+
+### The wall PRO puts in front of us
+
+Two competitions per key on a peak matchday is not a margin problem, it is a
+**capacity ceiling reached at the third customer** who picks a league nobody
+else is on. Feed cost scales with distinct competitions, not sweeps (the §7
+dedupe: N sweeps on the EPL cost one competition's requests), so popular
+leagues are nearly free at the margin and the third *distinct* league is what
+breaks the quota. On PRO that is customer number three. On ULTRA it is
+customer number twenty-one.
+
+## 11. Revised recommendation
+
+1. **Football ULTRA, $29/month, monthly.** Not PRO, and not the prepay. Buy it
+   before 2026-09-09.
+2. **Diarise the renewal.** There is no auto-renewal and no warning; the last
+   lapse went unnoticed for four weeks.
+3. ~~Change A~~ — done, `74182b1`.
+4. Same hour: `curl '…/fixtures?ids=…'` on the paid key to settle whether plural
+   `ids=` embeds `events`/`lineups`/`statistics` (§6 step 3).
+5. **B, C, D when convenient** — no longer urgent. Halves a bill that ULTRA has
+   already made small, and D's stuck-fixture leak is worth closing on its own.
+6. **E: shelve it.** It was justified by PRO's ceiling. The per-minute limit it
+   had to fit under is 300 r/m, so it *would* work — it is simply no longer
+   worth 1–2 days.
+7. Basketball when a paying sweep asks: $15 PRO, $25 ULTRA.
+8. **Revisit at ~20 paying sweeps or a 7th sport**, whichever comes first.
+
+### Break-even, at $5/mo per sweep (net ≈$4.56 after Stripe)
+
+| Feed plan | $/mo | Sweeps to cover the feed |
+|---|---|---|
+| Football PRO | $19 | 5 |
+| **Football ULTRA** | **$29** | **7** |
+| Football + basketball, both ULTRA | $54 | 12 |
+| ALL-SPORTS PRO, 12-month | $69.30 | 16 |
+| ALL-SPORTS PRO, monthly | $99 | 22 |
+| ALL-SPORTS ULTRA, monthly | $139 | 31 |
+
+Feed is not the whole bill. Still outside this model: the shared droplet
+(cost not visible from here — it is shared with the World Cup app and has never
+been apportioned), the domain, and an email sender that does not exist yet
+(SES or Resend both round to $0 at this volume). Stripe is already netted out
+above at 2.9% + 30¢, which is **8.9% on a $5 charge** — a larger proportional
+cost than the feed once ULTRA is spread over more than a handful of sweeps.
