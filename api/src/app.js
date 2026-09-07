@@ -66,6 +66,11 @@ export function buildApp(db, opts = {}) {
     ?? (process.env.NODE_ENV === 'production' ? null : 'platform.invalid')
   if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
   app.decorate('platformHost', platformHost)
+  // PLATFORM_HOST above is the Host-HEADER match key (sweeps/resolve.js) — not a URL.
+  // Outbound links need the origin the BROWSER uses, which is only the same thing in
+  // production, where one Caddy serves the SPA and the api. In dev the SPA is on Vite
+  // and the api only ever sees the proxy-rewritten Host, so the two must be settable apart.
+  app.decorate('publicOrigin', opts.publicOrigin ?? process.env.PUBLIC_ORIGIN ?? `https://${platformHost}`)
   app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
   // adapter resolution seam — tests inject recorded providers; live code gets the registry
   app.decorate('providerFor', opts.providerFor ?? providerFor)

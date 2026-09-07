@@ -279,3 +279,17 @@ test('bulk ownership writes publish a sync event for the sweep (so other devices
     await spy.close()
   }
 })
+
+// PLATFORM_HOST is the Host-header match key for the sweep resolver, not a browsable
+// origin: in dev the SPA is on Vite and the api only ever sees the proxy-rewritten Host.
+// Link building therefore reads publicOrigin, which defaults to https://<platformHost>
+// (asserted by the default-path test above) but can be pointed at wherever the browser is.
+test('links are built from publicOrigin when it is set', async () => {
+  const alt = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz', publicOrigin: 'http://127.0.0.1:5173' })
+  await alt.ready()
+  // same sessionSecret, and the super cookie is stateless — reuse it rather than
+  // spending one of the 10-per-15-min /api/super/session mints.
+  const res = await alt.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: await superCookie() }, payload: { name: 'Origin' } })
+  expect(res.json().memberLink).toBe(`http://127.0.0.1:5173/g/${res.json().memberToken}`)
+  await alt.close()
+})

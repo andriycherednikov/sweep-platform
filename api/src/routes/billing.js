@@ -28,8 +28,8 @@ export async function billingRoutes(app) {
         // to re-subscribe — Stripe requires quantity ≥ 1, and the completed webhook re-asserts
         // the true live count anyway, so paying for one seat until they provision is fine.
         line_items: [{ price: app.stripePriceId, quantity: Math.max(n, 1) }],
-        success_url: `https://${app.platformHost}/account/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `https://${app.platformHost}/account/billing/cancelled`,
+        success_url: `${app.publicOrigin}/account/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${app.publicOrigin}/account/billing/cancelled`,
       })
       return { code: 200, body: { url: sess.url } }
     })
@@ -41,7 +41,7 @@ export async function billingRoutes(app) {
     if (!app.stripe) return reply.code(503).send({ error: 'billing_unconfigured' })
     const [acct] = await app.db.select().from(account).where(eq(account.id, req.account.id))
     if (!acct.stripeCustomerId) return reply.code(409).send({ error: 'not_subscribed' })
-    const returnUrl = `https://${app.platformHost}/account/billing/updated`
+    const returnUrl = `${app.publicOrigin}/account/billing/updated`
     const params = { customer: acct.stripeCustomerId, return_url: returnUrl }
     // The plain portal leaves you sitting on Stripe's confirmation page; a cancel flow
     // finishes by sending you back here, where we can say what actually happens next.

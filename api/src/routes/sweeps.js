@@ -46,7 +46,7 @@ const patchBody = {
 }
 
 export function links(app, row) {
-  const base = `https://${app.platformHost}/g/${row.memberToken}`
+  const base = `${app.publicOrigin}/g/${row.memberToken}`
   return { memberLink: base, adminLink: `${base}/admin/${row.adminToken}` }
 }
 

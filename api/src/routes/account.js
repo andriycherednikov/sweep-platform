@@ -36,7 +36,7 @@ export async function accountRoutes(app) {
     const email = req.body.email.trim().toLowerCase()
     const token = newToken()
     await app.db.insert(loginToken).values({ token, email, expiresAt: new Date(Date.now() + LOGIN_TOKEN_TTL_MS) })
-    await app.sendMail(email, 'Your sign-in link', `https://${app.platformHost}/account/login/${token}`)
+    await app.sendMail(email, 'Your sign-in link', `${app.publicOrigin}/account/login/${token}`)
     return { ok: true } // always — never leak whether the email has an account
   })
 
