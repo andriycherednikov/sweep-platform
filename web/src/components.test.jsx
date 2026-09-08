@@ -415,26 +415,30 @@ test('HomeScreen: empty community box prompts upload (go upload)', () => {
   expect(go).toHaveBeenCalledWith('upload')
 })
 
-test('IdentityControl: avatar → your profile, ⇄ → change perspective', () => {
+test('IdentityControl: signed in, the avatar opens your profile and the split button signs out', () => {
   setMe('p1')
-  const viewMe = vi.fn(), pickMe = vi.fn()
-  window.__sweepViewMe = viewMe; window.__sweepPickMe = pickMe
-  const { getByLabelText } = render(<IdentityControl />)
+  const viewMe = vi.fn()
+  window.__sweepViewMe = viewMe
+  const { getByLabelText, getByText } = render(<IdentityControl />)
+  expect(getByText('Signed in as')).toBeInTheDocument()
   fireEvent.click(getByLabelText('View your profile'))
   expect(viewMe).toHaveBeenCalled()
-  fireEvent.click(getByLabelText('Change perspective'))
-  expect(pickMe).toHaveBeenCalled()
-  delete window.__sweepViewMe; delete window.__sweepPickMe
+  expect(getByLabelText('Sign out')).toBeInTheDocument()
+  delete window.__sweepViewMe
 })
 
-test('IdentityControl: with nobody picked, the chip opens the picker and hides ⇄', () => {
+// The picker is gone: this device can no longer declare itself to be anyone on the
+// roster. The chip's only job signed out is to start the join journey.
+test('IdentityControl: signed out, the chip joins the sweep and offers no picker', () => {
   setMe(null)
-  const pickMe = vi.fn(); window.__sweepPickMe = pickMe
-  const { getByLabelText, queryByLabelText } = render(<IdentityControl />)
+  const join = vi.fn(); window.__sweepJoin = join
+  const { getByLabelText, queryByLabelText, queryByText } = render(<IdentityControl />)
   expect(queryByLabelText('Change perspective')).toBeNull()
-  fireEvent.click(getByLabelText('Pick who you are'))
-  expect(pickMe).toHaveBeenCalled()
-  delete window.__sweepPickMe
+  expect(queryByText('Who are you?')).toBeNull()
+  expect(queryByText('Tap to pick')).toBeNull()
+  fireEvent.click(getByLabelText('Join this sweep'))
+  expect(join).toHaveBeenCalled()
+  delete window.__sweepJoin
 })
 
 test('MatchCard shows the one-line local date/time and no timezone label', () => {
@@ -649,17 +653,17 @@ function setSweep(sweep) {
 test('Sidebar hides Moderation for a plain member', () => {
   useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
   const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(queryByText('Moderation')).toBeNull()
+  expect(queryByText('Manage')).toBeNull()
 })
 
 // This is the exact split that shipped broken: bootstrap's sweep.role says 'member'
 // for everyone (it never carries the account token), but the owner's admin badge
 // (fetchAdminMe, which does) says isAdmin. The gate must follow the badge.
-test('Sidebar shows Moderation for the owner, even though bootstrap says role: member', () => {
+test('Sidebar shows Manage for the owner, even though bootstrap says role: member', () => {
   setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
   useAdminBadge.mockReturnValue({ isAdmin: true, pending: 0 })
   const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByText('Moderation')).toBeInTheDocument()
+  expect(getByText('Manage')).toBeInTheDocument()
 })
 
 // The default sweep's old "always show Moderation" special case is gone — it needs
@@ -668,7 +672,7 @@ test('Sidebar no longer auto-shows Moderation on the default sweep for a plain m
   setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
   useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
   const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(queryByText('Moderation')).toBeNull()
+  expect(queryByText('Manage')).toBeNull()
 })
 
 test('HomeHeader hides the admin entry for a plain member', () => {
@@ -681,7 +685,7 @@ test('HomeHeader shows the admin entry for the owner, even though bootstrap says
   setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
   useAdminBadge.mockReturnValue({ isAdmin: true, pending: 0 })
   const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
-  expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
+  expect(getByLabelText(/manage/i)).toBeInTheDocument()
 })
 
 test('SpoilerToggle reflects and flips the mode', () => {

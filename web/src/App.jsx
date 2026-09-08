@@ -3,9 +3,10 @@
    ============================================================ */
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { JoinSheet } from './JoinSheet.jsx';
 import { SWEEP as S } from "./data.js";
 import {
-  Icon, BottomNav, Sidebar, IdentitySheet, SweepsSheet, useIsDesktop, ReadOnlyBanner,
+  Icon, BottomNav, Sidebar, SweepsSheet, useIsDesktop, ReadOnlyBanner,
 } from "./components.jsx";
 import { setGlobalToast, getMe, useSocial } from "./social.js";
 import { refreshAdminBadge } from "./admin.js";
@@ -58,7 +59,7 @@ export function readView(path) {
   // Read straight through the sweep prefix: every case below (and every bookmark
   // minted before sweeps had their own path) matches on the same segments as always.
   const seg = all[0] === "s" && all[1] ? all.slice(2) : all;
-  const base = { tab: "home", overlay: null, modal: null, identity: false };
+  const base = { tab: "home", overlay: null, modal: null };
   if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
   if (seg[0] === "knockouts" && S.competition?.format !== "league") return { ...base, tab: "knockouts" };
@@ -91,7 +92,7 @@ export default function App() {
   useEffect(() => {
     initAnalytics();
     setGlobalToast(showToast);
-    window.__sweepPickMe = () => navigate({ identity: true });
+    window.__sweepJoin = () => navigate({ modal: { type: "join" } });
     refreshAdminBadge(); // surfaces the moderation count if this device is an admin
     window.__sweepViewMe = () => { const me = getMe(); if (me) navigate({ overlay: { type: "person", id: me.id } }); };
     // seed the current entry with state so the first Back has something to restore
@@ -118,7 +119,7 @@ export default function App() {
     trackPageview(url);
   }, [view]);
 
-  const { tab, overlay, modal, identity } = view;
+  const { tab, overlay, modal } = view;
   useSocial(); // re-render on identity change (gates the 18+ Wagers screen)
   useOptOut(); // re-render on opt-out so the coins tab falls back to Home immediately
 
@@ -179,7 +180,7 @@ export default function App() {
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}
       {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
-      {identity && <IdentitySheet onClose={goBack}/>}
+      {modal?.type==="join" && <JoinSheet onClose={goBack} queryClient={qc}/>}
       {overlay?.type==="sweeps" && <SweepsSheet activeSweepId={S.sweep?.id ?? null} onClose={goBack} queryClient={qc}/>}
       <FloatingReactions/>
       {toast && <div className="toast"><Icon.check/> {toast}</div>}

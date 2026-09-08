@@ -11,6 +11,7 @@ import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
 import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps, isDeadToken } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
+import { revokeSession, clearAccountToken } from "./lib/accountClient.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
 import { useOptOut } from "./optout.js";
@@ -448,7 +449,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
             </button>
           )}
           {isAdmin && onAdmin && (
-            <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+            <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Manage — ${pending} pending` : "Manage"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
               {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
             </button>
@@ -626,7 +627,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
         <div className="sb-sec">Admin</div>
         <nav className="sb-nav">
           <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
-            <Icon.lock/><span>Moderation</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
+            <Icon.lock/><span>Manage</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
           </button>
         </nav>
       </>}
@@ -660,28 +661,38 @@ export function SearchInput({ value, onChange, placeholder, autoFocus }){
 }
 
 /* identity ---------------------------------------------------- */
-// Split control: tap the avatar/name → your own profile; tap the ⇄ button →
-// change perspective (pick a different person). With nobody picked yet, the
-// whole chip opens the picker and the ⇄ button is hidden.
+// Signed in: tap the avatar/name → your own profile; the split button signs out.
+// Signed out: the whole chip opens the join journey. It used to open a picker that
+// let this device claim to be anyone on the roster — the server took its word for it.
+// Same .idchip markup either way, so the rail slot, the mobile header and the
+// scroll-shrink animation are untouched.
 export function IdentityControl({ dark, style }){
   useSocial();
   const me = getMe();
-  const pick = () => window.__sweepPickMe && window.__sweepPickMe();
-  const view = () => { if (me) { window.__sweepViewMe && window.__sweepViewMe(); } else { pick(); } };
+  const join = () => window.__sweepJoin && window.__sweepJoin();
+  const view = () => { if (me) { window.__sweepViewMe && window.__sweepViewMe(); } else { join(); } };
+  // Best-effort revoke, then forget locally either way and reload: a failed DELETE
+  // (offline, already-expired) must not strand this browser signed in.
+  const signOut = async () => {
+    try { await revokeSession(); } catch { /* ignore */ }
+    clearAccountToken();
+    window.location.reload();
+  };
+  const others = S.people.length;
   return (
     <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-      <button className="idmain" onClick={view} aria-label={me ? "View your profile" : "Pick who you are"}>
+      <button className="idmain" onClick={view} aria-label={me ? "View your profile" : "Join this sweep"}>
         {me
           ? <PersonAvatar p={me} cls="av" style={{width:42,height:42,border:0,margin:0,fontSize:16}}/>
           : <span className="idq">?</span>}
         <span className="idtxt">
-          <small>{me ? "You're viewing as" : "Tap to pick"}</small>
-          <b>{me ? me.short : "Who are you?"}</b>
+          <small>{me ? "Signed in as" : others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet"}</small>
+          <b>{me ? me.short : "Join this sweep"}</b>
         </span>
       </button>
       {me && (
-        <button className="idswap" onClick={pick} aria-label="Change perspective" title="Change perspective">
-          <Icon.swap/>
+        <button className="idswap" onClick={signOut} aria-label="Sign out" title="Sign out">
+          <Icon.x/>
         </button>
       )}
     </div>
@@ -777,36 +788,4 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
     </div>
   );
 }
-export function IdentitySheet({ onClose }){
-  useSocial();
-  const me = getMe();
-  const [q, setQ] = useState("");
-  const ql = q.trim().toLowerCase();
-  const people = ql
-    ? S.people.filter(p => p.name.toLowerCase().includes(ql) || p.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
-    : S.people;
-  return (
-    <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={e=>e.stopPropagation()} style={{maxHeight:"84%"}}>
-        <div className="grab"></div>
-        <div className="sheet-head"><h3>Who are you?</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
-        <div className="sheet-body">
-          <p style={{fontSize:12.5,color:"var(--muted)",lineHeight:1.45,marginBottom:12}}>Pick yourself so the app can lead with your teams and your support. Stays on this device — no account.</p>
-          <SearchInput value={q} onChange={setQ} placeholder="Search by name or team…" autoFocus />
-          {people.length===0 && <p style={{fontSize:13,color:"var(--muted2)",textAlign:"center",padding:"18px 0"}}>No one matches “{q}”.</p>}
-          <div className="plist">
-            {people.map(p=>(
-              <div className={"prow"+(me&&me.id===p.id?" mepick":"")} key={p.id} onClick={()=>{ setMe(p.id); toast("You're set as "+p.short); onClose(); }} style={{padding:"9px 12px"}}>
-                <PersonAvatar p={p} cls="pav" style={{width:57,height:57,fontSize:22}}/>
-                <div className="pi"><b style={{fontSize:16}}>{p.name}</b>
-                  <PersonTeams codes={p.teams} /></div>
-                {me&&me.id===p.id ? <Icon.check className="chev" style={{stroke:"var(--accent)"}}/> : <Icon.chev className="chev"/>}
-              </div>
-            ))}
-          </div>
-          {me && <button className="cta ghost" style={{marginTop:14}} onClick={()=>{ setMe(null); toast("Identity cleared"); onClose(); }}>I'm not in the sweep</button>}
-        </div>
-      </div>
-    </div>
-  );
-}
+
