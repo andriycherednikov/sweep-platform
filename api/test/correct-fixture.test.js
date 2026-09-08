@@ -13,6 +13,7 @@ import { correctFixture } from '../src/corrections.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 import { ensureGrants, balanceOf } from '../src/wagering/ledger.js'
 import { ownerHeaders } from './helpers/session.js'
+import { account, operatorAction, sweep } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
@@ -152,36 +153,45 @@ test('standings are recomputed, so the table matches the corrected result', asyn
 // the only thing standing between one group's admin and everyone else's results.
 test('the correction route is operator-only, and rejects a silent one', async () => {
   const { buildApp } = await import('../src/app.js')
-  const app = buildApp(db, { superToken: 'super-secret', sessionSecret: 's' })
+  const app = buildApp(db, { sessionSecret: 's' })
   await app.ready()
+  await db.insert(account).values({
+    id: 'ac_op_correct', email: 'op-correct@example.test', role: 'operator',
+  }).onConflictDoNothing()
+  const auth = await ownerHeaders(db, 'ac_op_correct')
   try {
     const [f] = await db.select().from(event).limit(1)
     const url = `/api/super/fixtures/${f.id}/correct`
     const body = { score1: 0, score2: 1, reason: 'feed had the sides swapped' }
 
-    // no super cookie at all
+    // no credentials at all
     expect((await app.inject({ method: 'POST', url, payload: body })).statusCode).toBe(401)
 
-    const login = await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-secret' } })
-    const cookie = login.headers['set-cookie']
-
     // a reason is required — a correction nobody can explain later is a bug, not a fix
-    expect((await app.inject({ method: 'POST', url, headers: { cookie }, payload: { score1: 0, score2: 1 } })).statusCode).toBe(400)
+    expect((await app.inject({ method: 'POST', url, headers: auth, payload: { score1: 0, score2: 1 } })).statusCode).toBe(400)
 
-    const ok = await app.inject({ method: 'POST', url, headers: { cookie }, payload: body })
+    const ok = await app.inject({ method: 'POST', url, headers: auth, payload: body })
     expect(ok.statusCode).toBe(200)
     expect(ok.json()).toMatchObject({ fixtureId: f.id, to: [0, 1] })
 
-    const missing = await app.inject({ method: 'POST', url: '/api/super/fixtures/nope/correct', headers: { cookie }, payload: body })
+    // the audit row names the operator AND the blast radius: a correction re-settles
+    // every sweep on that competition, so the fixture id alone would understate it.
+    const [audit] = await db.select().from(operatorAction)
+      .where(and(eq(operatorAction.action, 'correct_fixture'), eq(operatorAction.target, f.id)))
+    expect(audit.actorId).toBe('ac_op_correct')
+    const onComp = await db.select({ id: sweep.id }).from(sweep).where(eq(sweep.competitionId, f.competitionId))
+    expect([...audit.sweepIds].sort()).toEqual(onComp.map((s) => s.id).sort())
+    expect(audit.sweepIds).toContain('default')
+
+    const missing = await app.inject({ method: 'POST', url: '/api/super/fixtures/nope/correct', headers: auth, payload: body })
     expect(missing.statusCode).toBe(404)
   } finally {
+    await db.delete(operatorAction).where(eq(operatorAction.actorId, 'ac_op_correct'))
     await app.close()
   }
 })
 
-// requireSuper is transitional (api/src/sweeps/auth.js): the legacy cookie OR an
-// operator account. A signed-in account that is NOT an operator is exactly the case
-// the cookie could never express — this is real 403-at-the-guard coverage, not a stub.
+// A signed-in account that is NOT an operator: real 403-at-the-guard coverage.
 test('a signed-in non-operator account cannot correct a score', async () => {
   const { buildApp } = await import('../src/app.js')
   const app = buildApp(db, { sessionSecret: 's' })
