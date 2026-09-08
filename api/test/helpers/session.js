@@ -63,7 +63,11 @@ export async function seatFor(db, personId, { accountId = `ac_seat_${personId}`,
   await db.insert(account).values({
     id: accountId, email: email ?? `${accountId}@example.test`,
   }).onConflictDoNothing()
-  await db.update(person).set({ accountId, claimedAt: new Date() }).where(eq(person.id, personId))
+  // email too: a real claim (POST /api/me) writes the verified address onto the row,
+  // and the owner roster reads it back.
+  await db.update(person).set({
+    accountId, email: email ?? `${accountId}@example.test`, claimedAt: new Date(),
+  }).where(eq(person.id, personId))
   return ownerHeaders(db, accountId)
 }
 
@@ -71,7 +75,7 @@ export async function seatFor(db, personId, { accountId = `ac_seat_${personId}`,
  *  has no cascade). The shared test DB is counted globally by seed.test.js, so a suite
  *  that seats somebody has to put them back. */
 export async function releaseSeat(db, personId, accountId = `ac_seat_${personId}`) {
-  await db.update(person).set({ accountId: null, claimedAt: null }).where(eq(person.id, personId))
+  await db.update(person).set({ accountId: null, email: null, claimedAt: null }).where(eq(person.id, personId))
   await db.delete(accountSession).where(eq(accountSession.accountId, accountId))
   await db.delete(account).where(eq(account.id, accountId))
 }

@@ -23,7 +23,17 @@ export async function bootstrapRoutes(app) {
     }
     return {
       teams: teams.map(serializeCompetitor),
-      people: people.map(serializePerson),
+      // claimed/ejected are roster state everyone can see; the address is not - it is
+      // the owner's to manage, and a group does not need each other's inboxes.
+      people: people.map((p) => ({
+        ...serializePerson(p),
+        claimed: !!p.accountId,
+        ejected: !!p.ejectedAt,
+        ...(req.role === 'admin' ? { email: p.email, claimedAt: p.claimedAt } : {}),
+      })),
+      // Who the caller is, resolved server-side. The client used to decide this from a
+      // string in localStorage. Free: `people` is already in memory.
+      meId: people.find((p) => p.accountId && p.accountId === req.account?.id && !p.ejectedAt)?.id ?? null,
       ownership: ownership_,
       scoring: { rule: req.sweep.scoringRule, coOwners: req.sweep.coOwners },
       sweep: { id: req.sweep.id, name: req.sweep.name, role: req.role },
