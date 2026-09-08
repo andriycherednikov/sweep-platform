@@ -17,9 +17,10 @@ export const SW_ROUTES = [
     strategy: 'NetworkFirst',
     cacheName: 'sweep-api',
     pathPrefix: '/api',
-    // never intercept the SSE stream, or admin/operator responses (must not be
-    // served from cache after sign-out — that would leak the moderation queue etc.)
-    excludePaths: ['/api/stream', '/api/admin', '/api/super'],
+    // never intercept the SSE stream, or admin/operator/account responses (must not
+    // be served from cache after sign-out — that would leak the moderation queue, or
+    // the account's sweep list and member links, to the next person on the device)
+    excludePaths: ['/api/stream', '/api/admin', '/api/super', '/api/account'],
     maxEntries: 64,
     maxAgeSeconds: 60 * 60, // 1h cap on the offline fallback snapshot
   },

@@ -39,6 +39,12 @@ describe('service-worker runtime caching contract', () => {
     expect(r.excludePaths).toContain('/api/super')
   })
 
+  // The account token, the sweep list and every member link live under /api/account:
+  // a cached copy outlives sign-out on a shared device.
+  test('/api excludes the account console so it is never served from cache', () => {
+    expect(byId('api').excludePaths).toContain('/api/account')
+  })
+
   test('every route names a distinct cache', () => {
     const names = SW_ROUTES.map((r) => r.cacheName)
     expect(new Set(names).size).toBe(names.length)
