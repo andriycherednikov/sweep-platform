@@ -1,0 +1,27 @@
+import { accountSession } from '../../src/db/schema.js'
+import { newToken } from '../../src/sweeps/tokens.js'
+import { SESSION_TTL_MS } from '../../src/accounts/auth.js'
+
+/** A member cookie for the seeded sweep. Memoized per app: POST /api/session is
+ *  rate-limited, and minting one per test would exhaust the budget. */
+const cookies = new WeakMap()
+export async function memberCookie(app) {
+  if (cookies.has(app)) return cookies.get(app)
+  const res = await app.inject({
+    method: 'POST', url: '/api/session',
+    headers: { host: 'platform.test' },
+    payload: { token: 'seedmembertoken000000' },
+  })
+  const c = res.headers['set-cookie']
+  cookies.set(app, c)
+  return c
+}
+
+/** An account session, inserted directly — no magic link, no mail, no rate limit. */
+export async function ownerHeaders(db, accountId = 'ac_seed') {
+  const token = newToken()
+  await db.insert(accountSession).values({
+    token, accountId, expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+  })
+  return { 'x-account-token': token }
+}
