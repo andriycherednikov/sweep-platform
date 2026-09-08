@@ -1,7 +1,7 @@
 import { expect, test, afterAll } from 'vitest'
 import Fastify from 'fastify'
 import cookie from '@fastify/cookie'
-import { SWEEP_COOKIE, signSweepCookie, parseSweepCookie, withSweep } from '../src/sweeps/auth.js'
+import { SWEEP_COOKIE, signSweepCookie, parseSweepCookie, withSweep, readSweepList } from '../src/sweeps/auth.js'
 
 test('sign then parse round-trips the id list', async () => {
   const app = Fastify()
@@ -29,6 +29,20 @@ test('a legacy id:role cookie value still parses to ids', () => {
 test('a list round-trips in order, most-recent first', () => {
   const list = ['sw_b', 'sw_a']
   expect(parseSweepCookie(signSweepCookie(list))).toEqual(list)
+})
+
+// The cookie carries no role any more, so its SIGNATURE is the whole of the check: it is
+// all that stands between a hand-typed `sweep_session=sw_victim` and a full read of that
+// group's people, ownership, photos, social and wallets. What decides must be `valid`,
+// not the value that arrives beside it — @fastify/cookie happens to null the value on a
+// bad signature, so a `un.valid` check dropped here would look harmless until the day
+// the signer (or a swap for another one) hands the parsed value back anyway.
+test('readSweepList trusts the signature verdict, not the value beside it', () => {
+  const req = { cookies: { [SWEEP_COOKIE]: 'sw_victim.forged-signature' } }
+  const forged = { unsignCookie: () => ({ valid: false, renew: false, value: 'sw_victim' }) }
+  expect(readSweepList(forged, req)).toBeNull()
+  const genuine = { unsignCookie: () => ({ valid: true, renew: false, value: 'sw_victim' }) }
+  expect(readSweepList(genuine, req)).toEqual(['sw_victim'])
 })
 
 test('withSweep moves a sweep to the front and caps the list', () => {
@@ -113,6 +127,22 @@ test('naming a sweep the browser does not hold resolves to nobody', async () => 
     headers: { host: 'platform.test', cookie: s.headers['set-cookie'], 'x-sweep-id': 'sw_not_mine' },
   })
   expect(who.json()).toEqual({ sweepId: null, role: null })
+})
+
+// End to end, over the wire: neither a cookie nobody signed nor a real signature with a
+// different id under it may resolve to a sweep.
+test('a forged sweep cookie resolves to nobody', async () => {
+  const who = (cookie) => app2.inject({
+    method: 'GET', url: '/api/whoami', headers: { host: 'platform.test', cookie },
+  })
+  expect((await who(`${SWEEP_COOKIE}=sw_sess`)).json()).toEqual({ sweepId: null, role: null })
+
+  const real = await app2.inject({
+    method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: memberTok },
+  })
+  const tampered = real.headers['set-cookie'].replace('sw_sess', 'sw_two')
+  expect(tampered).toContain('sw_two')  // the swap actually happened
+  expect((await who(tampered)).json()).toEqual({ sweepId: null, role: null })
 })
 
 test('logout ?sweep=<id> leaves that one and keeps the rest', async () => {
