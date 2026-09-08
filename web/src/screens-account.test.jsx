@@ -10,11 +10,14 @@ vi.mock('./lib/accountClient.js', () => ({
   startCheckout: vi.fn(),
   openPortal: vi.fn(),
   clearAccountToken: vi.fn(),
+  revokeSession: vi.fn(async () => ({})),
+  revokeAllSessions: vi.fn(async () => ({})),
 }))
 
 import { AccountHome } from './screens-account.jsx'
 import {
   getBilling, getAccountSweeps, archiveSweep, startCheckout, openPortal, clearAccountToken,
+  revokeSession, revokeAllSessions,
 } from './lib/accountClient.js'
 
 let originalLocation
@@ -134,10 +137,29 @@ test('subscribed + past_due shows a soft payment warning', async () => {
   expect(await screen.findByText(/payment failed|past due/i)).toBeTruthy()
 })
 
-test('sign out clears the account token and reloads', async () => {
+test('sign out (this device) revokes the session, clears the token and reloads', async () => {
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /sign out/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^sign out$/i }))
+  await waitFor(() => expect(revokeSession).toHaveBeenCalled())
+  expect(revokeAllSessions).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
+  expect(window.location.reload).toHaveBeenCalled()
+})
+
+test('sign out everywhere revokes every session, clears the token and reloads', async () => {
+  render(<AccountHome />)
+  fireEvent.click(await screen.findByRole('button', { name: /sign out everywhere/i }))
+  await waitFor(() => expect(revokeAllSessions).toHaveBeenCalled())
+  expect(revokeSession).not.toHaveBeenCalled()
+  expect(clearAccountToken).toHaveBeenCalled()
+  expect(window.location.reload).toHaveBeenCalled()
+})
+
+test('sign out still clears locally and reloads even when the server revoke fails', async () => {
+  revokeSession.mockRejectedValueOnce(new Error('network'))
+  render(<AccountHome />)
+  fireEvent.click(await screen.findByRole('button', { name: /^sign out$/i }))
+  await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.reload).toHaveBeenCalled()
 })
 

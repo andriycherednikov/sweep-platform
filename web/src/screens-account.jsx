@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useMarketingShell } from "./screens-landing.jsx";
 import {
   getBilling, getAccountSweeps, archiveSweep,
-  startCheckout, openPortal, clearAccountToken,
+  startCheckout, openPortal, clearAccountToken, revokeSession, revokeAllSessions,
 } from "./lib/accountClient.js";
 
 const DAY_MS = 86400000;
@@ -27,7 +27,15 @@ export function Console({ here, children }) {
     </button>
   );
 
-  function signOut() {
+  // Best-effort server-side revoke, then forget locally either way: a failed DELETE
+  // (offline, already-expired session) must not strand this device signed in.
+  async function signOutHere() {
+    try { await revokeSession(); } catch { /* ignore */ }
+    clearAccountToken();
+    window.location.reload();
+  }
+  async function signOutEverywhere() {
+    try { await revokeAllSessions(); } catch { /* ignore */ }
     clearAccountToken();
     window.location.reload();
   }
@@ -42,7 +50,8 @@ export function Console({ here, children }) {
         <div className="ac-side-foot">
           <button className={"lp-btn ac-btn" + (here === "new" ? " is-here" : "")}
                   onClick={() => goTo("/account/new")}>New sweep</button>
-          <button className="ac-ghost" onClick={signOut}>Sign out</button>
+          <button className="ac-ghost" onClick={signOutHere}>Sign out</button>
+          <button className="ac-ghost" onClick={signOutEverywhere}>Sign out everywhere</button>
         </div>
       </aside>
       <main className="ac-main">

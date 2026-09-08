@@ -41,3 +41,8 @@ export const getBilling = () => call('GET', '/api/account/billing')
 export const confirmCheckout = (sessionId) => call('POST', '/api/account/billing/confirm', { sessionId })
 export const startCheckout = () => call('POST', '/api/account/billing/checkout')
 export const openPortal = (flow) => call('POST', '/api/account/billing/portal', flow ? { flow } : undefined)
+
+// Revokes the 90-day session server-side — before Task 7 there was no way to do this
+// at all, and the token now confers admin over every sweep the account owns.
+export const revokeSession = () => call('DELETE', '/api/account/session')
+export const revokeAllSessions = () => call('DELETE', '/api/account/sessions')

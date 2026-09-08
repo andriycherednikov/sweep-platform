@@ -2,6 +2,7 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
+  revokeSession, revokeAllSessions,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -82,6 +83,26 @@ test('setPassword includes current when changing an existing password', async ()
   await setPassword('newlongpassword', 'oldpassword')
   expect(fetch).toHaveBeenCalledWith('/api/account/password', expect.objectContaining({
     body: JSON.stringify({ password: 'newlongpassword', current: 'oldpassword' }),
+  }))
+})
+
+test('revokeSession DELETEs this device\'s session with the token header', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(204, null))
+  await revokeSession()
+  expect(fetch).toHaveBeenCalledWith('/api/account/session', expect.objectContaining({
+    method: 'DELETE',
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
+  }))
+})
+
+test('revokeAllSessions DELETEs every session with the token header', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(204, null))
+  await revokeAllSessions()
+  expect(fetch).toHaveBeenCalledWith('/api/account/sessions', expect.objectContaining({
+    method: 'DELETE',
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
   }))
 })
 
