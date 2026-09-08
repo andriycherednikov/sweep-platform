@@ -3,7 +3,7 @@
 // With wagering on, that is a money dispute with no operator remedy, so correcting a
 // result has to unwind everything the wrong one paid out, not just overwrite the score.
 import { expect, test, afterAll, beforeEach } from 'vitest'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet, support, ranking } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
@@ -19,6 +19,9 @@ const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
 beforeEach(async () => {
   await db.delete(bet); await db.delete(coinLedger); await db.delete(support)
+  // Every correction below writes one; leave the shared DB clean. Scoped to this file's
+  // actors — operator-role.test.js runs in parallel against the same table.
+  await db.delete(operatorAction).where(inArray(operatorAction.actorId, ['ac_seed', 'ac_op_correct']))
 })
 
 const aPerson = async () => (await db.select().from(person).limit(1))[0]
@@ -55,7 +58,7 @@ test('a corrected score claws back the payout the wrong one made', async () => {
   expect((await db.select().from(coinLedger).where(eq(coinLedger.type, 'payout')))
     .map((r) => [r.refId, r.amount])).toEqual([[home, 200]])
 
-  const out = await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' })
+  const out = await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' }, 'ac_seed')
 
   const rows = await db.select().from(bet).where(eq(bet.fixtureId, f.id))
   expect(rows.find((b) => b.id === home).status).toBe('lost') // was won on the wrong score
@@ -73,7 +76,7 @@ test('prediction rewards are re-granted against the corrected result', async () 
   expect(await db.select().from(coinLedger)
     .where(and(eq(coinLedger.type, 'predict'), eq(coinLedger.refId, f.id)))).toHaveLength(0)
 
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' }, 'ac_seed')
 
   const predicts = await db.select().from(coinLedger)
     .where(and(eq(coinLedger.type, 'predict'), eq(coinLedger.refId, f.id)))
@@ -92,7 +95,7 @@ test('a reward earned on the wrong score is taken back when the score changes', 
   expect(await db.select().from(coinLedger)
     .where(and(eq(coinLedger.type, 'predict'), eq(coinLedger.refId, f.id)))).toHaveLength(1)
 
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'home never scored' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'home never scored' }, 'ac_seed')
 
   expect(await db.select().from(coinLedger)
     .where(and(eq(coinLedger.type, 'predict'), eq(coinLedger.refId, f.id)))).toHaveLength(0)
@@ -100,7 +103,7 @@ test('a reward earned on the wrong score is taken back when the score changes', 
 
 test('the stake is never disturbed — only what settlement paid out', async () => {
   const { p, f, home } = await fixtureSettledWrong()
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' }, 'ac_seed')
   const stakes = await db.select().from(coinLedger).where(eq(coinLedger.type, 'stake'))
   expect(stakes).toHaveLength(2)
   expect(stakes.find((s) => s.refId === home).amount).toBe(-100)
@@ -109,15 +112,15 @@ test('the stake is never disturbed — only what settlement paid out', async () 
 
 test('correcting is idempotent — running it twice does not pay twice', async () => {
   const { p, f } = await fixtureSettledWrong()
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' }, 'ac_seed')
   const once = await balanceOf(db, 'default', p.id)
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' }, 'ac_seed')
   expect(await balanceOf(db, 'default', p.id)).toBe(once)
 })
 
 test('the score, the derived winner and the regulation pair all move together', async () => {
   const { f } = await fixtureSettledWrong()
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' }, 'ac_seed')
   const [row] = await db.select().from(event).where(eq(event.id, f.id))
   expect(row.score1).toBe(0)
   expect(row.score2).toBe(1)
@@ -128,7 +131,7 @@ test('the score, the derived winner and the regulation pair all move together', 
 
 test('a correction leaves a record of who changed what and why', async () => {
   const { f } = await fixtureSettledWrong()
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'feed had the sides swapped' }, 'ac_seed')
   const [row] = await db.select().from(event).where(eq(event.id, f.id))
   expect(row.detail.correction).toMatchObject({ from: [2, 0], to: [0, 1], reason: 'feed had the sides swapped' })
   expect(row.detail.correction.at).toBeTruthy()
@@ -143,7 +146,7 @@ test('standings are recomputed, so the table matches the corrected result', asyn
   await recomputeStandings(db, f.competitionId)
   const [lostBefore, wonBefore] = [await pointsFor(f.c2Code), await pointsFor(f.c1Code)]
 
-  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' })
+  await correctFixture(db, f.id, { score1: 0, score2: 1, reason: 'x' }, 'ac_seed')
 
   expect(await pointsFor(f.c2Code)).toBe(lostBefore + 3) // 0-2 loss became a 1-0 win
   expect(await pointsFor(f.c1Code)).toBe(wonBefore - 3)

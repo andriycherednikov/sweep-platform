@@ -157,7 +157,7 @@ export async function sweepsRoutes(app) {
   })
 
   app.post('/api/super/fixtures/:id/correct', { preHandler: superGuard, schema: { body: correctBody } }, async (req, reply) => {
-    const out = await correctFixture(app.db, req.params.id, req.body, app.publish, req.account.id)
+    const out = await correctFixture(app.db, req.params.id, req.body, req.account.id, app.publish)
     if (!out) return reply.code(404).send({ error: 'unknown_fixture' })
     return out
   })

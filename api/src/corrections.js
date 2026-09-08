@@ -22,7 +22,7 @@ import { recordOperatorAction } from './accounts/audit.js'
  * A correction is competition-level: every sweep following that competition sees it.
  * That is why this is an operator action and not a group admin's.
  */
-export async function correctFixture(db, fixtureId, { score1, score2, status, reg, pen, reason }, publish = () => {}, actorId = null) {
+export async function correctFixture(db, fixtureId, { score1, score2, status, reg, pen, reason }, actorId, publish = () => {}) {
   const [row] = await db.select().from(event).where(eq(event.id, fixtureId))
   if (!row) return null
 
@@ -56,16 +56,14 @@ export async function correctFixture(db, fixtureId, { score1, score2, status, re
 
   // Who did it, and to whom. sync_log names the fixture; the audit row has to name the
   // sweeps, because a correction re-settles every sweep following this competition —
-  // that blast radius is the thing an operator must be answerable for.
-  // ponytail: actorId is null only for a direct call (the worker/tests); the route
-  // always passes req.account.id, and operator_action.actor_id is NOT NULL.
-  if (actorId) {
-    const affected = await db.selectDistinct({ id: sweep.id }).from(sweep)
-      .where(eq(sweep.competitionId, row.competitionId))
-    await recordOperatorAction(db, {
-      actorId, action: 'correct_fixture', target: fixtureId, sweepIds: affected.map((s) => s.id),
-    })
-  }
+  // that blast radius is the thing an operator must be answerable for. actorId sits
+  // ahead of `publish` because it has no default: an unaudited correction must be
+  // impossible to write by omission, not merely discouraged.
+  const affected = await db.selectDistinct({ id: sweep.id }).from(sweep)
+    .where(eq(sweep.competitionId, row.competitionId))
+  await recordOperatorAction(db, {
+    actorId, action: 'correct_fixture', target: fixtureId, sweepIds: affected.map((s) => s.id),
+  })
 
   return { fixtureId, from, to: [score1, score2], reopenedBets, reopenedParlays }
 }
