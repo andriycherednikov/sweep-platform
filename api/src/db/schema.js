@@ -1,4 +1,4 @@
-import { pgTable, text, integer, numeric, primaryKey, timestamp, boolean, jsonb, serial, index, unique, foreignKey } from 'drizzle-orm/pg-core'
+import { pgTable, text, integer, numeric, primaryKey, timestamp, boolean, jsonb, serial, index, unique, uniqueIndex, foreignKey } from 'drizzle-orm/pg-core'
 
 export const sweep = pgTable('sweep', {
   id: text('id').primaryKey(),
@@ -29,8 +29,19 @@ export const person = pgTable('person', {
   // Binding: the opt-out endpoint only ever extends this, never shortens it.
   excludedUntil: timestamp('excluded_until', { withTimezone: true }),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  // Identity. NULL account_id = an owner-typed seat: it holds teams and shows in the
+  // standings, but nobody can act as it until a human claims it by verifying this email.
+  accountId: text('account_id').references(() => account.id),
+  email: text('email'),
+  claimedAt: timestamp('claimed_at', { withTimezone: true }),
+  // Ejected revokes acting rights and blocks a re-claim, but keeps the row: their picks,
+  // ledger and bets stay referenced, and the leaderboard keeps its shape.
+  ejectedAt: timestamp('ejected_at', { withTimezone: true }),
 }, (t) => ({
   sweepIdx: index('person_sweep_id_idx').on(t.sweepId),
+  // One seat per account per sweep. Postgres is NULLS DISTINCT by default, so unlimited
+  // owner-typed rows coexist under it without a partial index.
+  accountUq: uniqueIndex('person_sweep_account_uq').on(t.sweepId, t.accountId),
   // target for child composite FKs that pin a row to its person's sweep
   idSweepUq: unique('person_id_sweep_id_uq').on(t.id, t.sweepId),
 }))
@@ -43,7 +54,7 @@ export const ownership = pgTable('ownership', {
   pk: primaryKey({ columns: [t.personId, t.competitorId] }),
   sweepIdx: index('ownership_sweep_id_idx').on(t.sweepId),
   // composite FK pins (person, sweep) together — a row can never reference a person in another sweep
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'ownership_person_sweep_fk' }),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'ownership_person_sweep_fk' }).onDelete('cascade'),
 }))
 
 export const syncLog = pgTable('sync_log', {
@@ -71,7 +82,7 @@ export const support = pgTable('support', {
 }, (t) => ({
   pk: primaryKey({ columns: [t.fixtureId, t.personId] }),
   sweepIdx: index('support_sweep_id_idx').on(t.sweepId),
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'support_person_sweep_fk' }),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'support_person_sweep_fk' }).onDelete('cascade'),
 }))
 
 export const coinLedger = pgTable('coin_ledger', {
@@ -84,7 +95,7 @@ export const coinLedger = pgTable('coin_ledger', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (t) => ({
   sweepIdx: index('coin_ledger_sweep_id_idx').on(t.sweepId),
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'coin_ledger_person_sweep_fk' }),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'coin_ledger_person_sweep_fk' }).onDelete('cascade'),
   // idempotent grants/payouts: at most one row per (person, type, ref)
   entryUq: unique('coin_ledger_entry_uq').on(t.sweepId, t.personId, t.type, t.refId),
 }))
@@ -101,7 +112,7 @@ export const parlay = pgTable('parlay', {
   settledAt: timestamp('settled_at', { withTimezone: true }),
 }, (t) => ({
   sweepIdx: index('parlay_sweep_id_idx').on(t.sweepId),
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'parlay_person_sweep_fk' }),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'parlay_person_sweep_fk' }).onDelete('cascade'),
 }))
 
 export const bet = pgTable('bet', {
@@ -124,7 +135,7 @@ export const bet = pgTable('bet', {
   sweepIdx: index('bet_sweep_id_idx').on(t.sweepId),
   fixtureIdx: index('bet_fixture_id_idx').on(t.fixtureId),
   parlayIdx: index('bet_parlay_id_idx').on(t.parlayId),
-  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'bet_person_sweep_fk' }),
+  personSweepFk: foreignKey({ columns: [t.personId, t.sweepId], foreignColumns: [person.id, person.sweepId], name: 'bet_person_sweep_fk' }).onDelete('cascade'),
 }))
 
 export const photo = pgTable('photo', {
@@ -133,7 +144,7 @@ export const photo = pgTable('photo', {
   kind: text('kind').notNull(),
   uploaderName: text('uploader_name').notNull(),
   // nullable (fan photos have no person), so it keeps single-column FKs rather than a composite tenant FK
-  personId: text('person_id').references(() => person.id),
+  personId: text('person_id').references(() => person.id, { onDelete: 'cascade' }),
   fixtureId: text('fixture_id').references(() => event.id, { onDelete: 'set null' }),
   filePath: text('file_path').notNull(),
   thumbPath: text('thumb_path'),
@@ -173,7 +184,13 @@ export const loginToken = pgTable('login_token', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   usedAt: timestamp('used_at', { withTimezone: true }),
-})
+  // A six-digit join code. NULL on magic-link rows, and every code query filters on
+  // isNotNull(code) so a member's join code can never burn a stranger's sign-in link.
+  code: text('code'),
+  attempts: integer('attempts').notNull().default(0),
+}, (t) => ({
+  emailIdx: index('login_token_email_idx').on(t.email),
+}))
 
 export const accountSession = pgTable('account_session', {
   token: text('token').primaryKey(),
