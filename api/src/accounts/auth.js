@@ -2,6 +2,9 @@ import { and, eq, gt, lt } from 'drizzle-orm'
 import { account, accountSession, loginToken } from '../db/schema.js'
 
 export const LOGIN_TOKEN_TTL_MS = 15 * 60_000
+// An invite sits in an inbox until someone gets round to it — a sign-in link's 15
+// minutes would expire before most people opened it.
+export const INVITE_TTL_MS = 7 * 24 * 60 * 60_000
 export const SESSION_TTL_MS = 90 * 24 * 3600_000
 
 /** Daily hygiene (worker): expired magic-link tokens and sessions have no further use. */

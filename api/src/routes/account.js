@@ -1,5 +1,6 @@
 import { eq, and, ne, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, person, sweep } from '../db/schema.js'
+import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep } from '../sweeps/auth.js'
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
 import { requireSweep } from '../sweeps/auth.js'
@@ -175,6 +176,54 @@ export async function accountRoutes(app) {
       return reply.code(401).send({ error: 'bad_code' })
     }
     return reply.code(201).send(await mintSession(lt.email, 'code'))
+  })
+
+  /** Redeem a per-seat invite: sign the address in AND take the seat it names, in one
+   *  step. The organiser already typed this address, so asking the invitee to type it
+   *  back was a step that proved nothing. No sweep session is required to get here —
+   *  the token IS the introduction, and this route hands one back. */
+  app.post('/api/account/session/invite', {
+    schema: { body: sessionBody },
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+  }, async (req, reply) => {
+    const now = new Date()
+    // atomic claim, same shape as every other redeem in this file
+    const [lt] = await app.db.update(loginToken).set({ usedAt: now }).where(and(
+      eq(loginToken.token, req.body.token), isNotNull(loginToken.personId),
+      isNull(loginToken.usedAt), gt(loginToken.expiresAt, now),
+    )).returning()
+    if (!lt) return reply.code(401).send({ error: 'unauthorized' })
+
+    const [seat] = await app.db.select().from(person).where(eq(person.id, lt.personId))
+    if (!seat) return reply.code(401).send({ error: 'unauthorized' })
+
+    const session = await mintSession(lt.email, 'invite')
+    // One account holds one seat per sweep. If they are already in — invited twice, or
+    // they self-joined in the meantime — sign them into the seat they have rather than
+    // failing on the unique index over a link that was only ever a convenience.
+    const [held] = await app.db.select().from(person).where(and(
+      eq(person.sweepId, seat.sweepId), eq(person.accountId, session.account.id),
+    ))
+    let mine = held
+    if (!held) {
+      if (seat.accountId || seat.ejectedAt) return reply.code(401).send({ error: 'unauthorized' })
+      const [claimed] = await app.db.update(person)
+        .set({ accountId: session.account.id, claimedAt: now })
+        .where(and(eq(person.id, seat.id), isNull(person.accountId), isNull(person.ejectedAt)))
+        .returning()
+      if (!claimed) return reply.code(401).send({ error: 'unauthorized' })
+      mine = claimed
+    }
+    if (mine.ejectedAt) return reply.code(403).send({ error: 'removed_from_sweep' })
+
+    // Hand back the sweep session too: the invite is the whole journey, so it must not
+    // land them on a sweep their browser has no cookie for.
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), seat.sweepId))), {
+      httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
+      secure: process.env.NODE_ENV === 'production',
+    })
+    await app.publish({ type: 'sync', sweepId: seat.sweepId })
+    return reply.code(201).send({ ...session, sweepId: seat.sweepId, person: { id: mine.id, name: mine.name, short: mine.short } })
   })
 
   app.get('/api/account', { preHandler: requireAccount(app) }, async (req) => ({

@@ -188,6 +188,10 @@ export const loginToken = pgTable('login_token', {
   // isNotNull(code) so a member's join code can never burn a stranger's sign-in link.
   code: text('code'),
   attempts: integer('attempts').notNull().default(0),
+  // An invite addressed to one seat: redeeming signs the address in AND claims this row,
+  // so the person arrives already themselves. Cascades, because a token pointing at a
+  // deleted seat has nothing left to claim.
+  personId: text('person_id').references(() => person.id, { onDelete: 'cascade' }),
 }, (t) => ({
   emailIdx: index('login_token_email_idx').on(t.email),
 }))

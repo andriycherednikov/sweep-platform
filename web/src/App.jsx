@@ -175,12 +175,17 @@ export default function App() {
 
   const isDesktop = useIsDesktop();
   const current = (overlay && (overlay.type==="knockouts" || overlay.type==="admin" || overlay.type==="super")) ? overlay.type : tab;
+  // Holding the link gets you a look, not a turn: until you have a seat the join sheet
+  // is a gate, not a sheet. The owner is exempt — administering a sweep is not playing
+  // in it, and forcing them to take a seat to reach Manage would be a new dead end.
+  const gated = !getMe() && S.sweep?.role !== "admin";
   const modals = (
     <>
+      {gated && <JoinSheet blocking queryClient={qc}/>}
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}
       {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
-      {modal?.type==="join" && <JoinSheet onClose={goBack} queryClient={qc}/>}
+      {!gated && modal?.type==="join" && <JoinSheet onClose={goBack} queryClient={qc}/>}
       {overlay?.type==="sweeps" && <SweepsSheet activeSweepId={S.sweep?.id ?? null} onClose={goBack} queryClient={qc}/>}
       <FloatingReactions/>
       {toast && <div className="toast"><Icon.check/> {toast}</div>}

@@ -670,7 +670,6 @@ export function IdentityControl({ dark, style }){
   useSocial();
   const me = getMe();
   const join = () => window.__sweepJoin && window.__sweepJoin();
-  const view = () => { if (me) { window.__sweepViewMe && window.__sweepViewMe(); } else { join(); } };
   // Best-effort revoke, then forget locally either way and reload: a failed DELETE
   // (offline, already-expired) must not strand this browser signed in.
   const signOut = async () => {
@@ -678,26 +677,36 @@ export function IdentityControl({ dark, style }){
     clearAccountToken();
     window.location.reload();
   };
+
+  // Signed in you are not a control to be operated, you are a fact — no box, no chrome,
+  // just your face and your name, with signing out as the one thing you might want to do.
+  if (me) return (
+    <div className={"idme" + (dark ? " dark" : "")} style={style}>
+      <button className="idme-main" onClick={() => window.__sweepViewMe && window.__sweepViewMe()} aria-label="View your profile">
+        <PersonAvatar p={me} cls="av" style={{width:38,height:38,border:0,margin:0,fontSize:15}}/>
+        <span className="idtxt">
+          <small>Signed in as</small>
+          <b>{me.short}</b>
+        </span>
+      </button>
+      <button className="idme-out" onClick={signOut}>Log out</button>
+    </div>
+  );
+
   const others = S.people.length;
   return (
     <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-      <button className="idmain" onClick={view} aria-label={me ? "View your profile" : "Join this sweep"}>
-        {me
-          ? <PersonAvatar p={me} cls="av" style={{width:42,height:42,border:0,margin:0,fontSize:16}}/>
-          : <span className="idq">?</span>}
+      <button className="idmain" onClick={join} aria-label="Join this sweep">
+        <span className="idq">?</span>
         <span className="idtxt">
-          <small>{me ? "Signed in as" : others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet"}</small>
-          <b>{me ? me.short : "Join this sweep"}</b>
+          <small>{others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet"}</small>
+          <b>Join this sweep</b>
         </span>
       </button>
-      {me && (
-        <button className="idswap" onClick={signOut} aria-label="Sign out" title="Sign out">
-          <Icon.x/>
-        </button>
-      )}
     </div>
   );
 }
+
 /* "My sweeps" switcher — lists sweep.sweeps.v1; tap to switch, Leave to drop.
    Leaving the active sweep also clears the server session (postLogout). A failed
    switch (revoked/expired stored token) surfaces an inline error and keeps the

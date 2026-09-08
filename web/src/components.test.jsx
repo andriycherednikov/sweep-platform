@@ -415,15 +415,17 @@ test('HomeScreen: empty community box prompts upload (go upload)', () => {
   expect(go).toHaveBeenCalledWith('upload')
 })
 
-test('IdentityControl: signed in, the avatar opens your profile and the split button signs out', () => {
+test('IdentityControl: signed in, it states who you are and offers a log-out link', () => {
   setMe('p1')
   const viewMe = vi.fn()
   window.__sweepViewMe = viewMe
-  const { getByLabelText, getByText } = render(<IdentityControl />)
+  const { getByLabelText, getByText, container } = render(<IdentityControl />)
   expect(getByText('Signed in as')).toBeInTheDocument()
   fireEvent.click(getByLabelText('View your profile'))
   expect(viewMe).toHaveBeenCalled()
-  expect(getByLabelText('Sign out')).toBeInTheDocument()
+  expect(getByText('Log out')).toBeInTheDocument()
+  // no card around it — signed in you are a fact, not a control
+  expect(container.querySelector('.idchip')).toBeNull()
   delete window.__sweepViewMe
 })
 

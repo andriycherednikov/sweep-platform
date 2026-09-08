@@ -46,9 +46,13 @@ export function buildApp(db, opts = {}) {
   const photosDir = resolve(opts.photosDir ?? process.env.PHOTOS_DIR ?? './photos-data')
   const store = createStorageSync(photosDir)
   app.decorate('photos', store)
-  // When on, uploaded photos skip the moderation queue and go live immediately
-  // (set PHOTOS_AUTO_APPROVE=true). Default off → admin must approve (kid-safe default).
-  app.decorate('autoApprovePhotos', opts.autoApprovePhotos ?? (process.env.PHOTOS_AUTO_APPROVE === 'true'))
+  // Photos go live on upload. The queue used to be the default, which cost every new
+  // member their own face until an admin got round to it — during signup, where the
+  // whole point is to look like yourself. The owner can still remove any photo from the
+  // Manage console, which is the recourse that actually gets used.
+  // Set PHOTOS_AUTO_APPROVE=false to put them back behind moderation.
+  const env = opts.env ?? process.env
+  app.decorate('autoApprovePhotos', opts.autoApprovePhotos ?? env.PHOTOS_AUTO_APPROVE !== 'false')
   app.register(multipart, { limits: { fileSize: MAX_BYTES, files: 1 } })
   // serve approved/ at /photos (in prod Caddy does this; harmless to also expose here)
   app.register(fstatic, { root: store.approvedDir, prefix: '/photos/', decorateReply: false })

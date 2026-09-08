@@ -1898,3 +1898,21 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
    so "People 2 1 joined 1 not joined" ran together into one unreadable string. */
 .adminsec-h .ct{display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:#eef1f5; color:var(--muted2); font-family:'Barlow Semi Condensed'; font-size:10.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; vertical-align:middle; white-space:nowrap;}
 .adminsec-h .ct.ct-warn{background:rgba(184,134,11,.16); color:#8a6508;}
+
+/* Signed-in identity: a fact, not a control — no card, no divider, no icon button.
+   Reuses .idtxt so the label/name typography stays identical to the guest chip. */
+.idme{display:block; width:100%;}
+.idme-main{display:flex; align-items:center; gap:9px; width:100%; min-width:0; text-align:left; padding:0; background:transparent; border:0; color:inherit;}
+.idme .idtxt{flex:1; min-width:0; line-height:1.1;}
+.idme .idtxt small{display:block; font-size:9px; letter-spacing:1px; text-transform:uppercase; font-weight:700; color:var(--muted2);}
+.idme.dark .idtxt small{color:#7e97bb;}
+.idme .idtxt b{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
+.idme.dark .idtxt b{color:#fff;}
+.idme-out{display:inline-block; margin:7px 0 0 47px; padding:0; background:transparent; border:0; font-family:'Barlow'; font-weight:600; font-size:12px; color:var(--muted2); text-decoration:underline; text-underline-offset:2px; cursor:pointer;}
+.idme.dark .idme-out{color:#7e97bb;}
+.idme-out:hover{color:var(--accent);}
+.join-face{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:16px;}
+.join-face-av{border:2px solid var(--line);}
+.join-face-btn{display:inline-block; padding:8px 16px; border:1.5px solid var(--line); border-radius:999px; background:var(--card); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--navy); cursor:pointer;}
+.join-face-btn:hover{border-color:var(--accent); color:var(--accent);}
+.join-face-name{margin:0; font-family:'Barlow'; font-size:11.5px; color:var(--muted2); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}

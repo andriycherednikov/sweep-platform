@@ -1,0 +1,2 @@
+ALTER TABLE "login_token" ADD COLUMN "person_id" text;--> statement-breakpoint
+ALTER TABLE "login_token" ADD CONSTRAINT "login_token_person_id_person_id_fk" FOREIGN KEY ("person_id") REFERENCES "public"."person"("id") ON DELETE cascade ON UPDATE no action;

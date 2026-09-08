@@ -18,7 +18,8 @@ let me, seat
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-up-'))
   store = await createStorage(dir)
-  app = buildApp(db, { photosDir: dir })
+  // moderation is opt-in now, and this file is the suite that covers it
+  app = buildApp(db, { photosDir: dir, autoApprovePhotos: false })
   await app.ready()
   client = await memberClient(app)
   me = (await db.select().from(person).limit(1))[0]

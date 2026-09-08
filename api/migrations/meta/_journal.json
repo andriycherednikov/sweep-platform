@@ -71,6 +71,13 @@
       "when": 1788863768605,
       "tag": "0009_small_shinobi_shaw",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788872968923,
+      "tag": "0010_ambitious_maximus",
+      "breakpoints": true
     }
   ]
 }

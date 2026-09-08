@@ -1,4 +1,4 @@
-import { parseJoinLink } from './joinLink.js'
+import { parseJoinLink, parseInviteLink } from './joinLink.js'
 import { addSweep } from '../sweeps.js'
 
 /**
@@ -33,4 +33,23 @@ export async function joinFromLocation(loc, history, postSession) {
   } finally {
     history.replaceState({}, '', failed ? '/?join=failed' : landing)
   }
+}
+
+/**
+ * Redeem a `/i/<token>` invite before anything renders: it signs the invitee in AND
+ * claims their seat, so they land inside the sweep as themselves. The token leaves the
+ * address bar either way — it is single-use, but a spent credential in a screenshot is
+ * still a credential in a screenshot.
+ * @returns {Promise<void>}
+ */
+export async function inviteFromLocation(loc, history, postInviteSession) {
+  const token = parseInviteLink(loc.pathname)
+  if (!token) return
+  let landing = '/?invite=failed'
+  try {
+    const { sweepId } = await postInviteSession(token)
+    addSweep({ sweepId, name: null, role: null, token: null })
+    landing = `/s/${sweepId}`
+  } catch { /* expired, spent, or never real — the landing says so */ }
+  history.replaceState({}, '', landing)
 }

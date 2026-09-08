@@ -8,7 +8,7 @@ vi.mock('./api/client.js', () => ({
   postJoinCode: vi.fn(async () => ({ ok: true })),
   postJoinSession: vi.fn(async () => ({ accountToken: 't', account: { id: 'ac_1' } })),
   postMe: vi.fn(async () => ({ id: 'pn_new', name: 'Ada Lovelace', short: 'Ada', initials: 'AD', av: '#c9472f' })),
-  uploadPhoto: vi.fn(async () => ({ id: 'ph_1', status: 'pending' })),
+  uploadPhoto: vi.fn(async () => ({ id: 'ph_1', status: 'approved' })),
 }))
 import { postJoinCode, postJoinSession, postMe, uploadPhoto } from './api/client.js'
 import { JoinSheet } from './JoinSheet.jsx'
@@ -86,8 +86,7 @@ test('a photo is optional — you can join without one', async () => {
   await waitFor(() => expect(onClose).toHaveBeenCalled())
 })
 
-// Profile photos go to the moderation queue by default, so the seat must not wait on it.
-test('a queued photo does not hold up the seat', async () => {
+test('a photo is uploaded with the seat', async () => {
   setAccountToken('tok')
   const onClose = vi.fn()
   render(<JoinSheet onClose={onClose} />)

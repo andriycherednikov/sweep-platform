@@ -22,7 +22,10 @@ const AV_PALETTE = ["#c9472f","#3b6fd1","#1f9d57","#b8860b","#7b4bd1","#0a9396",
 const initialsFor = (nm) => nm.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??";
 const avFor = (nm) => AV_PALETTE[Math.abs([...nm].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 0)) % AV_PALETTE.length];
 
-export function JoinSheet({ onClose, queryClient }) {
+/** `blocking` renders it as a gate: no close button, and the scrim ignores clicks. Used
+ *  when a link-holder has no seat yet — the sweep is visible behind it, so they can see
+ *  what they are joining, but nothing in it can be operated until they are somebody. */
+export function JoinSheet({ onClose, queryClient, blocking }) {
   const [step, setStep] = useState(() => (getAccountToken() ? "setup" : "email"));
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -61,16 +64,13 @@ export function JoinSheet({ onClose, queryClient }) {
       if (file) {
         const fd = new FormData();
         fd.append("kind", "profile"); fd.append("uploaderName", name); fd.append("file", file);
-        // The photo is a bonus, never a gate: a failed or queued upload must not cost
-        // someone the seat they just took.
-        const shot = await uploadPhoto(fd).catch(() => null);
-        if (shot && shot.status === "pending") {
-          toast("You're in — your photo is with the organiser for approval");
-        }
+        // The photo is a bonus, never a gate: a failed upload must not cost someone the
+        // seat they just took, so this swallows and carries on.
+        await uploadPhoto(fd).catch(() => null);
       }
       queryClient?.invalidateQueries({ queryKey: ["sweep"] });
       toast(`You're in as ${person.short}`);
-      onClose();
+      onClose?.();
     } catch (e2) {
       setErr(e2?.message?.includes("403")
         ? "You're not able to join this sweep. Ask whoever runs it."
@@ -82,10 +82,13 @@ export function JoinSheet({ onClose, queryClient }) {
   const head = step === "email" ? "Join this sweep" : step === "code" ? "Check your email" : "Set yourself up";
 
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={blocking ? undefined : onClose}>
       <div className="sheet" onClick={(e) => e.stopPropagation()} style={{ maxHeight: "90%" }}>
         <div className="grab"></div>
-        <div className="sheet-head"><h3>{head}</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
+        <div className="sheet-head">
+          <h3>{head}</h3>
+          {!blocking && <button className="x" onClick={onClose}><Icon.x/></button>}
+        </div>
         <div className="sheet-body">
           {err && <p role="alert" style={{ fontSize: 13, color: "var(--accent)", margin: "0 0 12px" }}>{err}</p>}
 
@@ -141,15 +144,17 @@ export function JoinSheet({ onClose, queryClient }) {
               <p style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.45, marginBottom: 14 }}>
                 This is how the group will see you.
               </p>
-              <div style={{ display: "flex", justifyContent: "center", marginBottom: 14 }}>
-                <label style={{ cursor: "pointer", textAlign: "center" }}>
-                  <PersonAvatar p={preview} cls="pav" style={{ width: 84, height: 84, fontSize: 30 }} />
-                  <input type="file" accept="image/jpeg,image/png,image/webp" style={{ display: "none" }}
-                         aria-label="Add a photo" onChange={(e) => { setFile(e.target.files?.[0] ?? null); setNote(e.target.files?.[0]?.name ?? null); }} />
-                  <span style={{ display: "block", fontSize: 12, color: "var(--accent)", marginTop: 8 }}>
-                    {note ? "Change photo" : "Add a photo (optional)"}
-                  </span>
+              <div className="join-face">
+                <PersonAvatar p={preview} cls="pav join-face-av" style={{ width: 84, height: 84, fontSize: 30 }} />
+                {/* A bare text link under the avatar read as a caption, not a control —
+                    which is why "add a photo" looked like it did not work. */}
+                <label className="join-face-btn">
+                  {note ? "Change photo" : "Add a photo"}
+                  <input type="file" accept="image/jpeg,image/png,image/webp" hidden
+                         aria-label="Add a photo"
+                         onChange={(e) => { setFile(e.target.files?.[0] ?? null); setNote(e.target.files?.[0]?.name ?? null); }} />
                 </label>
+                {note && <p className="join-face-name">{note}</p>}
               </div>
               <div className="field">
                 <label htmlFor="join-first">First name</label>

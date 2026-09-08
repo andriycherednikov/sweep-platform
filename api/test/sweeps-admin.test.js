@@ -325,7 +325,7 @@ test('links are built from publicOrigin when it is set', async () => {
 
 /* --- owner member management ------------------------------------------------ */
 
-test('adding a person with an email stores it lowercased and mails the group link', async () => {
+test('adding a person with an email stores it lowercased and mails them their own seat', async () => {
   const auth = await adminHeaders(app, db, 'default', 'ac_seed')
   mails.length = 0
   const res = await app.inject({
@@ -337,8 +337,9 @@ test('adding a person with an email stores it lowercased and mails the group lin
   expect(row.email).toBe('ivy@x.test')
   expect(mails).toHaveLength(1)
   expect(mails[0].to).toBe('ivy@x.test')
-  // the GROUP link, never a per-person credential
-  expect(mails[0].body).toContain('/g/')
+  // addressed to this seat: opening it signs them in and claims the row, so they never
+  // retype the address the organiser just typed for them
+  expect(mails[0].body).toMatch(/\/i\/[0-9A-Za-z]+/)
   await db.delete(person).where(eq(person.id, res.json().id))
 })
 

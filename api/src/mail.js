@@ -26,16 +26,18 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
 /* --- the shell -------------------------------------------------------------
    Mail clients are not browsers. Every structural style is inline because
    Outlook's Word engine drops <style> entirely; the <style> block carries only
-   the two things that cannot be inlined. No images at all -- an image wordmark
-   is a broken box in an image-blocking inbox -- and no webfont request, so every
-   stack ends in a generic family and the design must read correctly with zero
-   fonts loaded. Foreground AND background are set on every element so Gmail's
+   what cannot be inlined. No images at all -- an image wordmark is a broken box
+   in an image-blocking inbox -- and no webfont request, so every stack ends in a
+   generic family and this has to read correctly with zero fonts loaded. That is
+   also why the wordmark is NOT set in a script face: Caveat never loads in mail,
+   so it always fell through to whatever handwriting font the machine had, which
+   is what made it look amateur. Condensed caps degrade to Arial and still look
+   deliberate. Foreground AND background are set on every element so Gmail's
    forced dark inversion cannot eat half of it.
    ponytail: one shell, two callers, interpolated -- a render({...}) engine with
    six knobs would be more machinery than the two mails it serves. */
-const SANS = "'Barlow','Helvetica Neue',Arial,sans-serif"
-const COND = "'Barlow Condensed','Helvetica Neue',Arial,sans-serif"
-const SCRIPT = "'Caveat','Bradley Hand','Segoe Script','Brush Script MT',cursive"
+const SANS = "'Barlow','Helvetica Neue',Helvetica,Arial,sans-serif"
+const COND = "'Barlow Condensed','Helvetica Neue',Helvetica,Arial,sans-serif"
 
 function shell({ preheader, eyebrow, heading, lede, block, foot }) {
   return `<!doctype html>
@@ -47,40 +49,47 @@ function shell({ preheader, eyebrow, heading, lede, block, foot }) {
 <title>The Sweep</title>
 <style>
 @media (prefers-color-scheme: dark) {
-  .page{background:#0a1017 !important;} .card{background:#16202c !important; border-color:#26313f !important;}
-  .ink{color:#f2f4f6 !important;} .muted{color:#93a1b0 !important;} .foot{color:#6b7a8b !important;}
+  .page{background:#0b1119 !important;} .card{background:#141d28 !important; border-color:#243040 !important;}
+  .ink{color:#f4f6f8 !important;} .muted{color:#9aa8b6 !important;} .foot{color:#6b7a8b !important;}
+  .rule{border-color:#243040 !important;}
 }
 @media screen and (max-width:600px) {
-  .shell{width:100% !important;} .pad{padding-left:22px !important; padding-right:22px !important;}
-  .code{font-size:32px !important; letter-spacing:8px !important;}
+  .shell{width:100% !important;} .pad{padding-left:26px !important; padding-right:26px !important;}
+  .code{font-size:34px !important; letter-spacing:10px !important;}
 }
 </style>
 </head>
 <body style="margin:0;padding:0;background:#f4f2ee;">
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader}</div>
 <table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f2ee;">
-<tr><td align="center" style="padding:32px 12px 40px;">
-<table role="presentation" class="shell" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px;max-width:600px;">
-  <tr><td class="pad" align="left" style="padding:0 8px 18px;">
-    <span class="ink" style="font-family:${SCRIPT};font-size:34px;line-height:1;color:#0f1620;">The Sweep</span>
+<tr><td align="center" style="padding:40px 12px 48px;">
+<table role="presentation" class="shell" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;">
+
+  <tr><td class="pad" align="center" style="padding:0 0 22px;">
+    <span class="ink" style="font-family:${COND};font-size:15px;font-weight:800;letter-spacing:5px;text-transform:uppercase;color:#0f1620;">The&nbsp;Sweep</span>
   </td></tr>
-  <tr><td class="card" style="background:#ffffff;border:1px solid #e2ded6;border-radius:16px;">
+
+  <tr><td class="card" style="background:#ffffff;border:1px solid #e6e1d9;border-radius:14px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-      <tr><td class="pad" style="padding:30px 34px 0;">
-        <p style="margin:0;font-family:${COND};font-size:11px;font-weight:700;letter-spacing:3px;text-transform:uppercase;color:#ec3013;">${eyebrow}</p>
-        <h1 class="ink" style="margin:10px 0 0;font-family:${COND};font-size:28px;font-weight:800;letter-spacing:-.2px;line-height:1.15;text-transform:uppercase;color:#0f1620;">${heading}</h1>
-        <p class="muted" style="margin:10px 0 0;font-family:${SANS};font-size:15px;line-height:1.6;color:#5f5b58;">${lede}</p>
+
+      <tr><td class="pad" style="padding:38px 40px 0;">
+        <p class="muted" style="margin:0;font-family:${SANS};font-size:12px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#8a8481;">${eyebrow}</p>
+        <h1 class="ink" style="margin:12px 0 0;font-family:${COND};font-size:30px;font-weight:700;letter-spacing:0;line-height:1.2;color:#0f1620;">${heading}</h1>
+        <p class="muted" style="margin:12px 0 0;font-family:${SANS};font-size:15px;line-height:1.65;color:#5f5b58;">${lede}</p>
       </td></tr>
-      <tr><td class="pad" style="padding:22px 34px 4px;">${block}</td></tr>
-      <tr><td class="pad" style="padding:20px 34px 30px;">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td width="8" style="width:8px;height:8px;background:#ec3013;border-radius:2px;font-size:0;line-height:0;">&nbsp;</td>
-          <td class="muted" style="padding-left:10px;font-family:${SANS};font-size:13.5px;line-height:1.6;color:#5f5b58;">${foot}</td>
-        </tr></table>
+
+      <tr><td class="pad" style="padding:26px 40px 0;">${block}</td></tr>
+
+      <tr><td class="pad" style="padding:28px 40px 0;">
+        <div class="rule" style="border-top:1px solid #eeeae3;font-size:0;line-height:0;">&nbsp;</div>
       </td></tr>
+      <tr><td class="pad muted" style="padding:16px 40px 34px;font-family:${SANS};font-size:13px;line-height:1.6;color:#8a8481;">${foot}</td></tr>
+
     </table>
   </td></tr>
-  <tr><td class="foot pad" align="left" style="padding:18px 8px 0;font-family:${SANS};font-size:12px;line-height:1.6;color:#8a8481;">The Sweep &middot; we never ask for your password.</td></tr>
+
+  <tr><td class="foot pad" align="center" style="padding:20px 8px 0;font-family:${SANS};font-size:12px;line-height:1.6;color:#a09a95;">The Sweep &middot; we will never ask you for your password.</td></tr>
+
 </table>
 </td></tr>
 </table>
@@ -105,37 +114,45 @@ export function codeMail(code, sweepName) {
     html: shell({
       preheader: `Your code is ${esc(code)} - it expires in 15 minutes.`,
       eyebrow: `Joining ${sweep}`,
-      heading: 'Here&rsquo;s your code',
-      lede: 'Type it into the page you left open. It works once, and it expires in 15 minutes.',
+      heading: 'Your code',
+      lede: 'Type this into the page you left open. It works once, and it expires in 15 minutes.',
       block: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0f1620;border-radius:12px;">
-          <tr><td align="center" style="padding:24px 12px;">
-            <span class="code" style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;font-size:40px;font-weight:700;letter-spacing:12px;line-height:1;color:#ffffff;-webkit-user-select:all;user-select:all;">${esc(code)}</span>
+          <tr><td align="center" style="padding:26px 12px;">
+            <span class="code" style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;font-size:38px;font-weight:600;letter-spacing:12px;line-height:1;color:#ffffff;-webkit-user-select:all;user-select:all;">${esc(code)}</span>
           </td></tr>
         </table>`,
       foot: 'Never share this code &mdash; nobody from The Sweep will ask you for it. '
-        + 'Didn&rsquo;t ask for this? Someone typed your address into a sweep invite. '
-        + 'Ignore this email and nothing happens.',
+        + 'If you did not ask for it, someone typed your address into a sweep invite; '
+        + 'ignore this and nothing happens.',
     }),
   }
 }
 
-/** The owner put someone on the roster. This carries the GROUP link, never a per-person
- *  credential -- see the member-identity spec section 2 for why per-person links are refused. */
+/** The organiser set a seat aside for someone. The link is addressed to THIS seat and
+ *  THIS address: opening it signs them in and hands them the seat, teams and all, so
+ *  they never retype the address the organiser just typed for them. Single-use and
+ *  expiring, which is what keeps a forwarded copy from being a spare key. */
 export function inviteMail(sweepName, link) {
   const sweep = esc(sweepName ?? 'a sweep')
+  const name = sweepName ?? 'a sweep'
   return {
-    subject: `You're in ${sweepName ?? 'a sweep'} on The Sweep`,
-    text: `THE SWEEP\n\nSomeone added you to ${sweepName ?? 'a sweep'}.\n\n`
-      + `Open this link, enter this email address, and the seat they set up\nfor you is yours:\n\n${link}\n\n`
-      + "Didn't expect this? Ignore this email - nothing happens until you\nopen the link.\n",
+    subject: `Your seat in ${name}`,
+    text: `THE SWEEP\n\nYou have a seat in ${name}.\n\n`
+      + `Open this link and you are in - signed in, with whatever teams have\nalready been drawn to your name:\n\n${link}\n\n`
+      + 'The link works once and expires in seven days. If you were not\nexpecting it, ignore this and nothing happens.\n',
     html: shell({
-      preheader: `Someone added you to ${sweep}. Open the link to take your seat.`,
-      eyebrow: `You&rsquo;re in ${sweep}`,
-      heading: 'Someone put you in the sweep',
-      lede: 'Open the link and enter this email address. The seat they set up for you - and any teams already drawn to it - is yours.',
-      block: `<a href="${esc(link)}" style="padding:13px 26px;border-radius:11px;background:#ec3013;color:#ffffff;font-family:${COND};font-size:17px;font-weight:800;text-transform:uppercase;text-decoration:none;display:inline-block;">Take your seat</a>
-        <p class="muted" style="margin:14px 0 0;font-family:${SANS};font-size:12.5px;line-height:1.5;word-break:break-all;color:#5f5b58;">${esc(link)}</p>`,
-      foot: 'Didn&rsquo;t expect this? Ignore this email &mdash; nothing happens until you open the link.',
+      preheader: `Open the link and you are in \u2014 signed in, teams and all.`,
+      eyebrow: sweep,
+      heading: 'You have a seat',
+      lede: 'Open this and you are in — signed in as yourself, with whatever teams have already been drawn to your name. Nothing to type.',
+      block: `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" style="background:#ec3013;border-radius:10px;">
+            <a href="${esc(link)}" style="display:inline-block;padding:14px 30px;font-family:${COND};font-size:16px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;text-decoration:none;color:#ffffff;">Take your seat</a>
+          </td>
+        </tr></table>
+        <p class="muted" style="margin:16px 0 0;font-family:${SANS};font-size:12px;line-height:1.55;word-break:break-all;color:#a09a95;">Button not working? Paste this into your browser:<br>${esc(link)}</p>`,
+      foot: 'The link works once and expires in seven days. If you were not expecting it, '
+        + 'ignore this and nothing happens.',
     }),
   }
 }

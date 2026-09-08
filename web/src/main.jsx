@@ -8,10 +8,10 @@ import { Pricing } from "./screens-pricing.jsx";
 import { Terms, Privacy } from "./screens-legal.jsx";
 import { SweepSwitcher } from "./screens-switch.jsx";
 import { registerServiceWorker } from "./lib/registerSW.js";
-import { joinFromLocation } from "./lib/bootstrapJoin.js";
+import { joinFromLocation, inviteFromLocation } from "./lib/bootstrapJoin.js";
 import { parseSuperRoute } from "./lib/superRoute.js";
 import { parseSweepPath } from "./lib/joinLink.js";
-import { postSession, setActiveSweep, NO_SWEEP } from "./api/client.js";
+import { postSession, postInviteSession, setActiveSweep, NO_SWEEP } from "./api/client.js";
 import "./styles.css";
 import "./desktop.css";
 
@@ -54,7 +54,11 @@ if (MarketingPage) {
   // Intercept a /g/<token>[/admin/<token>] capability link BEFORE rendering: exchange
   // it for a session cookie, then replace the token in the URL with the sweep's own
   // address (D2 — the token still never lingers, it just lands somewhere real).
-  joinFromLocation(window.location, window.history, postSession).finally(() => {
+  // A /i/<token> invite is redeemed first: it is the only link that arrives already
+  // knowing who you are, so it must not be mistaken for an anonymous group link.
+  inviteFromLocation(window.location, window.history, postInviteSession)
+    .then(() => joinFromLocation(window.location, window.history, postSession))
+    .finally(() => {
     // The URL decides which sweep this tab is looking at — that is what makes two
     // tabs on two sweeps possible, and what makes a bookmark land where it says.
     setActiveSweep(parseSweepPath(window.location.pathname) ?? NO_SWEEP);

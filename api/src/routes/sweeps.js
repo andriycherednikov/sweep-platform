@@ -1,5 +1,5 @@
 import { eq, or, and, inArray } from 'drizzle-orm'
-import { sweep, person, ownership, competitor, photo } from '../db/schema.js'
+import { sweep, person, ownership, competitor, photo, loginToken } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSweep } from '../sweeps/auth.js'
 import { requireOperator } from '../accounts/auth.js'
@@ -7,6 +7,8 @@ import { recordOperatorAction } from '../accounts/audit.js'
 import { codeToCompetitorId } from './competitors.js'
 import { correctFixture } from '../corrections.js'
 import { inviteMail } from '../mail.js'
+import { INVITE_TTL_MS } from '../accounts/auth.js'
+import { and as _and, isNull as _isNull } from 'drizzle-orm'
 
 const sessionBody = {
   type: 'object', required: ['token'], additionalProperties: false,
@@ -164,12 +166,22 @@ export async function sweepsRoutes(app) {
     },
   }
 
-  /** Tell someone the organiser has a seat waiting for them. It carries the GROUP link:
-   *  a per-person credential pasted into the group chat would hand every seat to
-   *  everyone, permanently (member-identity spec section 2). Mail is a notification, so
-   *  a dead transport must not fail a row that is already written. */
-  function invite(req, email) {
-    const m = inviteMail(req.sweep.name, links(app, req.sweep).memberLink)
+  /** Tell someone the organiser has a seat waiting for them, and let the link do the
+   *  work: it signs their address in and claims that seat, so they arrive already
+   *  themselves instead of re-typing the address the organiser just typed for them.
+   *
+   *  It is a bearer credential for one seat, so it is single-use and expires. Minting a
+   *  new one burns the old, which makes "resend" also mean "the last link is dead".
+   *  Mail is a notification: a dead transport must not fail a row already written. */
+  async function invite(req, personId, email) {
+    const now = new Date()
+    await app.db.update(loginToken).set({ usedAt: now })
+      .where(_and(eq(loginToken.personId, personId), _isNull(loginToken.usedAt)))
+    const token = newToken()
+    await app.db.insert(loginToken).values({
+      token, email, personId, expiresAt: new Date(now.getTime() + INVITE_TTL_MS),
+    })
+    const m = inviteMail(req.sweep.name, `${app.publicOrigin}/i/${token}`)
     return app.sendMail(email, m.subject, m.text, m.html)
       .catch((err) => req.log.error({ err }, 'invite mail failed'))
   }
@@ -199,7 +211,7 @@ export async function sweepsRoutes(app) {
     // Matched with lower() when the seat is claimed, so it is stored normalized.
     const email = req.body.email ? req.body.email.trim().toLowerCase() : null
     await app.db.insert(person).values({ id, sweepId: req.sweep.id, name, short, initials, avColor: av, email })
-    if (email) await invite(req, email)
+    if (email) await invite(req, id, email)
     return reply.code(201).send({ id, name, short, initials, av, email })
   })
 
@@ -241,7 +253,7 @@ export async function sweepsRoutes(app) {
     const [updated] = await app.db.select().from(person).where(where)
     // Re-sending is the same verb as inviting: one route, and the owner's mental model
     // ("give this seat an address") is the same either way.
-    if (set.email) await invite(req, set.email)
+    if (set.email) await invite(req, updated.id, set.email)
     return {
       id: updated.id, name: updated.name, short: updated.short, initials: updated.initials,
       adult: updated.adult, email: updated.email, ejected: !!updated.ejectedAt,

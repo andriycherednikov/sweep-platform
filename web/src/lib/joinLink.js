@@ -26,3 +26,16 @@ export function parseSweepPath(pathname) {
   const seg = pathname.split('/').filter(Boolean)
   return seg[0] === 's' && seg[1] ? seg[1] : null
 }
+
+/**
+ * Recognise a per-seat invite path: `/i/<inviteToken>`.
+ * Unlike `/g/<memberToken>` this names ONE seat and one address — redeeming it both
+ * signs that address in and claims the seat, so an invitee never retypes the address
+ * the organiser already typed for them. Single-use and expiring, server-side.
+ * @param {string} pathname
+ * @returns {string|null} the invite token, or null
+ */
+export function parseInviteLink(pathname) {
+  const seg = pathname.split('/').filter(Boolean)
+  return seg.length === 2 && seg[0] === 'i' && seg[1] ? seg[1] : null
+}

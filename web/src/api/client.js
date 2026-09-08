@@ -92,6 +92,13 @@ export const postJoinSession = async (email, code) => {
   return out
 }
 export const postMe = (name) => postCreds('/api/me', { name })
+/** Redeem a per-seat invite. Needs no sweep session — the token is the introduction,
+ *  and the response sets the sweep cookie as well as handing back the account token. */
+export const postInviteSession = async (token) => {
+  const out = await postCreds('/api/account/session/invite', { token })
+  setAccountToken(out.accountToken)
+  return out
+}
 
 // `extra` headers (e.g. adminHeaders() below) are opt-in per call, never ambient:
 // only the handful of call sites that need them pass them.
