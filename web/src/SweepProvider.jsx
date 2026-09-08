@@ -8,6 +8,7 @@ import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep } from './sweeps.js'
 import { parseSweepPath } from './lib/joinLink.js'
+import { getAccountToken, getAccountSweeps } from './lib/accountClient.js'
 import { Landing } from './screens-landing.jsx'
 
 const is401 = (err) => /HTTP 401/.test(err?.message || '')
@@ -39,6 +40,8 @@ function Gate({ children }) {
   // One stored-token re-exchange per mount. Without the guard a sweep that 401s for
   // any other reason (archived, rotated) would re-post and refetch forever.
   const rejoinRef = useRef(false)
+  // One account-ownership check per mount, same shape as rejoinRef above.
+  const accountRejoinRef = useRef(false)
   // Re-render + re-key the wallet on identity switch so balance/bets/statement
   // follow whoever you're viewing as.
   const { me } = useSocial()
@@ -106,6 +109,31 @@ function Gate({ children }) {
     // sweep's link token, the cookie has merely expired — spend the token once and
     // carry on, which is what makes a bookmark survive the 8h session.
     if (wanted) {
+      // The sweep cookie is 8h; the account session behind it is 90d. An owner opening
+      // their own bookmark on a new phone (or after the cookie expired) has no stored
+      // link token for it at all — without this they'd be told to go find their invite
+      // link, for a sweep they own. Checked first: it applies even when this browser
+      // has never held that sweep's token.
+      if (getAccountToken() && !accountRejoinRef.current) {
+        accountRejoinRef.current = true
+        getAccountSweeps()
+          .then((rows) => {
+            const owned = rows.find((s) => s.id === wanted)
+            if (owned) window.location.assign(owned.memberLink)
+            // Not this account's sweep: refetch() re-runs the sweep query, which 401s
+            // again and falls through to the stored-token / needs-invite path below.
+            else refetch()
+          })
+          .catch(() => refetch())
+        return (
+          <div data-testid="sweep-loading" className="sweep-gate">
+            <GateBrand />
+            <div className="sweep-spinner" aria-hidden="true" />
+            <p className="sweep-gate-msg">Loading the sweep…</p>
+          </div>
+        )
+      }
+
       const stored = sweeps.find((s) => s.sweepId === wanted && s.token)
       if (stored && !rejoinRef.current) {
         rejoinRef.current = true
