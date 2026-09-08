@@ -70,6 +70,19 @@ make logs S=worker   # tail a service
 
 Migrations run automatically in the `migrate` one-shot before api/worker start.
 
+**`make deploy` ships `docker-compose.yml`, never `.env.docker`.** That file lives on
+the server and is yours to maintain: when a release adds a required variable, add it
+there *first*. The `migrate` one-shot refuses to run — and so nothing else starts, and
+the running site is untouched — if `SESSION_SECRET`, `PUBLIC_ORIGIN`, `RESEND_API_KEY`
+or `MAIL_FROM` is missing. Diff `docker/.env.docker.example` against the server copy
+before every deploy.
+
+> ⚠️ **Migrations are one-way. Redeploying the previous image is not a rollback.**
+> `0008_bitter_whiplash` drops `sweep.admin_token`, a column the pre-auth-rebuild image
+> still selects in `POST /api/session`, so that image cannot serve once 0008 has run.
+> Backing out means restoring the database from a `pg_dump` taken before the deploy.
+> Take one (see Operations) whenever the release contains a new migration.
+
 ## First-boot data (one-time)
 
 The portal ships empty — no seed data. Only the league catalog needs priming
