@@ -795,6 +795,7 @@ import { ownerHeaders } from './helpers/session.js'
 import { account, accountSession } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { SESSION_TTL_MS } from '../src/accounts/auth.js'
+import { hashPassword } from '../src/auth.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
@@ -846,6 +847,48 @@ test('changing a password on a stale session requires the current one', async ()
   expect((await setPw(headers, { password: 'another-passphrase' })).statusCode).toBe(403)
   expect((await setPw(headers, { password: 'another-passphrase', current: 'nope' })).statusCode).toBe(401)
   expect((await setPw(headers, { password: 'another-passphrase', current: 'a-good-passphrase' })).statusCode).toBe(204)
+})
+
+// The freshness exemption must not be a free pass just because there's no old
+// password to check against — a stolen 90-day token could otherwise plant a
+// password on an account that never had one, and keep working past a sign-out-everywhere.
+test('a stale link session cannot bootstrap a password either', async () => {
+  await db.insert(account).values({
+    id: 'ac_pw_bootstrap', email: 'pw-bootstrap@example.test',
+  }).onConflictDoNothing()
+  const token = newToken()
+  await db.insert(accountSession).values({
+    token, accountId: 'ac_pw_bootstrap', via: 'link',
+    createdAt: new Date(Date.now() - 20 * 60_000),
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+  })
+  const res = await setPw({ 'x-account-token': token }, { password: 'a-good-passphrase' })
+  expect(res.statusCode).toBe(403)
+  expect(res.json()).toEqual({ error: 'reauth_required' })
+})
+
+// The grace window has a time limit, not just a via check.
+test('a stale link session cannot change an existing password without current either', async () => {
+  await db.insert(account).values({
+    id: 'ac_pw_stale', email: 'pw-stale@example.test', passwordHash: await hashPassword('original-passphrase'),
+  }).onConflictDoNothing()
+  const token = newToken()
+  await db.insert(accountSession).values({
+    token, accountId: 'ac_pw_stale', via: 'link',
+    createdAt: new Date(Date.now() - 20 * 60_000),
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+  })
+  const res = await setPw({ 'x-account-token': token }, { password: 'a-newer-passphrase' })
+  expect(res.statusCode).toBe(403)
+  expect(res.json()).toEqual({ error: 'current_required' })
+})
+
+// hashPassword's cap is 72 BYTES; the schema's maxLength is 72 UTF-16 units — a
+// multi-byte password can clear the schema and still overflow the hash.
+test('a 72-character multi-byte password is rejected cleanly, not with a 500', async () => {
+  const res = await setPw(await ownerHeaders(db, 'ac_pw'), { password: 'д'.repeat(72) })
+  expect(res.statusCode).toBe(400)
+  expect(res.json()).toEqual({ error: 'password_too_long' })
 })
 
 test('sign out drops this session only; sign out everywhere drops the rest', async () => {
@@ -924,19 +967,27 @@ Add the routes inside `accountRoutes`:
   app.post('/api/account/password', {
     preHandler: requireAccount(app), schema: { body: setPasswordBody },
   }, async (req, reply) => {
-    const [acc] = await app.db.select().from(account).where(eq(account.id, req.account.id))
-    if (acc.passwordHash) {
-      // …unless this session came from a magic link minutes ago. Without that exemption
-      // a forgotten password is unrecoverable: the reset path would demand the password
-      // the person has forgotten.
-      const [sess] = await app.db.select().from(accountSession)
-        .where(eq(accountSession.token, req.headers['x-account-token']))
-      const fresh = sess?.via === 'link' && Date.now() - sess.createdAt.getTime() < LINK_GRACE_MS
-      if (!fresh) {
-        if (!req.body.current) return reply.code(403).send({ error: 'current_required' })
-        if (!(await verifyPassword(req.body.current, acc.passwordHash))) {
-          return reply.code(401).send({ error: 'bad_credentials' })
-        }
+    // maxLength on the schema counts UTF-16 units; hashPassword's cap is bytes — a
+    // multi-byte password can clear the schema and still overflow the hash, which
+    // would 500 instead of a clean rejection without this check.
+    if (Buffer.byteLength(req.body.password, 'utf8') > MAX_PASSWORD_BYTES) {
+      return reply.code(400).send({ error: 'password_too_long' })
+    }
+    const acc = req.account
+    // Setting a password is exactly as sensitive whether it's the first one or a
+    // replacement, so both need the same proof: a magic link minutes old, or the
+    // current password. Without that, a stolen 90-day session token could plant a
+    // password on an account that never had one and keep access past a sign-out-everywhere.
+    const [sess] = await app.db.select().from(accountSession)
+      .where(eq(accountSession.token, req.headers['x-account-token']))
+    const fresh = sess?.via === 'link' && Date.now() - sess.createdAt.getTime() < LINK_GRACE_MS
+    if (!fresh) {
+      // No hash to prove knowledge of → there is no `current` this client could ever
+      // supply. The honest answer is "go get a fresh link", not "current_required".
+      if (!acc.passwordHash) return reply.code(403).send({ error: 'reauth_required' })
+      if (!req.body.current) return reply.code(403).send({ error: 'current_required' })
+      if (!(await verifyPassword(req.body.current, acc.passwordHash))) {
+        return reply.code(401).send({ error: 'bad_credentials' })
       }
     }
     await app.db.update(account)

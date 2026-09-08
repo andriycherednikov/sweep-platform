@@ -104,19 +104,27 @@ export async function accountRoutes(app) {
   app.post('/api/account/password', {
     preHandler: requireAccount(app), schema: { body: setPasswordBody },
   }, async (req, reply) => {
-    const [acc] = await app.db.select().from(account).where(eq(account.id, req.account.id))
-    if (acc.passwordHash) {
-      // …unless this session came from a magic link minutes ago. Without that exemption
-      // a forgotten password is unrecoverable: the reset path would demand the password
-      // the person has forgotten.
-      const [sess] = await app.db.select().from(accountSession)
-        .where(eq(accountSession.token, req.headers['x-account-token']))
-      const fresh = sess?.via === 'link' && Date.now() - sess.createdAt.getTime() < LINK_GRACE_MS
-      if (!fresh) {
-        if (!req.body.current) return reply.code(403).send({ error: 'current_required' })
-        if (!(await verifyPassword(req.body.current, acc.passwordHash))) {
-          return reply.code(401).send({ error: 'bad_credentials' })
-        }
+    // maxLength on the schema counts UTF-16 units; hashPassword's cap is bytes — a
+    // multi-byte password can clear the schema and still overflow the hash, which
+    // would 500 instead of a clean rejection without this check.
+    if (Buffer.byteLength(req.body.password, 'utf8') > MAX_PASSWORD_BYTES) {
+      return reply.code(400).send({ error: 'password_too_long' })
+    }
+    const acc = req.account
+    // Setting a password is exactly as sensitive whether it's the first one or a
+    // replacement, so both need the same proof: a magic link minutes old, or the
+    // current password. Without that, a stolen 90-day session token could plant a
+    // password on an account that never had one and keep access past a sign-out-everywhere.
+    const [sess] = await app.db.select().from(accountSession)
+      .where(eq(accountSession.token, req.headers['x-account-token']))
+    const fresh = sess?.via === 'link' && Date.now() - sess.createdAt.getTime() < LINK_GRACE_MS
+    if (!fresh) {
+      // No hash to prove knowledge of → there is no `current` this client could ever
+      // supply. The honest answer is "go get a fresh link", not "current_required".
+      if (!acc.passwordHash) return reply.code(403).send({ error: 'reauth_required' })
+      if (!req.body.current) return reply.code(403).send({ error: 'current_required' })
+      if (!(await verifyPassword(req.body.current, acc.passwordHash))) {
+        return reply.code(401).send({ error: 'bad_credentials' })
       }
     }
     await app.db.update(account)
