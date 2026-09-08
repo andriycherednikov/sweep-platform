@@ -74,3 +74,23 @@ test('rotating the member link kills the old token and mints a working one', asy
   expect(ok.statusCode).toBe(200)
   expect(ok.json().sweepId).toBe('default')
 })
+
+// Rotation is damage control, not a feature of a paid plan: an owner whose subscription
+// lapsed must still be able to kill a leaked member link — the read-only gate exists to
+// freeze sweep CONTENT, and archiving (destructive) was never gated at all.
+test('a lapsed owner can rotate the member link, but still cannot edit the sweep', async () => {
+  const rot = await app.inject({
+    method: 'POST', url: '/api/account/sweeps/sw_lapsed/rotate',
+    headers: await ownerHeaders(db, 'ac_lapsed'),
+  })
+  expect(rot.statusCode).toBe(200)
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, 'sw_lapsed'))
+  expect(row.memberToken).not.toBe('lapsedmembertoken0000')
+
+  const patch = await app.inject({
+    method: 'PATCH', url: '/api/account/sweeps/sw_lapsed',
+    headers: await ownerHeaders(db, 'ac_lapsed'), payload: { name: 'Nope' },
+  })
+  expect(patch.statusCode).toBe(403)
+  expect(patch.json().error).toBe('sweep_readonly')
+})

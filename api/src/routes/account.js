@@ -274,14 +274,17 @@ export async function accountRoutes(app) {
   })
 
   /** The owner's own sweep. 404 for a sweep they do not own — never 403, so the id
-   *  cannot be probed to learn which sweeps exist. */
-  async function ownedSweep(req, reply) {
+   *  cannot be probed to learn which sweeps exist. `requireLive` is the read-only gate,
+   *  which only sweep CONTENT needs: the global one cannot cover these routes, because
+   *  it keys on the cookie-resolved sweep (sweeps/read-only.js:11) and the account
+   *  console sends no sweep cookie. */
+  async function ownedSweep(req, reply, { requireLive = true } = {}) {
     const [row] = await app.db.select().from(sweep)
       .where(and(eq(sweep.id, req.params.id), eq(sweep.accountId, req.account.id)))
     if (!row) { reply.code(404).send({ error: 'not_found' }); return null }
-    // The global read-only gate cannot cover this route: it keys on the cookie-resolved
-    // sweep (sweeps/read-only.js:11) and the account console sends no sweep cookie.
-    if (!(await sweepLiveNow(app, row))) { reply.code(403).send({ error: 'sweep_readonly' }); return null }
+    if (requireLive && !(await sweepLiveNow(app, row))) {
+      reply.code(403).send({ error: 'sweep_readonly' }); return null
+    }
     return row
   }
 
@@ -294,8 +297,12 @@ export async function accountRoutes(app) {
     return { ok: true }
   })
 
+  // Rotation is damage control, not a feature of a paid plan. A lapsed owner whose
+  // member link has leaked must be able to revoke it — the alternative is a frozen sweep
+  // that strangers keep reading, while archiving it (the destructive option) was already
+  // theirs to take.
   app.post('/api/account/sweeps/:id/rotate', { preHandler: accountGuard }, async (req, reply) => {
-    const row = await ownedSweep(req, reply)
+    const row = await ownedSweep(req, reply, { requireLive: false })
     if (!row) return
     const memberToken = newToken()
     await app.db.update(sweep).set({ memberToken }).where(eq(sweep.id, row.id))
