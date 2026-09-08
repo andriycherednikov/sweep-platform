@@ -43,7 +43,7 @@ export function Pricing() {
         <div className="lp-plan-card">
           <p className="lp-plan-n">$5<span>/month</span></p>
           <p className="lp-plan-sub">per running sweep · billed monthly · cancel any time</p>
-          <a className="lp-btn lp-btn-lg" href="/account">Start free</a>
+          <a className="lp-btn lp-btn-lg" href="/account?signup">Start free</a>
           <ul className="lp-plan-list">
             {INCLUDED.map((line) => <li key={line}>{line}</li>)}
           </ul>

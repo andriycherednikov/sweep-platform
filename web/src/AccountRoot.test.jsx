@@ -92,7 +92,7 @@ test('a bad-credentials password sign-in shows an error and does not reload', as
 test('"email me a link instead" switches to the magic-link form, which still works as before', async () => {
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
+  fireEvent.click(screen.getByRole('button', { name: /email me a link/i }))
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'me@example.com' } })
   fireEvent.click(screen.getByRole('button', { name: /send/i }))
   await waitFor(() => expect(accountClient.requestLogin).toHaveBeenCalledWith('me@example.com'))
@@ -103,7 +103,7 @@ test('"email me a link instead" switches to the magic-link form, which still wor
 test('the magic-link form can switch back to signing in with a password', async () => {
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
+  fireEvent.click(screen.getByRole('button', { name: /email me a link/i }))
   fireEvent.click(screen.getByRole('button', { name: /sign in with a password instead/i }))
   expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
 })
@@ -119,7 +119,7 @@ test('the partial sign-out notice survives switching to the magic-link form', as
   window.history.replaceState(null, '', '/account?signout=partial')
   render(<AccountRoot />)
   await screen.findByText(/could not sign out your other devices/i)
-  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
+  fireEvent.click(screen.getByRole('button', { name: /email me a link/i }))
   expect(screen.getByText(/could not sign out your other devices/i)).toBeInTheDocument()
 })
 
@@ -217,4 +217,34 @@ test('/account/new while signed out bounces back to /account', async () => {
   Object.defineProperty(window, 'location', { value: { ...window.location, assign }, configurable: true, writable: true })
   render(<AccountRoot />)
   await waitFor(() => expect(assign).toHaveBeenCalledWith('/account'))
+})
+
+// Every acquisition CTA ("Start free" on the landing and the pricing page) points here.
+// A first-time visitor has no password to remember; the sign-in wall answered them
+// "Wrong email or password" for an email that never had an account.
+test('arriving from "Start free" (?signup) lands somewhere that creates an account', () => {
+  window.history.replaceState(null, '', '/account?signup')
+  render(<AccountRoot />)
+  expect(screen.getByRole('button', { name: /send my link/i })).toBeInTheDocument()
+  expect(screen.getByText(/creates your account/i)).toBeInTheDocument()
+  expect(screen.queryByLabelText(/password/i)).toBeNull()
+  window.history.replaceState(null, '', '/account')
+})
+
+// The other half: a returning owner who clicked the same big button is one tap away.
+test('password sign-in is one tap from the signup screen', () => {
+  window.history.replaceState(null, '', '/account?signup')
+  render(<AccountRoot />)
+  fireEvent.click(screen.getByRole('button', { name: /sign in with a password instead/i }))
+  expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+  window.history.replaceState(null, '', '/account')
+})
+
+// A bare /account is where a bookmark and the "Sign in" links land: a returning owner.
+// It still opens on the password form — and still offers the other door in one tap.
+test('a bare /account opens on password sign-in, with the account-creating door beside it', () => {
+  window.history.replaceState(null, '', '/account')
+  render(<AccountRoot />)
+  expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /start a new account/i })).toBeInTheDocument()
 })

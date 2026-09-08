@@ -186,7 +186,7 @@ export function LandingNav() {
           {joined
             ? <a className="lp-ghost" href="/switch">Your sweeps</a>
             : <a className="lp-ghost" href="/account">Sign in</a>}
-          <a className="lp-btn" href="/account">Start free</a>
+          <a className="lp-btn" href="/account?signup">Start free</a>
         </div>
       </div>
     </header>
@@ -233,7 +233,7 @@ export function Landing() {
           to the finishing order.
         </p>
         <div className="lp-hero-cta lp-in lp-in-2">
-          <a className="lp-btn lp-btn-lg" href="/account">Start free</a>
+          <a className="lp-btn lp-btn-lg" href="/account?signup">Start free</a>
           <span className="lp-microcopy">14 days free · no card</span>
         </div>
 
@@ -329,7 +329,7 @@ export function Landing() {
           Two weeks free, no card. Bring the group in with a link and let the feed do
           the rest.
         </p>
-        <a className="lp-btn lp-btn-lg" href="/account">Start free</a>
+        <a className="lp-btn lp-btn-lg" href="/account?signup">Start free</a>
       </section>
 
       <LandingFoot />

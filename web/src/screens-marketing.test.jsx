@@ -14,14 +14,16 @@ test('the landing routes to pricing from the nav instead of quoting a price', ()
 
 test('the landing leads with the free trial, not the card', () => {
   render(<Landing />)
-  screen.getAllByRole('link', { name: /start free/i }).forEach((a) => expect(a).toHaveAttribute('href', '/account'))
+  // ?signup, not a bare /account: the CTA is what tells the account screen this is a
+  // new visitor, so it opens on the panel that can create an account
+  screen.getAllByRole('link', { name: /start free/i }).forEach((a) => expect(a).toHaveAttribute('href', '/account?signup'))
   expect(screen.getAllByText(/no card/i).length).toBeGreaterThan(0)
 })
 
 test('the pricing page carries the price and the same start action', () => {
   render(<Pricing />)
   expect(screen.getByText(/\$5/)).toBeInTheDocument()
-  expect(screen.getAllByRole('link', { name: /start free/i })[0]).toHaveAttribute('href', '/account')
+  expect(screen.getAllByRole('link', { name: /start free/i })[0]).toHaveAttribute('href', '/account?signup')
 })
 
 /* The rail is the page's one live element: real finished games, winner first. An

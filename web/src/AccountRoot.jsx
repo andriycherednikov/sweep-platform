@@ -176,7 +176,7 @@ function PasswordEntry({ onMagic, notice }) {
         {error && <p className="au-err">Wrong email or password.</p>}
       </form>
       <button type="button" className="au-alt" onClick={onMagic}>
-        Email me a link instead
+        Email me a link — or start a new account
       </button>
     </AuthPanel>
   );
@@ -203,9 +203,18 @@ function usePartialSignOutNotice() {
   return notice;
 }
 
+// Which door did they come through? Every acquisition CTA ("Start free" on the landing
+// and the pricing page) links to /account?signup, and someone arriving there has no
+// account and no password to remember — a password wall tells them "Wrong email or
+// password" for an email that was never going to work. A bare /account (a bookmark, the
+// "Sign in" links) is a returning owner, so it still opens on the password form. Either
+// panel switches to the other in one tap, so neither is a dead end.
+const wantsSignup = () =>
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).has("signup");
+
 function Entry() {
   const status = useAccountStatus();
-  const [mode, setMode] = useState("password"); // password | magic
+  const [mode, setMode] = useState(() => (wantsSignup() ? "magic" : "password")); // password | magic
   const notice = usePartialSignOutNotice();
 
   if (status === "checking") return <div className="sweep-gate" />;

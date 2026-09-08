@@ -122,7 +122,7 @@ test('a 401 with no stored sweeps → the product landing, not the member picker
   expect(screen.queryByTestId('sweep-pick')).toBeNull()
   const starts = screen.getAllByRole('link', { name: /start free/i })
   expect(starts.length).toBeGreaterThan(0)
-  starts.forEach((a) => expect(a).toHaveAttribute('href', '/account'))
+  starts.forEach((a) => expect(a).toHaveAttribute('href', '/account?signup'))
   expect(screen.getByText(/invite link/i)).toBeInTheDocument() // members still told what to do
 })
 
