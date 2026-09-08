@@ -47,7 +47,7 @@ async function sweepOn(competitionId, name) {
     leagueId: name, season: '1', format: 'league', name,
   })
   await db.insert(sweep).values({
-    id: `sw_${name}`, name, kind: 'token', memberToken, adminToken: newToken(), competitionId,
+    id: `sw_${name}`, name, kind: 'token', memberToken, competitionId,
   })
   const login = await app.inject({ method: 'POST', url: '/api/session', payload: { token: memberToken } })
   const cookie = login.headers['set-cookie']

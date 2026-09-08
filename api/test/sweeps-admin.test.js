@@ -2,9 +2,9 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq, ne, and, inArray } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, ownership, account, sweep, competition, operatorAction } from '../src/db/schema.js'
+import { person, ownership, account, accountSession, sweep, competition, operatorAction } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { ownerHeaders } from './helpers/session.js'
+import { ownerHeaders, adminHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db, { sessionSecret: 'test-secret' })
@@ -16,6 +16,9 @@ afterAll(async () => {
   await db.delete(operatorAction).where(eq(operatorAction.actorId, 'ac_op_admin'))
   // Only the ones this file made: other suites hold live sweeps in the same database.
   await db.delete(sweep).where(inArray(sweep.id, made))
+  const owners = made.map((id) => `ac_own_${id}`)
+  await db.delete(accountSession).where(inArray(accountSession.accountId, owners))
+  await db.delete(account).where(inArray(account.id, owners))
   await app.close(); await pool.end()
 })
 
@@ -27,10 +30,10 @@ const made = []
 async function makeSweep(name) {
   const id = `sw_${newToken(12)}`
   made.push(id)
-  const memberToken = newToken(), adminToken = newToken()
+  const memberToken = newToken()
   const [comp] = await db.select({ id: competition.id }).from(competition).where(eq(competition.id, 'apifootball:1:2026'))
-  await db.insert(sweep).values({ id, name, kind: 'token', memberToken, adminToken, competitionId: comp.id })
-  return { id, name, memberToken, adminToken }
+  await db.insert(sweep).values({ id, name, kind: 'token', memberToken, competitionId: comp.id })
+  return { id, name, memberToken }
 }
 
 /** The audit row this operator wrote for `action` on `sweepId`, or undefined. */
@@ -90,15 +93,16 @@ test('listing sweeps without operator credentials is 401', async () => {
   expect((await app.inject({ method: 'GET', url: '/api/super/sweeps' })).statusCode).toBe(401)
 })
 
-async function adminCookieFor() {
+/** A group admin of a fresh sweep. There is no admin token to exchange any more: admin
+ *  is derived from owning the sweep, so these headers are a member cookie for it plus
+ *  the owning account's token. */
+async function adminFor() {
   const created = await makeSweep('Draw')
-  const sess = await app.inject({ method: 'POST', url: '/api/session', payload: { token: created.adminToken } })
-  return { cookie: sess.headers['set-cookie'], id: created.id }
+  return { h: await adminHeaders(app, db, created.id), id: created.id }
 }
 
 test('group admin creates a person and assigns a team', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const created = await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Zoe', short: 'Zoe', initials: 'Z', av: '#abc' } })
   expect(created.statusCode).toBe(201)
   const personId = created.json().id
@@ -116,8 +120,7 @@ test('a member cookie cannot reach group-admin routes (403)', async () => {
 })
 
 test('co-ownership allowed: two people CAN own the same team; same person twice is 409', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
   const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(201)
@@ -128,8 +131,7 @@ test('co-ownership allowed: two people CAN own the same team; same person twice 
 })
 
 test('assigning/removing an unknown team code is 400 unknown_team (single + bulk)', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Nope', short: 'Nope', initials: 'NP', av: '#abc' } })).json()
   const assign = await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: p.id, teamCode: 'zz' } })
   expect(assign.statusCode).toBe(400)
@@ -223,8 +225,7 @@ test('un-archive refuses the default sweep (kind default → 404)', async () => 
 })
 
 test('bulk ownership assigns many teams in one call; /api/people reflects all', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Bulk', short: 'Bulk', initials: 'BK', av: '#abc' } })).json()
   const items = [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }]
   const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items } })
@@ -235,8 +236,7 @@ test('bulk ownership assigns many teams in one call; /api/people reflects all', 
 })
 
 test('bulk ownership is idempotent and allows co-ownership across people', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
   const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
   // first bulk for A: 2 inserted
@@ -248,10 +248,8 @@ test('bulk ownership is idempotent and allows co-ownership across people', async
 })
 
 test('bulk ownership rejects a personId from another sweep (400)', async () => {
-  const { cookie: cookieA } = await adminCookieFor()
-  const { cookie: cookieB } = await adminCookieFor()
-  const hA = { host: 'platform.test', cookie: cookieA }
-  const hB = { host: 'platform.test', cookie: cookieB }
+  const { h: hA } = await adminFor()
+  const { h: hB } = await adminFor()
   const pB = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: hB, payload: { name: 'Other', short: 'Other', initials: 'OT', av: '#333' } })).json()
   // admin A tries to allocate to a person belonging to sweep B
   const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: hA, payload: { items: [{ personId: pB.id, teamCode: 'ar' }] } })
@@ -260,8 +258,7 @@ test('bulk ownership rejects a personId from another sweep (400)', async () => {
 })
 
 test('bulk ownership validates payload + guards', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   // empty items → 400 (schema minItems)
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [] } })).statusCode).toBe(400)
   // no cookie on platform host → 401
@@ -269,8 +266,7 @@ test('bulk ownership validates payload + guards', async () => {
 })
 
 test('bulk delete removes only the listed pairs, scoped to the sweep', async () => {
-  const { cookie } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h } = await adminFor()
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Del', short: 'Del', initials: 'DL', av: '#abc' } })).json()
   await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }] } })
   const res = await app.inject({ method: 'DELETE', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'fr' }] } })
@@ -281,8 +277,7 @@ test('bulk delete removes only the listed pairs, scoped to the sweep', async () 
 })
 
 test('bulk ownership writes publish a sync event for the sweep (so other devices refresh)', async () => {
-  const { cookie, id: sweepId } = await adminCookieFor()
-  const h = { host: 'platform.test', cookie }
+  const { h, id: sweepId } = await adminFor()
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' } })).json()
   // A second app over the SAME db + secret so the cookie/sweep resolve, but with a publish spy.
   const events = []

@@ -36,8 +36,8 @@ test('liveSweepCount counts unarchived sweeps; syncQuantity no-ops without subsc
   await db.insert(account).values({ id: 'ac_live', email: 'live@x.test' })
   await db.insert(competition).values({ id: 'apibasketball:12:liveness', provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: 'liveness', format: 'league', name: 'L' }).onConflictDoNothing()
   await db.insert(sweep).values([
-    { id: 'sw_live_1', name: 'A', kind: 'token', memberToken: 'lm1', adminToken: 'la1', competitionId: 'apibasketball:12:liveness', accountId: 'ac_live' },
-    { id: 'sw_live_2', name: 'B', kind: 'token', memberToken: 'lm2', adminToken: 'la2', competitionId: 'apibasketball:12:liveness', accountId: 'ac_live', archivedAt: past },
+    { id: 'sw_live_1', name: 'A', kind: 'token', memberToken: 'lm1', competitionId: 'apibasketball:12:liveness', accountId: 'ac_live' },
+    { id: 'sw_live_2', name: 'B', kind: 'token', memberToken: 'lm2', competitionId: 'apibasketball:12:liveness', accountId: 'ac_live', archivedAt: past },
   ])
   expect(await liveSweepCount(db, 'ac_live')).toBe(1)
 

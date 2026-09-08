@@ -1,4 +1,5 @@
-import { accountSession } from '../../src/db/schema.js'
+import { eq } from 'drizzle-orm'
+import { account, accountSession, sweep } from '../../src/db/schema.js'
 import { newToken } from '../../src/sweeps/tokens.js'
 import { SESSION_TTL_MS } from '../../src/accounts/auth.js'
 
@@ -33,4 +34,24 @@ export async function ownerHeaders(db, accountId = 'ac_seed') {
     token, accountId, expiresAt: new Date(Date.now() + SESSION_TTL_MS),
   })
   return { 'x-account-token': token }
+}
+
+/** Group-admin headers for `sweepId`. Admin is derived, not held: the cookie names the
+ *  sweep, the account token proves ownership of it. Mints an active-subscription owner
+ *  so the read-only gate stays out of the way; pass `accountId` to own it with an
+ *  existing (e.g. lapsed) account instead. */
+export async function adminHeaders(app, db, sweepId, accountId) {
+  if (!accountId) {
+    accountId = `ac_own_${sweepId}`
+    await db.insert(account).values({
+      id: accountId, email: `${accountId}@example.test`, subscriptionStatus: 'active',
+    }).onConflictDoNothing()
+  }
+  await db.update(sweep).set({ accountId }).where(eq(sweep.id, sweepId))
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, sweepId))
+  const res = await app.inject({
+    method: 'POST', url: '/api/session', headers: { host: 'platform.test' },
+    payload: { token: row.memberToken },
+  })
+  return { host: 'platform.test', cookie: res.headers['set-cookie'], ...(await ownerHeaders(db, accountId)) }
 }

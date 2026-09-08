@@ -25,7 +25,7 @@ beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({ id: 'ac_wh', email: 'wh@x.test', stripeCustomerId: 'cus_wh' })
   await db.insert(competition).values({ id: COMP, provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: 'webhook', format: 'league', name: 'W' }).onConflictDoNothing()
-  await db.insert(sweep).values({ id: 'sw_wh_1', name: 'W1', kind: 'token', memberToken: 'wm1', adminToken: 'wa1', competitionId: COMP, accountId: 'ac_wh' })
+  await db.insert(sweep).values({ id: 'sw_wh_1', name: 'W1', kind: 'token', memberToken: 'wm1', competitionId: COMP, accountId: 'ac_wh' })
 })
 afterAll(async () => {
   await db.delete(billingEvent).where(inArray(billingEvent.stripeEventId, ['evt_co_1', 'evt_up_1', 'evt_del_1', 'evt_odd_1', 'evt_transient_1', 'evt_nullref_1']))

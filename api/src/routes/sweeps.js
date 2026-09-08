@@ -36,8 +36,7 @@ const patchBody = {
 }
 
 export function links(app, row) {
-  const base = `${app.publicOrigin}/g/${row.memberToken}`
-  return { memberLink: base, adminLink: `${base}/admin/${row.adminToken}` }
+  return { memberLink: `${app.publicOrigin}/g/${row.memberToken}` }
 }
 
 export async function sweepsRoutes(app) {
@@ -49,22 +48,20 @@ export async function sweepsRoutes(app) {
     config: { rateLimit: { max: 100, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     const { token } = req.body
-    const [row] = await app.db.select().from(sweep)
-      .where(or(eq(sweep.memberToken, token), eq(sweep.adminToken, token)))
+    const [row] = await app.db.select().from(sweep).where(eq(sweep.memberToken, token))
     if (!row || row.archivedAt) return reply.code(404).send({ error: 'not_found' })
-    const role = row.adminToken === token ? 'admin' : 'member'
     // Merge, never replace: opening one group's invite must not sign you out of another's.
-    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), row.id, role))), {
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), row.id))), {
       httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
       secure: process.env.NODE_ENV === 'production',
     })
-    return { sweepId: row.id, role }
+    return { sweepId: row.id }
   })
 
   /** ?sweep=<id> leaves one sweep and keeps the rest; no param still clears the lot. */
   app.post('/api/session/logout', async (req, reply) => {
     const drop = req.query?.sweep
-    const rest = drop ? (readSweepList(app, req) ?? []).filter((e) => e.sweepId !== drop) : []
+    const rest = drop ? (readSweepList(app, req) ?? []).filter((id) => id !== drop) : []
     if (rest.length) {
       reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(rest)), {
         httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,

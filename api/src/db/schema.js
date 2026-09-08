@@ -5,7 +5,6 @@ export const sweep = pgTable('sweep', {
   name: text('name').notNull(),
   kind: text('kind').notNull().default('token'), // 'default' | 'token'
   memberToken: text('member_token').unique(),
-  adminToken: text('admin_token').unique(),
   scoringRule: text('scoring_rule').notNull().default('top3'),
   coOwners: text('co_owners').notNull().default('all_win'),
   wageringEnabled: boolean('wagering_enabled').notNull().default(false),

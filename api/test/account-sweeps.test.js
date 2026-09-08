@@ -201,8 +201,8 @@ test('concurrent provisions at cap-1 land exactly one 201 (FOR UPDATE serializes
   await db.insert(accountSession).values({ token: 'racesession', accountId: 'ac_race', expiresAt: new Date(Date.now() + 3600_000) })
   // 2 pre-existing live sweeps → cap 3 → exactly one of two concurrent provisions may win
   await db.insert(sweep).values([
-    { id: 'sw_race_1', name: 'R1', kind: 'token', memberToken: 'rm1', adminToken: 'ra1', competitionId: NBA_ID, accountId: 'ac_race' },
-    { id: 'sw_race_2', name: 'R2', kind: 'token', memberToken: 'rm2', adminToken: 'ra2', competitionId: NBA_ID, accountId: 'ac_race' },
+    { id: 'sw_race_1', name: 'R1', kind: 'token', memberToken: 'rm1', competitionId: NBA_ID, accountId: 'ac_race' },
+    { id: 'sw_race_2', name: 'R2', kind: 'token', memberToken: 'rm2', competitionId: NBA_ID, accountId: 'ac_race' },
   ])
   const R = { headers: { 'x-account-token': 'racesession' } }
   const body = { name: 'Racer', provider: 'apibasketball', leagueId: '12', season: '2023-2024' }

@@ -31,7 +31,7 @@ test('zero live sweeps → checkout succeeds with quantity 1', async () => {
   expect(r0.json()).toEqual({ url: 'https://checkout.stripe.test/s1' })
   expect(stripeFake.calls.checkoutCreate[0]).toMatchObject({ line_items: [{ price: 'price_test5', quantity: 1 }] })
 
-  await db.insert(sweep).values({ id: 'sw_bill_1', name: 'B1', kind: 'token', memberToken: 'bm1', adminToken: 'ba1', competitionId: COMP, accountId: 'ac_bill' })
+  await db.insert(sweep).values({ id: 'sw_bill_1', name: 'B1', kind: 'token', memberToken: 'bm1', competitionId: COMP, accountId: 'ac_bill' })
   const r = await app.inject({ method: 'POST', url: '/api/account/billing/checkout', ...M })
   expect(r.statusCode).toBe(200)
   expect(r.json()).toEqual({ url: 'https://checkout.stripe.test/s1' })
@@ -147,7 +147,7 @@ test('portal: 409 not_subscribed for an account that never checked out', async (
 test('checkout: concurrent requests on a fresh account create exactly one Stripe customer', async () => {
   await db.insert(account).values({ id: 'ac_bill_race', email: 'race@x.test', trialEndsAt: new Date(Date.now() + 86400_000) })
   await db.insert(accountSession).values({ token: 'racesession', accountId: 'ac_bill_race', expiresAt: new Date(Date.now() + 3600_000) })
-  await db.insert(sweep).values({ id: 'sw_bill_race', name: 'R1', kind: 'token', memberToken: 'rm1', adminToken: 'ra1', competitionId: COMP, accountId: 'ac_bill_race' })
+  await db.insert(sweep).values({ id: 'sw_bill_race', name: 'R1', kind: 'token', memberToken: 'rm1', competitionId: COMP, accountId: 'ac_bill_race' })
   const M4 = { headers: { 'x-account-token': 'racesession' } }
   const before = stripeFake.calls.customersCreate.length
   const [r1, r2] = await Promise.all([

@@ -141,7 +141,7 @@ test('grades a final NBA game\'s open ou bet using the sweep\'s own sport (not f
     // grading has nothing to read here and would grade null
     await db.insert(event).values({ id: 'evt_aob_nba1', competitionId: compId, c1Code: 'BOS', c2Code: 'DAL',
       startUtc: new Date(Date.now() - 3600_000), status: 'final', score1: 110, score2: 90, winnerCode: 'BOS', stage: 'group' })
-    await db.insert(sweep).values({ id: sweepId, name: 'NBA audit', kind: 'token', memberToken: 'mt_aob_nba', adminToken: 'at_aob_nba', competitionId: compId })
+    await db.insert(sweep).values({ id: sweepId, name: 'NBA audit', kind: 'token', memberToken: 'mt_aob_nba', competitionId: compId })
     await db.insert(person).values({ id: 'pn_aob_nba', sweepId, name: 'Ada', short: 'Ada', initials: 'AD', avColor: '#111' })
     await db.insert(bet).values({ id: 'b_aob_ou', sweepId, personId: 'pn_aob_nba', fixtureId: 'evt_aob_nba1', selection: 'OVER',
       market: 'ou', line: '199.5', stake: 10, oddsDecimal: '1.9', potentialPayout: 19, status: 'open' })

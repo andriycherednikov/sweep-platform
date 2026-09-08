@@ -14,7 +14,7 @@ beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({ id: 'ac_ro', email: 'ro@x.test', subscriptionStatus: 'canceled' })
   await db.insert(competition).values({ id: COMP, provider: 'apibasketball', sport: 'basketball', leagueId: '12', season: 'readonly', format: 'league', name: 'RO' }).onConflictDoNothing()
-  await db.insert(sweep).values({ id: 'sw_ro', name: 'Lapsed', kind: 'token', memberToken: 'romember', adminToken: 'roadmin', competitionId: COMP, accountId: 'ac_ro' })
+  await db.insert(sweep).values({ id: 'sw_ro', name: 'Lapsed', kind: 'token', memberToken: 'romember', competitionId: COMP, accountId: 'ac_ro' })
 })
 afterAll(async () => {
   await db.delete(sweep).where(eq(sweep.id, 'sw_ro'))

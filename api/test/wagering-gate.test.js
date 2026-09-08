@@ -2,9 +2,9 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { sweep, person, event, competition, competitor, bet, coinLedger, account } from '../src/db/schema.js'
+import { sweep, person, event, competition, competitor, bet, coinLedger, account, accountSession } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
-import { memberCookie, ownerHeaders, memberClient } from './helpers/session.js'
+import { memberCookie, ownerHeaders, memberClient, adminHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const published = []
@@ -23,7 +23,7 @@ afterAll(async () => {
 })
 
 // mirrors admin-settle-stale.test.js: the seeded owner account is admin of the
-// DEFAULT sweep by ownership (the default sweep has no adminToken to key off of).
+// DEFAULT sweep by ownership, which is the only way to be an admin.
 async function adminSession() {
   return { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 }
@@ -31,7 +31,7 @@ async function adminSession() {
 test('sweep.wageringEnabled defaults false; seeded default sweep is true', async () => {
   const [dflt] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
   expect(dflt.wageringEnabled).toBe(true) // WC default behavior unchanged
-  await db.insert(sweep).values({ id: 'sw_wgtest', name: 'W', kind: 'token', memberToken: 'mt_wgtest', adminToken: 'at_wgtest', competitionId: dflt.competitionId })
+  await db.insert(sweep).values({ id: 'sw_wgtest', name: 'W', kind: 'token', memberToken: 'mt_wgtest', competitionId: dflt.competitionId })
   const [row] = await db.select().from(sweep).where(eq(sweep.id, 'sw_wgtest'))
   expect(row.wageringEnabled).toBe(false) // new sweeps OFF unless opted in
   await db.delete(sweep).where(eq(sweep.id, 'sw_wgtest'))
@@ -106,14 +106,16 @@ test('admin toggle flips wageringEnabled for the resolved sweep', async () => {
 test('lapsed sweep: POST /api/admin/wagering 403s sweep_readonly (not exempt)', async () => {
   const [dflt] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
   await db.insert(account).values({ id: 'ac_wglapsed', email: 'wglapsed@x.test', subscriptionStatus: 'canceled' })
-  await db.insert(sweep).values({ id: 'sw_wglapsed', name: 'Lapsed WG', kind: 'token', memberToken: 'mt_wglapsed', adminToken: 'at_wglapsed', competitionId: dflt.competitionId, accountId: 'ac_wglapsed' })
+  await db.insert(sweep).values({ id: 'sw_wglapsed', name: 'Lapsed WG', kind: 'token', memberToken: 'mt_wglapsed', competitionId: dflt.competitionId, accountId: 'ac_wglapsed' })
   try {
-    const cookie = (await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: 'at_wglapsed' } })).headers['set-cookie']
-    const res = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { host: 'platform.test', cookie }, payload: { enabled: false } })
+    // the OWNER themselves — admin by ownership — is the strongest case for the gate
+    const h = await adminHeaders(app, db, 'sw_wglapsed', 'ac_wglapsed')
+    const res = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: h, payload: { enabled: false } })
     expect(res.statusCode).toBe(403)
     expect(res.json()).toEqual({ error: 'sweep_readonly' })
   } finally {
     await db.delete(sweep).where(eq(sweep.id, 'sw_wglapsed'))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_wglapsed'))
     await db.delete(account).where(eq(account.id, 'ac_wglapsed'))
   }
 })
@@ -147,7 +149,7 @@ test('no-draw sport: 1x2 and DRAW are refused at validation', async () => {
       '1x2': { label: 'poisoned', book: 'TestBook', selections: [ { key: 'HOME', label: 'H', odds: 1.6 }, { key: 'DRAW', label: 'D', odds: 9.9 }, { key: 'AWAY', label: 'A', odds: 2.3 } ] },
     } } })
   const mt = 'mt_wgnba'
-  await db.insert(sweep).values({ id: 'sw_wgnba', name: 'NBA WG', kind: 'token', memberToken: mt, adminToken: 'at_wgnba', competitionId: 'ck_wgnba', wageringEnabled: true })
+  await db.insert(sweep).values({ id: 'sw_wgnba', name: 'NBA WG', kind: 'token', memberToken: mt, competitionId: 'ck_wgnba', wageringEnabled: true })
   await db.insert(person).values({ id: 'pn_wgnba', sweepId: 'sw_wgnba', name: 'Nia', short: 'Nia', initials: 'NI', avColor: '#111' })
   const cookie = (await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: mt } })).headers['set-cookie']
   const H = { host: 'platform.test', cookie }

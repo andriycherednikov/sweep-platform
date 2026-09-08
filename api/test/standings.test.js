@@ -40,7 +40,7 @@ test('GET /api/standings groups by conference (meta.group fallback) and sorts by
     { competitionId: NBA, competitorCode: 'mia', points: 0, stats: { played: 2, win: 0, loss: 2, pf: 200, pa: 240, pct: 0 } },
     { competitionId: NBA, competitorCode: 'dal', points: 0, stats: { played: 2, win: 1, loss: 1, pf: 210, pa: 205, pct: 0.5 } },
   ])
-  await db.insert(sweep).values({ id: 'sw_standings_test', name: 'Standings Test', kind: 'token', memberToken, adminToken: newToken(), competitionId: NBA })
+  await db.insert(sweep).values({ id: 'sw_standings_test', name: 'Standings Test', kind: 'token', memberToken, competitionId: NBA })
 
   try {
     const login = await app.inject({ method: 'POST', url: '/api/session', payload: { token: memberToken } })

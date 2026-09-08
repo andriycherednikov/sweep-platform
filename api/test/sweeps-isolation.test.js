@@ -3,14 +3,21 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { sweep, person, ownership, support, event } from '../src/db/schema.js'
-import { memberClient } from './helpers/session.js'
+import { sweep, person, ownership, support, event, account, accountSession } from '../src/db/schema.js'
+import { memberClient, adminHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()
 const app = buildApp(db, { sessionSecret: 'test-secret' })
 let client
 beforeAll(async () => { client = await memberClient(app) })
+
+/** The owner account adminHeaders minted for `sweepId`, once its sweep is gone. */
+async function dropOwner(sweepId) {
+  const id = `ac_own_${sweepId}`
+  await db.delete(accountSession).where(eq(accountSession.accountId, id))
+  await db.delete(account).where(eq(account.id, id))
+}
 
 async function sessionCookie(token) {
   const res = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token } })
@@ -22,7 +29,7 @@ beforeAll(async () => {
   // competitionId: routes scope competitor/ranking reads by req.sweep.competitionId (Task 6);
   // this fixture is inserted directly (bypassing POST /api/super/sweeps' default-competition
   // binding from Task 16), so it still sets one explicitly.
-  await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, adminToken: newToken(), competitionId: 'apifootball:1:2026' })
+  await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, competitionId: 'apifootball:1:2026' })
   await db.insert(person).values({ id: 'pb1', sweepId: 'sw_b', name: 'Bee', short: 'Bee', initials: 'B', avColor: '#111' })
   await db.insert(ownership).values({ sweepId: 'sw_b', personId: 'pb1', competitorId: 'cp_apifootball:1:2026_hr' })
 })
@@ -32,6 +39,7 @@ afterAll(async () => {
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_b'))
   await db.delete(person).where(eq(person.sweepId, 'sw_b'))
   await db.delete(sweep).where(eq(sweep.id, 'sw_b'))
+  await dropOwner('sw_b')
   await app.close(); await pool.end()
 })
 
@@ -102,18 +110,16 @@ test('GET /api/fixtures?person= does not read ownership cross-sweep', async () =
 })
 
 test('group admin can rename a person in their own sweep (PATCH)', async () => {
-  // mint an admin cookie for sweep B from its admin token
-  const [b] = await db.select().from(sweep).where(eq(sweep.id, 'sw_b'))
-  const adminSess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: b.adminToken } })
-  const cookie = adminSess.headers['set-cookie']
+  // admin of sweep B = the account that owns it, proven per request
+  const h = await adminHeaders(app, db, 'sw_b')
   const res = await app.inject({
-    method: 'PATCH', url: '/api/admin/people/pb1', headers: { host: 'platform.test', cookie },
+    method: 'PATCH', url: '/api/admin/people/pb1', headers: h,
     payload: { name: 'Beatrice', short: 'Bea', initials: 'BE' },
   })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toEqual({ id: 'pb1', name: 'Beatrice', short: 'Bea', initials: 'BE', adult: true })
   // a scoped read reflects the rename
-  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { host: 'platform.test', cookie } })).json()
+  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap', headers: h })).json()
   expect(body.people.find((p) => p.id === 'pb1').name).toBe('Beatrice')
 })
 
@@ -129,22 +135,21 @@ test('renaming a person from another sweep is 404 (cross-sweep scoping)', async 
 })
 
 test('an admin of one sweep cannot rename a person in another sweep (404 not 200)', async () => {
-  // a fresh sweep C with its own admin. Inserted directly: an operator cannot mint one.
-  const created = { id: 'sw_c', adminToken: newToken() }
+  // a fresh sweep C with its own owner. Inserted directly: an operator cannot mint one.
   await db.insert(sweep).values({
-    id: created.id, name: 'C', kind: 'token', memberToken: newToken(),
-    adminToken: created.adminToken, competitionId: 'apifootball:1:2026',
+    id: 'sw_c', name: 'C', kind: 'token', memberToken: newToken(),
+    competitionId: 'apifootball:1:2026',
   })
-  const sessC = await app.inject({ method: 'POST', url: '/api/session', payload: { token: created.adminToken } })
-  const cookieC = sessC.headers['set-cookie']
+  const hC = await adminHeaders(app, db, 'sw_c')
   // sweep C admin tries to rename pb1 (lives in sw_b) → invisible → 404
   const res = await app.inject({
-    method: 'PATCH', url: '/api/admin/people/pb1', headers: { host: 'platform.test', cookie: cookieC },
+    method: 'PATCH', url: '/api/admin/people/pb1', headers: hC,
     payload: { name: 'Hijack' },
   })
   expect(res.statusCode).toBe(404)
   const [stillBea] = await db.select().from(person).where(eq(person.id, 'pb1'))
   expect(stillBea.name).toBe('Beatrice')
   // cleanup sweep C
-  await db.delete(sweep).where(eq(sweep.id, created.id))
+  await db.delete(sweep).where(eq(sweep.id, 'sw_c'))
+  await dropOwner('sw_c')
 })

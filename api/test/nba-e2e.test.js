@@ -61,7 +61,7 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
   expect(evs.every((e) => e.status === 'upcoming' && e.winnerCode == null)).toBe(true)
 
   // 2. a sweep bound to it, with a member and an owned team
-  await db.insert(sweep).values({ id: 'sw_nbae2e', name: 'NBA E2E', kind: 'token', memberToken, adminToken: newToken(), competitionId: ID })
+  await db.insert(sweep).values({ id: 'sw_nbae2e', name: 'NBA E2E', kind: 'token', memberToken, competitionId: ID })
   await db.insert(person).values({ id: 'pn_e2e', sweepId: 'sw_nbae2e', name: 'Evie', short: 'Evie', initials: 'EV', avColor: '#333' })
   const [wolves] = await db.select().from(competitor).where(and(eq(competitor.competitionId, ID), eq(competitor.code, 'minnesota-timberwolves')))
   await db.insert(ownership).values({ sweepId: 'sw_nbae2e', personId: 'pn_e2e', competitorId: wolves.id })

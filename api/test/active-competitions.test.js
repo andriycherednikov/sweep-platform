@@ -17,12 +17,12 @@ beforeAll(async () => {
     { id: 'ac_ac_paid', email: 'ac-paid@x.test', subscriptionStatus: 'active' },
   ])
   await db.insert(sweep).values([
-    { id: 'sw_ac_ops', name: 'ops', kind: 'token', memberToken: 'acm1', adminToken: 'aca1', competitionId: COMPS[0], accountId: null },
-    { id: 'sw_ac_trial', name: 'trial', kind: 'token', memberToken: 'acm2', adminToken: 'aca2', competitionId: COMPS[1], accountId: 'ac_ac_trial' },
-    { id: 'sw_ac_lapsed', name: 'lapsed', kind: 'token', memberToken: 'acm3', adminToken: 'aca3', competitionId: COMPS[2], accountId: 'ac_ac_lapsed' },
+    { id: 'sw_ac_ops', name: 'ops', kind: 'token', memberToken: 'acm1', competitionId: COMPS[0], accountId: null },
+    { id: 'sw_ac_trial', name: 'trial', kind: 'token', memberToken: 'acm2', competitionId: COMPS[1], accountId: 'ac_ac_trial' },
+    { id: 'sw_ac_lapsed', name: 'lapsed', kind: 'token', memberToken: 'acm3', competitionId: COMPS[2], accountId: 'ac_ac_lapsed' },
     // shared competition: one lapsed + one paid sweep → competition must STAY
-    { id: 'sw_ac_shared_l', name: 'shared-l', kind: 'token', memberToken: 'acm4', adminToken: 'aca4', competitionId: COMPS[3], accountId: 'ac_ac_lapsed' },
-    { id: 'sw_ac_shared_p', name: 'shared-p', kind: 'token', memberToken: 'acm5', adminToken: 'aca5', competitionId: COMPS[3], accountId: 'ac_ac_paid' },
+    { id: 'sw_ac_shared_l', name: 'shared-l', kind: 'token', memberToken: 'acm4', competitionId: COMPS[3], accountId: 'ac_ac_lapsed' },
+    { id: 'sw_ac_shared_p', name: 'shared-p', kind: 'token', memberToken: 'acm5', competitionId: COMPS[3], accountId: 'ac_ac_paid' },
   ])
 })
 afterAll(async () => {

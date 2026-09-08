@@ -218,14 +218,14 @@ export async function accountRoutes(app) {
           if (!ev) fill = comp // eventless leftover (dead CLI/worker baseline) — finish the job behind the response
         }
         const id = `sw_${newToken(12)}`
-        const memberToken = newToken(), adminToken = newToken()
+        const memberToken = newToken()
         await tx.insert(sweep).values({
-          id, name, kind: 'token', memberToken, adminToken, competitionId: compId, accountId: acct.id,
+          id, name, kind: 'token', memberToken, competitionId: compId, accountId: acct.id,
           wageringEnabled: req.body.wageringEnabled ?? false,
         })
         if (subscribed) await syncQuantity(app.stripe, acct, mine.length + 1) // stripe failure → rollback: no sweep exists unbilled
         const [row] = await tx.select().from(sweep).where(eq(sweep.id, id))
-        return { code: 201, body: { id, name: row.name, competitionId: compId, memberToken, adminToken, ...links(app, row) } }
+        return { code: 201, body: { id, name: row.name, competitionId: compId, memberToken, ...links(app, row) } }
       })
       if (result.code === 201 && fill) fillCompetition(providerKey, fill)
       return reply.code(result.code).send(result.body)

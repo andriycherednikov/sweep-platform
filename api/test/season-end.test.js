@@ -43,8 +43,7 @@ beforeEach(async () => {
   ])
   await db.insert(account).values({ id: ACCT, email: 'seasonend@test.invalid', subscriptionStatus: 'active' })
   await db.insert(sweep).values({
-    id: SWEEP, name: 'Season End', kind: 'token', memberToken: 'm_seasonend',
-    adminToken: 'a_seasonend', competitionId: COMP, accountId: ACCT,
+    id: SWEEP, name: 'Season End', kind: 'token', memberToken: 'm_seasonend', competitionId: COMP, accountId: ACCT,
   })
 })
 

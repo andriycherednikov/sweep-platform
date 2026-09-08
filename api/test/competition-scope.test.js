@@ -98,7 +98,7 @@ test('fan-photo upload rejects another competitions event', async () => {
 
 test('POST /api/support rejects a DRAW pick for a no-draw sport', async () => {
   const memberToken = newToken()
-  await db.insert(sweep).values({ id: 'sw_nba', name: 'NBA sweep', kind: 'token', memberToken, adminToken: newToken(), competitionId: OTHER }).onConflictDoNothing()
+  await db.insert(sweep).values({ id: 'sw_nba', name: 'NBA sweep', kind: 'token', memberToken, competitionId: OTHER }).onConflictDoNothing()
   await db.insert(person).values({ id: 'pn_nba', sweepId: 'sw_nba', name: 'Nia', short: 'Nia', initials: 'NI', avColor: '#123' }).onConflictDoNothing()
   try {
     const cookie = await sessionCookie(memberToken)
