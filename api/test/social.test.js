@@ -26,9 +26,12 @@ beforeEach(async () => {
   await db.delete(support); published.length = 0
 })
 
+// Deterministic AND upcoming: the picks route refuses a fixture that has kicked off,
+// and select-limit-1 without an ORDER BY was picking whatever the seed left first.
 async function aFixture() {
-  const [f] = await db.select().from(event).limit(1)
-  return f
+  const [f] = await db.select().from(event).orderBy(event.id).limit(1)
+  await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, f.id))
+  return (await db.select().from(event).where(eq(event.id, f.id)))[0]
 }
 async function twoPeople() {
   return pair
@@ -117,4 +120,19 @@ test('a link-holder with no seat cannot pick', async () => {
   })
   expect(res.statusCode).toBe(403)
   expect(res.json()).toEqual({ error: 'no_seat' })
+})
+
+// Partial information is the same integrity hole as full: a live fixture is closed too.
+test('a pick cannot be made after the whistle', async () => {
+  const f = await aFixture()
+  for (const status of ['live', 'final']) {
+    await db.update(event).set({ status }).where(eq(event.id, f.id))
+    const res = await client.inject({
+      method: 'POST', url: '/api/support', headers: seat,
+      payload: { fixtureId: f.id, teamCode: f.c1Code },
+    })
+    expect(res.statusCode).toBe(400)
+    expect(res.json()).toEqual({ error: 'fixture_closed' })
+  }
+  await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, f.id))
 })

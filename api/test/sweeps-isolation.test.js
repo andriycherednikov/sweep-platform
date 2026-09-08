@@ -68,8 +68,11 @@ test('platform host with no cookie is 401 on scoped data', async () => {
 test('a support pick in sweep B is invisible to the default sweep', async () => {
   const cookie = await sessionCookie(memberB)
   const [m0] = await db.select().from(event).where(eq(event.id, 'm0'))
+  // picks close at kick-off now, so this one has to be ahead of it (restored below)
+  await db.update(event).set({ status: 'upcoming' }).where(eq(event.id, 'm0'))
   await app.inject({ method: 'POST', url: '/api/support', headers: { host: 'platform.test', cookie, ...seatB },
     payload: { fixtureId: 'm0', teamCode: m0.c1Code } })
+  await db.update(event).set({ status: m0.status }).where(eq(event.id, 'm0'))
   // default host social must not contain pb1's pick
   const def = (await client.inject({ method: 'GET', url: '/api/social' })).json()
   const all = Object.values(def.support).flatMap((m) => Object.keys(m))

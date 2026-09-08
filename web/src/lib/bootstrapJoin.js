@@ -18,9 +18,10 @@ export async function joinFromLocation(loc, history, postSession) {
   let failed = false
   let landing = '/'
   try {
-    const { sweepId, role } = await postSession(token)
-    // name is null here — bootstrap hasn't run yet; backfilled by the Gate (Task 1.4).
-    addSweep({ sweepId, name: null, role, token })
+    const { sweepId } = await postSession(token)
+    // name and role are null here — bootstrap hasn't run yet and POST /api/session has
+    // not returned a role since roles left the cookie; the Gate backfills both.
+    addSweep({ sweepId, name: null, role: null, token })
     // The token still leaves the bar, but it lands on the sweep's own address rather
     // than on '/', which is the marketing front door and belongs to nobody's sweep.
     landing = `/s/${sweepId}`

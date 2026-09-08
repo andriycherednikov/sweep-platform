@@ -30,6 +30,9 @@ export async function socialRoutes(app) {
     const row = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
     if (!row) return reply.code(400).send({ error: 'unknown_fixture' })
     const f = flattenEvent(row)
+    // A pick made once the result is known is not a prediction. Live counts as closed
+    // too: partial information is the same integrity hole as full.
+    if (f.status !== 'upcoming') return reply.code(400).send({ error: 'fixture_closed' })
     let validPick = teamCode === f.t1Code || teamCode === f.t2Code
     if (!validPick && teamCode === DRAW && f.stage === 'group') {
       // draw picks only exist in sports that can draw (football); NBA etc. are 2-way

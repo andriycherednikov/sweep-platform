@@ -1,7 +1,19 @@
 # Member Identity — Self-Setup, Verified Seats, a Locked Roster
 
-**Status:** Design, approved in conversation 2026-09-08. Reviewed adversarially against
-the codebase; findings folded in. Implementation plan to follow.
+> **SUPERSEDED (2026-09-08) by the account-identity build on `auth-model-rebuild`.**
+> The decision changed: a member gets a real `account`, the same row an owner gets, and
+> role stays per-sweep and derived — one human can own sweep A and merely play in sweep B.
+> So §4.0–§4.3 (the `sweep_claim` cookie, `person.claim_token`, one-seat-per-device,
+> self-release/revoke) and §6 (`roster_locked_at`) were **not built**; a six-digit code
+> proves the address, `person.account_id` binds the seat, and `person.ejected_at` is the
+> single removal verb.
+> What survives and was built: §2's refusal to distribute per-person credentials (invites
+> carry the group link), §4.4's rule that only the owner's verb clears `excludedUntil`
+> — pending, see below — §5's list of live defects (all closed), and §9's test plan.
+> Still open from §4.4: owner release does not yet clear `excludedUntil`.
+
+**Status:** Superseded. Design was approved in conversation 2026-09-08 and reviewed
+adversarially against the codebase; findings folded in.
 **Depends on:** `2026-09-08-auth-model-rebuild-design.md`. That spec settles the resolver
 and the cookie shape this one extends, and wires the mail transport this one requires.
 

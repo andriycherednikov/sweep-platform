@@ -50,7 +50,10 @@ test('a failed exchange strips the token and flags the failure', async () => {
   expect(history.replaceState).toHaveBeenCalledWith({}, '', '/?join=failed')
 })
 
-test('a successful join persists the real link token via addSweep (name null pre-bootstrap)', async () => {
+// Name and role are both unknown at this point: bootstrap has not run, and
+// POST /api/session stopped returning a role when roles left the cookie. The Gate
+// backfills both — a role read from this response would only ever be undefined.
+test('a successful join persists the real link token via addSweep (name and role null pre-bootstrap)', async () => {
   localStorage.clear()
   const postSession = vi.fn(async () => ({ sweepId: 'sw_42', role: 'admin' }))
   const history = fakeHistory()
@@ -60,6 +63,6 @@ test('a successful join persists the real link token via addSweep (name null pre
     postSession,
   )
   expect(listSweeps()).toEqual([
-    { sweepId: 'sw_42', name: null, role: 'admin', token: 'MEMBERtoken0000000000' },
+    { sweepId: 'sw_42', name: null, role: null, token: 'MEMBERtoken0000000000' },
   ])
 })
