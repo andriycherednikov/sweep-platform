@@ -2,6 +2,7 @@ import { eq, and, isNull, gt } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
+import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount } from '../accounts/billing.js'
 import { seasonInWindow } from '../providers/registry.js'
 import { syncCompetitors } from '../worker/sync-competitors.js'
@@ -27,6 +28,21 @@ const provisionBody = {
     wageringEnabled: { type: 'boolean' },
   },
 }
+const passwordSessionBody = {
+  type: 'object', required: ['email', 'password'], additionalProperties: false,
+  properties: {
+    email: { type: 'string', minLength: 3, maxLength: 254 },
+    password: { type: 'string', minLength: 10, maxLength: MAX_PASSWORD_BYTES },
+  },
+}
+const setPasswordBody = {
+  type: 'object', required: ['password'], additionalProperties: false,
+  properties: {
+    password: { type: 'string', minLength: 10, maxLength: MAX_PASSWORD_BYTES },
+    current: { type: 'string', minLength: 1, maxLength: MAX_PASSWORD_BYTES },
+  },
+}
+const LINK_GRACE_MS = 15 * 60_000
 
 export async function accountRoutes(app) {
   app.post('/api/account/login', {
@@ -59,9 +75,67 @@ export async function accountRoutes(app) {
     return reply.code(201).send({ accountToken: token, account: { id: acc.id, email: acc.email, name: acc.name } })
   })
 
-  app.get('/api/account', { preHandler: requireAccount(app) }, async (req) => (
-    { id: req.account.id, email: req.account.email, name: req.account.name }
-  ))
+  app.get('/api/account', { preHandler: requireAccount(app) }, async (req) => ({
+    id: req.account.id, email: req.account.email, name: req.account.name,
+    hasPassword: !!req.account.passwordHash,
+  }))
+
+  app.post('/api/account/password/session', {
+    schema: { body: passwordSessionBody },
+    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
+  }, async (req, reply) => {
+    const email = req.body.email.trim().toLowerCase()
+    const [acc] = await app.db.select().from(account).where(eq(account.email, email))
+    // Compare against a dummy whenever there is no usable hash — no account, OR an
+    // account that has never set a password. Skipping the compare in either case
+    // leaks, through response time, which addresses exist.
+    const ok = await verifyPassword(req.body.password, acc?.passwordHash ?? DUMMY_HASH)
+    if (!acc || !acc.passwordHash || !ok) return reply.code(401).send({ error: 'bad_credentials' })
+    const token = newToken()
+    await app.db.insert(accountSession).values({
+      token, accountId: acc.id, via: 'password',
+      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    })
+    return reply.code(201).send({
+      accountToken: token, account: { id: acc.id, email: acc.email, name: acc.name },
+    })
+  })
+
+  app.post('/api/account/password', {
+    preHandler: requireAccount(app), schema: { body: setPasswordBody },
+  }, async (req, reply) => {
+    const [acc] = await app.db.select().from(account).where(eq(account.id, req.account.id))
+    if (acc.passwordHash) {
+      // …unless this session came from a magic link minutes ago. Without that exemption
+      // a forgotten password is unrecoverable: the reset path would demand the password
+      // the person has forgotten.
+      const [sess] = await app.db.select().from(accountSession)
+        .where(eq(accountSession.token, req.headers['x-account-token']))
+      const fresh = sess?.via === 'link' && Date.now() - sess.createdAt.getTime() < LINK_GRACE_MS
+      if (!fresh) {
+        if (!req.body.current) return reply.code(403).send({ error: 'current_required' })
+        if (!(await verifyPassword(req.body.current, acc.passwordHash))) {
+          return reply.code(401).send({ error: 'bad_credentials' })
+        }
+      }
+    }
+    await app.db.update(account)
+      .set({ passwordHash: await hashPassword(req.body.password) })
+      .where(eq(account.id, acc.id))
+    await app.sendMail(acc.email, 'Your password was changed',
+      'The password on your Sweep account was just changed. If that was not you, reply to this email.')
+    return reply.code(204).send()
+  })
+
+  app.delete('/api/account/session', { preHandler: requireAccount(app) }, async (req, reply) => {
+    await app.db.delete(accountSession).where(eq(accountSession.token, req.headers['x-account-token']))
+    return reply.code(204).send()
+  })
+
+  app.delete('/api/account/sessions', { preHandler: requireAccount(app) }, async (req, reply) => {
+    await app.db.delete(accountSession).where(eq(accountSession.accountId, req.account.id))
+    return reply.code(204).send()
+  })
 
   const accountGuard = requireAccount(app)
 
