@@ -147,7 +147,7 @@ test('a 401 after a failed join → the dead-link card, not the landing', async 
 test('a 401 at the root shows the landing even when this device holds sweeps', async () => {
   vi.resetModules()
   localStorage.clear()
-  vi.doMock('./sweeps.js', () => ({
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()),
     listSweeps: () => [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' }],
     addSweep: vi.fn(),
   }))
@@ -166,7 +166,7 @@ test('a 401 on a sweep path re-exchanges that sweep\'s stored token once', async
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_1')
   const postSession = vi.fn(async () => ({ sweepId: 'sw_1', role: 'member' }))
-  vi.doMock('./sweeps.js', () => ({
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()),
     listSweeps: () => [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' }],
     addSweep: vi.fn(),
   }))
@@ -185,7 +185,7 @@ test('a 401 on a sweep this signed-in account owns navigates straight to its mem
   vi.resetModules()
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_owned')
-  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep: vi.fn() }))
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
   const getAccountSweeps = vi.fn(async () => ([{ id: 'sw_owned', name: 'Office', memberLink: 'https://h/g/mem_owned' }]))
   vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', getAccountSweeps }))
   mock401()
@@ -207,7 +207,7 @@ test('a 401 on a sweep this signed-in account does not own falls through to the 
   vi.resetModules()
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_someone_else')
-  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep: vi.fn() }))
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
   const getAccountSweeps = vi.fn(async () => ([]))
   vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', getAccountSweeps }))
   mock401()
@@ -224,7 +224,7 @@ test('a 401 on a sweep path with no stored token asks for the invite link', asyn
   vi.resetModules()
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_someone_else')
-  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep: vi.fn() }))
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
   mock401()
   const { SweepProvider } = await import('./SweepProvider.jsx')
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
@@ -237,7 +237,7 @@ test('a successful load backfills the sweep name into the store via addSweep', a
   vi.resetModules()
   localStorage.clear()
   const addSweep = vi.fn()
-  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep, switchTo: vi.fn() }))
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep, switchTo: vi.fn() }))
   vi.stubGlobal('fetch', vi.fn(async (url) => {
     const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     if (path === '/api/bootstrap') {
@@ -249,4 +249,36 @@ test('a successful load backfills the sweep name into the store via addSweep', a
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
   await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
   expect(addSweep).toHaveBeenCalledWith({ sweepId: 'sw_9', name: 'Office Sweep', role: 'member', token: null })
+})
+
+// Devices that joined by an ADMIN link before this branch stored that admin token here,
+// and POST /api/session matches the member token only — so their rejoin 404s, and used
+// to leave the gate spinning with the dead token still stored, retried on every visit.
+// A rejected token is forgotten once, and the card says what actually happened.
+test('a 401 on a sweep whose stored token the server rejects forgets it and says so', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  window.history.replaceState({}, '', '/s/sw_1')
+  // the real store, in miniature: dropToken is what must be called, and the next
+  // render must see the token gone
+  let stored = [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'admin', token: 'admin-tok' }]
+  const dropToken = vi.fn((id) => { stored = stored.map((s) => (s.sweepId === id ? { ...s, token: null } : s)) })
+  vi.doMock('./sweeps.js', async (orig) => ({
+    ...(await orig()), listSweeps: () => stored, addSweep: vi.fn(), dropToken,
+  }))
+  // 404: no link matches this token — which is what the API says to an admin token
+  // now that POST /api/session matches the member token only.
+  const postSession = vi.fn(async () => {
+    throw Object.assign(new Error('POST /api/session failed: HTTP 404'), { status: 404 })
+  })
+  vi.doMock('./api/client.js', async (orig) => ({ ...(await orig()), postSession }))
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByText(/saved link stopped working/i)).toBeInTheDocument())
+  // recoverable, not terminal: it names the fix, and never claims the sweep is gone
+  expect(screen.getByText(/ask whoever runs the sweep for the current link/i)).toBeInTheDocument()
+  expect(dropToken).toHaveBeenCalledWith('sw_1')
+  expect(postSession).toHaveBeenCalledTimes(1) // dropped, not retried forever
+  window.history.replaceState({}, '', '/')
 })

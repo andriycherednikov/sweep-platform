@@ -9,7 +9,7 @@ import {
 } from "./social.js";
 import { useAdminBadge } from "./admin.js";
 import { fmtDate } from "./lib/format.js";
-import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps } from "./sweeps.js";
+import { listSweeps, removeSweep, renameSweep, switchTo, useSweeps, isDeadToken } from "./sweeps.js";
 import { postLogout } from "./api/client.js";
 import { useSpoiler, spoilerHidden, reveal as revealScore } from "./spoiler.js";
 import { canWager } from "./coins.js";
@@ -706,7 +706,13 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
       await switchTo(s, queryClient);
       onClose();
     } catch (e) {
-      setErr("Couldn't switch sweeps — that invite may have expired. Rejoin from a fresh link, or remove it below.");
+      // switchTo has already forgotten a token the server rejected, so say that
+      // plainly (and refresh, since this row can no longer be switched to) rather
+      // than blame a connection — and don't blame the link when it was the network.
+      refresh();
+      setErr(isDeadToken(e)
+        ? "That sweep's link no longer works, so we've forgotten it on this device. Ask whoever runs the sweep for the current link — opening it puts you straight back in."
+        : "Couldn't switch sweeps just now. Check your connection and try again.");
     }
   };
   const onLeave = async (s) => {

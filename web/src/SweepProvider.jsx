@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchAll, fetchSocial, fetchWallet, setActiveSweep, postSession } from './api/client.js'
 import { setSweepData } from './data.js'
@@ -6,7 +6,7 @@ import { setSocialData, setCurrentSweepId, useSocial } from './social.js'
 import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
-import { listSweeps, addSweep } from './sweeps.js'
+import { listSweeps, addSweep, dropToken, isDeadToken } from './sweeps.js'
 import { parseSweepPath } from './lib/joinLink.js'
 import { getAccountToken, getAccountSweeps } from './lib/accountClient.js'
 import { Landing } from './screens-landing.jsx'
@@ -42,6 +42,9 @@ function Gate({ children }) {
   const rejoinRef = useRef(false)
   // One account-ownership check per mount, same shape as rejoinRef above.
   const accountRejoinRef = useRef(false)
+  // Why the stored-token rejoin failed, if it did. State, not a ref: without it the
+  // failed rejoin never re-rendered and the gate sat on its spinner for good.
+  const [rejoinErr, setRejoinErr] = useState(null)
   // Re-render + re-key the wallet on identity switch so balance/bets/statement
   // follow whoever you're viewing as.
   const { me } = useSocial()
@@ -137,7 +140,16 @@ function Gate({ children }) {
       const stored = sweeps.find((s) => s.sweepId === wanted && s.token)
       if (stored && !rejoinRef.current) {
         rejoinRef.current = true
-        postSession(stored.token).then(() => refetch()).catch(() => { /* fall through to the card below */ })
+        postSession(stored.token)
+          .then(() => refetch())
+          .catch((err) => {
+            // A token the server has rejected will never work again (an admin token
+            // from before /api/session went member-only; a link since rotated). Forget
+            // it so nothing retries it, and re-render either way — the card below now
+            // says which of the two happened.
+            if (isDeadToken(err)) dropToken(wanted)
+            setRejoinErr(err)
+          })
         return (
           <div data-testid="sweep-loading" className="sweep-gate">
             <GateBrand />
@@ -147,14 +159,21 @@ function Gate({ children }) {
         )
       }
       // Someone else's sweep, or ours with the token gone: one card either way, so the
-      // id never becomes an oracle for which sweeps exist.
+      // id never becomes an oracle for which sweeps exist. The exception is a token this
+      // device HELD and the server rejected — that is about this browser, not the sweep,
+      // and it leaks nothing we didn't already store here.
+      const dead = isDeadToken(rejoinErr)
       return (
         <div data-testid="sweep-needs-invite" className="sweep-gate">
           <GateBrand />
           <div className="sweep-card">
-            <h2 className="sweep-card-h">This sweep needs its invite link</h2>
+            <h2 className="sweep-card-h">
+              {dead ? "That saved link stopped working" : "This sweep needs its invite link"}
+            </h2>
             <p className="sweep-card-sub">
-              Sweeps are private to the group. Open the link whoever runs it sent you, and you'll land straight back here.
+              {dead
+                ? "The link this device had saved for this sweep was replaced, so it no longer opens it. Ask whoever runs the sweep for the current link — open it and you'll land straight back here."
+                : "Sweeps are private to the group. Open the link whoever runs it sent you, and you'll land straight back here."}
             </p>
             <a className="sweep-retry" href="/">Or start your own</a>
           </div>

@@ -78,3 +78,33 @@ test('switchTo posts the stored token then navigates to the sweep', async () => 
   expect(assign).toHaveBeenCalledWith('/s/sw_2')
   window.location = original
 })
+
+// Devices that joined by an admin link before this branch stored an ADMIN token here,
+// and POST /api/session matches the member token only — so their stored token 404s
+// forever. Nothing repaired it: every switch and every rejoin re-posted the same dead
+// value. A rejected token is now forgotten, once.
+test('switchTo forgets a token the server rejects, and rethrows so the caller can say so', async () => {
+  const postSession = vi.fn(async () => { throw Object.assign(new Error('POST /api/session failed: HTTP 404'), { status: 404 }) })
+  vi.doMock('./api/client.js', () => ({ postSession }))
+  const assign = vi.fn()
+  const original = window.location
+  delete window.location
+  window.location = { ...original, assign }
+  const { addSweep, switchTo, listSweeps } = await import('./sweeps.js')
+  addSweep({ sweepId: 'sw_2', name: 'B', role: 'admin', token: 'admin-tok' })
+  await expect(switchTo({ sweepId: 'sw_2', token: 'admin-tok' })).rejects.toThrow()
+  expect(assign).not.toHaveBeenCalled()
+  expect(listSweeps()).toEqual([{ sweepId: 'sw_2', name: 'B', role: 'admin', token: null }])
+  window.location = original
+})
+
+// A flat tyre is not a stolen key: an offline switch must not cost a member the only
+// credential they have for that sweep.
+test('switchTo keeps the token when the failure carries no status (offline)', async () => {
+  const postSession = vi.fn(async () => { throw new TypeError('Failed to fetch') })
+  vi.doMock('./api/client.js', () => ({ postSession }))
+  const { addSweep, switchTo, listSweeps } = await import('./sweeps.js')
+  addSweep({ sweepId: 'sw_3', name: 'C', role: 'member', token: 'tok3' })
+  await expect(switchTo({ sweepId: 'sw_3', token: 'tok3' })).rejects.toThrow()
+  expect(listSweeps()[0].token).toBe('tok3')
+})

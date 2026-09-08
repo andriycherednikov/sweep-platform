@@ -60,6 +60,28 @@ export function removeSweep(sweepId) {
 }
 
 /**
+ * Does this error mean the stored token itself is dead? Only the server saying so
+ * counts — a 404 (no link matches) or a 401. A network failure carries no status and
+ * must never cost a member their only credential.
+ */
+export const isDeadToken = (err) => err?.status === 404 || err?.status === 401
+
+/**
+ * Forget a stored token the server has rejected. Devices that joined by an admin link
+ * before this branch hold an ADMIN token here, and POST /api/session now matches the
+ * member token only; a rotated link kills stored member tokens the same way. Either
+ * way it will never work again, so keeping it means every switch and every rejoin
+ * retries a dead credential. The entry stays — the sweep keeps its name in the list —
+ * and only a fresh invite link puts a working token back. addSweep can't do this: it
+ * deliberately never clobbers a token with null.
+ */
+export function dropToken(sweepId) {
+  const list = read()
+  const i = list.findIndex((s) => s.sweepId === sweepId)
+  if (i !== -1) { list[i] = { ...list[i], token: null }; write(list) }
+}
+
+/**
  * Switch the active sweep: re-exchange its stored token (which refreshes the cookie
  * and moves this sweep to the front), then NAVIGATE to its address. A real navigation
  * rather than a cache invalidation, because the URL now names the sweep: Back works
@@ -68,7 +90,12 @@ export function removeSweep(sweepId) {
  * @param {{invalidateQueries: Function}} [queryClient] unused; kept for callers mid-refactor
  */
 export async function switchTo(sweep, queryClient) {
-  await postSession(sweep.token)
+  try {
+    await postSession(sweep.token)
+  } catch (err) {
+    if (isDeadToken(err)) dropToken(sweep.sweepId)
+    throw err
+  }
   window.location.assign(`/s/${sweep.sweepId}`)
 }
 

@@ -508,6 +508,31 @@ test('SweepsSheet switching a stored sweep posts its token and navigates to it',
   window.location = original
 })
 
+// A stored token the server rejects (an admin token from before /api/session went
+// member-only; a link since rotated) is dead for good — switchTo forgets it, and the
+// sheet must say that rather than leave the row looking merely unlucky.
+test('SweepsSheet: a rejected token is forgotten and the sheet says what to do', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'admin', token: 'admin-tok' })
+  postSession.mockRejectedValueOnce(Object.assign(new Error('POST /api/session failed: HTTP 404'), { status: 404 }))
+  const { getByText, getByRole } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  await act(async () => { fireEvent.click(getByText('Pub')) })
+  expect(getByRole('alert').textContent).toMatch(/ask whoever runs the sweep for the current link/i)
+  expect(listSweeps().find((s) => s.sweepId === 'sw_b').token).toBeNull()
+})
+
+// Offline is not "your link is dead": a network failure must not tell a member to go
+// beg for a new link, and must not cost them the token they still have.
+test('SweepsSheet: a network failure blames the network, and keeps the token', async () => {
+  addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
+  addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
+  postSession.mockRejectedValueOnce(new TypeError('Failed to fetch'))
+  const { getByText, getByRole } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
+  await act(async () => { fireEvent.click(getByText('Pub')) })
+  expect(getByRole('alert').textContent).toMatch(/check your connection/i)
+  expect(listSweeps().find((s) => s.sweepId === 'sw_b').token).toBe('tb')
+})
+
 test('SweepsSheet leaving the active sweep removes it from the store and logs out', async () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
