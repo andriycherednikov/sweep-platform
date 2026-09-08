@@ -20,17 +20,21 @@
 # =============================================================================
 
 sweep-portal.yowiebay.au {
-
 	encode gzip
 
 	# API — Fastify. flush_interval -1 disables response buffering so the
 	# Server-Sent Events stream (/api/stream) flushes immediately.
+	#
+	# {remote_host}, NOT {remote}: {remote} is IP:port, and the port is a new
+	# ephemeral one per TCP connection, so the api's per-IP rate limits would key
+	# every connection into its own bucket and never fire. The 10-per-15-minutes on
+	# POST /api/account/password/session is the only brute-force defence there is.
 	handle /api/* {
 		reverse_proxy portal-api:3000 {
 			flush_interval -1
 			header_up Host {host}
-			header_up X-Real-IP {remote}
-			header_up X-Forwarded-For {remote}
+			header_up X-Real-IP {remote_host}
+			header_up X-Forwarded-For {remote_host}
 			header_up X-Forwarded-Proto {scheme}
 			header_up X-Forwarded-Host {host}
 		}
