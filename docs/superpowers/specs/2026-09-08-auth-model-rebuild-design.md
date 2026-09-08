@@ -45,10 +45,17 @@ operator role, because the same path then mints platform-operator access. The co
 spec raises the stakes again: member email verification means transactional mail per
 participant, not one sign-in mail per owner.
 
+**Transport: Resend** (decided 2026-09-08, settling the SES-vs-Resend question deferred
+on 2026-08-18). Use the official `resend` Node SDK rather than raw SMTP. It needs a
+verified sending domain with SPF and DKIM before any of this works — that is
+configuration, not code, and it gates the companion spec's member verification mail as
+much as it gates sign-in.
+
 **Required before the operator role ships:**
 
-1. Wire a transport (SES vs Resend — deferred 2026-08-18, now blocking).
-2. Failing that, fail closed at boot, in the same shape as the two guards already in
+1. Wire the transport behind the existing `sendMail` seam, so tests keep injecting a fake
+   and nothing else in the codebase learns the provider's name.
+2. And regardless, fail closed at boot, in the same shape as the two guards already in
    `api/src/app.js` (`sessionSecret` :58-62, `platformHost` :65-68) — resolve the
    transport from **env, inside `buildApp`**, exactly as `stripeKey` is resolved at
    :84-88:
