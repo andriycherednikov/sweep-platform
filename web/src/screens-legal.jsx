@@ -117,10 +117,13 @@ export function Privacy() {
       lede="A short and specific list, not a template. If it is not here, we do not store it."
     >
       <Clause h="If you run a sweep">
-        Your email address, and a name if you give one. The email is how you sign in —
-        we send a link rather than keeping a password, so there is no password here to
-        lose. Alongside it we keep your Stripe customer and subscription identifiers,
-        your subscription status and renewal date, and when your trial ends.
+        Your email address, and a name if you give one. The email is how you sign in: we
+        mail you a link, and that link on its own is always enough. A password is
+        optional on top of it — if you set one we keep a hash and never the password, so
+        we cannot read it or send it back to you, only check that what you typed
+        matches. Alongside that we keep your Stripe customer and subscription
+        identifiers, your subscription status and renewal date, and when your trial
+        ends.
       </Clause>
       <Clause h="If you are in someone's sweep">
         A display name, initials and a colour; a photo if one is uploaded for you; which

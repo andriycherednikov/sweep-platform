@@ -19,3 +19,14 @@ test('the footer offers both, so they are reachable from every marketing page', 
   expect(hrefs).toContain('/terms')
   expect(hrefs).toContain('/privacy')
 })
+
+// This page went false once: it promised "there is no password here to lose" while the
+// schema was already storing bcrypt hashes and every magic-link redeem offered to set
+// one. A policy that describes the wrong product is the one kind of stale copy worth
+// pinning down with a test.
+test('privacy names the password it stores, and how, rather than denying there is one', () => {
+  render(<Privacy />)
+  const text = screen.getByTestId('privacy').textContent
+  expect(text).toMatch(/hash/i)
+  expect(text).not.toMatch(/no password/i)
+})
