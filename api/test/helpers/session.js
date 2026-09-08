@@ -66,3 +66,12 @@ export async function seatFor(db, personId, { accountId = `ac_seat_${personId}`,
   await db.update(person).set({ accountId, claimedAt: new Date() }).where(eq(person.id, personId))
   return ownerHeaders(db, accountId)
 }
+
+/** Undo seatFor: unbind the row and drop the account, sessions first (account_session
+ *  has no cascade). The shared test DB is counted globally by seed.test.js, so a suite
+ *  that seats somebody has to put them back. */
+export async function releaseSeat(db, personId, accountId = `ac_seat_${personId}`) {
+  await db.update(person).set({ accountId: null, claimedAt: null }).where(eq(person.id, personId))
+  await db.delete(accountSession).where(eq(accountSession.accountId, accountId))
+  await db.delete(account).where(eq(account.id, accountId))
+}

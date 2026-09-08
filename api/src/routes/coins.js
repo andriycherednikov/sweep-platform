@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { and, eq, sql } from 'drizzle-orm'
 import { person, coinLedger, bet, parlay, competition } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
-import { requireSweep } from '../sweeps/auth.js'
+import { requireSweep, attachPerson, requirePerson } from '../sweeps/auth.js'
 import { walletFor, leaderboard, ensureGrants, serializeBet, statementFor, serializeParlay } from '../wagering/ledger.js'
 import { isExcluded } from '../optout.js'
 import { sportConfig } from '../sports.js'
@@ -18,17 +18,17 @@ async function sweepSportConfig(app, req) {
 }
 const drawVetoed = (cfg, market, selection) => !cfg.hasDraws && (MARKET_REGISTRY[market]?.needsDraws || selection === 'DRAW')
 const betBody = {
-  type: 'object', required: ['fixtureId', 'personId', 'selection', 'stake'], additionalProperties: false,
+  type: 'object', required: ['fixtureId', 'selection', 'stake'], additionalProperties: false,
   properties: {
-    fixtureId: { type: 'string' }, personId: { type: 'string' },
+    fixtureId: { type: 'string' },
     market: { type: 'string', enum: MARKETS }, selection: { type: 'string' }, stake: { type: 'integer', minimum: 1 },
   },
 }
 
 const parlayBody = {
-  type: 'object', required: ['personId', 'stake', 'legs'], additionalProperties: false,
+  type: 'object', required: ['stake', 'legs'], additionalProperties: false,
   properties: {
-    personId: { type: 'string' }, stake: { type: 'integer', minimum: 1 },
+    stake: { type: 'integer', minimum: 1 },
     legs: { type: 'array', minItems: 1, items: {
       type: 'object', required: ['fixtureId', 'selection'], additionalProperties: false,
       properties: { fixtureId: { type: 'string' }, market: { type: 'string', enum: MARKETS }, selection: { type: 'string' } } } },
@@ -36,38 +36,31 @@ const parlayBody = {
 }
 
 export async function coinsRoutes(app) {
-  app.get('/api/coins', { preHandler: member }, async (req) => {
+  // attachPerson, not requirePerson: the leaderboard is public to anyone holding the
+  // group link. Only the wallet half needs a seat, and without one it is simply empty.
+  app.get('/api/coins', { preHandler: [member, attachPerson(app)] }, async (req) => {
     const sweepId = req.sweep.id
     const board = await leaderboard(app.db, sweepId)
-    const me = req.query?.personId
     let wallet = { balance: 0, weeklyGrant: 1000, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }
-    if (me) {
-      // validate the person belongs to this sweep before walletFor (which grants/inserts),
-      // so a bogus ?personId returns an empty wallet rather than an FK error
-      const [p] = await app.db.select().from(person).where(and(eq(person.id, me), eq(person.sweepId, sweepId)))
-      if (p) wallet = await walletFor(app.db, sweepId, me)
-    }
+    if (req.person) wallet = await walletFor(app.db, sweepId, req.person.id)
     return { ...wallet, leaderboard: board }
   })
 
-  app.get('/api/coins/ledger', { preHandler: member }, async (req) => {
-    const sweepId = req.sweep.id
-    const me = req.query?.personId
-    if (!me) return { balance: 0, entries: [] }
-    // mirror GET /api/coins: validate the person belongs to this sweep before statementFor
-    // (which grants/inserts), so a bogus ?personId returns empty rather than an FK error
-    const [p] = await app.db.select().from(person).where(and(eq(person.id, me), eq(person.sweepId, sweepId)))
-    if (!p) return { balance: 0, entries: [] }
-    return statementFor(app.db, sweepId, me)
+  // Your statement is yours. It used to be whoever ?personId named.
+  app.get('/api/coins/ledger', { preHandler: [member, attachPerson(app)] }, async (req) => {
+    if (!req.person) return { balance: 0, entries: [] }
+    return statementFor(app.db, req.sweep.id, req.person.id)
   })
 
-  app.post('/api/bet', { preHandler: member, schema: { body: betBody } }, async (req, reply) => {
+  app.post('/api/bet', {
+    preHandler: [member, requirePerson(app)], schema: { body: betBody },
+  }, async (req, reply) => {
     if (!req.sweep.wageringEnabled) return reply.code(403).send({ error: 'wagering_disabled' })
     const sweepId = req.sweep.id
-    const { fixtureId, personId, selection, stake } = req.body
+    const { fixtureId, selection, stake } = req.body
     const market = req.body.market ?? '1x2'
-    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    const p = req.person
+    const personId = p.id
     // wagers are 18+ — enforce server-side so minors can't bet by bypassing the UI
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
     if (isExcluded(p)) return reply.code(403).send({ error: 'self_excluded' })
@@ -111,12 +104,14 @@ export async function coinsRoutes(app) {
     return { bet: serializeBet(row), balance: result.balance }
   })
 
-  app.post('/api/parlay', { preHandler: member, schema: { body: parlayBody } }, async (req, reply) => {
+  app.post('/api/parlay', {
+    preHandler: [member, requirePerson(app)], schema: { body: parlayBody },
+  }, async (req, reply) => {
     if (!req.sweep.wageringEnabled) return reply.code(403).send({ error: 'wagering_disabled' })
     const sweepId = req.sweep.id
-    const { personId, stake, legs } = req.body
-    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-    if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    const { stake, legs } = req.body
+    const p = req.person
+    const personId = p.id
     if (p.adult === false) return reply.code(403).send({ error: 'minor_not_allowed' })
     if (isExcluded(p)) return reply.code(403).send({ error: 'self_excluded' })
     if (legs.length < 2) return reply.code(400).send({ error: 'too_few_legs' })

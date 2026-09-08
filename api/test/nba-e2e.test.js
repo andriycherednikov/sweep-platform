@@ -1,4 +1,5 @@
 import { test, expect, afterAll, beforeAll } from 'vitest'
+import { seatFor, releaseSeat } from './helpers/session.js'
 import { readFileSync } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
@@ -44,6 +45,7 @@ afterAll(async () => {
   await db.delete(parlay).where(eq(parlay.sweepId, 'sw_nbae2e'))
   await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_nbae2e'))
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_nbae2e'))
+  await releaseSeat(db, 'pn_e2e')
   await db.delete(person).where(eq(person.sweepId, 'sw_nbae2e'))
   await db.delete(sweep).where(eq(sweep.id, 'sw_nbae2e'))
   await db.delete(event).where(eq(event.competitionId, ID))
@@ -68,7 +70,7 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
 
   // member auth: session cookie minted from the sweep's member token (frozen wire contract)
   const cookie = await sessionCookie(memberToken)
-  const M = { headers: { host: 'platform.test', cookie } }
+  const M = { headers: { host: 'platform.test', cookie, ...(await seatFor(db, 'pn_e2e')) } }
 
   // 3. wire reads through the frozen contract
   const fixtures = await app.inject({ method: 'GET', url: '/api/fixtures', ...M })
@@ -77,9 +79,9 @@ test('NBA end to end: provision → sweep → ownership/support → finals → 2
   expect(fixtures.json()[0]).toHaveProperty('t1') // soccer field names, NBA data — by design
 
   // 4. support a team; DRAW is refused (no-draw sport)
-  const pick = await app.inject({ method: 'POST', url: '/api/support', ...M, payload: { fixtureId: '372186', personId: 'pn_e2e', teamCode: 'minnesota-timberwolves' } })
+  const pick = await app.inject({ method: 'POST', url: '/api/support', ...M, payload: { fixtureId: '372186', teamCode: 'minnesota-timberwolves' } })
   expect(pick.statusCode).toBe(200)
-  const draw = await app.inject({ method: 'POST', url: '/api/support', ...M, payload: { fixtureId: '372186', personId: 'pn_e2e', teamCode: 'DRAW' } })
+  const draw = await app.inject({ method: 'POST', url: '/api/support', ...M, payload: { fixtureId: '372186', teamCode: 'DRAW' } })
   expect(draw.statusCode).toBe(400)
 
   // 5. an open bet on the game (inserted directly — NBA feed carries no odds; markets are P5)
@@ -116,16 +118,16 @@ test('NBA wagering spine: inject markets, bet ml/ou/hcap + parlay, settle on the
   for (const g of [g1, g2]) await db.update(event).set({ detail: detailMerge({ markets }) }).where(eq(event.id, g.id))
   await db.update(sweep).set({ wageringEnabled: true }).where(eq(sweep.id, 'sw_nbae2e'))
   const cookie = await sessionCookie(memberToken)
-  const H = { host: 'platform.test', cookie }
+  const H = { host: 'platform.test', cookie, ...(await seatFor(db, 'pn_e2e')) }
 
-  const b1 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'ml', selection: 'HOME', stake: 100 } })
+  const b1 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, market: 'ml', selection: 'HOME', stake: 100 } })
   expect(b1.statusCode).toBe(200)
-  const b2 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'ou', selection: 'OVER', stake: 50 } })
+  const b2 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, market: 'ou', selection: 'OVER', stake: 50 } })
   expect(b2.statusCode).toBe(200)
-  const b3 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, personId: 'pn_e2e', market: 'hcap', selection: 'HOME', stake: 50 } })
+  const b3 = await app.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: g1.id, market: 'hcap', selection: 'HOME', stake: 50 } })
   expect(b3.statusCode).toBe(200)
   const [b1Id, b2Id, b3Id] = [b1, b2, b3].map((r) => r.json().bet.id)
-  const par = await app.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { personId: 'pn_e2e', stake: 40, legs: [ { fixtureId: g1.id, market: 'ml', selection: 'HOME' }, { fixtureId: g2.id, market: 'ou', selection: 'UNDER' } ] } })
+  const par = await app.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { stake: 40, legs: [ { fixtureId: g1.id, market: 'ml', selection: 'HOME' }, { fixtureId: g2.id, market: 'ou', selection: 'UNDER' } ] } })
   expect(par.statusCode).toBe(200)
 
   // flip the feed to the real (final) capture and settle both games

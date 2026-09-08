@@ -2,7 +2,7 @@ import { expect, test, afterAll, beforeEach, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { memberClient, seatFor } from './helpers/session.js'
+import { memberClient, seatFor, releaseSeat } from './helpers/session.js'
 import { account, support, person, event } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
@@ -17,8 +17,7 @@ beforeAll(async () => {
   seat = await seatFor(db, pair[0].id)
 })
 afterAll(async () => {
-  await db.update(person).set({ accountId: null, claimedAt: null }).where(eq(person.id, pair[0].id))
-  await db.delete(account).where(eq(account.id, `ac_seat_${pair[0].id}`))
+  await releaseSeat(db, pair[0].id)
   await app.close(); await pool.end()
 })
 

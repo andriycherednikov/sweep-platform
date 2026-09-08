@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { memberClient, seatFor } from './helpers/session.js'
+import { memberClient, seatFor, releaseSeat } from './helpers/session.js'
 import { account, person } from '../src/db/schema.js'
 import { untilFor, isExcluded, extendUntil, FOREVER } from '../src/optout.js'
 
@@ -43,8 +43,8 @@ beforeAll(async () => {
   client = await memberClient(app)
 })
 afterAll(async () => {
+  await releaseSeat(db, PID)
   await db.delete(person).where(eq(person.id, PID)) // don't leak the test person into other suites' counts
-  await db.delete(account).where(eq(account.id, `ac_seat_${PID}`))
   await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true })
 })
 beforeEach(async () => {

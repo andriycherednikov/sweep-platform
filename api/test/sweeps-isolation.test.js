@@ -4,7 +4,7 @@ import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { sweep, person, ownership, support, event, account, accountSession } from '../src/db/schema.js'
-import { memberClient, adminHeaders, seatFor } from './helpers/session.js'
+import { memberClient, adminHeaders, seatFor, releaseSeat } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()

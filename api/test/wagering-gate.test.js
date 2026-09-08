@@ -4,13 +4,18 @@ import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { sweep, person, event, competition, competitor, bet, coinLedger, account, accountSession } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
-import { memberCookie, ownerHeaders, memberClient, adminHeaders } from './helpers/session.js'
+import { memberCookie, ownerHeaders, memberClient, adminHeaders, seatFor, releaseSeat } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const published = []
 const app = buildApp(db, { sessionSecret: 'test-secret', publish: (e) => published.push(e) })
-let client
-beforeAll(async () => { client = await memberClient(app) })
+let client, seat, me, nbaSeat
+beforeAll(async () => {
+  client = await memberClient(app)
+  me = (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
+  seat = await seatFor(db, me.id)
+  nbaSeat = null
+})
 afterAll(async () => {
   await db.delete(bet).where(eq(bet.sweepId, 'sw_wgnba'))
   await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_wgnba'))
@@ -19,6 +24,8 @@ afterAll(async () => {
   await db.delete(event).where(eq(event.competitionId, 'ck_wgnba'))
   await db.delete(competitor).where(eq(competitor.competitionId, 'ck_wgnba'))
   await db.delete(competition).where(eq(competition.id, 'ck_wgnba'))
+  await releaseSeat(db, me.id)
+  await releaseSeat(db, 'pn_wgnba')
   await app.close(); await pool.end()
 })
 
@@ -44,28 +51,28 @@ async function bettable() {
   await db.update(event).set({ status: 'upcoming', detail: detailMerge({ markets }) }).where(eq(event.id, f.id))
   return f
 }
-const aPerson = async () => (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
+const aPerson = async () => me
 const setWagering = (on) => db.update(sweep).set({ wageringEnabled: on }).where(eq(sweep.id, 'default'))
 
 test('wagering OFF: bet and parlay are refused with a stable error; reads stay open', async () => {
   const f = await bettable(); const p = await aPerson()
   await setWagering(false)
   try {
-    const bet = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+    const bet = await client.inject({ method: 'POST', url: '/api/bet', headers: seat, payload: { fixtureId: f.id, selection: 'HOME', stake: 10 } })
     expect(bet.statusCode).toBe(403)
     expect(bet.json()).toEqual({ error: 'wagering_disabled' })
-    const par = await client.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [ { fixtureId: f.id, selection: 'HOME' }, { fixtureId: f.id, market: 'ou25', selection: 'OVER' } ] } })
+    const par = await client.inject({ method: 'POST', url: '/api/parlay', headers: seat, payload: { stake: 10, legs: [ { fixtureId: f.id, selection: 'HOME' }, { fixtureId: f.id, market: 'ou25', selection: 'OVER' } ] } })
     expect(par.statusCode).toBe(403)
     expect(par.json()).toEqual({ error: 'wagering_disabled' })
     // wallet history stays readable
     expect((await client.inject({ method: 'GET', url: '/api/coins' })).statusCode).toBe(200)
-    expect((await client.inject({ method: 'GET', url: `/api/coins/ledger?personId=${p.id}` })).statusCode).toBe(200)
+    expect((await client.inject({ method: 'GET', url: '/api/coins/ledger', headers: seat })).statusCode).toBe(200)
   } finally { await setWagering(true) }
 })
 
 test('wagering ON (default sweep as backfilled/seeded): bet placement works unchanged', async () => {
   const f = await bettable(); const p = await aPerson()
-  const res = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+  const res = await client.inject({ method: 'POST', url: '/api/bet', headers: seat, payload: { fixtureId: f.id, selection: 'HOME', stake: 10 } })
   expect(res.statusCode).toBe(200)
   expect(res.json().bet.market).toBe('1x2') // frozen wire: market keys unchanged
 })
@@ -74,15 +81,15 @@ test('self-excluded person cannot bet or parlay server-side; expiry restores', a
   const f = await bettable(); const p = await aPerson()
   await db.update(person).set({ excludedUntil: new Date(Date.now() + 86_400_000) }).where(eq(person.id, p.id))
   try {
-    const bet = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+    const bet = await client.inject({ method: 'POST', url: '/api/bet', headers: seat, payload: { fixtureId: f.id, selection: 'HOME', stake: 10 } })
     expect(bet.statusCode).toBe(403)
     expect(bet.json()).toEqual({ error: 'self_excluded' })
-    const par = await client.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [ { fixtureId: f.id, selection: 'HOME' }, { fixtureId: f.id, market: 'ou25', selection: 'OVER' } ] } })
+    const par = await client.inject({ method: 'POST', url: '/api/parlay', headers: seat, payload: { stake: 10, legs: [ { fixtureId: f.id, selection: 'HOME' }, { fixtureId: f.id, market: 'ou25', selection: 'OVER' } ] } })
     expect(par.statusCode).toBe(403)
     expect(par.json()).toEqual({ error: 'self_excluded' })
     // expired exclusion no longer blocks
     await db.update(person).set({ excludedUntil: new Date(Date.now() - 1000) }).where(eq(person.id, p.id))
-    const again = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: f.id, personId: p.id, selection: 'HOME', stake: 10 } })
+    const again = await client.inject({ method: 'POST', url: '/api/bet', headers: seat, payload: { fixtureId: f.id, selection: 'HOME', stake: 10 } })
     expect(again.statusCode).toBe(200)
   } finally { await db.update(person).set({ excludedUntil: null }).where(eq(person.id, p.id)) }
 })
@@ -152,17 +159,18 @@ test('no-draw sport: 1x2 and DRAW are refused at validation', async () => {
   await db.insert(sweep).values({ id: 'sw_wgnba', name: 'NBA WG', kind: 'token', memberToken: mt, competitionId: 'ck_wgnba', wageringEnabled: true })
   await db.insert(person).values({ id: 'pn_wgnba', sweepId: 'sw_wgnba', name: 'Nia', short: 'Nia', initials: 'NI', avColor: '#111' })
   const cookie = (await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: mt } })).headers['set-cookie']
-  const H = { host: 'platform.test', cookie }
+  nbaSeat = await seatFor(db, 'pn_wgnba')
+  const H = { host: 'platform.test', cookie, ...nbaSeat }
 
   // even with a (poisoned) stored 1x2 market, validation refuses it for basketball
-  const r1 = await client.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', personId: 'pn_wgnba', market: '1x2', selection: 'DRAW', stake: 10 } })
+  const r1 = await client.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', market: '1x2', selection: 'DRAW', stake: 10 } })
   expect(r1.statusCode).toBe(400)
   expect(r1.json()).toEqual({ error: 'market_not_offered' })
   // the ml spine market places fine
-  const r2 = await client.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', personId: 'pn_wgnba', market: 'ml', selection: 'HOME', stake: 10 } })
+  const r2 = await client.inject({ method: 'POST', url: '/api/bet', headers: H, payload: { fixtureId: 'evt_wgnba1', market: 'ml', selection: 'HOME', stake: 10 } })
   expect(r2.statusCode).toBe(200)
   // parlay leg with a draw market on basketball is refused too
-  const r3 = await client.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { personId: 'pn_wgnba', stake: 10, legs: [ { fixtureId: 'evt_wgnba1', market: 'ml', selection: 'HOME' }, { fixtureId: 'evt_wgnba1', market: '1x2', selection: 'HOME' } ] } })
+  const r3 = await client.inject({ method: 'POST', url: '/api/parlay', headers: H, payload: { stake: 10, legs: [ { fixtureId: 'evt_wgnba1', market: 'ml', selection: 'HOME' }, { fixtureId: 'evt_wgnba1', market: '1x2', selection: 'HOME' } ] } })
   expect(r3.statusCode).toBe(400)
   expect(r3.json()).toMatchObject({ error: 'market_not_offered' })
 })

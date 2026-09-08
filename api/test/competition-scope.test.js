@@ -10,7 +10,7 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { memberClient } from './helpers/session.js'
+import { memberClient, seatFor, releaseSeat } from './helpers/session.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { competition, competitor, event, person, support, bet, parlay, coinLedger, photo, sweep } from '../src/db/schema.js'
 
@@ -52,10 +52,17 @@ afterAll(async () => {
   await db.delete(event).where(eq(event.id, 'evO_1'))
   await db.delete(competitor).where(eq(competitor.competitionId, OTHER))
   await db.delete(competition).where(eq(competition.id, OTHER))
+  await releaseSeat(db, me.id)
   await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true })
 })
 
-const aPerson = async () => (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
+const aPerson = async () => me
+
+let me, seat
+beforeAll(async () => {
+  me = (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
+  seat = await seatFor(db, me.id)
+})
 
 test('GET /api/fixtures/:id 404s for another competitions event', async () => {
   const res = await client.inject({ method: 'GET', url: '/api/fixtures/evO_1' })
@@ -64,21 +71,21 @@ test('GET /api/fixtures/:id 404s for another competitions event', async () => {
 
 test('POST /api/support rejects another competitions event', async () => {
   const p = await aPerson()
-  const res = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: 'evO_1', personId: p.id, teamCode: 'lal' } })
+  const res = await client.inject({ method: 'POST', url: '/api/support', headers: seat, payload: { fixtureId: 'evO_1', teamCode: 'lal' } })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
 
 test('POST /api/bet rejects another competitions event', async () => {
   const p = await aPerson()
-  const res = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: 'evO_1', personId: p.id, selection: 'HOME', stake: 10 } })
+  const res = await client.inject({ method: 'POST', url: '/api/bet', headers: seat, payload: { fixtureId: 'evO_1', selection: 'HOME', stake: 10 } })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
 
 test('POST /api/parlay rejects a leg on another competitions event', async () => {
   const p = await aPerson()
-  const res = await client.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [
+  const res = await client.inject({ method: 'POST', url: '/api/parlay', headers: seat, payload: { stake: 10, legs: [
     { fixtureId: 'evO_1', selection: 'HOME' },
     { fixtureId: 'evO_1', market: 'ou25', selection: 'OVER' },
   ] } })
@@ -102,21 +109,23 @@ test('POST /api/support rejects a DRAW pick for a no-draw sport', async () => {
   await db.insert(person).values({ id: 'pn_nba', sweepId: 'sw_nba', name: 'Nia', short: 'Nia', initials: 'NI', avColor: '#123' }).onConflictDoNothing()
   try {
     const cookie = await sessionCookie(memberToken)
+    const nbaSeat = await seatFor(db, 'pn_nba')
     const res = await app.inject({
       method: 'POST', url: '/api/support',
-      headers: { host: 'platform.test', cookie },
-      payload: { fixtureId: 'evO_1', personId: 'pn_nba', teamCode: 'DRAW' },
+      headers: { host: 'platform.test', cookie, ...nbaSeat },
+      payload: { fixtureId: 'evO_1', teamCode: 'DRAW' },
     })
     expect(res.statusCode).toBe(400)
     expect(res.json().error).toBe('invalid_team')
     // a real team pick on the same sweep/event still works
     const ok = await app.inject({
       method: 'POST', url: '/api/support',
-      headers: { host: 'platform.test', cookie },
-      payload: { fixtureId: 'evO_1', personId: 'pn_nba', teamCode: 'lal' },
+      headers: { host: 'platform.test', cookie, ...nbaSeat },
+      payload: { fixtureId: 'evO_1', teamCode: 'lal' },
     })
     expect(ok.statusCode).toBe(200)
   } finally {
+    await releaseSeat(db, 'pn_nba')
     await db.delete(support).where(eq(support.sweepId, 'sw_nba'))
     await db.delete(person).where(eq(person.sweepId, 'sw_nba'))
     await db.delete(sweep).where(eq(sweep.id, 'sw_nba'))
