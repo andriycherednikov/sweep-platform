@@ -5,7 +5,9 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 // sweep session cookie — mock the client so these tests never touch fetch.
 vi.mock('./lib/accountClient.js', () => ({
   requestLogin: vi.fn(async () => ({ ok: true })),
-  redeemLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
+  redeemLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })),
+  passwordLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })),
+  setPassword: vi.fn(async () => ({})),
   getAccount: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
   getAccountToken: vi.fn(() => null),
   clearAccountToken: vi.fn(),
@@ -59,14 +61,48 @@ test('a valid stored token lands straight on the account home (billing + sweeps 
   expect(await screen.findByRole('heading', { name: /your sweeps/i })).toBeInTheDocument()
 })
 
-test('submitting the email form calls requestLogin and shows the check-your-email message', async () => {
+test('email + password signs in directly and reloads', async () => {
+  window.history.replaceState(null, '', '/account')
+  const reload = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, reload }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'me@example.com' } })
+  fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'correcthorsebattery' } })
+  fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
+  await waitFor(() => expect(accountClient.passwordLogin).toHaveBeenCalledWith('me@example.com', 'correcthorsebattery'))
+  await waitFor(() => expect(reload).toHaveBeenCalled())
+})
+
+test('a bad-credentials password sign-in shows an error and does not reload', async () => {
+  accountClient.passwordLogin.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
+  window.history.replaceState(null, '', '/account')
+  const reload = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, reload }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'me@example.com' } })
+  fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'wrong' } })
+  fireEvent.click(screen.getByRole('button', { name: /^sign in$/i }))
+  expect(await screen.findByText(/wrong email or password/i)).toBeInTheDocument()
+  expect(reload).not.toHaveBeenCalled()
+})
+
+test('"email me a link instead" switches to the magic-link form, which still works as before', async () => {
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
+  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
   fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'me@example.com' } })
   fireEvent.click(screen.getByRole('button', { name: /send/i }))
   await waitFor(() => expect(accountClient.requestLogin).toHaveBeenCalledWith('me@example.com'))
   expect(await screen.findByText(/check your email/i)).toBeInTheDocument()
   expect(screen.getByText(/dev: the link is printed on the api console/i)).toBeInTheDocument()
+})
+
+test('the magic-link form can switch back to signing in with a password', async () => {
+  window.history.replaceState(null, '', '/account')
+  render(<AccountRoot />)
+  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
+  fireEvent.click(screen.getByRole('button', { name: /sign in with a password instead/i }))
+  expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
 })
 
 test('/account/login/:token redeems the token then navigates to the account home', async () => {
@@ -75,6 +111,39 @@ test('/account/login/:token redeems the token then navigates to the account home
   Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
   render(<AccountRoot />)
   await waitFor(() => expect(accountClient.redeemLogin).toHaveBeenCalledWith('abc'))
+  await waitFor(() => expect(replace).toHaveBeenCalledWith('/account'))
+})
+
+test('a magic-link redeem on an account with no password shows a dismissible set-password card', async () => {
+  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
+  window.history.replaceState(null, '', '/account/login/abc')
+  const replace = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  expect(await screen.findByRole('heading', { name: /set a password/i })).toBeInTheDocument()
+  expect(replace).not.toHaveBeenCalled()
+})
+
+test('dismissing the set-password card ("Not now") continues to the account without setting one', async () => {
+  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
+  window.history.replaceState(null, '', '/account/login/abc')
+  const replace = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  fireEvent.click(await screen.findByRole('button', { name: /not now/i }))
+  expect(replace).toHaveBeenCalledWith('/account')
+  expect(accountClient.setPassword).not.toHaveBeenCalled()
+})
+
+test('setting a password from the card calls setPassword then continues to the account', async () => {
+  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
+  window.history.replaceState(null, '', '/account/login/abc')
+  const replace = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  fireEvent.change(await screen.findByLabelText(/new password/i), { target: { value: 'longenoughpassword' } })
+  fireEvent.click(screen.getByRole('button', { name: /^set password$/i }))
+  await waitFor(() => expect(accountClient.setPassword).toHaveBeenCalledWith('longenoughpassword'))
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/account'))
 })
 

@@ -7,7 +7,7 @@
    ============================================================ */
 import { useEffect, useState } from "react";
 import {
-  requestLogin, redeemLogin, getAccount, getAccountToken, clearAccountToken,
+  requestLogin, redeemLogin, passwordLogin, setPassword, getAccount, getAccountToken, clearAccountToken,
   confirmCheckout, getBilling,
 } from "./lib/accountClient.js";
 import { fmtDay } from "./screens-account.jsx";
@@ -69,14 +69,13 @@ function RequireAccount({ children }) {
   return children;
 }
 
-function Entry() {
-  const status = useAccountStatus();
+/** The magic-link form, byte-for-byte today's flow: it is also how a brand-new
+ *  visitor creates an account (there is no separate signup), and how anyone
+ *  recovers access without knowing a password. */
+function MagicEntry({ onPassword }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(false);
-
-  if (status === "checking") return <div className="sweep-gate" />;
-  if (status === "in") return <AccountHome />;
 
   async function submit(e) {
     e.preventDefault();
@@ -123,20 +122,137 @@ function Entry() {
         <p className="au-note">14 days free · no card · leave any time</p>
         {error && <p className="au-err">Something went wrong. Try again.</p>}
       </form>
+      <button type="button" className="au-alt" onClick={onPassword}>
+        Sign in with a password instead
+      </button>
+    </AuthPanel>
+  );
+}
+
+/** Email + password signs in directly — the common case once an owner has set one.
+ *  There is no forgot-password form here: MagicEntry (today's flow, unchanged) is
+ *  the recovery path, since it signs a person in without knowing any password. */
+function PasswordEntry({ onMagic }) {
+  const [email, setEmail] = useState("");
+  const [password, setFieldPassword] = useState("");
+  const [error, setError] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError(false);
+    try { await passwordLogin(email, password); window.location.reload(); }
+    catch { setError(true); }
+  }
+
+  return (
+    <AuthPanel tag="Sign in" title="Run *your* sweep" lede="Enter your email and password.">
+      <form className="au-form" onSubmit={submit}>
+        <label className="au-label" htmlFor="au-email">Email</label>
+        <input
+          id="au-email"
+          className="au-input"
+          type="email"
+          required
+          placeholder="you@example.com"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <label className="au-label" htmlFor="au-password" style={{ marginTop: 14 }}>Password</label>
+        <input
+          id="au-password"
+          className="au-input"
+          type="password"
+          required
+          placeholder="••••••••"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setFieldPassword(e.target.value)}
+        />
+        <button type="submit" className="lp-btn au-btn">Sign in</button>
+        {error && <p className="au-err">Wrong email or password.</p>}
+      </form>
+      <button type="button" className="au-alt" onClick={onMagic}>
+        Email me a link instead
+      </button>
+    </AuthPanel>
+  );
+}
+
+function Entry() {
+  const status = useAccountStatus();
+  const [mode, setMode] = useState("password"); // password | magic
+
+  if (status === "checking") return <div className="sweep-gate" />;
+  if (status === "in") return <AccountHome />;
+
+  return mode === "magic"
+    ? <MagicEntry onPassword={() => setMode("password")} />
+    : <PasswordEntry onMagic={() => setMode("magic")} />;
+}
+
+/** Shown once, right after a magic-link redeem, only when the account has no password
+ *  yet. Dismissible, not a wall: the link that just worked keeps working, so nobody
+ *  is trapped here — "Not now" continues to the account exactly as before this task. */
+function SetPasswordCard({ onDone }) {
+  const [password, setFieldPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+
+  async function submit(e) {
+    e.preventDefault();
+    setError(false);
+    setBusy(true);
+    try { await setPassword(password); onDone(); }
+    catch { setError(true); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <AuthPanel
+      tag="Signed in"
+      title="Set a *password*"
+      lede="Optional — skip it and the email link keeps working, same as always."
+    >
+      <form className="au-form" onSubmit={submit}>
+        <label className="au-label" htmlFor="au-newpw">New password</label>
+        <input
+          id="au-newpw"
+          className="au-input"
+          type="password"
+          required
+          minLength={10}
+          maxLength={72}
+          placeholder="At least 10 characters"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setFieldPassword(e.target.value)}
+        />
+        <button type="submit" className="lp-btn au-btn" disabled={busy}>{busy ? "Saving…" : "Set password"}</button>
+        {error && <p className="au-err">Something went wrong. Try again, or skip for now.</p>}
+      </form>
+      <button type="button" className="au-alt" onClick={onDone}>Not now</button>
     </AuthPanel>
   );
 }
 
 function Redeem({ token }) {
   const [error, setError] = useState(false);
+  const [needsPassword, setNeedsPassword] = useState(false);
 
   useEffect(() => {
     let alive = true;
     redeemLogin(token)
-      .then(() => { window.location.replace("/account"); })
+      .then((account) => {
+        if (!alive) return;
+        if (account?.hasPassword) window.location.replace("/account");
+        else setNeedsPassword(true);
+      })
       .catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
   }, [token]);
+
+  if (needsPassword) return <SetPasswordCard onDone={() => window.location.replace("/account")} />;
 
   if (!error) return <div className="sweep-gate" />;
 

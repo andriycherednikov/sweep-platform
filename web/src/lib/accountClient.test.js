@@ -1,7 +1,7 @@
 import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
-  requestLogin, redeemLogin, getBilling, startCheckout, getCatalog, createSweep,
+  requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -49,6 +49,40 @@ test('redeemLogin exchanges the magic-link token and persists the returned accou
   }))
   expect(getAccountToken()).toBe('tok2')
   expect(account).toEqual({ id: 'a1', email: 'x@y.com', name: null })
+})
+
+test('passwordLogin exchanges email + password for a session and persists the accountToken', async () => {
+  fetch.mockResolvedValueOnce(jsonResponse(201, {
+    accountToken: 'tok3',
+    account: { id: 'a1', email: 'x@y.com', name: null, hasPassword: true },
+  }))
+  const account = await passwordLogin('x@y.com', 'hunter22')
+  expect(fetch).toHaveBeenCalledWith('/api/account/password/session', expect.objectContaining({
+    method: 'POST',
+    body: JSON.stringify({ email: 'x@y.com', password: 'hunter22' }),
+  }))
+  expect(getAccountToken()).toBe('tok3')
+  expect(account).toEqual({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })
+})
+
+test('setPassword posts only the password when no current one is given (fresh magic-link session)', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(204, null))
+  await setPassword('newlongpassword')
+  expect(fetch).toHaveBeenCalledWith('/api/account/password', expect.objectContaining({
+    method: 'POST',
+    body: JSON.stringify({ password: 'newlongpassword' }),
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
+  }))
+})
+
+test('setPassword includes current when changing an existing password', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(204, null))
+  await setPassword('newlongpassword', 'oldpassword')
+  expect(fetch).toHaveBeenCalledWith('/api/account/password', expect.objectContaining({
+    body: JSON.stringify({ password: 'newlongpassword', current: 'oldpassword' }),
+  }))
 })
 
 test('clearAccountToken removes a stored token', () => {

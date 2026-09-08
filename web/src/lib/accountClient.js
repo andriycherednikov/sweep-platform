@@ -20,6 +20,15 @@ export async function redeemLogin(token) {
   setAccountToken(out.accountToken)
   return out.account
 }
+export async function passwordLogin(email, password) {
+  const out = await call('POST', '/api/account/password/session', { email, password })
+  setAccountToken(out.accountToken)
+  return out.account
+}
+// `current` is omitted (not sent as undefined) when unset: a fresh magic-link session
+// may set a first password without it, and the API tells current-required apart from
+// bad-credentials, so an absent field must mean "none supplied", not "supplied as empty".
+export const setPassword = (password, current) => call('POST', '/api/account/password', current ? { password, current } : { password })
 export const getAccount = () => call('GET', '/api/account')
 export const getCatalog = (params = {}) => {
   const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
