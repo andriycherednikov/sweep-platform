@@ -35,22 +35,29 @@ export function tabsFor() {
   return t;
 }
 
-/* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only). */
-export function urlFor(v) {
-  if (v.overlay?.type === "team") return `/teams/${v.overlay.code}`;
-  if (v.overlay?.type === "person") return `/people/${v.overlay.id}`;
-  if (v.overlay?.type === "knockouts") return "/knockouts";
-  if (v.overlay?.type === "admin") return "/admin";
-  if (v.overlay?.type === "sweeps") return "/sweeps";
+/* nav state <-> URL. Modals/identity aren't deep-linked (kept in history.state only).
+   `id` is the sweep this view lives in: every path inside a sweep names it, so the
+   URL survives a bookmark, a second tab and a reload. Omitted (or the default sweep,
+   which owns its whole host) keeps the bare paths the community app has always used. */
+export function urlFor(v, id) {
+  const at = (p) => (id && id !== "default" ? `/s/${id}${p === "/" ? "" : p}` : p);
+  if (v.overlay?.type === "team") return at(`/teams/${v.overlay.code}`);
+  if (v.overlay?.type === "person") return at(`/people/${v.overlay.id}`);
+  if (v.overlay?.type === "knockouts") return at("/knockouts");
+  if (v.overlay?.type === "admin") return at("/admin");
+  if (v.overlay?.type === "sweeps") return at("/sweeps");
   // SECURITY: the super token is the platform master credential. It rides in the
   // in-memory view (so SuperConsole can auto-submit a /super/<token> deep link) but
   // is NEVER emitted to the URL — that keeps it out of the address bar/history AND
   // out of analytics (trackPageview builds its path from urlFor). Always bare /super.
   if (v.overlay?.type === "super") return "/super";
-  return v.tab === "home" ? "/" : v.tab === "coins" ? "/wagers" : `/${v.tab}`;
+  return at(v.tab === "home" ? "/" : v.tab === "coins" ? "/wagers" : `/${v.tab}`);
 }
 export function readView(path) {
-  const seg = path.split("/").filter(Boolean);
+  const all = path.split("/").filter(Boolean);
+  // Read straight through the sweep prefix: every case below (and every bookmark
+  // minted before sweeps had their own path) matches on the same segments as always.
+  const seg = all[0] === "s" && all[1] ? all.slice(2) : all;
   const base = { tab: "home", overlay: null, modal: null, identity: false };
   if (seg[0] === "teams" && seg[1]) return { ...base, tab: "teams", overlay: { type: "team", code: seg[1] } };
   if (seg[0] === "people" && seg[1]) return { ...base, tab: "people", overlay: { type: "person", id: seg[1] } };
@@ -76,7 +83,7 @@ export default function App() {
   function navigate(partial) {
     const v = { ...viewRef.current, ...partial };
     viewRef.current = v;
-    window.history.pushState(v, "", urlFor(v));
+    window.history.pushState(v, "", urlFor(v, S.sweep?.id));
     setView(v);
   }
   const goBack = () => window.history.back(); // in-app back / close = browser back
@@ -88,7 +95,7 @@ export default function App() {
     refreshAdminBadge(); // surfaces the moderation count if this device is an admin
     window.__sweepViewMe = () => { const me = getMe(); if (me) navigate({ overlay: { type: "person", id: me.id } }); };
     // seed the current entry with state so the first Back has something to restore
-    window.history.replaceState(viewRef.current, "", urlFor(viewRef.current));
+    window.history.replaceState(viewRef.current, "", urlFor(viewRef.current, S.sweep?.id));
     const onPop = (e) => {
       const v = e.state || readView(window.location.pathname);
       viewRef.current = v;
@@ -103,6 +110,8 @@ export default function App() {
   // on the resolved URL to avoid double-counting a modal open/close as pageviews.
   const prevUrlRef = useRef(null);
   useEffect(() => {
+    // Analytics wants the shape of the page, not which group was on it: /s/<id>/standings
+    // and /standings are the same screen, and the id would shard every report by sweep.
     const url = urlFor(view);
     if (url === prevUrlRef.current) return;
     prevUrlRef.current = url;

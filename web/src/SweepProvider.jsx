@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchAll, fetchSocial, fetchWallet } from './api/client.js'
+import { fetchAll, fetchSocial, fetchWallet, setActiveSweep, postSession } from './api/client.js'
 import { setSweepData } from './data.js'
 import { setSocialData, setCurrentSweepId, useSocial } from './social.js'
 import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
-import { listSweeps, addSweep, switchTo } from './sweeps.js'
+import { listSweeps, addSweep } from './sweeps.js'
+import { parseSweepPath } from './lib/joinLink.js'
 import { Landing } from './screens-landing.jsx'
 
 const is401 = (err) => /HTTP 401/.test(err?.message || '')
@@ -35,6 +36,9 @@ function GateBrand() {
 
 function Gate({ children }) {
   const qc = useQueryClient()
+  // One stored-token re-exchange per mount. Without the guard a sweep that 401s for
+  // any other reason (archived, rotated) would re-post and refetch forever.
+  const rejoinRef = useRef(false)
   // Re-render + re-key the wallet on identity switch so balance/bets/statement
   // follow whoever you're viewing as.
   const { me } = useSocial()
@@ -49,6 +53,7 @@ function Gate({ children }) {
     queryFn: async () => {
       const api = await fetchAll()
       setCurrentSweepId(api.bootstrap?.sweep?.id || 'default')
+      setActiveSweep(api.bootstrap?.sweep?.id || null)
       setSweepData(assembleSweep(api))
       // D7a→D4: backfill the active sweep's display name into the switcher store.
       const sweep = api.bootstrap?.sweep
@@ -95,55 +100,54 @@ function Gate({ children }) {
   }
   if (isError && is401(error)) {
     const sweeps = listSweeps()
-    // No session AND nothing on this device → a stranger at the front door, not a
-    // locked-out member. Sell the product and route to sign-up; the invite path is
-    // the aside (a member with a link never lands here — the link joins them first).
-    // …unless they arrived on a dead invite link (rotated, archived, mistyped): they
-    // were sent here on purpose, so say the link is dead rather than sell them the app.
-    if (sweeps.length === 0) {
-      if (!new URLSearchParams(window.location.search).has('join')) return <Landing />
+    const wanted = parseSweepPath(window.location.pathname)
+
+    // The URL names a sweep this session cannot open. If the device still holds that
+    // sweep's link token, the cookie has merely expired — spend the token once and
+    // carry on, which is what makes a bookmark survive the 8h session.
+    if (wanted) {
+      const stored = sweeps.find((s) => s.sweepId === wanted && s.token)
+      if (stored && !rejoinRef.current) {
+        rejoinRef.current = true
+        postSession(stored.token).then(() => refetch()).catch(() => { /* fall through to the card below */ })
+        return (
+          <div data-testid="sweep-loading" className="sweep-gate">
+            <GateBrand />
+            <div className="sweep-spinner" aria-hidden="true" />
+            <p className="sweep-gate-msg">Loading the sweep…</p>
+          </div>
+        )
+      }
+      // Someone else's sweep, or ours with the token gone: one card either way, so the
+      // id never becomes an oracle for which sweeps exist.
       return (
-        <div data-testid="sweep-join-failed" className="sweep-gate">
+        <div data-testid="sweep-needs-invite" className="sweep-gate">
           <GateBrand />
           <div className="sweep-card">
-            <h2 className="sweep-card-h">That invite link didn't work</h2>
+            <h2 className="sweep-card-h">This sweep needs its invite link</h2>
             <p className="sweep-card-sub">
-              It may have been replaced or the sweep closed. Ask whoever runs your sweep for a fresh link.
+              Sweeps are private to the group. Open the link whoever runs it sent you, and you'll land straight back here.
             </p>
-            <a className="sweep-retry" href="/">Start your own sweep</a>
+            <a className="sweep-retry" href="/">Or start your own</a>
           </div>
         </div>
       )
     }
-
+    // The URL names no sweep, so this is the front door — the same page a stranger
+    // sees, whether or not this browser has joined anything. Their sweeps live at
+    // /switch and are linked from the nav; the root sells the product. The exception
+    // is a dead invite link (rotated, archived, mistyped): they were sent here on
+    // purpose, so say the link is dead rather than pitch at them.
+    if (!new URLSearchParams(window.location.search).has('join')) return <Landing />
     return (
-      <div data-testid="sweep-pick" className="sweep-gate">
+      <div data-testid="sweep-join-failed" className="sweep-gate">
         <GateBrand />
         <div className="sweep-card">
-          <div className="sweep-card-ic" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="5" width="18" height="14" rx="2.5" /><path d="m3.5 7.5 8.5 6 8.5-6" />
-            </svg>
-          </div>
-          <h2 className="sweep-card-h">Pick a sweep</h2>
-          {sweeps.length > 0 && (
-            <>
-              <p className="sweep-card-sub">Jump back into one of your sweeps.</p>
-              <ul className="sweep-pick-list">
-                {sweeps.map((s) => (
-                  <li key={s.sweepId}>
-                    <button className="sweep-pick-row" onClick={() => switchTo(s, qc)}>
-                      <span className="sweep-pick-name">{s.name || s.sweepId}</span>
-                      <svg className="sweep-pick-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-          {/* The other door: run your own sweep instead of joining someone else's. */}
-          <p className="sweep-card-sub">Running your own sweep?</p>
-          <a className="sweep-retry" href="/account">Sign in</a>
+          <h2 className="sweep-card-h">That invite link didn't work</h2>
+          <p className="sweep-card-sub">
+            It may have been replaced or the sweep closed. Ask whoever runs your sweep for a fresh link.
+          </p>
+          <a className="sweep-retry" href="/">Start your own sweep</a>
         </div>
       </div>
     )

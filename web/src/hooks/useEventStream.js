@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { SWEEP as S } from '../data.js'
 import { pushNotification } from '../notifications.js'
 import { getAdminBadge, refreshAdminBadge } from '../admin.js'
+import { streamUrl } from '../api/client.js'
 
 /**
  * Subscribe once to GET /api/stream. Each event invalidates the relevant
@@ -20,7 +21,7 @@ export function useEventStream() {
   const notifyOnce = (key, fn) => { if (seen.current.has(key)) return; seen.current.add(key); fn() }
   useEffect(() => {
     if (typeof EventSource === 'undefined') return
-    const es = new EventSource('/api/stream')
+    const es = new EventSource(streamUrl())
     es.onopen = () => {
       qc.invalidateQueries({ queryKey: ['sweep'] })
       qc.invalidateQueries({ queryKey: ['social'] })

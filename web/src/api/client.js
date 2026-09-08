@@ -1,5 +1,29 @@
+/**
+ * Which sweep this browser is currently looking at. The cookie can hold several
+ * (a person is in more than one group), so the cookie alone no longer identifies
+ * one — every request names it. Unpinned means "whichever the server saw last",
+ * which is what the default sweep, alone on its own host, has always relied on.
+ */
+let activeSweepId = null
+
+/** Pin this when the URL names no sweep. It is not a sweep id (ids are `sw_`-prefixed),
+ *  so on the platform host it resolves to nobody — which is the truth: the front door
+ *  belongs to no sweep, and must not quietly open whichever one you last used. The
+ *  default-sweep host ignores it and resolves its own sweep, as it always has. */
+export const NO_SWEEP = 'none'
+
+export function setActiveSweep(id) { activeSweepId = id && id !== 'default' ? id : null }
+const sweepHeaders = () => (activeSweepId ? { 'x-sweep-id': activeSweepId } : {})
+/** …as a fetch init fragment, so an unpinned call sends no `headers` key at all. */
+const sweepInit = () => (activeSweepId ? { headers: sweepHeaders() } : {})
+
+/** EventSource cannot carry a header, so the stream names its sweep in the query. */
+export function streamUrl() {
+  return activeSweepId ? `/api/stream?sweep=${encodeURIComponent(activeSweepId)}` : '/api/stream'
+}
+
 async function get(path) {
-  const res = await fetch(path, { credentials: 'include' })
+  const res = await fetch(path, { credentials: 'include', ...sweepInit() })
   if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
@@ -22,7 +46,7 @@ async function post(path, body) {
   const res = await fetch(path, {
     method: 'POST',
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
@@ -39,14 +63,14 @@ export const postBet = ({ fixtureId, personId, market, selection, stake }) => po
 export const postParlay = ({ personId, stake, legs }) => post('/api/parlay', { personId, stake, legs })
 
 async function getCreds(path) {
-  const res = await fetch(path, { credentials: 'include' })
+  const res = await fetch(path, { credentials: 'include', ...sweepInit() })
   if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
 async function postCreds(path, body) {
   const res = await fetch(path, {
     method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
@@ -55,7 +79,7 @@ async function postCreds(path, body) {
 async function patchCreds(path, body) {
   const res = await fetch(path, {
     method: 'PATCH', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`PATCH ${path} failed: HTTP ${res.status}`)
@@ -64,7 +88,7 @@ async function patchCreds(path, body) {
 async function deleteCreds(path, body) {
   const res = await fetch(path, {
     method: 'DELETE', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`DELETE ${path} failed: HTTP ${res.status}`)
@@ -72,7 +96,7 @@ async function deleteCreds(path, body) {
 }
 
 export async function uploadPhoto(formData) {
-  const res = await fetch('/api/photos', { method: 'POST', credentials: 'include', body: formData })
+  const res = await fetch('/api/photos', { method: 'POST', credentials: 'include', ...sweepInit(), body: formData })
   if (!res.ok) {
     let msg = `HTTP ${res.status}`
     try { msg = (await res.json()).error || msg } catch { /* ignore */ }

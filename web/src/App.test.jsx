@@ -179,3 +179,27 @@ test('readOnly banner renders when the sweep is read-only', () => {
   render(<App />)
   expect(screen.getByText(/read-only/i)).toBeInTheDocument()
 })
+
+// A sweep is a place now, so every URL inside one names it. Old one-arg calls keep
+// producing bare paths, which is what the default sweep (the community app, one
+// sweep per host) still wants — only a token sweep has an id worth carrying.
+test('urlFor prefixes the sweep path when given an id, and stays bare without one', () => {
+  expect(urlFor({ tab: 'standings' }, 'sw_x')).toBe('/s/sw_x/standings')
+  expect(urlFor({ tab: 'home' }, 'sw_x')).toBe('/s/sw_x')
+  expect(urlFor({ tab: 'coins' }, 'sw_x')).toBe('/s/sw_x/wagers')
+  expect(urlFor({ tab: 'home', overlay: { type: 'team', code: 'hr' } }, 'sw_x')).toBe('/s/sw_x/teams/hr')
+  expect(urlFor({ tab: 'standings' })).toBe('/standings')
+  expect(urlFor({ tab: 'standings' }, 'default')).toBe('/standings')
+})
+
+// The super token is the platform master credential; prefixing must not resurrect it.
+test('urlFor still refuses to emit the super token, sweep-scoped or not', () => {
+  expect(urlFor({ tab: 'home', overlay: { type: 'super', token: 'sekret' } }, 'sw_x')).toBe('/super')
+})
+
+test('readView reads through the sweep prefix, so every old route still parses', () => {
+  expect(readView('/s/sw_x/wagers')).toMatchObject(readView('/wagers'))
+  expect(readView('/s/sw_x/standings')).toMatchObject(readView('/standings'))
+  expect(readView('/s/sw_x/teams/hr')).toMatchObject(readView('/teams/hr'))
+  expect(readView('/s/sw_x')).toMatchObject(readView('/'))
+})

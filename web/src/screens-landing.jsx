@@ -11,6 +11,7 @@
    of only claiming it. Everything else reveals once, on entry.
    ============================================================ */
 import { useEffect, useRef, useState } from "react"
+import { listSweeps } from "./sweeps.js"
 
 /** The app shell is a fixed-viewport frame (#appmount is 100vh on desktop, body is
  *  flex-centred). A marketing page has to scroll the document instead — otherwise
@@ -167,6 +168,9 @@ export function useActiveNav() {
 export function LandingNav() {
   const active = useActiveNav()
   const cls = (key) => (active === key ? "is-here" : undefined)
+  // A member has no account to sign into — the only proof they are in a sweep is the
+  // link token this browser kept. Without this the front door is a dead end for them.
+  const joined = listSweeps().length > 0
   return (
     <header className="lp-nav">
       <div className="lp-nav-in">
@@ -179,7 +183,9 @@ export function LandingNav() {
           <a className={cls("pricing")} href="/pricing">Pricing</a>
         </nav>
         <div className="lp-nav-cta">
-          <a className="lp-ghost" href="/account">Sign in</a>
+          {joined
+            ? <a className="lp-ghost" href="/switch">Your sweeps</a>
+            : <a className="lp-ghost" href="/account">Sign in</a>}
           <a className="lp-btn" href="/account">Start free</a>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { photo, person, sweep } from '../db/schema.js'
 import { verifyPasscode } from '../auth.js'
 import { settleStaleBets } from '../wagering/settle.js'
 import { openBetsBySweep } from '../wagering/ledger.js'
-import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep } from '../sweeps/auth.js'
+import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep, readSweepList, withSweep } from '../sweeps/auth.js'
 import { DEFAULT_SWEEP_ID } from '../sweeps/constants.js'
 
 const loginBody = {
@@ -20,7 +20,7 @@ export async function adminRoutes(app) {
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     if (!verifyPasscode(req.body.passcode, app.adminHash)) return reply.code(401).send({ error: 'bad_passcode' })
-    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(DEFAULT_SWEEP_ID, 'admin')), {
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), DEFAULT_SWEEP_ID, 'admin'))), {
       httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
       secure: process.env.NODE_ENV === 'production',
     })

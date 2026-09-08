@@ -14,12 +14,15 @@ test('no join link → does nothing (no session, no URL change)', async () => {
   expect(history.replaceState).not.toHaveBeenCalled()
 })
 
-test('bare member link → posts the member token, then strips the URL to /', async () => {
+// The invite is a credential and does not belong in the address bar, but stripping it
+// to '/' left the sweep with no address at all — '/' is the marketing front door. It
+// lands on the sweep's own path instead: bookmarkable, screenshot-safe, grants nothing.
+test('bare member link → posts the member token, then lands on the sweep path', async () => {
   const postSession = vi.fn(async () => ({ sweepId: 'sw_9', role: 'member' }))
   const history = fakeHistory()
   await joinFromLocation({ pathname: '/g/MEMBERtoken0000000000' }, history, postSession)
   expect(postSession).toHaveBeenCalledWith('MEMBERtoken0000000000')
-  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/')
+  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/s/sw_9')
 })
 
 test('admin link → exchanges the ADMIN token (admin wins over member)', async () => {
@@ -31,7 +34,7 @@ test('admin link → exchanges the ADMIN token (admin wins over member)', async 
     postSession,
   )
   expect(postSession).toHaveBeenCalledWith('ADMINtoken00000000000')
-  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/')
+  expect(history.replaceState).toHaveBeenCalledWith({}, '', '/s/sw_9')
 })
 
 // The token still goes, but the failure has to survive the strip: without a marker

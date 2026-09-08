@@ -486,14 +486,20 @@ test('SweepsSheet lists stored sweeps and marks the active one', () => {
   expect(getByText(/current/i)).toBeInTheDocument()  // the active sweep is badged
 })
 
-test('SweepsSheet switching a stored sweep posts its token and invalidates queries', async () => {
+// Switching is a navigation now, not a cache invalidation — the URL names the sweep,
+// so it has to change with it (see switchTo in sweeps.js).
+test('SweepsSheet switching a stored sweep posts its token and navigates to it', async () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
-  const qc = { invalidateQueries: vi.fn() }
-  const { getByText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={qc} />)
+  const original = window.location
+  const assign = vi.fn()
+  delete window.location
+  window.location = { ...original, assign }
+  const { getByText } = render(<SweepsSheet activeSweepId="sw_a" onClose={() => {}} queryClient={{ invalidateQueries: vi.fn() }} />)
   await act(async () => { fireEvent.click(getByText('Pub')) })
   expect(postSession).toHaveBeenCalledWith('tb')
-  expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
+  expect(assign).toHaveBeenCalledWith('/s/sw_b')
+  window.location = original
 })
 
 test('SweepsSheet leaving the active sweep removes it from the store and logs out', async () => {

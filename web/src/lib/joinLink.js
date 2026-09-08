@@ -14,3 +14,15 @@ export function parseJoinLink(pathname) {
   }
   return null
 }
+
+/**
+ * Read the sweep id off its own path — `/s/<sweepId>` and anything under it.
+ * Unlike a join link this is not a credential: possessing the id grants nothing
+ * (the signed cookie does), so it is safe in a bookmark, a screenshot or history.
+ * @param {string} pathname
+ * @returns {string|null}
+ */
+export function parseSweepPath(pathname) {
+  const seg = pathname.split('/').filter(Boolean)
+  return seg[0] === 's' && seg[1] ? seg[1] : null
+}

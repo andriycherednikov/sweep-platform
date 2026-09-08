@@ -375,3 +375,34 @@ test('fetchLedger requests the ledger endpoint with an encoded personId', async 
   expect(fetchSpy).toHaveBeenCalledWith('/api/coins/ledger?personId=pn%20a%2Fb', { credentials: 'include' })
   expect(out).toEqual({ balance: 1000, entries: [] })
 })
+
+// One browser can hold several sweeps, so the cookie alone no longer says which one a
+// request means — every fetch names it. Unpinned (the community app on its own host)
+// sends no header and the server falls back to the most recently used, as before.
+test('setActiveSweep puts x-sweep-id on requests; unpinned sends none', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({}) } }))
+  const { setActiveSweep, fetchBootstrap, postSupport } = await import('./client.js')
+
+  setActiveSweep(null)
+  await fetchBootstrap()
+  expect(calls[0].opts?.headers?.['x-sweep-id']).toBeUndefined()
+
+  setActiveSweep('sw_x')
+  await fetchBootstrap()
+  await postSupport('f1', 'p1', 'hr')
+  expect(calls[1].opts.headers['x-sweep-id']).toBe('sw_x')
+  expect(calls[2].opts.headers['x-sweep-id']).toBe('sw_x')
+  expect(calls[2].opts.headers['Content-Type']).toBe('application/json') // not clobbered
+  setActiveSweep(null)
+})
+
+// EventSource cannot set a header, so the stream names its sweep in the query string.
+test('streamUrl names the pinned sweep, and stays bare when unpinned', async () => {
+  const { setActiveSweep, streamUrl } = await import('./client.js')
+  setActiveSweep(null)
+  expect(streamUrl()).toBe('/api/stream')
+  setActiveSweep('sw_x')
+  expect(streamUrl()).toBe('/api/stream?sweep=sw_x')
+  setActiveSweep(null)
+})

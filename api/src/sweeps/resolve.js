@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
 import { sweep } from '../db/schema.js'
-import { SWEEP_COOKIE, parseSweepCookie } from './auth.js'
+import { readSweepList } from './auth.js'
 import { DEFAULT_SWEEP_ID } from './constants.js'
 
 /** preHandler factory: sets req.sweep (row|null) and req.role ('member'|'admin'|null). */
@@ -10,14 +10,16 @@ export function sweepResolver(app) {
     req.role = null
     const onPlatform = req.headers.host === app.platformHost
 
-    let session = null
-    const raw = req.cookies?.[SWEEP_COOKIE]
-    if (raw) {
-      const un = app.unsignCookie(raw)
-      if (un.valid) session = parseSweepCookie(un.value)
-    }
+    const list = readSweepList(app, req)
+    // Which of the browser's sweeps this request is for. The header is how every fetch
+    // says it (client.js); the query param is for EventSource, which cannot set headers.
+    // Naming none is the old behaviour — the most recently used one.
+    const want = req.headers['x-sweep-id'] || req.query?.sweep
+    const session = list && (want ? list.find((e) => e.sweepId === want) : list[0])
 
     if (onPlatform) {
+      // A named sweep this browser does not hold is unauthorized, never a silent
+      // fallback to a different one — that would drop someone into another group's sweep.
       if (!session) return
       const [row] = await app.db.select().from(sweep).where(eq(sweep.id, session.sweepId))
       if (!row || row.archivedAt) return
@@ -29,6 +31,6 @@ export function sweepResolver(app) {
     const [row] = await app.db.select().from(sweep).where(eq(sweep.id, DEFAULT_SWEEP_ID))
     if (!row) return
     req.sweep = row
-    req.role = session && session.sweepId === DEFAULT_SWEEP_ID ? session.role : 'member'
+    req.role = list?.find((e) => e.sweepId === DEFAULT_SWEEP_ID)?.role ?? 'member'
   }
 }

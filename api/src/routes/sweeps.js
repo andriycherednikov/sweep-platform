@@ -2,7 +2,7 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { eq, or, and, asc, inArray } from 'drizzle-orm'
 import { sweep, person, ownership, competition, competitor } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
-import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSuper, requireSweep } from '../sweeps/auth.js'
+import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSuper, requireSweep } from '../sweeps/auth.js'
 import { codeToCompetitorId } from './competitors.js'
 import { correctFixture } from '../corrections.js'
 
@@ -53,22 +53,36 @@ export function links(app, row) {
 export async function sweepsRoutes(app) {
   app.post('/api/session', {
     schema: { body: sessionBody },
-    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+    // Every /g/ open and every switch posts here, so a household or an office behind
+    // one NAT burns through a tight budget on legitimate traffic. Still bounded: the
+    // token itself is 22 chars of base62, so this is not what stops a guesser.
+    config: { rateLimit: { max: 100, timeWindow: '15 minutes' } },
   }, async (req, reply) => {
     const { token } = req.body
     const [row] = await app.db.select().from(sweep)
       .where(or(eq(sweep.memberToken, token), eq(sweep.adminToken, token)))
     if (!row || row.archivedAt) return reply.code(404).send({ error: 'not_found' })
     const role = row.adminToken === token ? 'admin' : 'member'
-    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(row.id, role)), {
+    // Merge, never replace: opening one group's invite must not sign you out of another's.
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), row.id, role))), {
       httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
       secure: process.env.NODE_ENV === 'production',
     })
     return { sweepId: row.id, role }
   })
 
-  app.post('/api/session/logout', async (_req, reply) => {
-    reply.clearCookie(SWEEP_COOKIE, { path: '/' })
+  /** ?sweep=<id> leaves one sweep and keeps the rest; no param still clears the lot. */
+  app.post('/api/session/logout', async (req, reply) => {
+    const drop = req.query?.sweep
+    const rest = drop ? (readSweepList(app, req) ?? []).filter((e) => e.sweepId !== drop) : []
+    if (rest.length) {
+      reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(rest)), {
+        httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
+        secure: process.env.NODE_ENV === 'production',
+      })
+    } else {
+      reply.clearCookie(SWEEP_COOKIE, { path: '/' })
+    }
     return { ok: true }
   })
 

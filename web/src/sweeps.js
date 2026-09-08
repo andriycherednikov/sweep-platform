@@ -60,15 +60,16 @@ export function removeSweep(sweepId) {
 }
 
 /**
- * Switch the active sweep: re-exchange its stored token for a fresh session
- * cookie, then invalidate the data queries so the SPA reloads scoped data.
- * @param {{token:string}} sweep
- * @param {{invalidateQueries: Function}} queryClient
+ * Switch the active sweep: re-exchange its stored token (which refreshes the cookie
+ * and moves this sweep to the front), then NAVIGATE to its address. A real navigation
+ * rather than a cache invalidation, because the URL now names the sweep: Back works
+ * across a switch, and no query cache carries one sweep's data into another's screen.
+ * @param {{sweepId:string, token:string}} sweep
+ * @param {{invalidateQueries: Function}} [queryClient] unused; kept for callers mid-refactor
  */
 export async function switchTo(sweep, queryClient) {
   await postSession(sweep.token)
-  queryClient.invalidateQueries({ queryKey: ['sweep'] })
-  queryClient.invalidateQueries({ queryKey: ['social'] })
+  window.location.assign(`/s/${sweep.sweepId}`)
 }
 
 /** Reactive joined-sweeps list — re-renders the caller when sweeps change. */

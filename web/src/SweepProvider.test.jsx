@@ -141,25 +141,56 @@ test('a 401 after a failed join → the dead-link card, not the landing', async 
   window.history.replaceState({}, '', '/')
 })
 
-test('a 401 with stored sweeps → tappable list; tap calls switchTo(sweep, queryClient)', async () => {
+// The root is the front door now, for everyone: a member who has joined five sweeps
+// still gets the product page there, not a picker. Their sweeps live at /switch, which
+// the landing nav links to. This is the whole point of giving sweeps their own path.
+test('a 401 at the root shows the landing even when this device holds sweeps', async () => {
   vi.resetModules()
   localStorage.clear()
-  const switchTo = vi.fn(async () => {})
   vi.doMock('./sweeps.js', () => ({
     listSweeps: () => [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' }],
     addSweep: vi.fn(),
-    switchTo,
   }))
   mock401()
   const { SweepProvider } = await import('./SweepProvider.jsx')
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
-  const btn = await screen.findByRole('button', { name: /Pub Sweep/i })
-  fireEvent.click(btn)
-  expect(switchTo).toHaveBeenCalledTimes(1)
-  expect(switchTo.mock.calls[0][0]).toEqual({ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' })
-  expect(switchTo.mock.calls[0][1]).toHaveProperty('invalidateQueries')
-  // a returning member may also own sweeps — the owner route stays reachable
-  expect(screen.getByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/account')
+  await waitFor(() => expect(screen.getByTestId('sweep-landing')).toBeInTheDocument())
+  expect(screen.queryByTestId('sweep-pick')).toBeNull()
+  expect(screen.queryByText('Pub Sweep')).toBeNull()
+})
+
+// A bookmarked sweep outliving its 8h cookie is the common case, and the device still
+// holds the link token — spend it once rather than sending them back to the organiser.
+test('a 401 on a sweep path re-exchanges that sweep\'s stored token once', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  window.history.replaceState({}, '', '/s/sw_1')
+  const postSession = vi.fn(async () => ({ sweepId: 'sw_1', role: 'member' }))
+  vi.doMock('./sweeps.js', () => ({
+    listSweeps: () => [{ sweepId: 'sw_1', name: 'Pub Sweep', role: 'member', token: 'tok1' }],
+    addSweep: vi.fn(),
+  }))
+  mock401()
+  vi.doMock('./api/client.js', async (orig) => ({ ...(await orig()), postSession }))
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(postSession).toHaveBeenCalledWith('tok1'))
+  window.history.replaceState({}, '', '/')
+})
+
+// Someone else's sweep id, or ours with the token gone: one card either way, so the id
+// cannot be probed to learn which sweeps exist.
+test('a 401 on a sweep path with no stored token asks for the invite link', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  window.history.replaceState({}, '', '/s/sw_someone_else')
+  vi.doMock('./sweeps.js', () => ({ listSweeps: () => [], addSweep: vi.fn() }))
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByTestId('sweep-needs-invite')).toBeInTheDocument())
+  expect(screen.queryByTestId('sweep-landing')).toBeNull()
+  window.history.replaceState({}, '', '/')
 })
 
 test('a successful load backfills the sweep name into the store via addSweep', async () => {

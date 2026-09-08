@@ -62,13 +62,19 @@ test('addSweep keeps an existing name when re-joined with name:null', async () =
   expect(listSweeps()[0].name).toBe('Real Name')
 })
 
-test('switchTo posts the stored token then invalidates sweep + social queries', async () => {
+// Switching used to be a cache invalidation, which left the URL pointing at the sweep
+// you just left and one cache serving two sweeps. The sweep is an address now, so
+// switching is a navigation to it — Back crosses a switch correctly and nothing bleeds.
+test('switchTo posts the stored token then navigates to the sweep', async () => {
   const postSession = vi.fn(async () => ({ sweepId: 'sw_2', role: 'member' }))
   vi.doMock('./api/client.js', () => ({ postSession }))
+  const assign = vi.fn()
+  const original = window.location
+  delete window.location
+  window.location = { ...original, assign }
   const { switchTo } = await import('./sweeps.js')
-  const queryClient = { invalidateQueries: vi.fn() }
-  await switchTo({ sweepId: 'sw_2', name: 'B', role: 'member', token: 'tok2' }, queryClient)
+  await switchTo({ sweepId: 'sw_2', name: 'B', role: 'member', token: 'tok2' })
   expect(postSession).toHaveBeenCalledWith('tok2')
-  expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
-  expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['social'] })
+  expect(assign).toHaveBeenCalledWith('/s/sw_2')
+  window.location = original
 })

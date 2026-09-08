@@ -17,16 +17,20 @@ export async function joinFromLocation(loc, history, postSession) {
   if (!link) return
   const token = link.adminToken || link.memberToken
   let failed = false
+  let landing = '/'
   try {
     const { sweepId, role } = await postSession(token)
     // name is null here — bootstrap hasn't run yet; backfilled by the Gate (Task 1.4).
     addSweep({ sweepId, name: null, role, token })
+    // The token still leaves the bar, but it lands on the sweep's own address rather
+    // than on '/', which is the marketing front door and belongs to nobody's sweep.
+    landing = `/s/${sweepId}`
   } catch {
     // The token still goes (never leave a secret in the bar), but the failure has to
     // outlive it: the Gate is about to see a plain 401 and, with nothing on the device,
     // would show this invitee the marketing page instead of "that link is dead".
     failed = true
   } finally {
-    history.replaceState({}, '', failed ? '/?join=failed' : '/')
+    history.replaceState({}, '', failed ? '/?join=failed' : landing)
   }
 }
