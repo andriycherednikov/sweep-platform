@@ -20,8 +20,10 @@ test('the seeded sweep is owned by an account in good standing', async () => {
   expect(GOOD_STANDING).toContain(acc.subscriptionStatus)
 })
 
-// Owned means gated. If the owner were not in good standing this would 403.
-test('an owned seeded sweep is still writable — it is live, not lapsed', async () => {
+// Not a gating test: POST /api/session is exempt (sweeps/read-only.js:4) and carries no
+// cookie, so readOnlyGate returns before sweepLiveNow either way. What it does prove is
+// that the seed minted a working memberToken — which Task 2's memberCookie() rides on.
+test('the seeded member token mints a session', async () => {
   const res = await app.inject({
     method: 'POST', url: '/api/session',
     headers: { host: 'platform.test' },
