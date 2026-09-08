@@ -7,6 +7,7 @@ vi.mock('./api/client.js', () => ({
   uploadPhoto: vi.fn(async () => ({})),
   fetchAdminMe: vi.fn(async () => ({ admin: true })),
   fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
+  fetchAdminFile: vi.fn(async () => 'blob:queue-photo'),
   settleStaleBets: vi.fn(async () => ({ swept: 0 })),
   fetchOpenBets: vi.fn(async () => ({ people: [], totalOpen: 0, totalStale: 0 })),
   moderatePhoto: vi.fn(async () => ({})),
@@ -678,7 +679,7 @@ test('PeopleAdmin allocation sheet: unallocate an owned team → bulk delete', a
 })
 
 import { AdminConsole, AdminQueue } from './screens-detail.jsx'
-import { fetchOpenBets } from './api/client.js'
+import { fetchOpenBets, fetchAdminPhotos, fetchAdminFile } from './api/client.js'
 
 test('AdminConsole offers People + Moderation tabs but no Draw tab', () => {
   seedPeople()
@@ -765,6 +766,24 @@ test('Moderation › Open bets surfaces an error (not "all settled") when the au
   expect(await findByText(/Couldn’t load open bets/i)).toBeInTheDocument()
   // must NOT show the green success state that would falsely reassure the admin
   expect(queryByText(/Every wager has been settled/i)).toBeNull()
+})
+
+// The bytes behind a PENDING photo are admin-only, and admin is derived from the
+// account token — which a background-image subresource never sends. Rendering the URL
+// straight into CSS 403s, so the queue must fetch it and show the blob instead.
+test('Moderation \u203a a pending photo is fetched with the admin header, not as a bare subresource', async () => {
+  URL.revokeObjectURL ??= () => {}   // jsdom has no object-URL support
+  seedPeople()
+  fetchAdminPhotos.mockResolvedValueOnce({
+    pending: [{ id: 'ph1', kind: 'profile', uploader: 'Ann', person: 'p1', caption: 'Hi',
+      status: 'pending', fileUrl: '/api/admin/photos/ph1/file' }],
+    approved: [],
+  })
+  const { container, findByText } = render(<AdminQueue embedded onToast={noop} />)
+  await findByText('Hi')
+  expect(fetchAdminFile).toHaveBeenCalledWith('/api/admin/photos/ph1/file')
+  await waitFor(() =>
+    expect(container.querySelector('.qimg').style.backgroundImage).toContain('blob:queue-photo'))
 })
 
 test('MatchSheet shows per-team match statistics side by side', () => {

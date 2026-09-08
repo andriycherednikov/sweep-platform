@@ -18,7 +18,7 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, fetchAdminPhotos, fetchAdminFile, moderatePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { SingleBetRow, ParlayCard } from "./screens-coins.jsx";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
@@ -1476,6 +1476,27 @@ function OpenBetsPerson({ g, expanded, onToggle, onMatch }) {
   );
 }
 
+/** A queue thumbnail. The bytes are admin-only, and a background-image is a browser
+ *  subresource: it sends the sweep cookie but never the x-account-token the route
+ *  checks, so a pending photo would 403. Fetch it with the header and show the blob;
+ *  revoke on unmount so the queue doesn't leak object URLs as it reloads. */
+function QueueImage({ src, children }) {
+  const [url, setUrl] = useState(null);
+  useEffect(()=>{
+    let live = true, made = null;
+    fetchAdminFile(src).then(u=>{
+      if (!live) { URL.revokeObjectURL(u); return; }
+      made = u; setUrl(u);
+    }).catch(()=>{});
+    return ()=>{ live = false; if (made) URL.revokeObjectURL(made); };
+  },[src]);
+  return (
+    <div className="qimg" style={{backgroundImage:url?`url(${url})`:undefined,backgroundSize:"cover",backgroundPosition:"center"}}>
+      {children}
+    </div>
+  );
+}
+
 export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
   const [data, setData] = useState({ pending: [], approved: [] });
   const [open, setOpen] = useState({ people: [], totalOpen: 0, totalStale: 0 });
@@ -1562,11 +1583,11 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
           {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
           {list.map(p=>(
             <div className="queueitem" key={p.id}>
-              <div className="qimg" style={{backgroundImage:`url(${p.fileUrl})`,backgroundSize:"cover",backgroundPosition:"center"}}>
+              <QueueImage src={p.fileUrl}>
                 <div className="lbl">{p.kind==="profile"?"PROFILE":"FAN PHOTO"}</div>
                 {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><Flag code={fx.t1} w={18} h={13} /><Flag code={fx.t2} w={18} h={13} /><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
                 {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
-              </div>
+              </QueueImage>
               <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>
               {tab==="pending" ? (
                 <div className="qacts">
