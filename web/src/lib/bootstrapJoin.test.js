@@ -25,15 +25,17 @@ test('bare member link → posts the member token, then lands on the sweep path'
   expect(history.replaceState).toHaveBeenCalledWith({}, '', '/s/sw_9')
 })
 
-test('admin link → exchanges the ADMIN token (admin wins over member)', async () => {
-  const postSession = vi.fn(async () => ({ sweepId: 'sw_9', role: 'admin' }))
+// The admin segment names nothing the API accepts any more — it degrades to the
+// still-valid member token rather than dying with a 404.
+test('an old admin link degrades to exchanging the member token', async () => {
+  const postSession = vi.fn(async () => ({ sweepId: 'sw_9', role: 'member' }))
   const history = fakeHistory()
   await joinFromLocation(
     { pathname: '/g/MEMBERtoken0000000000/admin/ADMINtoken00000000000' },
     history,
     postSession,
   )
-  expect(postSession).toHaveBeenCalledWith('ADMINtoken00000000000')
+  expect(postSession).toHaveBeenCalledWith('MEMBERtoken0000000000')
   expect(history.replaceState).toHaveBeenCalledWith({}, '', '/s/sw_9')
 })
 
@@ -58,6 +60,6 @@ test('a successful join persists the real link token via addSweep (name null pre
     postSession,
   )
   expect(listSweeps()).toEqual([
-    { sweepId: 'sw_42', name: null, role: 'admin', token: 'ADMINtoken00000000000' },
+    { sweepId: 'sw_42', name: null, role: 'admin', token: 'MEMBERtoken0000000000' },
   ])
 })

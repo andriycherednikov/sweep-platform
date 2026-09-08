@@ -1,17 +1,17 @@
 /**
- * Recognise a capability-link path and extract its token(s).
- * Shapes (D2): `/g/<memberToken>` and `/g/<memberToken>/admin/<adminToken>`.
+ * Recognise a capability-link path and extract its member token.
+ * Shapes: `/g/<memberToken>` and the old `/g/<memberToken>/admin/<adminToken>` —
+ * the admin segment no longer names anything the API accepts, so it is ignored
+ * and the link degrades to its still-valid member token rather than dying.
  * Pure: no history/fetch side effects. Returns null when `pathname` is not a join link.
  * @param {string} pathname e.g. window.location.pathname
- * @returns {{ memberToken: string, adminToken: string|null } | null}
+ * @returns {string|null} the member token, or null
  */
 export function parseJoinLink(pathname) {
   const seg = pathname.split('/').filter(Boolean)
   if (seg[0] !== 'g' || !seg[1]) return null
-  if (seg.length === 2) return { memberToken: seg[1], adminToken: null }
-  if (seg.length === 4 && seg[2] === 'admin' && seg[3]) {
-    return { memberToken: seg[1], adminToken: seg[3] }
-  }
+  if (seg.length === 2) return seg[1]
+  if (seg.length === 4 && seg[2] === 'admin' && seg[3]) return seg[1]
   return null
 }
 

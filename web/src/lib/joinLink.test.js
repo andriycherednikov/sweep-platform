@@ -2,24 +2,18 @@ import { expect, test } from 'vitest'
 import { parseJoinLink, parseSweepPath } from './joinLink.js'
 
 test('parses a bare member join link', () => {
-  expect(parseJoinLink('/g/Abc123Def456Ghi789Jkl0')).toEqual({
-    memberToken: 'Abc123Def456Ghi789Jkl0',
-    adminToken: null,
-  })
+  expect(parseJoinLink('/g/Abc123Def456Ghi789Jkl0')).toBe('Abc123Def456Ghi789Jkl0')
 })
 
-test('parses a member+admin join link', () => {
-  expect(parseJoinLink('/g/MEMBERtoken0000000000/admin/ADMINtoken00000000000')).toEqual({
-    memberToken: 'MEMBERtoken0000000000',
-    adminToken: 'ADMINtoken00000000000',
-  })
+// An old admin link degrades to its still-valid member segment — the admin segment
+// is dead at the API, but the holder should land back in the sweep, not on a 404.
+test('a member+admin join link degrades to just the member token', () => {
+  expect(parseJoinLink('/g/mem/admin/adm')).toBe('mem')
+  expect(parseJoinLink('/g/MEMBERtoken0000000000/admin/ADMINtoken00000000000')).toBe('MEMBERtoken0000000000')
 })
 
 test('tolerates a trailing slash on a bare link', () => {
-  expect(parseJoinLink('/g/Abc123Def456Ghi789Jkl0/')).toEqual({
-    memberToken: 'Abc123Def456Ghi789Jkl0',
-    adminToken: null,
-  })
+  expect(parseJoinLink('/g/Abc123Def456Ghi789Jkl0/')).toBe('Abc123Def456Ghi789Jkl0')
 })
 
 test('returns null for a non-join path', () => {
