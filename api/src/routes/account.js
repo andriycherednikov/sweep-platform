@@ -53,6 +53,14 @@ const patchSweepBody = {
 }
 
 export async function accountRoutes(app) {
+  /** Mail is a notification here, never the transaction. Both callers have already
+   *  committed their work by the time it goes out, so a dead transport must not turn a
+   *  finished request into a 500: on the password route that reports failure for a
+   *  change that is already live, and on the login route it is exactly the answer the
+   *  unconditional {ok:true} exists to withhold. */
+  const notify = (req, ...mail) =>
+    app.sendMail(...mail).catch((err) => req.log.error({ err }, 'notification mail failed'))
+
   app.post('/api/account/login', {
     schema: { body: loginBody },
     config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
@@ -60,7 +68,7 @@ export async function accountRoutes(app) {
     const email = req.body.email.trim().toLowerCase()
     const token = newToken()
     await app.db.insert(loginToken).values({ token, email, expiresAt: new Date(Date.now() + LOGIN_TOKEN_TTL_MS) })
-    await app.sendMail(email, 'Your sign-in link', `${app.publicOrigin}/account/login/${token}`)
+    await notify(req, email, 'Your sign-in link', `${app.publicOrigin}/account/login/${token}`)
     return { ok: true } // always — never leak whether the email has an account
   })
 
@@ -148,7 +156,7 @@ export async function accountRoutes(app) {
       eq(accountSession.accountId, acc.id),
       ne(accountSession.token, req.headers['x-account-token']),
     ))
-    await app.sendMail(acc.email, 'Your password was changed',
+    await notify(req, acc.email, 'Your password was changed',
       'The password on your Sweep account was just changed. If that was not you, reply to this email.')
     return reply.code(204).send()
   })
