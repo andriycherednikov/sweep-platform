@@ -49,7 +49,7 @@ test('placeBet reads odds from the chosen market and posts market+selection', as
   vi.spyOn(client, 'postBet').mockResolvedValueOnce({ bet: { id: 'b1', market: 'ou25', selection: 'OVER', stake: 100, odds: 1.9, potentialPayout: 190, status: 'open' }, balance: 900 })
   await placeBet('f1', 'ou25', 'OVER', 100)
   expect(myBalance()).toBe(900)
-  expect(client.postBet).toHaveBeenCalledWith({ fixtureId: 'f1', personId: 'pn_a', market: 'ou25', selection: 'OVER', stake: 100 })
+  expect(client.postBet).toHaveBeenCalledWith({ fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 100 })
 })
 
 test('placeParlay optimistically debits and keeps the debit on success', async () => {
@@ -57,7 +57,7 @@ test('placeParlay optimistically debits and keeps the debit on success', async (
   const legs = [{ fixtureId: 'f1', market: '1x2', selection: 'HOME', odds: 2 }, { fixtureId: 'f2', market: 'ou25', selection: 'OVER', odds: 1.9 }]
   await placeParlay(legs, 100)
   expect(myBalance()).toBe(900)
-  expect(client.postParlay).toHaveBeenCalledWith({ personId: 'pn_a', stake: 100, legs: [
+  expect(client.postParlay).toHaveBeenCalledWith({ stake: 100, legs: [
     { fixtureId: 'f1', market: '1x2', selection: 'HOME' }, { fixtureId: 'f2', market: 'ou25', selection: 'OVER' }] })
 })
 

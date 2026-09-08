@@ -10,38 +10,19 @@ import { trackEvent } from "./lib/analytics.js";
 
 export const DRAW = 'DRAW';
 
-const LEGACY_ME_KEY = "sweep.me.v1";              // pre-multi-sweep device-global pointer
 const socialListeners = new Set();
 let globalToast = null;
 export function setGlobalToast(fn){ globalToast = fn; }
 export function toast(msg){ if (globalToast) globalToast(msg); }
 function notifySocial(){ socialListeners.forEach(fn=>fn()); }
 
-let currentSweepId = "default";
-const meKey = () => `sweep.me.v1.${currentSweepId}`;
-const readMe = () => {
-  const raw = localStorage.getItem(meKey());
-  return (raw === null || raw === "none") ? null : raw;
-};
-
-/* one-time migration: copy a legacy sweep.me.v1 pick to sweep.me.v1.default
-   (without clobbering an already-migrated default), then re-key identity. */
-export function setCurrentSweepId(id){
-  currentSweepId = id || "default";
-  if (currentSweepId === "default") {
-    const legacy = localStorage.getItem(LEGACY_ME_KEY);
-    if (legacy !== null && localStorage.getItem("sweep.me.v1.default") === null) {
-      try { localStorage.setItem("sweep.me.v1.default", legacy); } catch(e){}
-    }
-  }
-  meId = readMe();
-  notifySocial();
-}
-
-/* identity — nobody is auto-selected; "none" = explicitly cleared */
-let meId = readMe();
+/* identity — the SERVER says who you are (bootstrap.meId), resolved from the account
+   token. It used to be a string this device picked for itself and kept in localStorage,
+   which is why every acting route had to take the client's word for it. Nothing is
+   persisted here: sign-in is what persists, and it lives in the account token. */
+let meId = null;
 export function getMe(){ return meId ? S.people.find(p=>p.id===meId) : null; }
-export function setMe(id){ meId = id; try { localStorage.setItem(meKey(), id || "none"); } catch(e){} notifySocial(); }
+export function setMe(id){ meId = id || null; notifySocial(); }
 
 /* server-backed state, hydrated by the ['social'] query + kept live by SSE */
 let support = {};           // { fixtureId: { personId: teamCode } }
@@ -57,7 +38,7 @@ export function supportOf(mid){
 }
 export function mySupport(mid){ return meId ? ((support[mid]||{})[meId] || null) : null; }
 export function setSupport(mid, code){
-  if (!meId){ if (window.__sweepPickMe) window.__sweepPickMe(); return; }
+  if (!meId){ if (window.__sweepJoin) window.__sweepJoin(); return; }
   if (S.readOnly) { toast("Sweep is read-only"); return; }
   const prev = support;
   const m = Object.assign({}, support[mid] || {});
@@ -73,7 +54,7 @@ export function setSupport(mid, code){
   }
   support = Object.assign({}, support, { [mid]: m });
   notifySocial();
-  postSupport(mid, meId, code).catch(()=>{ support = prev; notifySocial(); toast("Couldn't update — try again"); });
+  postSupport(mid, code).catch(()=>{ support = prev; notifySocial(); toast("Couldn't update — try again"); });
 }
 
 /* prediction accuracy leaderboard — how many finished matches each person

@@ -1,4 +1,4 @@
-import { getAccountToken } from '../lib/accountClient.js'
+import { getAccountToken, setAccountToken } from '../lib/accountClient.js'
 
 /**
  * Which sweep this browser is currently looking at. The cookie can hold several
@@ -15,9 +15,28 @@ let activeSweepId = null
 export const NO_SWEEP = 'none'
 
 export function setActiveSweep(id) { activeSweepId = id && id !== 'default' ? id : null }
-const sweepHeaders = () => (activeSweepId ? { 'x-sweep-id': activeSweepId } : {})
-/** …as a fetch init fragment, so an unpinned call sends no `headers` key at all. */
-const sweepInit = () => (activeSweepId ? { headers: sweepHeaders() } : {})
+/** The member's own account token IS their identity now — the server derives which
+ *  person they are from it (bootstrap.meId), so it rides every sweep call rather than
+ *  the handful of admin ones. This is not a widening of admin: that is still recomputed
+ *  from sweep ownership per request (api/src/sweeps/resolve.js), so the token grants
+ *  nothing here it did not already grant. What it buys is a member who is somebody.
+ *  The visible Sign out in the sidebar is the shared-device answer. */
+const authHeaders = () => {
+  const token = getAccountToken()
+  return token ? { 'x-account-token': token } : {}
+}
+const sweepHeaders = () => ({
+  ...(activeSweepId ? { 'x-sweep-id': activeSweepId } : {}),
+  ...authHeaders(),
+})
+/** …as a fetch init fragment, so a call with nothing to say sends no `headers` key.
+ *  Note this must consult sweepHeaders(), not activeSweepId: the default sweep pins
+ *  no id (setActiveSweep nulls it), and dropping the token there would leave every
+ *  member on that host anonymous. */
+const sweepInit = () => {
+  const headers = sweepHeaders()
+  return Object.keys(headers).length ? { headers } : {}
+}
 
 /** EventSource cannot carry a header, so the stream names its sweep in the query. */
 export function streamUrl() {
@@ -56,13 +75,23 @@ async function post(path, body) {
 }
 
 export const fetchSocial = () => get('/api/social')
-export const postOptout = (personId, duration) => post('/api/optout', { personId, duration })
-export const postSupport = (fixtureId, personId, teamCode) => post('/api/support', { fixtureId, personId, teamCode })
+// Who you are is the session's business, not the body's — none of these name a person.
+export const postOptout = (duration) => post('/api/optout', { duration })
+export const postSupport = (fixtureId, teamCode) => post('/api/support', { fixtureId, teamCode })
 
-export const fetchWallet = (personId) => get(`/api/coins?personId=${encodeURIComponent(personId)}`)
-export const fetchLedger = (personId) => get(`/api/coins/ledger?personId=${encodeURIComponent(personId)}`)
-export const postBet = ({ fixtureId, personId, market, selection, stake }) => post('/api/bet', { fixtureId, personId, market, selection, stake })
-export const postParlay = ({ personId, stake, legs }) => post('/api/parlay', { personId, stake, legs })
+export const fetchWallet = () => get('/api/coins')
+export const fetchLedger = () => get('/api/coins/ledger')
+export const postBet = ({ fixtureId, market, selection, stake }) => post('/api/bet', { fixtureId, market, selection, stake })
+export const postParlay = ({ stake, legs }) => post('/api/parlay', { stake, legs })
+
+/* joining a sweep — postCreds, because all three need the sweep cookie and x-sweep-id */
+export const postJoinCode = (email) => postCreds('/api/account/login/code', { email })
+export const postJoinSession = async (email, code) => {
+  const out = await postCreds('/api/account/session/code', { email, code })
+  setAccountToken(out.accountToken)
+  return out
+}
+export const postMe = (name) => postCreds('/api/me', { name })
 
 // `extra` headers (e.g. adminHeaders() below) are opt-in per call, never ambient:
 // only the handful of call sites that need them pass them.

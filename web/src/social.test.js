@@ -11,7 +11,7 @@ import { trackEvent } from './lib/analytics.js'
 import {
   getMe, setMe,
   setSocialData, supportOf, mySupport, setSupport, predictionLeaderboard,
-  predictionsOf, predictionAccuracy, setCurrentSweepId,
+  predictionsOf, predictionAccuracy,
 } from './social.js'
 import { makeApi, makeFixture, makeBootstrap } from '../test/factories.js'
 
@@ -50,7 +50,7 @@ test('setSupport optimistically sets backing and POSTs', () => {
   setMe('p1')
   setSupport('m1', 'hr')
   expect(mySupport('m1')).toBe('hr')
-  expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'hr')
+  expect(postSupport).toHaveBeenCalledWith('m1', 'hr')
 })
 
 test('predictionLeaderboard credits no one on a tied NBA final (no draws, no winnerCode)', () => {
@@ -111,11 +111,10 @@ test('predictionLeaderboard credits a DRAW pick on a level final and misses team
   expect(p2).toMatchObject({ correct: 0, total: 1 })
 })
 
-test('writes require identity — no me means no POST', () => {
-  // window.__sweepPickMe would normally open the identity sheet; stub it
-  window.__sweepPickMe = vi.fn()
+test('writes require identity — no me opens the join sheet instead of POSTing', () => {
+  window.__sweepJoin = vi.fn()
   setSupport('m1', 'hr')
-  expect(window.__sweepPickMe).toHaveBeenCalled()
+  expect(window.__sweepJoin).toHaveBeenCalled()
   expect(postSupport).not.toHaveBeenCalled()
 })
 
@@ -229,39 +228,16 @@ test('predictionAccuracy returns 0/0 when there are no resolved picks', () => {
   expect(predictionAccuracy('p1')).toEqual({ correct: 0, total: 0 })
 })
 
-test('getMe/setMe are scoped to the active sweep id', () => {
-  setCurrentSweepId('sw_a')
+// Identity is the server's answer now (bootstrap.meId), so there is no per-sweep
+// localStorage key to scope, migrate, or leave behind on a shared browser.
+test('identity is in memory only — nothing is written to localStorage', () => {
   setMe('p1')
-  expect(localStorage.getItem('sweep.me.v1.sw_a')).toBe('p1')
-
-  setCurrentSweepId('sw_b')
-  expect(getMe()).toBe(null)            // no pick in sw_b yet
-  setMe('p1')
-  expect(localStorage.getItem('sweep.me.v1.sw_b')).toBe('p1')
-
-  setCurrentSweepId('sw_a')
-  expect(getMe()?.id).toBe('p1')        // sw_a's pick is still there, independent of sw_b
-})
-
-test('switching sweeps re-resolves the current identity from that sweep key', () => {
-  localStorage.setItem('sweep.me.v1.sw_a', 'p1')
-  setCurrentSweepId('sw_a')
   expect(getMe()?.id).toBe('p1')
-  setCurrentSweepId('sw_b')
+  expect(Object.keys(localStorage).some((k) => k.startsWith('sweep.me.'))).toBe(false)
+})
+
+test('setMe(null) clears the identity', () => {
+  setMe('p1')
+  setMe(null)
   expect(getMe()).toBe(null)
-})
-
-test('legacy sweep.me.v1 is migrated once to sweep.me.v1.default', () => {
-  localStorage.setItem('sweep.me.v1', 'p1')   // a current community user's existing pick
-  setCurrentSweepId('default')
-  expect(localStorage.getItem('sweep.me.v1.default')).toBe('p1')  // copied across
-  expect(getMe()?.id).toBe('p1')                                  // resolved on the default sweep
-})
-
-test('migration does not clobber an existing default pick', () => {
-  localStorage.setItem('sweep.me.v1', 'p1')            // legacy value
-  localStorage.setItem('sweep.me.v1.default', 'none')  // already migrated/cleared
-  setCurrentSweepId('default')
-  expect(localStorage.getItem('sweep.me.v1.default')).toBe('none')  // not overwritten
-  expect(getMe()).toBe(null)                                        // "none" = explicitly cleared
 })

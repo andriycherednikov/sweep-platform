@@ -236,7 +236,7 @@ export function WalletHeader({ onBack, go, scrolled, onInfo, onOptOut }) {
         ) : (
           <div className="coin-no-id">
             <p>Pick who you are to track your Yowie Dollars and place bets.</p>
-            <button className="cta" style={{ marginTop: 8 }} onClick={() => { if (window.__sweepPickMe) window.__sweepPickMe() }}>
+            <button className="cta" style={{ marginTop: 8 }} onClick={() => { if (window.__sweepJoin) window.__sweepJoin() }}>
               Choose your profile
             </button>
           </div>
@@ -679,7 +679,7 @@ export function CoinsScreen({ go, openBet, openMatch }) {
 
   function openInlineBet(e, f, market, selKey, odds) {
     e.stopPropagation()
-    if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
+    if (!me) { if (window.__sweepJoin) window.__sweepJoin(); return }
     const mk = f.markets?.[market]
     const before = betslipCount()
     toggleLeg({ fixtureId: f.id, market, selection: selKey, odds, line: mk?.line ?? null, book: mk?.book ?? null, label: selectionLabel(selKey, f) })

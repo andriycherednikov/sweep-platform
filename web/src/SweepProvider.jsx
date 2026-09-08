@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchAll, fetchSocial, fetchWallet, setActiveSweep, postSession } from './api/client.js'
 import { setSweepData } from './data.js'
-import { setSocialData, setCurrentSweepId, useSocial } from './social.js'
+import { setSocialData, setMe, useSocial } from './social.js'
 import { setWalletData } from './coins.js'
 import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
@@ -58,9 +58,11 @@ function Gate({ children }) {
     refetchOnReconnect: true,
     queryFn: async () => {
       const api = await fetchAll()
-      setCurrentSweepId(api.bootstrap?.sweep?.id || 'default')
       setActiveSweep(api.bootstrap?.sweep?.id || null)
       setSweepData(assembleSweep(api))
+      // AFTER setSweepData: getMe() resolves meId against S.people, which has to be
+      // populated first (and its rows carry `teams`, which a serialized person does not).
+      setMe(api.bootstrap?.meId ?? null)
       // D7a→D4: backfill the active sweep's display name into the switcher store.
       const sweep = api.bootstrap?.sweep
       if (sweep?.id) {
@@ -86,7 +88,7 @@ function Gate({ children }) {
     // wait for the sweep query: getMe() resolves against S.people (populated by setSweepData),
     // so running earlier would fetch an empty wallet that never refetches.
     enabled: isSuccess,
-    queryFn: () => fetchWallet(me ? me.id : ''),
+    queryFn: () => fetchWallet(),
   })
   // Bridge the query result into the coins store via an effect (not inside the
   // queryFn): on identity switch-back a cache-served result skips the queryFn,

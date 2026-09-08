@@ -65,7 +65,7 @@ export function optOut(durationKey, personId) {
   // Record it centrally too, so it survives across devices and is visible to admins.
   // Fire-and-forget: the local write above is the immediate, offline-safe gate, so a
   // network/parse failure here is swallowed (IIFE also catches a synchronous throw).
-  ;(async () => { try { await postOptout(id, durationKey) } catch { /* offline — local gate holds */ } })()
+  ;(async () => { try { await postOptout(durationKey) } catch { /* offline — local gate holds */ } })()
   notify()
 }
 

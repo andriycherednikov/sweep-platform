@@ -38,13 +38,11 @@ test('subscribes to the SSE stream on mount', async () => {
   expect(esInstances[0]?.url).toBe('/api/stream')
 })
 
-test('sets the active sweep id from bootstrap so identity keys per-sweep', async () => {
+test('takes its identity from bootstrap, not from this device', async () => {
   // Fresh module graph (like the 401 tests below) so the gate's ['sweep'] query
   // actually re-runs instead of returning the cached result of the earlier tests.
   vi.resetModules()
   localStorage.clear()
-  // a pick stored under sw_x must resolve once the gate sets the active sweep id
-  localStorage.setItem('sweep.me.v1.sw_x', 'p1')
   vi.stubGlobal('fetch', vi.fn(async (url) => {
     const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
     if (path === '/api/bootstrap') {
@@ -52,6 +50,7 @@ test('sets the active sweep id from bootstrap so identity keys per-sweep', async
         teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#000', strength: 80 }],
         people: [{ id: 'p1', name: 'A', short: 'A', initials: 'A', av: '#000', avatarPath: null }],
         ownership: {}, scoring: { rule: 'top3' }, sweep: { id: 'sw_x', name: 'X Sweep' },
+        meId: 'p1',
       }) }
     }
     return { ok: true, status: 200, json: async () => bundle[path] }
@@ -60,7 +59,10 @@ test('sets the active sweep id from bootstrap so identity keys per-sweep', async
   const { getMe } = await import('./social.js')
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
   await waitFor(() => expect(screen.getByText('app-ready')).toBeInTheDocument())
+  // resolved against S.people, so it still carries `teams` for the screens that read it
   expect(getMe()?.id).toBe('p1')
+  expect(getMe()?.teams).toEqual([])
+  expect(Object.keys(localStorage).some((k) => k.startsWith('sweep.me.'))).toBe(false)
 })
 
 function mock401() {
@@ -71,12 +73,12 @@ function mock401() {
   }))
 }
 
-test('switching identity refetches the wallet for the newly-viewed person', async () => {
+test('a change of identity refetches the wallet', async () => {
   vi.resetModules()
   localStorage.clear()
-  localStorage.setItem('sweep.me.v1.sw_x', 'p1')
-  // per-person balances so we can tell whose wallet is loaded
-  const balByPerson = { p1: 100, p2: 777 }
+  // The wallet is whoever the session is, so the URL no longer names anyone: what we
+  // can assert is that changing identity re-keys the query and asks again.
+  const balances = [100, 777]
   const coinsCalls = []
   vi.stubGlobal('fetch', vi.fn(async (url) => {
     const path = url.replace(/^https?:\/\/[^/]+/, '').replace(/\?.*$/, '')
@@ -88,12 +90,14 @@ test('switching identity refetches the wallet for the newly-viewed person', asyn
           { id: 'p2', name: 'B', short: 'B', initials: 'B', av: '#000', avatarPath: null },
         ],
         ownership: {}, scoring: { rule: 'top3' }, sweep: { id: 'sw_x', name: 'X Sweep' },
+        meId: 'p1',
       }) }
     }
     if (path === '/api/coins') {
-      const pid = new URL(url, 'http://x').searchParams.get('personId')
-      coinsCalls.push(pid)
-      return { ok: true, status: 200, json: async () => ({ balance: balByPerson[pid] ?? 0, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }) }
+      expect(url).not.toContain('personId')
+      const balance = balances[Math.min(coinsCalls.length, balances.length - 1)]
+      coinsCalls.push(url)
+      return { ok: true, status: 200, json: async () => ({ balance, bets: { open: [], settled: [] }, parlays: { open: [], settled: [] } }) }
     }
     return { ok: true, status: 200, json: async () => bundle[path] }
   }))
@@ -103,8 +107,9 @@ test('switching identity refetches the wallet for the newly-viewed person', asyn
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
   await waitFor(() => expect(myWallet().balance).toBe(100))
 
+  const before = coinsCalls.length
   setMe('p2')
-  await waitFor(() => expect(coinsCalls).toContain('p2'))
+  await waitFor(() => expect(coinsCalls.length).toBeGreaterThan(before))
   await waitFor(() => expect(myWallet().balance).toBe(777))
 })
 

@@ -75,7 +75,7 @@ export function StatementList() {
   const me = getMe()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['coins', 'ledger', me?.id],
-    queryFn: () => fetchLedger(me.id),
+    queryFn: () => fetchLedger(),
     enabled: !!me,
   })
   const entries = data?.entries ?? []

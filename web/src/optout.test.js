@@ -65,7 +65,7 @@ test('no identity → never opted out, optOut is a no-op', () => {
 
 test('optOut records the exclusion server-side (personId + duration)', () => {
   optOut('forever', 'pn_a')
-  expect(postOptout).toHaveBeenCalledWith('pn_a', 'forever')
+  expect(postOptout).toHaveBeenCalledWith('forever')
 })
 
 test('a server-recorded exclusion locks the person even with no local entry (cross-device)', () => {

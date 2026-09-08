@@ -43,7 +43,7 @@ export function leaderboardByBalance() { return board }
 /** Optimistically debit the balance + add an open bet; reconcile/rollback against the server. */
 export async function placeBet(fixtureId, market, selection, stake) {
   const me = getMe()
-  if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return }
+  if (!me) { if (window.__sweepJoin) window.__sweepJoin(); return }
   if (S.readOnly) { toast('Sweep is read-only'); return }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return }
   const f = S.fixture(fixtureId)
@@ -56,7 +56,7 @@ export async function placeBet(fixtureId, market, selection, stake) {
   notify()
   trackEvent('bet_placed', { match_id: fixtureId, market, selection, stake })
   try {
-    const res = await postBet({ fixtureId, personId: me.id, market, selection, stake })
+    const res = await postBet({ fixtureId, market, selection, stake })
     // swap the pending row for the real one; the SSE 'bet' event reconciles the
     // authoritative balance/bets shortly after, so we don't fight concurrent placeBets here.
     wallet = { ...wallet, balance: res.balance, bets: { ...wallet.bets, open: wallet.bets.open.map((b) => b.id === pending.id ? res.bet : b) } }
@@ -74,7 +74,7 @@ let pendingParlaySeq = 0
  *  Returns { ok } so the betslip sheet only clears on success. */
 export async function placeParlay(legs, stake) {
   const me = getMe()
-  if (!me) { if (window.__sweepPickMe) window.__sweepPickMe(); return { ok: false } }
+  if (!me) { if (window.__sweepJoin) window.__sweepJoin(); return { ok: false } }
   if (S.readOnly) { toast('Sweep is read-only'); return { ok: false } }
   if (!(stake >= 1) || stake > wallet.balance) { toast('Not enough coins'); return { ok: false } }
   const combinedOdds = legs.reduce((acc, l) => acc * l.odds, 1)
@@ -86,7 +86,7 @@ export async function placeParlay(legs, stake) {
   notify()
   trackEvent('parlay_placed', { legs: legs.length, stake })
   try {
-    const res = await postParlay({ personId: me.id, stake, legs: legs.map((l) => ({ fixtureId: l.fixtureId, market: l.market, selection: l.selection })) })
+    const res = await postParlay({ stake, legs: legs.map((l) => ({ fixtureId: l.fixtureId, market: l.market, selection: l.selection })) })
     wallet = { ...wallet, balance: res.balance, parlays: { ...wallet.parlays, open: wallet.parlays.open.map((p) => p.id === pending.id ? res.parlay : p) } }
     notify()
     return { ok: true }

@@ -125,7 +125,7 @@ test('CrowdPick records my pick and POSTs it', () => {
   setMe('p1')
   const { getByLabelText } = render(<CrowdPick f={F} />)
   fireEvent.click(getByLabelText(/South Africa/i))
-  expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'za')
+  expect(postSupport).toHaveBeenCalledWith('m1', 'za')
 })
 
 test('CrowdPick is read-only when locked — clicking does not POST', () => {
@@ -182,7 +182,7 @@ test('CrowdPick records a DRAW pick and POSTs it', () => {
   setSocialData({ support: {} });
   const { getByLabelText } = render(<CrowdPick f={FG} />);
   fireEvent.click(getByLabelText(/Call Draw/i));
-  expect(postSupport).toHaveBeenCalledWith('m1', 'p1', 'DRAW');
+  expect(postSupport).toHaveBeenCalledWith('m1', 'DRAW');
 });
 
 test('CrowdPick shows no draw zone on a no-draw sport, even at stage=group', () => {

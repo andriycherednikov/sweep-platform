@@ -42,29 +42,29 @@ test('fetchSocial hits /api/social', async () => {
   expect(await fetchSocial()).toEqual({ support: { m1: { p1: 'hr' } } })
 })
 
-test('postSupport POSTs fixtureId+personId+teamCode', async () => {
+test('postSupport POSTs fixtureId+teamCode — never a person', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
     calls.push({ url, opts })
     return { ok: true, status: 200, json: async () => ({ supporting: 'hr' }) }
   }))
   const { postSupport } = await import('./client.js')
-  await postSupport('m1', 'p1', 'hr')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'm1', personId: 'p1', teamCode: 'hr' })
+  await postSupport('m1', 'hr')
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'm1', teamCode: 'hr' })
 })
 
-test('postOptout POSTs personId+duration to /api/optout', async () => {
+test('postOptout POSTs only a duration to /api/optout', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
     calls.push({ url, opts })
     return { ok: true, status: 200, json: async () => ({ personId: 'p1', excluded: true }) }
   }))
   const { postOptout } = await import('./client.js')
-  const res = await postOptout('p1', '7d')
+  const res = await postOptout('7d')
   expect(res.excluded).toBe(true)
   expect(calls[0].url).toMatch(/\/api\/optout$/)
   expect(calls[0].opts.method).toBe('POST')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ personId: 'p1', duration: '7d' })
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ duration: '7d' })
 })
 
 test('a non-ok POST throws', async () => {
@@ -123,16 +123,30 @@ test('an admin call omits x-account-token when no account is signed in', async (
 
 // The credential must stay opt-in: everyday member calls never carry it, even when
 // an account happens to be signed in on the same device (shared-browser safety).
-test('a non-admin call never attaches x-account-token, even when an account is signed in', async () => {
+// The member's own token IS their identity now: the server reads bootstrap.meId from it.
+// Admin is still recomputed from sweep ownership per request, so this grants nothing new.
+test('sweep calls carry the account token, so a member is somebody', async () => {
   const { setAccountToken } = await import('../lib/accountClient.js')
   setAccountToken('acct_tok_1')
   const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ sweepId: 'sw_a', role: 'member' }) } }))
-  const { postSession, fetchWhoami } = await import('./client.js')
-  await postSession('mem_tok')
-  expect(calls[0].opts.headers?.['x-account-token']).toBeUndefined()
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ sweepId: 'sw_a' }) } }))
+  const { fetchWhoami } = await import('./client.js')
   await fetchWhoami()
-  expect(calls[1].opts?.headers?.['x-account-token']).toBeUndefined()
+  expect(calls[0].opts.headers?.['x-account-token']).toBe('acct_tok_1')
+})
+
+// setActiveSweep nulls the id for the default sweep, and sweepInit used to skip headers
+// entirely in that case — which would have left every member on that host anonymous.
+test('an unpinned sweep still sends the token', async () => {
+  const { setAccountToken } = await import('../lib/accountClient.js')
+  setAccountToken('acct_tok_2')
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({}) } }))
+  const { setActiveSweep, fetchBootstrap } = await import('./client.js')
+  setActiveSweep('default')
+  await fetchBootstrap()
+  expect(calls[0].opts.headers?.['x-account-token']).toBe('acct_tok_2')
+  expect(calls[0].opts.headers?.['x-sweep-id']).toBeUndefined()
 })
 
 test('public get sends credentials:include (cookie scopes platform-host reads)', async () => {
@@ -337,15 +351,15 @@ test('patchSweep PATCHes the fields with credentials', async () => {
   expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Renamed' })
 })
 
-test('fetchWallet GETs /api/coins with personId query and credentials', async () => {
+test('fetchWallet GETs /api/coins — the wallet is whoever is signed in', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => {
     calls.push({ url, opts })
     return { ok: true, status: 200, json: async () => ({ balance: 1000, leaderboard: [] }) }
   }))
-  const res = await fetchWallet('pn_x')
+  const res = await fetchWallet()
   expect(res).toEqual({ balance: 1000, leaderboard: [] })
-  expect(calls[0].url).toMatch(/\/api\/coins\?personId=pn_x$/)
+  expect(calls[0].url).toBe('/api/coins')
   expect(calls[0].opts.credentials).toBe('include')
 })
 
@@ -355,18 +369,18 @@ test('postBet posts market + selection to /api/bet', async () => {
     calls.push({ url, opts })
     return { ok: true, status: 200, json: async () => ({ ok: true }) }
   }))
-  await postBet({ fixtureId: 'f1', personId: 'pn_x', market: 'ou25', selection: 'OVER', stake: 50 })
+  await postBet({ fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 50 })
   expect(calls[0].url).toMatch(/\/api\/bet$/)
   expect(calls[0].opts.method).toBe('POST')
   expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', personId: 'pn_x', market: 'ou25', selection: 'OVER', stake: 50 })
+  expect(JSON.parse(calls[0].opts.body)).toEqual({ fixtureId: 'f1', market: 'ou25', selection: 'OVER', stake: 50 })
 })
 
-test('fetchLedger requests the ledger endpoint with an encoded personId', async () => {
+test('fetchLedger requests the ledger endpoint — no person in the URL', async () => {
   const fetchSpy = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ balance: 1000, entries: [] }) }))
   vi.stubGlobal('fetch', fetchSpy)
-  const out = await fetchLedger('pn a/b')
-  expect(fetchSpy).toHaveBeenCalledWith('/api/coins/ledger?personId=pn%20a%2Fb', { credentials: 'include' })
+  const out = await fetchLedger()
+  expect(fetchSpy).toHaveBeenCalledWith('/api/coins/ledger', { credentials: 'include' })
   expect(out).toEqual({ balance: 1000, entries: [] })
 })
 

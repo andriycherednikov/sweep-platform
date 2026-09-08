@@ -107,6 +107,12 @@ export function assembleSweep(api) {
     adult: p.adult !== false,
     // server-recorded Wagers self-exclusion (responsible-gambling) — surfaced in admin
     excluded: p.excluded === true,
+    // seat state. `email`/`claimedAt` are admin-only on the wire, so they are null for
+    // a member — the owner roster is the only screen that reads them.
+    claimed: p.claimed === true,
+    ejected: p.ejected === true,
+    email: p.email ?? null,
+    claimedAt: p.claimedAt ?? null,
     teams: ownership[p.id] ? ownership[p.id].slice() : [],
   }))
   const peopleById = Object.fromEntries(people.map((p) => [p.id, p]))
