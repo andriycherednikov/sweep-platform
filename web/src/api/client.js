@@ -1,3 +1,5 @@
+import { getAccountToken } from '../lib/accountClient.js'
+
 /**
  * Which sweep this browser is currently looking at. The cookie can hold several
  * (a person is in more than one group), so the cookie alone no longer identifies
@@ -62,37 +64,50 @@ export const fetchLedger = (personId) => get(`/api/coins/ledger?personId=${encod
 export const postBet = ({ fixtureId, personId, market, selection, stake }) => post('/api/bet', { fixtureId, personId, market, selection, stake })
 export const postParlay = ({ personId, stake, legs }) => post('/api/parlay', { personId, stake, legs })
 
-async function getCreds(path) {
-  const res = await fetch(path, { credentials: 'include', ...sweepInit() })
+// `extra` headers (e.g. adminHeaders() below) are opt-in per call, never ambient:
+// only the handful of call sites that need them pass them.
+async function getCreds(path, extra) {
+  const headers = { ...sweepHeaders(), ...extra }
+  const res = await fetch(path, { credentials: 'include', ...(Object.keys(headers).length ? { headers } : {}) })
   if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
-async function postCreds(path, body) {
+async function postCreds(path, body, extra) {
   const res = await fetch(path, {
     method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
-async function patchCreds(path, body) {
+async function patchCreds(path, body, extra) {
   const res = await fetch(path, {
     method: 'PATCH', credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`PATCH ${path} failed: HTTP ${res.status}`)
   return res.json()
 }
-async function deleteCreds(path, body) {
+async function deleteCreds(path, body, extra) {
   const res = await fetch(path, {
     method: 'DELETE', credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...sweepHeaders() },
+    headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`DELETE ${path} failed: HTTP ${res.status}`)
   return res.json()
+}
+
+/** Proof of sweep ownership for the dozen /api/admin/* calls only — never folded into
+ *  sweepHeaders(), which rides on every fetch the SPA makes. That would make a 90-day
+ *  account credential ambient across the whole member app: on a shared browser,
+ *  whoever opens a sweep next would silently inherit admin over every sweep the
+ *  account owns. Attached only where the server actually checks it. */
+const adminHeaders = () => {
+  const token = getAccountToken()
+  return token ? { 'x-account-token': token } : {}
 }
 
 export async function uploadPhoto(formData) {
@@ -105,29 +120,33 @@ export async function uploadPhoto(formData) {
   return res.json()
 }
 
-export const adminLogin = (passcode) => postCreds('/api/admin/login', { passcode })
-export const adminLogout = () => postCreds('/api/admin/logout', {})
-export const fetchAdminMe = () => getCreds('/api/admin/me')
-export const fetchAdminPhotos = () => getCreds('/api/admin/photos')
-export const moderatePhoto = (id, action) => postCreds(`/api/admin/photos/${id}`, { action })
-export const settleStaleBets = () => postCreds('/api/admin/settle-stale', {})
-export const fetchOpenBets = () => getCreds('/api/admin/open-bets')
+// Admin here means "the account that owns this sweep" (sweeps/resolve.js derives it
+// per request from x-account-token) — there is no separate admin login any more.
+export const fetchAdminMe = () => getCreds('/api/admin/me', adminHeaders())
+export const fetchAdminPhotos = () => getCreds('/api/admin/photos', adminHeaders())
+export const moderatePhoto = (id, action) => postCreds(`/api/admin/photos/${id}`, { action }, adminHeaders())
+export const settleStaleBets = () => postCreds('/api/admin/settle-stale', {}, adminHeaders())
+export const fetchOpenBets = () => getCreds('/api/admin/open-bets', adminHeaders())
 
 export const postSession = (token) => postCreds('/api/session', { token })
 export const fetchWhoami = () => getCreds('/api/whoami')
 export const postLogout = () => postCreds('/api/session/logout', {})
 
-export const createPerson = (fields) => postCreds('/api/admin/people', fields)
-export const deletePerson = (id) => deleteCreds(`/api/admin/people/${id}`, {})
-export const patchPerson = (id, fields) => patchCreds(`/api/admin/people/${id}`, fields)
-export const postOwnership = (personId, teamCode) => postCreds('/api/admin/ownership', { personId, teamCode })
-export const deleteOwnership = (personId, teamCode) => deleteCreds('/api/admin/ownership', { personId, teamCode })
+export const createPerson = (fields) => postCreds('/api/admin/people', fields, adminHeaders())
+export const deletePerson = (id) => deleteCreds(`/api/admin/people/${id}`, {}, adminHeaders())
+export const patchPerson = (id, fields) => patchCreds(`/api/admin/people/${id}`, fields, adminHeaders())
+export const postOwnership = (personId, teamCode) => postCreds('/api/admin/ownership', { personId, teamCode }, adminHeaders())
+export const deleteOwnership = (personId, teamCode) => deleteCreds('/api/admin/ownership', { personId, teamCode }, adminHeaders())
 // bulk allocate/unallocate — items: [{ personId, teamCode }]
-export const bulkPostOwnership = (items) => postCreds('/api/admin/ownership/bulk', { items })
-export const bulkDeleteOwnership = (items) => deleteCreds('/api/admin/ownership/bulk', { items })
+export const bulkPostOwnership = (items) => postCreds('/api/admin/ownership/bulk', { items }, adminHeaders())
+export const bulkDeleteOwnership = (items) => deleteCreds('/api/admin/ownership/bulk', { items }, adminHeaders())
 
 // --- super-admin (platform owner) ---
 // patchCreds(path, body) is defined above (Slice 3); imported/used here, never redefined.
+// POST /api/super/session is gone (operator status now comes from account role, not a
+// shared token), but screens-super.jsx's sign-in still calls this — replacing it is a
+// separate task (operator account sign-in) that touches that whole screen. Left in place,
+// still 404ing, so that screen's build doesn't break out from under an unrelated task.
 export const postSuperSession = (token) => postCreds('/api/super/session', { token })
 export const fetchSuperSweeps = () => getCreds('/api/super/sweeps')
 export const createSweep = (name) => postCreds('/api/super/sweeps', { name })

@@ -71,12 +71,11 @@ test('lapsed: subscribe CTA + read-only warning', async () => {
   expect(screen.getByRole('button', { name: /subscribe/i })).toBeTruthy()
 })
 
-test('sweep list renders links and archives with two-tap confirm', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1', adminLink: 'https://h/admin/a1' }])
+test('sweep list renders its member link and archives with two-tap confirm', async () => {
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
   render(<AccountHome />)
   expect(await screen.findByText('My NBA')).toBeTruthy()
   expect(screen.getByDisplayValue('https://h/g/m1')).toBeTruthy()
-  expect(screen.getByDisplayValue('https://h/admin/a1')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
   const confirmBtn = await screen.findByRole('button', { name: /really archive\?/i })
   fireEvent.click(confirmBtn)
@@ -84,7 +83,7 @@ test('sweep list renders links and archives with two-tap confirm', async () => {
 })
 
 test('archive failure shows an inline error and resets the confirm state', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1', adminLink: 'https://h/admin/a1' }])
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
   archiveSweep.mockRejectedValue(new Error('boom'))
   render(<AccountHome />)
   expect(await screen.findByText('My NBA')).toBeTruthy()
@@ -102,7 +101,7 @@ test('account load failure shows an inline error instead of a silent empty list'
 })
 
 test('archived sweeps are filtered out', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'Old One', competitionId: 'c1', archivedAt: '2026-01-01T00:00:00Z', createdAt: 'x', memberLink: 'https://h/g/m1', adminLink: 'https://h/admin/a1' }])
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'Old One', competitionId: 'c1', archivedAt: '2026-01-01T00:00:00Z', createdAt: 'x', memberLink: 'https://h/g/m1' }])
   render(<AccountHome />)
   await waitFor(() => expect(getAccountSweeps).toHaveBeenCalled())
   expect(screen.queryByText('Old One')).toBeNull()
@@ -151,7 +150,7 @@ test('empty sweep list links to the catalog (Set up your first sweep)', async ()
 
 test('a non-empty sweep list shows a New sweep button to the catalog', async () => {
   getAccountSweeps.mockResolvedValue([
-    { id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/m1', adminLink: 'https://h/g/m1/admin/a1' },
+    { id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/m1' },
   ])
   render(<AccountHome />)
   await screen.findByText('My NBA')

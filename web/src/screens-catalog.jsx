@@ -45,11 +45,11 @@ function ProvisionSheet({ league, season, onClose }) {
         {done ? (
           <>
             <p className="ac-b">
-              Share the member link with your group; keep the admin link to yourself.
-              Teams and fixtures are still landing from the feed — they appear on their own.
+              Share the member link with your group. You manage the sweep by signing in
+              to your account — Teams and fixtures are still landing from the feed, and
+              appear on their own.
             </p>
             <LinkField label="Member link" value={done.memberLink} />
-            <LinkField label="Admin link" value={done.adminLink} />
             <button className="lp-btn ac-btn" onClick={() => goTo("/account")}>Done</button>
           </>
         ) : (

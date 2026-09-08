@@ -18,7 +18,7 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, adminLogin, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchOpenBets, fetchWhoami, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, fetchAdminPhotos, moderatePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { SingleBetRow, ParlayCard } from "./screens-coins.jsx";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
@@ -1116,30 +1116,13 @@ function useResolvedQueryClient(override) {
   return override || hookQc;
 }
 
-/* Host-aware admin gate. On the platform host the sweep_session cookie already
-   carries role 'admin' (minted by the admin capability link) → unlock with no PIN.
-   On the default host (sweepId 'default') keep the 4-digit PIN. A platform member
-   with no admin link gets a "open your admin link" prompt. */
-export function adminGateState(whoami) {
-  if (whoami && whoami.role === 'admin') return 'unlocked';
-  if (whoami && whoami.sweepId === 'default') return 'pin';
-  return 'need-link';
-}
-
 export function AdminScreen({ onBack, onToast, openMatch }) {
-  const [code, setCode] = useState("");
-  const [gate, setGate] = useState(null); // null = checking; 'unlocked'|'pin'|'need-link'
-  const [shake, setShake] = useState(false);
+  const [gate, setGate] = useState(null); // null = checking; 'unlocked' | 'need-link'
 
-  useEffect(()=>{ fetchWhoami().then(w=>setGate(adminGateState(w))).catch(()=>setGate('pin')); },[]);
-
-  function fail(){ setShake(true); setTimeout(()=>{ setShake(false); setCode(""); }, 400); }
-  function press(d){
-    if(code.length>=4) return;
-    const nc = code + d; setCode(nc);
-    if(nc.length===4){ setTimeout(async ()=>{ try { await adminLogin(nc); setGate('unlocked'); refreshAdminBadge(); } catch { fail(); } }, 120); }
-  }
-  function del(){ setCode(c=>c.slice(0,-1)); }
+  // Admin is a fact about account ownership now, re-derived on every load — there is
+  // no passcode any more. refreshAdminBadge() already does exactly this check (and
+  // never rejects), so the gate reuses it instead of a second admin probe.
+  useEffect(()=>{ refreshAdminBadge().then(({isAdmin})=>setGate(isAdmin ? 'unlocked' : 'need-link')); },[]);
 
   if(gate===null) return <div style={{display:"flex",flexDirection:"column",height:"100%"}}><PageHeader title="Admin" sub="Restricted area" onBack={onBack} /></div>;
 
@@ -1149,32 +1132,9 @@ export function AdminScreen({ onBack, onToast, openMatch }) {
         <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
         <div className="scroll pad screen-anim" style={{display:"flex",flexDirection:"column",alignItems:"center",paddingTop:40}}>
           <div className="lockic"><Icon.lock/></div>
-          <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Open your admin link</h3>
-          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center",maxWidth:280}}>This sweep is admined from its admin link. Open the admin invite link on this device to manage it.</p>
+          <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Sign in as the owner</h3>
+          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center",maxWidth:280}}>Only the account that owns this sweep can manage it. Sign in to your account on this device to unlock admin.</p>
         </div>
-      </div>
-    );
-  }
-
-  if(gate==='pin'){
-    return (
-      <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-        <PageHeader title="Admin" sub="Restricted area" onBack={onBack} />
-        <div className="scroll passpad screen-anim" style={{display:"flex",flexDirection:"column",alignItems:"center"}}>
-          <div className="lockic"><Icon.lock/></div>
-          <h3 style={{fontFamily:"'Barlow Condensed'",fontWeight:800,fontSize:20,textTransform:"uppercase",color:"var(--navy)"}}>Enter passcode</h3>
-          <p style={{fontSize:12.5,color:"var(--muted)",marginTop:6,textAlign:"center"}}>Admin only.</p>
-          <div className={"passdots"} style={{transform:shake?"translateX(0)":"none",animation:shake?"shake .4s":"none"}}>
-            {[0,1,2,3].map(i=><i key={i} className={i<code.length?"f":""}></i>)}
-          </div>
-          <div className="keypad">
-            {[1,2,3,4,5,6,7,8,9].map(n=><button key={n} className="key" onClick={()=>press(""+n)}>{n}</button>)}
-            <button className="key blank"></button>
-            <button className="key" onClick={()=>press("0")}>0</button>
-            <button className="key blank" onClick={del} style={{fontSize:14,color:"var(--muted)"}}>⌫</button>
-          </div>
-        </div>
-        <style>{`@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}`}</style>
       </div>
     );
   }

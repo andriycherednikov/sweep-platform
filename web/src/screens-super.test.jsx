@@ -4,11 +4,14 @@ import { render, fireEvent, waitFor } from '@testing-library/react'
 // Mock the whole client module; assert observable calls (no spyOn of ESM named imports).
 vi.mock('./api/client.js', () => ({
   postSuperSession: vi.fn(async () => ({ super: true })),
+  // The real listing carries no link field at all — a live member token in the
+  // operator console is the ability to enter a customer's sweep as one of its
+  // members, which the API deliberately stopped handing out.
   fetchSuperSweeps: vi.fn(async () => ([
-    { id: 'sw_a', name: 'Office Sweep', kind: 'group', archivedAt: null, createdAt: '2026-06-01T00:00:00Z', memberLink: '/g/m', adminLink: '/g/m/admin/a' },
-    { id: 'sw_b', name: 'Pub Sweep', kind: 'group', archivedAt: '2026-06-02T00:00:00Z', createdAt: '2026-06-01T00:00:00Z', memberLink: '/g/m2', adminLink: '/g/m2/admin/a2' },
+    { id: 'sw_a', name: 'Office Sweep', kind: 'group', archivedAt: null, createdAt: '2026-06-01T00:00:00Z', accountId: 'acc_1', competitionId: 'c1' },
+    { id: 'sw_b', name: 'Pub Sweep', kind: 'group', archivedAt: '2026-06-02T00:00:00Z', createdAt: '2026-06-01T00:00:00Z', accountId: 'acc_2', competitionId: 'c1' },
   ])),
-  createSweep: vi.fn(async () => ({ id: 'sw_c', name: 'New One', memberLink: '/g/new-member', adminLink: '/g/new-member/admin/new-admin' })),
+  createSweep: vi.fn(async () => ({ id: 'sw_c', name: 'New One' })),
   rotateSweepToken: vi.fn(async () => ({})),
   archiveSweep: vi.fn(async () => ({})),
   unarchiveSweep: vi.fn(async () => ({})),
@@ -48,15 +51,15 @@ test('an autoToken prop auto-submits the super token and skips the prompt', asyn
   expect(queryByPlaceholderText(/super token/i)).toBeNull()
 })
 
-test('creating a sweep surfaces copyable member + admin links', async () => {
-  const { getByPlaceholderText, getByRole, findByText, getByDisplayValue } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
+test('creating a sweep confirms by name, with no link rendered', async () => {
+  const { getByPlaceholderText, getByRole, findByText, queryByDisplayValue } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
   await findByText('Office Sweep') // wait for unlock + initial load
   fireEvent.change(getByPlaceholderText(/new sweep name/i), { target: { value: 'New One' } })
   fireEvent.click(getByRole('button', { name: /create sweep/i }))
   await waitFor(() => expect(client.createSweep).toHaveBeenCalledWith('New One'))
-  // both links are shown in readonly inputs (copyable)
-  expect(await getByDisplayValue('/g/new-member')).toBeTruthy()
-  expect(getByDisplayValue('/g/new-member/admin/new-admin')).toBeTruthy()
+  expect(await findByText(/“New One” created/)).toBeTruthy()
+  // no member/admin link field anywhere in the console
+  expect(queryByDisplayValue(/^\/g\//)).toBeNull()
 })
 
 test('rotate shows the <=8h tail note and calls rotateSweepToken', async () => {

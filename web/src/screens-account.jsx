@@ -209,7 +209,6 @@ function SweepRow({ s, billing, reload }) {
         </button>
       </div>
       <LinkField label="Member link — send this to the group" value={s.memberLink} />
-      <LinkField label="Admin link — keep this one to yourself" value={s.adminLink} />
       <div className="ac-tier">
         <span className={"ac-pill" + tier.tone}>{tier.label}</span>
         {billing.subscribed ? (
@@ -268,7 +267,7 @@ export function AccountHome() {
     <Console here="sweeps">
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">Your sweeps</h1>
-      <p className="ac-sub">Each sweep has two links: one for the group, one you keep.</p>
+      <p className="ac-sub">Sign in on any device you own it from — admin follows your account, not a link.</p>
       {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
       <div className="ac-stack">
         {billing && <SweepList sweeps={sweeps} billing={billing} reload={reload} />}

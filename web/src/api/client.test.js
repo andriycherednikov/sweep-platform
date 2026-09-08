@@ -1,7 +1,7 @@
 import { expect, test, vi, beforeEach } from 'vitest'
 import { fetchBootstrap, fetchFixtures, fetchStandings, fetchPhotos, fetchSyncStatus, fetchAll, fetchWallet, postBet, fetchLedger } from './client.js'
 
-beforeEach(() => { vi.restoreAllMocks() })
+beforeEach(() => { vi.restoreAllMocks(); localStorage.clear() })
 
 function mockJson(map) {
   vi.stubGlobal('fetch', vi.fn(async (url) => {
@@ -85,16 +85,6 @@ test('uploadPhoto POSTs FormData to /api/photos', async () => {
   expect(calls[0].opts.body).toBe(fd) // raw FormData, no JSON content-type
 })
 
-test('adminLogin posts the passcode and includes credentials', async () => {
-  const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ admin: true }) } }))
-  const { adminLogin } = await import('./client.js')
-  await adminLogin('1234')
-  expect(calls[0].url).toMatch(/\/api\/admin\/login$/)
-  expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ passcode: '1234' })
-})
-
 test('fetchAdminPhotos GETs the queue with credentials', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ pending: [], approved: [] }) } }))
@@ -112,10 +102,37 @@ test('fetchOpenBets GETs the open-bets audit with credentials', async () => {
   expect(calls[0].opts.credentials).toBe('include')
 })
 
-test('adminLogin throws on 401', async () => {
-  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 401, json: async () => ({}) })))
-  const { adminLogin } = await import('./client.js')
-  await expect(adminLogin('nope')).rejects.toThrow(/login/i)
+// Admin is proven by account ownership now (x-account-token), not a separate login.
+test('an admin call attaches x-account-token when an account is signed in on this device', async () => {
+  const { setAccountToken } = await import('../lib/accountClient.js')
+  setAccountToken('acct_tok_1')
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ admin: true }) } }))
+  const { fetchAdminMe } = await import('./client.js')
+  await fetchAdminMe()
+  expect(calls[0].opts.headers['x-account-token']).toBe('acct_tok_1')
+})
+
+test('an admin call omits x-account-token when no account is signed in', async () => {
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ admin: true }) } }))
+  const { fetchAdminMe } = await import('./client.js')
+  await fetchAdminMe()
+  expect(calls[0].opts?.headers?.['x-account-token']).toBeUndefined()
+})
+
+// The credential must stay opt-in: everyday member calls never carry it, even when
+// an account happens to be signed in on the same device (shared-browser safety).
+test('a non-admin call never attaches x-account-token, even when an account is signed in', async () => {
+  const { setAccountToken } = await import('../lib/accountClient.js')
+  setAccountToken('acct_tok_1')
+  const calls = []
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ sweepId: 'sw_a', role: 'member' }) } }))
+  const { postSession, fetchWhoami } = await import('./client.js')
+  await postSession('mem_tok')
+  expect(calls[0].opts.headers?.['x-account-token']).toBeUndefined()
+  await fetchWhoami()
+  expect(calls[1].opts?.headers?.['x-account-token']).toBeUndefined()
 })
 
 test('public get sends credentials:include (cookie scopes platform-host reads)', async () => {
@@ -274,6 +291,8 @@ test('bulkPostOwnership and bulkDeleteOwnership send items to the bulk route', a
   expect(JSON.parse(calls[1].opts.body)).toEqual({ items })
 })
 
+// The route is gone (operator status comes from account role now), but the caller in
+// screens-super.jsx is out of scope here — kept so that screen keeps building.
 test('postSuperSession POSTs the token to /api/super/session with credentials', async () => {
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ super: true }) } }))
@@ -298,7 +317,7 @@ test('fetchSuperSweeps GETs /api/super/sweeps with credentials', async () => {
 
 test('createSweep POSTs the name and returns the link bundle', async () => {
   const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'sw_b', name: 'Office', memberLink: '/g/m', adminLink: '/g/m/admin/a' }) } }))
+  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'sw_b', name: 'Office', memberLink: '/g/m' }) } }))
   const { createSweep } = await import('./client.js')
   const res = await createSweep('Office')
   expect(res.memberLink).toBe('/g/m')

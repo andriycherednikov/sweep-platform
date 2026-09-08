@@ -131,13 +131,13 @@ test('submitting shows a pending state while the provision is in flight', async 
   })
 })
 
-test('success shows the invite links and Done', async () => {
-  createSweep.mockResolvedValue({ id: 'sw9', name: 'NBA 2025', memberLink: 'https://h/g/m9', adminLink: 'https://h/g/m9/admin/a9' })
+test('success shows the invite link and Done, with no admin link (none exists any more)', async () => {
+  createSweep.mockResolvedValue({ id: 'sw9', name: 'NBA 2025', memberLink: 'https://h/g/m9' })
   await openSheet()
   fireEvent.click(screen.getByRole('checkbox')) // wagering ON rides through
   fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
   expect(await screen.findByLabelText('Member link')).toHaveValue('https://h/g/m9')
-  expect(screen.getByLabelText('Admin link')).toHaveValue('https://h/g/m9/admin/a9')
+  expect(screen.queryByLabelText('Admin link')).toBeNull()
   expect(screen.getByRole('button', { name: /done/i })).toBeTruthy()
   expect(createSweep).toHaveBeenCalledWith(expect.objectContaining({ wageringEnabled: true }))
 })

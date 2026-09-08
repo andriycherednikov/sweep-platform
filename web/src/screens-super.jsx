@@ -55,11 +55,12 @@ function SweepRow({ s, onToast, reload }) {
         </div>
       </div>
 
-      {/* The default sweep is host-bound (no capability tokens); only its name is editable. */}
+      {/* The default sweep is host-bound (no capability tokens); only its name is editable.
+          No link is ever shown here: a live member token in the operator console is the
+          ability to enter a customer's sweep, which the API deliberately stopped handing
+          out (fetchSuperSweeps() carries no link fields any more). */}
       {s.kind !== "default" && (
         <>
-          {s.memberLink && <LinkField label="Member link" value={s.memberLink} />}
-          {s.adminLink && <LinkField label="Admin link" value={s.adminLink} />}
           <div className="super-actions">
             <button className="allocbtn" disabled={busy} aria-label={`Rotate member ${s.id}`}
               onClick={() => run(() => rotateSweepToken(s.id, "member"), "Member link rotated")}>Rotate member link</button>
@@ -80,7 +81,7 @@ function SweepRow({ s, onToast, reload }) {
 function SuperList({ onToast }) {
   const [sweeps, setSweeps] = useState([]);
   const [newName, setNewName] = useState("");
-  const [created, setCreated] = useState(null); // {memberLink, adminLink, name}
+  const [created, setCreated] = useState(null); // {name}
   const [busy, setBusy] = useState(false);
 
   const reload = useCallback(async () => {
@@ -118,9 +119,10 @@ function SuperList({ onToast }) {
           </div>
           {created && (
             <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--live)" }}>“{created.name}” created — share these links:</div>
-              <LinkField label="Member link" value={created.memberLink} />
-              <LinkField label="Admin link" value={created.adminLink} />
+              {/* No link shown: an operator holding a member link could enter the group's
+                  sweep as one of its members, which fetchSuperSweeps()/createSweep() no
+                  longer hand out. */}
+              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--live)" }}>“{created.name}” created.</div>
             </div>
           )}
         </div>

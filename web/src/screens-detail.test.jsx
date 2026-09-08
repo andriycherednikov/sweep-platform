@@ -5,12 +5,11 @@ import { render, fireEvent, act } from '@testing-library/react'
 vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
   uploadPhoto: vi.fn(async () => ({})),
-  adminLogin: vi.fn(async () => ({ admin: true })),
+  fetchAdminMe: vi.fn(async () => ({ admin: true })),
   fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
   settleStaleBets: vi.fn(async () => ({ swept: 0 })),
   fetchOpenBets: vi.fn(async () => ({ people: [], totalOpen: 0, totalStale: 0 })),
   moderatePhoto: vi.fn(async () => ({})),
-  fetchWhoami: vi.fn(async () => ({ sweepId: 'default', role: 'member' })),
   createPerson: vi.fn(async () => ({})),
   deletePerson: vi.fn(async () => ({})),
   patchPerson: vi.fn(async () => ({})),
@@ -510,41 +509,27 @@ test('PersonDetail hides the Prediction history section when the person made no 
   expect(queryByText('Prediction history')).toBeNull()
 })
 
-import { adminGateState, AdminScreen } from './screens-detail.jsx'
+import { AdminScreen } from './screens-detail.jsx'
 import { waitFor } from '@testing-library/react'
-import { fetchWhoami } from './api/client.js'
+import { fetchAdminMe } from './api/client.js'
 
-test('adminGateState forks on whoami role / default sweep', () => {
-  expect(adminGateState({ sweepId: 'sw_abc', role: 'admin' })).toBe('unlocked')
-  expect(adminGateState({ sweepId: 'default', role: 'admin' })).toBe('unlocked')
-  expect(adminGateState({ sweepId: 'default', role: 'member' })).toBe('pin')
-  expect(adminGateState({ sweepId: 'default', role: null })).toBe('pin')
-  expect(adminGateState({ sweepId: 'sw_abc', role: 'member' })).toBe('need-link')
-  expect(adminGateState({ sweepId: null, role: null })).toBe('need-link')
-})
-
-test('AdminScreen on the platform host with an admin cookie unlocks without a PIN', async () => {
-  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'admin' })
+// Admin is a fact about account ownership now — there is no passcode and no
+// whoami-role fork; the gate just asks the server (fetchAdminMe) and believes it.
+test('AdminScreen unlocks when this device owns the sweep', async () => {
+  fetchAdminMe.mockResolvedValueOnce({ admin: true })
   setSweepData(assembleSweep({
     bootstrap: { teams: [], people: [], ownership: {}, scoring: null },
     fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
   }))
   const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
-  expect(await findByText('People', { selector: '.admintab' })).toBeTruthy() // landed on the People tab, no keypad
-  expect(queryByText('Enter passcode')).toBeNull()
+  expect(await findByText('People', { selector: '.admintab' })).toBeTruthy() // landed on the People tab
+  expect(queryByText('Sign in as the owner')).toBeNull()
 })
 
-test('AdminScreen on a platform member (no admin link) prompts to open the admin link', async () => {
-  fetchWhoami.mockResolvedValueOnce({ sweepId: 'sw_abc', role: 'member' })
-  const { findByText, queryByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
-  expect(await findByText(/open your admin link/i)).toBeTruthy()
-  expect(queryByText('Enter passcode')).toBeNull()
-})
-
-test('AdminScreen on the default host with no admin cookie still shows the PIN keypad', async () => {
-  fetchWhoami.mockResolvedValueOnce({ sweepId: 'default', role: 'member' })
+test('AdminScreen prompts to sign in when this device does not own the sweep', async () => {
+  fetchAdminMe.mockRejectedValueOnce(new Error('GET /api/admin/me failed: HTTP 403'))
   const { findByText } = render(<AdminScreen onBack={noop} onToast={noop} />)
-  expect(await findByText('Enter passcode')).toBeTruthy()
+  expect(await findByText('Sign in as the owner')).toBeTruthy()
 })
 
 import { PeopleAdmin } from './screens-detail.jsx'

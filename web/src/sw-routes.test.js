@@ -31,6 +31,14 @@ describe('service-worker runtime caching contract', () => {
     expect(r.excludePaths).toContain('/api/stream')
   })
 
+  // A cached admin/operator response would keep showing the moderation queue (etc.)
+  // after sign-out, on a shared device.
+  test('/api excludes admin and super routes so they are never served from cache', () => {
+    const r = byId('api')
+    expect(r.excludePaths).toContain('/api/admin')
+    expect(r.excludePaths).toContain('/api/super')
+  })
+
   test('every route names a distinct cache', () => {
     const names = SW_ROUTES.map((r) => r.cacheName)
     expect(new Set(names).size).toBe(names.length)
