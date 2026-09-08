@@ -8,6 +8,11 @@ vi.mock('./api/client.js', () => ({
   postLogout: vi.fn(async () => ({})),
 }))
 import { postSupport, postSession, postLogout } from './api/client.js'
+// The admin/moderation affordance is gated on this badge (proven via x-account-token),
+// never on bootstrap's sweep.role — bootstrap is a shared call and never carries that
+// header, so mocking the badge is what actually exercises the real gate.
+vi.mock('./admin.js', () => ({ useAdminBadge: vi.fn() }))
+import { useAdminBadge } from './admin.js'
 import { Av, Flag, CrowdPick, IdentityControl, MatchCard, ProbBar, SquadList, useCountdown, SweepsSheet, Sidebar, HomeHeader, AppHeader, ScoreCover, SpoilerToggle, PersonTeams, useScrolled, SHRINK_PX, SHRINK_HI, SHRINK_LO, BottomNav, OptOutButton, resultFor, StatusPill } from './components.jsx'
 import { listSweeps, addSweep, removeSweep, useSweeps } from './sweeps.js'
 import { isSpoiler, setSpoiler, isRevealed } from './spoiler.js'
@@ -74,6 +79,7 @@ const FG = { id: 'm1', t1: 'mx', t2: 'za', status: 'upcoming', stage: 'group' }
 
 beforeEach(() => {
   localStorage.clear(); setMe(null); vi.clearAllMocks(); setSpoiler(false)
+  useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -606,8 +612,8 @@ test('HomeHeader shows the switch-sweep button with two sweeps and opens the swi
   expect(onSweeps).toHaveBeenCalled()
 })
 
-/* Moderation/admin entry visibility — hidden for non-admins on token sweeps,
-   always shown on the default sweep (its admin enters a PIN there). */
+/* Moderation/admin entry visibility — gated on the admin badge (useAdminBadge,
+   backed by fetchAdminMe → x-account-token), never on bootstrap's sweep.role. */
 function setSweep(sweep) {
   setSweepData(assembleSweep({
     bootstrap: { teams: [], people: [], ownership: {}, scoring: null, sweep },
@@ -615,38 +621,40 @@ function setSweep(sweep) {
   }))
 }
 
-test('Sidebar hides Moderation for a non-admin on a token sweep', () => {
-  setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
+test('Sidebar hides Moderation for a plain member', () => {
+  useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
   const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
   expect(queryByText('Moderation')).toBeNull()
 })
 
-test('Sidebar shows Moderation for an admin on a token sweep', () => {
-  setSweep({ id: 'sw_x', name: 'Office', role: 'admin' })
-  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByText('Moderation')).toBeInTheDocument()
-})
-
-test('Sidebar shows Moderation on the default sweep even for a member', () => {
-  setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
-  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByText('Moderation')).toBeInTheDocument()
-})
-
-test('HomeHeader hides the admin entry for a non-admin on a token sweep', () => {
+// This is the exact split that shipped broken: bootstrap's sweep.role says 'member'
+// for everyone (it never carries the account token), but the owner's admin badge
+// (fetchAdminMe, which does) says isAdmin. The gate must follow the badge.
+test('Sidebar shows Moderation for the owner, even though bootstrap says role: member', () => {
   setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
+  useAdminBadge.mockReturnValue({ isAdmin: true, pending: 0 })
+  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByText('Moderation')).toBeInTheDocument()
+})
+
+// The default sweep's old "always show Moderation" special case is gone — it needs
+// the same admin badge as any other sweep now.
+test('Sidebar no longer auto-shows Moderation on the default sweep for a plain member', () => {
+  setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
+  useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
+  const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(queryByText('Moderation')).toBeNull()
+})
+
+test('HomeHeader hides the admin entry for a plain member', () => {
+  useAdminBadge.mockReturnValue({ isAdmin: false, pending: 0 })
   const { queryByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(queryByLabelText(/^admin$|moderation/i)).toBeNull()
 })
 
-test('HomeHeader shows the admin entry for an admin on a token sweep', () => {
-  setSweep({ id: 'sw_x', name: 'Office', role: 'admin' })
-  const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
-  expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
-})
-
-test('HomeHeader shows the admin entry on the default sweep even for a member', () => {
-  setSweep({ id: 'default', name: 'The Sweep', role: 'member' })
+test('HomeHeader shows the admin entry for the owner, even though bootstrap says role: member', () => {
+  setSweep({ id: 'sw_x', name: 'Office', role: 'member' })
+  useAdminBadge.mockReturnValue({ isAdmin: true, pending: 0 })
   const { getByLabelText } = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
   expect(getByLabelText(/^admin$|moderation/i)).toBeInTheDocument()
 })

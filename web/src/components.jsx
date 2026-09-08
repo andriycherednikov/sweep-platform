@@ -2,7 +2,7 @@
    THE SWEEP — shared components
    ============================================================ */
 import { useState, useEffect, useRef, useMemo } from "react";
-import { SWEEP as S, useSweep, canModerate } from "./data.js";
+import { SWEEP as S } from "./data.js";
 import {
   useSocial, getMe, setMe, toast,
   supportOf, mySupport, setSupport, DRAW,
@@ -404,7 +404,6 @@ export function MatchCard({ f, onOpen, onToast }) {
 export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef, replaceSpoiler }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
-  const showAdmin = canModerate(useSweep());
   useSocial();
   const me = getMe();
   const toTop = () => {
@@ -448,7 +447,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
               <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
             </button>
           )}
-          {showAdmin && onAdmin && (
+          {isAdmin && onAdmin && (
             <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Moderation — ${pending} pending` : "Admin"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
               {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
@@ -607,7 +606,6 @@ export function useIsDesktop() {
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   const { isAdmin, pending } = useAdminBadge();
   const sweeps = useSweeps();
-  const showAdmin = canModerate(useSweep());
   useSocial(); // re-render on identity change so the Wagers item appears/hides
   useOptOut(); // ...and on opt-out
   const nav = navItems().filter(([id]) => id !== "coins" || canWager());
@@ -624,7 +622,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
           </button>
         ))}
       </nav>
-      {showAdmin && <>
+      {isAdmin && <>
         <div className="sb-sec">Admin</div>
         <nav className="sb-nav">
           <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
