@@ -64,4 +64,13 @@ test('rotating the member link kills the old token and mints a working one', asy
     payload: { token: 'seedmembertoken000000' },
   })
   expect(old.statusCode).toBe(404)
+  // The old token dying is only half the promise — prove the new one actually works,
+  // or a rotate that returns a dead link locks the owner out with no fallback.
+  const fresh = res.json().memberLink.split('/g/')[1]
+  const ok = await app.inject({
+    method: 'POST', url: '/api/session', headers: { host: 'platform.test' },
+    payload: { token: fresh },
+  })
+  expect(ok.statusCode).toBe(200)
+  expect(ok.json().sweepId).toBe('default')
 })
