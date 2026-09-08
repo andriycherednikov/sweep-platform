@@ -24,3 +24,13 @@ export function requireAccount(app) {
     req.account = row.account
   }
 }
+
+/** preHandler: an account session whose account carries the operator role. */
+export function requireOperator(app) {
+  const account = requireAccount(app)
+  return async (req, reply) => {
+    await account(req, reply)
+    if (reply.sent) return
+    if (req.account?.role !== 'operator') return reply.code(403).send({ error: 'forbidden' })
+  }
+}

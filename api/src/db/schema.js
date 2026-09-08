@@ -162,6 +162,9 @@ export const account = pgTable('account', {
   currentPeriodEnd: timestamp('current_period_end', { withTimezone: true }),
   trialEndsAt: timestamp('trial_ends_at', { withTimezone: true }),      // one cardless trial clock per account, set at first provision
   trialReminderSentAt: timestamp('trial_reminder_sent_at', { withTimezone: true }),
+  // 'operator' is the platform owner: operate, never impersonate (spec §5). Granted by
+  // hand — a self-serve route that grants this is a privilege-escalation hole.
+  role: text('role').notNull().default('user'),
 })
 
 export const loginToken = pgTable('login_token', {
@@ -177,6 +180,17 @@ export const accountSession = pgTable('account_session', {
   accountId: text('account_id').notNull().references(() => account.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+})
+
+/** Operator actions are competition-wide and irreversible in places, so every one is
+ *  attributable. sweepIds records the real blast radius, not the route's shape. */
+export const operatorAction = pgTable('operator_action', {
+  id: text('id').primaryKey(),
+  actorId: text('actor_id').notNull().references(() => account.id),
+  action: text('action').notNull(),
+  target: text('target'),
+  sweepIds: jsonb('sweep_ids').default([]),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 export const catalogLeague = pgTable('catalog_league', {

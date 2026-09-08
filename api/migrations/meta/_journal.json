@@ -43,6 +43,13 @@
       "when": 1788430558633,
       "tag": "0005_heavy_wrecking_crew",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788836960370,
+      "tag": "0006_burly_sprite",
+      "breakpoints": true
     }
   ]
 }
