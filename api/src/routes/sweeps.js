@@ -1,8 +1,9 @@
-import { eq, or, and, asc, inArray } from 'drizzle-orm'
-import { sweep, person, ownership, competition, competitor } from '../db/schema.js'
+import { eq, or, and, inArray } from 'drizzle-orm'
+import { sweep, person, ownership, competitor } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSweep } from '../sweeps/auth.js'
 import { requireOperator } from '../accounts/auth.js'
+import { recordOperatorAction } from '../accounts/audit.js'
 import { codeToCompetitorId } from './competitors.js'
 import { correctFixture } from '../corrections.js'
 
@@ -11,17 +12,6 @@ const sessionBody = {
   properties: { token: { type: 'string', minLength: 8, maxLength: 64 } },
 }
 
-const createBody = {
-  type: 'object', required: ['name'], additionalProperties: false,
-  properties: {
-    name: { type: 'string', minLength: 1, maxLength: 80 },
-    competitionId: { type: 'string', minLength: 1, maxLength: 120 },
-  },
-}
-const rotateBody = {
-  type: 'object', required: ['which'], additionalProperties: false,
-  properties: { which: { type: 'string', enum: ['member', 'admin'] } },
-}
 // A score correction is competition-level — every sweep following that competition sees
 // it — so it belongs to the operator, not to a group admin whose authority stops at their
 // own sweep. `reason` is required: a silent correction is indistinguishable from a bug.
@@ -90,6 +80,12 @@ export async function sweepsRoutes(app) {
   // shared token to hold, and every operator is therefore a named actor in the audit log.
   const superGuard = requireOperator(app)
 
+  /** Every operator mutation leaves a row naming the actor and the sweep it touched.
+   *  Written BEFORE the change, so a failed audit aborts the request rather than
+   *  leaving an unrecorded one behind. */
+  const audit = (req, action, sweepId) =>
+    recordOperatorAction(app.db, { actorId: req.account.id, action, target: sweepId, sweepIds: [sweepId] })
+
   // No links: a live member token here IS the ability to open any group's sweep as one
   // of its members, un-audited. Operating on a sweep never means entering it.
   app.get('/api/super/sweeps', { preHandler: superGuard }, async () => {
@@ -100,37 +96,18 @@ export async function sweepsRoutes(app) {
     }))
   })
 
-  app.post('/api/super/sweeps', { preHandler: superGuard, schema: { body: createBody } }, async (req, reply) => {
-    const id = `sw_${newToken(12)}`
-    const memberToken = newToken(), adminToken = newToken()
-    let competitionId = req.body.competitionId
-    if (competitionId) {
-      const [comp] = await app.db.select().from(competition).where(eq(competition.id, competitionId))
-      if (!comp) return reply.code(400).send({ error: 'unknown_competition' })
-    } else {
-      // ponytail: default = the one seeded competition; the catalog picker is P3.
-      competitionId = (await app.db.select().from(competition).orderBy(asc(competition.createdAt)).limit(1))[0]?.id
-      if (!competitionId) return reply.code(400).send({ error: 'no_competition' })
-    }
-    await app.db.insert(sweep).values({ id, name: req.body.name, kind: 'token', memberToken, adminToken, competitionId })
-    const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
-    return reply.code(201).send({ id, name: row.name, memberToken, adminToken, ...links(app, row) })
-  })
-
-  app.post('/api/super/sweeps/:id/rotate', { preHandler: superGuard, schema: { body: rotateBody } }, async (req, reply) => {
-    const { id } = req.params
-    const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
-    if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
-    const next = newToken()
-    const set = req.body.which === 'member' ? { memberToken: next } : { adminToken: next }
-    await app.db.update(sweep).set(set).where(eq(sweep.id, id))
-    return { id, ...(req.body.which === 'member' ? { memberToken: next } : { adminToken: next }) }
-  })
+  // No create and no rotate here. Sweeps are provisioned by the account that will own
+  // them (POST /api/account/sweeps) and re-linked by that owner
+  // (POST /api/account/sweeps/:id/rotate). An operator minting a member token is the
+  // ability to walk into any group's sweep as one of its members, which is the one
+  // thing operating on a sweep must never mean — and super-create minted sweeps with
+  // no accountId, which under account-derived admin is a sweep nobody can ever administer.
 
   app.post('/api/super/sweeps/:id/archive', { preHandler: superGuard }, async (req, reply) => {
     const { id } = req.params
     const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
     if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
+    await audit(req, 'archive_sweep', id)
     await app.db.update(sweep).set({ archivedAt: new Date() }).where(eq(sweep.id, id))
     return { id, archived: true }
   })
@@ -143,6 +120,7 @@ export async function sweepsRoutes(app) {
     if (req.body.name !== undefined) set.name = req.body.name
     if (req.body.scoringRule !== undefined) set.scoringRule = req.body.scoringRule
     if (req.body.coOwners !== undefined) set.coOwners = req.body.coOwners
+    await audit(req, 'patch_sweep', id)
     await app.db.update(sweep).set(set).where(eq(sweep.id, id))
     const [updated] = await app.db.select().from(sweep).where(eq(sweep.id, id))
     return { id: updated.id, name: updated.name, scoringRule: updated.scoringRule, coOwners: updated.coOwners, kind: updated.kind, archivedAt: updated.archivedAt }
@@ -152,6 +130,7 @@ export async function sweepsRoutes(app) {
     const { id } = req.params
     const [row] = await app.db.select().from(sweep).where(eq(sweep.id, id))
     if (!row || row.kind === 'default') return reply.code(404).send({ error: 'not_found' })
+    await audit(req, 'unarchive_sweep', id)
     await app.db.update(sweep).set({ archivedAt: null }).where(eq(sweep.id, id))
     return { id, archived: false }
   })

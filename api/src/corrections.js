@@ -1,5 +1,5 @@
 import { and, eq, inArray, ne } from 'drizzle-orm'
-import { event, bet, parlay, coinLedger, competition, syncLog, sweep } from './db/schema.js'
+import { event, bet, parlay, coinLedger, syncLog, sweep } from './db/schema.js'
 import { detailMerge } from './db/event-shape.js'
 import { settleBets } from './wagering/settle.js'
 import { grantMatchRewards } from './wagering/rewards.js'
@@ -25,6 +25,19 @@ import { recordOperatorAction } from './accounts/audit.js'
 export async function correctFixture(db, fixtureId, { score1, score2, status, reg, pen, reason }, actorId, publish = () => {}) {
   const [row] = await db.select().from(event).where(eq(event.id, fixtureId))
   if (!row) return null
+
+  // Who did it, and to whom, BEFORE anything moves. sync_log names the fixture; the
+  // audit row has to name the sweeps, because a correction re-settles every sweep
+  // following this competition — that blast radius is what an operator answers for.
+  // It runs first because the rewrite and re-settle below are not one transaction: an
+  // audit that failed afterwards would leave an applied correction nobody can trace.
+  // actorId has no default and sits ahead of `publish` — an unaudited correction must
+  // be impossible to write by omission, not merely discouraged.
+  const affected = await db.selectDistinct({ id: sweep.id }).from(sweep)
+    .where(eq(sweep.competitionId, row.competitionId))
+  await recordOperatorAction(db, {
+    actorId, action: 'correct_fixture', target: fixtureId, sweepIds: affected.map((s) => s.id),
+  })
 
   const from = [row.score1, row.score2]
   const winnerCode = score1 > score2 ? row.c1Code : score1 < score2 ? row.c2Code : 'DRAW'
@@ -52,17 +65,6 @@ export async function correctFixture(db, fixtureId, { score1, score2, status, re
   await db.insert(syncLog).values({
     source: 'operator', competitionId: row.competitionId, kind: 'correction', status: 'ok',
     counts: { fixtureId, from, to: [score1, score2], reopenedBets, reopenedParlays, reason },
-  })
-
-  // Who did it, and to whom. sync_log names the fixture; the audit row has to name the
-  // sweeps, because a correction re-settles every sweep following this competition —
-  // that blast radius is the thing an operator must be answerable for. actorId sits
-  // ahead of `publish` because it has no default: an unaudited correction must be
-  // impossible to write by omission, not merely discouraged.
-  const affected = await db.selectDistinct({ id: sweep.id }).from(sweep)
-    .where(eq(sweep.competitionId, row.competitionId))
-  await recordOperatorAction(db, {
-    actorId, action: 'correct_fixture', target: fixtureId, sweepIds: affected.map((s) => s.id),
   })
 
   return { fixtureId, from, to: [score1, score2], reopenedBets, reopenedParlays }
@@ -94,12 +96,4 @@ async function reverseSettlement(db, fixtureId) {
   await db.delete(coinLedger).where(and(inArray(coinLedger.type, ['predict', 'teamwin']), eq(coinLedger.refId, fixtureId)))
 
   return { reopenedBets: betIds.length, reopenedParlays: parlayIds.length }
-}
-
-/** The competition a fixture belongs to — the operator route needs it for the audit row. */
-export async function competitionOf(db, fixtureId) {
-  const [row] = await db.select({ competitionId: event.competitionId }).from(event).where(eq(event.id, fixtureId))
-  if (!row) return null
-  const [comp] = await db.select().from(competition).where(eq(competition.id, row.competitionId))
-  return comp ?? null
 }
