@@ -1,3 +1,6 @@
+import { and, eq, isNull } from 'drizzle-orm'
+import { person } from '../db/schema.js'
+
 export const SWEEP_COOKIE = 'sweep_session'
 export const COOKIE_MAX_AGE = 8 * 3600 // seconds
 
@@ -40,5 +43,33 @@ export function requireSweep(roles) {
   return async (req, reply) => {
     if (!req.sweep) return reply.code(401).send({ error: 'unauthorized' })
     if (!allowed.has(req.role)) return reply.code(403).send({ error: 'forbidden' })
+  }
+}
+
+/** preHandler: sets req.person to the caller's seat in req.sweep, or null. This is the
+ *  SELECT the acting routes already ran for FK safety, moved one level up and keyed on
+ *  the session instead of on a number the client sent us. Never refuses: some routes
+ *  (the wallet, the leaderboard) are legitimately readable without a seat.
+ *  Assumes sweepResolver ran first. */
+export function attachPerson(app) {
+  return async (req) => {
+    req.person = null
+    if (!req.account || !req.sweep) return
+    const [p] = await app.db.select().from(person).where(and(
+      eq(person.sweepId, req.sweep.id),
+      eq(person.accountId, req.account.id),
+      isNull(person.ejectedAt),
+    ))
+    req.person = p ?? null
+  }
+}
+
+/** ...and for the routes that ACT as a person, refuse anyone without one. An ejected
+ *  member and a link-holder who never joined are the same thing here: no seat. */
+export function requirePerson(app) {
+  const attach = attachPerson(app)
+  return async (req, reply) => {
+    await attach(req)
+    if (!req.person) return reply.code(403).send({ error: 'no_seat' })
   }
 }

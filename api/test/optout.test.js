@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { memberClient } from './helpers/session.js'
-import { person } from '../src/db/schema.js'
+import { memberClient, seatFor } from './helpers/session.js'
+import { account, person } from '../src/db/schema.js'
 import { untilFor, isExcluded, extendUntil, FOREVER } from '../src/optout.js'
 
 describe('optout helpers', () => {
@@ -34,7 +34,7 @@ describe('optout helpers', () => {
 })
 
 const { pool, db } = openTestDb()
-let dir, app, client
+let dir, app, client, seat
 const PID = 'optp'
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-optout-'))
@@ -44,18 +44,20 @@ beforeAll(async () => {
 })
 afterAll(async () => {
   await db.delete(person).where(eq(person.id, PID)) // don't leak the test person into other suites' counts
+  await db.delete(account).where(eq(account.id, `ac_seat_${PID}`))
   await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true })
 })
 beforeEach(async () => {
   await db.delete(person).where(eq(person.id, PID))
   await db.insert(person).values({ id: PID, sweepId: 'default', name: 'Opt Out', short: 'Opt', initials: 'OO', avColor: '#abc' })
+  seat = await seatFor(db, PID)
 })
 
-// member self-service: an anonymous localhost request resolves to the default sweep as a member
-const optout = (payload) => client.inject({ method: 'POST', url: '/api/optout', payload })
+// The caller excludes their own seat: the account token says who that is.
+const optout = (payload, headers = seat) => client.inject({ method: 'POST', url: '/api/optout', headers, payload })
 
 test('a member can self-exclude for a fixed window; the person is then marked excluded', async () => {
-  const res = await optout({ personId: PID, duration: '7d' })
+  const res = await optout({ duration: '7d' })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toMatchObject({ personId: PID, excluded: true })
   const [row] = await db.select().from(person).where(eq(person.id, PID))
@@ -64,21 +66,21 @@ test('a member can self-exclude for a fixed window; the person is then marked ex
 })
 
 test('the excluded flag flows through /api/bootstrap for the admin list', async () => {
-  await optout({ personId: PID, duration: '3d' })
+  await optout({ duration: '3d' })
   const b = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(b.people.find((p) => p.id === PID)).toMatchObject({ excluded: true })
 })
 
 test('forever stores the sentinel and reads back as excluded', async () => {
-  await optout({ personId: PID, duration: 'forever' })
+  await optout({ duration: 'forever' })
   const [row] = await db.select().from(person).where(eq(person.id, PID))
   expect(row.excludedUntil.getTime()).toBe(FOREVER.getTime())
   expect(isExcluded(row)).toBe(true)
 })
 
 test('binding: a shorter window cannot reverse/shorten an existing forever exclusion', async () => {
-  await optout({ personId: PID, duration: 'forever' })
-  const res = await optout({ personId: PID, duration: '1d' })
+  await optout({ duration: 'forever' })
+  const res = await optout({ duration: '1d' })
   expect(res.statusCode).toBe(200)
   const [row] = await db.select().from(person).where(eq(person.id, PID))
   expect(row.excludedUntil.getTime()).toBe(FOREVER.getTime()) // unchanged
@@ -90,12 +92,25 @@ test('an expired window serializes as not excluded', async () => {
   expect(b.people.find((p) => p.id === PID)).toMatchObject({ excluded: false })
 })
 
-test('opting out an unknown person is rejected', async () => {
-  const res = await optout({ personId: 'nobody', duration: '7d' })
-  expect(res.statusCode).toBe(400)
+// The defect this closes: barring another member was one request away, and nothing at
+// any role could undo it.
+test('a personId in the body cannot bar anyone else', async () => {
+  await db.insert(person).values({ id: 'optvictim', sweepId: 'default', name: 'Victim', short: 'Vic', initials: 'VI', avColor: '#abc' })
+  const res = await optout({ personId: 'optvictim', duration: 'forever' })
+  expect(res.statusCode).toBe(200)
+  expect(res.json().personId).toBe(PID)
+  const [victim] = await db.select().from(person).where(eq(person.id, 'optvictim'))
+  expect(victim.excludedUntil).toBeNull()
+  await db.delete(person).where(eq(person.id, 'optvictim'))
+})
+
+test('a link-holder with no seat cannot opt anyone out', async () => {
+  const res = await optout({ duration: '7d' }, {})
+  expect(res.statusCode).toBe(403)
+  expect(res.json()).toEqual({ error: 'no_seat' })
 })
 
 test('an unknown duration is rejected by schema', async () => {
-  const res = await optout({ personId: PID, duration: '30d' })
+  const res = await optout({ duration: '30d' })
   expect(res.statusCode).toBe(400)
 })

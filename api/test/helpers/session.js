@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm'
-import { account, accountSession, sweep } from '../../src/db/schema.js'
+import { account, accountSession, person, sweep } from '../../src/db/schema.js'
 import { newToken } from '../../src/sweeps/tokens.js'
 import { SESSION_TTL_MS } from '../../src/accounts/auth.js'
 
@@ -54,4 +54,15 @@ export async function adminHeaders(app, db, sweepId, accountId) {
     payload: { token: row.memberToken },
   })
   return { host: 'platform.test', cookie: res.headers['set-cookie'], ...(await ownerHeaders(db, accountId)) }
+}
+
+/** Bind an existing person row to a fresh account and return that account's headers.
+ *  personId is derived from the session now, so a test that wants to BE somebody needs
+ *  a seat, not a body field. One account per seat: person_sweep_account_uq is real. */
+export async function seatFor(db, personId, { accountId = `ac_seat_${personId}`, email } = {}) {
+  await db.insert(account).values({
+    id: accountId, email: email ?? `${accountId}@example.test`,
+  }).onConflictDoNothing()
+  await db.update(person).set({ accountId, claimedAt: new Date() }).where(eq(person.id, personId))
+  return ownerHeaders(db, accountId)
 }
