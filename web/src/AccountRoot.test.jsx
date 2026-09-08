@@ -105,6 +105,27 @@ test('the magic-link form can switch back to signing in with a password', async 
   expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
 })
 
+test('a partial sign-out-everywhere failure (?signout=partial) shows a notice and strips the query param', async () => {
+  window.history.replaceState(null, '', '/account?signout=partial')
+  render(<AccountRoot />)
+  expect(await screen.findByText(/could not sign out your other devices/i)).toBeInTheDocument()
+  await waitFor(() => expect(window.location.search).toBe(''))
+})
+
+test('the partial sign-out notice survives switching to the magic-link form', async () => {
+  window.history.replaceState(null, '', '/account?signout=partial')
+  render(<AccountRoot />)
+  await screen.findByText(/could not sign out your other devices/i)
+  fireEvent.click(screen.getByRole('button', { name: /email me a link instead/i }))
+  expect(screen.getByText(/could not sign out your other devices/i)).toBeInTheDocument()
+})
+
+test('a plain /account visit shows no partial sign-out notice', () => {
+  window.history.replaceState(null, '', '/account')
+  render(<AccountRoot />)
+  expect(screen.queryByText(/could not sign out your other devices/i)).toBeNull()
+})
+
 test('/account/login/:token redeems the token then navigates to the account home', async () => {
   window.history.replaceState(null, '', '/account/login/abc')
   const replace = vi.fn()

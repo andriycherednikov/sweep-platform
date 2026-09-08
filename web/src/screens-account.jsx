@@ -34,10 +34,17 @@ export function Console({ here, children }) {
     clearAccountToken();
     window.location.reload();
   }
+  // This is the only way to revoke a credential that grants admin over every sweep
+  // the account owns, reached for exactly when a device is lost or a token may have
+  // leaked — a failure here must not be swallowed like signOutHere's. Still clear
+  // locally and leave (staying signed in here would be worse), but land on /account
+  // with a flag Entry can show, surviving the reload: other sessions are still live.
   async function signOutEverywhere() {
-    try { await revokeAllSessions(); } catch { /* ignore */ }
+    let failed = false;
+    try { await revokeAllSessions(); } catch { failed = true; }
     clearAccountToken();
-    window.location.reload();
+    if (failed) window.location.assign("/account?signout=partial");
+    else window.location.reload();
   }
 
   return (

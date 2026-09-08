@@ -163,6 +163,19 @@ test('sign out still clears locally and reloads even when the server revoke fail
   expect(window.location.reload).toHaveBeenCalled()
 })
 
+// Unlike this-device sign-out, a failed revoke-everywhere must not look identical to a
+// successful one: other sessions are still live, and this credential grants admin over
+// every sweep the account owns. Still clears + leaves (staying signed in is worse), but
+// distinguishably — a flag Entry can show, surviving the reload.
+test('a failed sign-out-everywhere still clears locally, but surfaces the failure instead of reloading silently', async () => {
+  revokeAllSessions.mockRejectedValueOnce(new Error('network'))
+  render(<AccountHome />)
+  fireEvent.click(await screen.findByRole('button', { name: /sign out everywhere/i }))
+  await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
+  expect(window.location.assign).toHaveBeenCalledWith('/account?signout=partial')
+  expect(window.location.reload).not.toHaveBeenCalled()
+})
+
 test('empty sweep list links to the catalog (Set up your first sweep)', async () => {
   render(<AccountHome />)
   await screen.findByText(/no sweeps yet/i)

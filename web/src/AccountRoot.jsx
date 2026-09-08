@@ -72,7 +72,7 @@ function RequireAccount({ children }) {
 /** The magic-link form, byte-for-byte today's flow: it is also how a brand-new
  *  visitor creates an account (there is no separate signup), and how anyone
  *  recovers access without knowing a password. */
-function MagicEntry({ onPassword }) {
+function MagicEntry({ onPassword, notice }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState(false);
@@ -92,6 +92,7 @@ function MagicEntry({ onPassword }) {
         lede={<>We sent a sign-in link to <b>{email}</b>. It works once, and it expires in 15 minutes.</>}
         foot={<>(dev: the link is printed on the API console)</>}
       >
+        {notice && <p className="au-err">{notice}</p>}
         <p className="au-note">Nothing in your inbox? Look in spam, or send it again.</p>
         <button type="button" className="au-alt" onClick={() => setSent(false)}>
           Use a different email
@@ -106,6 +107,7 @@ function MagicEntry({ onPassword }) {
       lede="One link signs you in and creates your account. No password to invent, no card to enter."
       foot={<>Already running one? The same link signs you back in.</>}
     >
+      {notice && <p className="au-err">{notice}</p>}
       <form className="au-form" onSubmit={submit}>
         <label className="au-label" htmlFor="au-email">Email</label>
         <input
@@ -132,7 +134,7 @@ function MagicEntry({ onPassword }) {
 /** Email + password signs in directly — the common case once an owner has set one.
  *  There is no forgot-password form here: MagicEntry (today's flow, unchanged) is
  *  the recovery path, since it signs a person in without knowing any password. */
-function PasswordEntry({ onMagic }) {
+function PasswordEntry({ onMagic, notice }) {
   const [email, setEmail] = useState("");
   const [password, setFieldPassword] = useState("");
   const [error, setError] = useState(false);
@@ -146,6 +148,7 @@ function PasswordEntry({ onMagic }) {
 
   return (
     <AuthPanel tag="Sign in" title="Run *your* sweep" lede="Enter your email and password.">
+      {notice && <p className="au-err">{notice}</p>}
       <form className="au-form" onSubmit={submit}>
         <label className="au-label" htmlFor="au-email">Email</label>
         <input
@@ -179,16 +182,38 @@ function PasswordEntry({ onMagic }) {
   );
 }
 
+// Sign-out-everywhere lands back here (a hard navigation, so nothing in memory
+// survives) with ?signout=partial when the server-side revoke failed — the local
+// device is signed out regardless, but every other session is still live. Read
+// once, then strip it: a later refresh of a plain /account must not repeat it.
+function usePartialSignOutNotice() {
+  const [notice] = useState(() => {
+    if (typeof window === "undefined") return null;
+    if (new URLSearchParams(window.location.search).get("signout") !== "partial") return null;
+    return "Signed out on this device, but we could not sign out your other devices. Try again, or change your password to lock them out.";
+  });
+
+  useEffect(() => {
+    if (!notice) return;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("signout");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+  }, [notice]);
+
+  return notice;
+}
+
 function Entry() {
   const status = useAccountStatus();
   const [mode, setMode] = useState("password"); // password | magic
+  const notice = usePartialSignOutNotice();
 
   if (status === "checking") return <div className="sweep-gate" />;
   if (status === "in") return <AccountHome />;
 
   return mode === "magic"
-    ? <MagicEntry onPassword={() => setMode("password")} />
-    : <PasswordEntry onMagic={() => setMode("magic")} />;
+    ? <MagicEntry onPassword={() => setMode("password")} notice={notice} />
+    : <PasswordEntry onMagic={() => setMode("magic")} notice={notice} />;
 }
 
 /** Shown once, right after a magic-link redeem, only when the account has no password
