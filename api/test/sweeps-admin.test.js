@@ -2,7 +2,8 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { ne } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, ownership } from '../src/db/schema.js'
+import { person, ownership, account } from '../src/db/schema.js'
+import { ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz' })
@@ -14,24 +15,28 @@ afterAll(async () => {
   await app.close(); await pool.end()
 })
 
-// Memoized: the super cookie is stateless ('ok'), and /api/super/session is
-// rate-limited (max 10 / 15 min) — minting a fresh cookie per test would exhaust it.
-let _superCookie
-async function superCookie() {
-  if (_superCookie) return _superCookie
-  const res = await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-xyz' } })
-  _superCookie = res.headers['set-cookie']
-  return _superCookie
+// Memoized: minting an account session per test is wasteful, and the operator row only
+// needs inserting once.
+let _op
+async function operator() {
+  if (_op) return _op
+  await db.insert(account).values({
+    id: 'ac_op_admin', email: 'op-admin@example.test', role: 'operator',
+  }).onConflictDoNothing()
+  _op = await ownerHeaders(db, 'ac_op_admin')
+  return _op
 }
 
+// Tests the login route itself (token check, cookie mint), not a helper for something
+// else — same as admin-auth.test.js, this is Task 10 fallout, not a Task 8 migration.
 test('super session requires the right token', async () => {
   expect((await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'nope' } })).statusCode).toBe(401)
   expect((await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-xyz' } })).statusCode).toBe(200)
 })
 
 test('super can create a sweep and gets two tokens + links', async () => {
-  const cookie = await superCookie()
-  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Acme' } })
+  const auth = await operator()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Acme' } })
   expect(res.statusCode).toBe(201)
   const body = res.json()
   expect(body.name).toBe('Acme')
@@ -41,8 +46,8 @@ test('super can create a sweep and gets two tokens + links', async () => {
 })
 
 test('creating a sweep with an unknown competitionId is 400 unknown_competition', async () => {
-  const cookie = await superCookie()
-  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'X', competitionId: 'nope:0:0' } })
+  const auth = await operator()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'X', competitionId: 'nope:0:0' } })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_competition')
 })
@@ -52,10 +57,10 @@ test('creating a sweep without a super cookie is 401', async () => {
 })
 
 test('super can rotate a sweep member token (old token stops working)', async () => {
-  const cookie = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Rot' } })).json()
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Rot' } })).json()
   const oldTok = created.memberToken
-  const rot = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/rotate`, headers: { cookie }, payload: { which: 'member' } })
+  const rot = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/rotate`, headers: auth, payload: { which: 'member' } })
   expect(rot.statusCode).toBe(200)
   const newTok = rot.json().memberToken
   expect(newTok).not.toBe(oldTok)
@@ -63,14 +68,14 @@ test('super can rotate a sweep member token (old token stops working)', async ()
   expect(old.statusCode).toBe(404)
 })
 
-async function adminCookieFor(superCk) {
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: superCk }, payload: { name: 'Draw' } })).json()
+async function adminCookieFor(superAuth) {
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: superAuth, payload: { name: 'Draw' } })).json()
   const sess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: created.adminToken } })
   return { cookie: sess.headers['set-cookie'], id: created.id }
 }
 
 test('group admin creates a person and assigns a team', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const created = await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Zoe', short: 'Zoe', initials: 'Z', av: '#abc' } })
@@ -83,15 +88,15 @@ test('group admin creates a person and assigns a team', async () => {
 })
 
 test('a member cookie cannot reach group-admin routes (403)', async () => {
-  const su = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: su }, payload: { name: 'Mem' } })).json()
+  const su = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: su, payload: { name: 'Mem' } })).json()
   const sess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: created.memberToken } })
   const res = await app.inject({ method: 'POST', url: '/api/admin/people', headers: { host: 'platform.test', cookie: sess.headers['set-cookie'] }, payload: { name: 'No', short: 'No', initials: 'N', av: '#000' } })
   expect(res.statusCode).toBe(403)
 })
 
 test('co-ownership allowed: two people CAN own the same team; same person twice is 409', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
@@ -104,7 +109,7 @@ test('co-ownership allowed: two people CAN own the same team; same person twice 
 })
 
 test('assigning/removing an unknown team code is 400 unknown_team (single + bulk)', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Nope', short: 'Nope', initials: 'NP', av: '#abc' } })).json()
@@ -123,10 +128,10 @@ test('assigning/removing an unknown team code is 400 unknown_team (single + bulk
 })
 
 test('super can rename a sweep and edit scoring (PATCH returns updated row)', async () => {
-  const cookie = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Old Name' } })).json()
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Old Name' } })).json()
   const res = await app.inject({
-    method: 'PATCH', url: `/api/super/sweeps/${created.id}`, headers: { cookie },
+    method: 'PATCH', url: `/api/super/sweeps/${created.id}`, headers: auth,
     payload: { name: 'New Name', scoringRule: 'winner_only', coOwners: 'split' },
   })
   expect(res.statusCode).toBe(200)
@@ -136,32 +141,32 @@ test('super can rename a sweep and edit scoring (PATCH returns updated row)', as
   expect(body.scoringRule).toBe('winner_only')
   expect(body.coOwners).toBe('split')
   // a follow-up GET reflects the new name
-  const list = (await app.inject({ method: 'GET', url: '/api/super/sweeps', headers: { cookie } })).json()
+  const list = (await app.inject({ method: 'GET', url: '/api/super/sweeps', headers: auth })).json()
   expect(list.find((s) => s.id === created.id).name).toBe('New Name')
 })
 
 test('PATCH a sweep without a super cookie is 401', async () => {
-  const cookie = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Guarded' } })).json()
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Guarded' } })).json()
   const res = await app.inject({ method: 'PATCH', url: `/api/super/sweeps/${created.id}`, payload: { name: 'Nope' } })
   expect(res.statusCode).toBe(401)
 })
 
 test('PATCH an unknown sweep id is 404', async () => {
-  const cookie = await superCookie()
-  const res = await app.inject({ method: 'PATCH', url: '/api/super/sweeps/sw_does_not_exist', headers: { cookie }, payload: { name: 'X' } })
+  const auth = await operator()
+  const res = await app.inject({ method: 'PATCH', url: '/api/super/sweeps/sw_does_not_exist', headers: auth, payload: { name: 'X' } })
   expect(res.statusCode).toBe(404)
 })
 
 test('super can un-archive a sweep; an archived sweep becomes usable again', async () => {
-  const cookie = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'Revivable' } })).json()
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Revivable' } })).json()
   const tok = created.memberToken
   // archive it → /api/session refuses (404)
-  expect((await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/archive`, headers: { cookie } })).statusCode).toBe(200)
+  expect((await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/archive`, headers: auth })).statusCode).toBe(200)
   expect((await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: tok } })).statusCode).toBe(404)
   // un-archive → row active again, session works
-  const un = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive`, headers: { cookie } })
+  const un = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive`, headers: auth })
   expect(un.statusCode).toBe(200)
   expect(un.json()).toEqual({ id: created.id, archived: false })
   const sess = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: tok } })
@@ -170,26 +175,26 @@ test('super can un-archive a sweep; an archived sweep becomes usable again', asy
 })
 
 test('un-archive without a super cookie is 401', async () => {
-  const cookie = await superCookie()
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie }, payload: { name: 'GuardedUn' } })).json()
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'GuardedUn' } })).json()
   const res = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive` })
   expect(res.statusCode).toBe(401)
 })
 
 test('un-archive an unknown sweep id is 404', async () => {
-  const cookie = await superCookie()
-  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/sw_nope/unarchive', headers: { cookie } })
+  const auth = await operator()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/sw_nope/unarchive', headers: auth })
   expect(res.statusCode).toBe(404)
 })
 
 test('un-archive refuses the default sweep (kind default → 404)', async () => {
-  const cookie = await superCookie()
-  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/default/unarchive', headers: { cookie } })
+  const auth = await operator()
+  const res = await app.inject({ method: 'POST', url: '/api/super/sweeps/default/unarchive', headers: auth })
   expect(res.statusCode).toBe(404)
 })
 
 test('bulk ownership assigns many teams in one call; /api/people reflects all', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Bulk', short: 'Bulk', initials: 'BK', av: '#abc' } })).json()
@@ -202,7 +207,7 @@ test('bulk ownership assigns many teams in one call; /api/people reflects all', 
 })
 
 test('bulk ownership is idempotent and allows co-ownership across people', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
@@ -216,7 +221,7 @@ test('bulk ownership is idempotent and allows co-ownership across people', async
 })
 
 test('bulk ownership rejects a personId from another sweep (400)', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie: cookieA } = await adminCookieFor(su)
   const { cookie: cookieB } = await adminCookieFor(su)
   const hA = { host: 'platform.test', cookie: cookieA }
@@ -229,7 +234,7 @@ test('bulk ownership rejects a personId from another sweep (400)', async () => {
 })
 
 test('bulk ownership validates payload + guards', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   // empty items → 400 (schema minItems)
@@ -239,7 +244,7 @@ test('bulk ownership validates payload + guards', async () => {
 })
 
 test('bulk delete removes only the listed pairs, scoped to the sweep', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Del', short: 'Del', initials: 'DL', av: '#abc' } })).json()
@@ -252,7 +257,7 @@ test('bulk delete removes only the listed pairs, scoped to the sweep', async () 
 })
 
 test('bulk ownership writes publish a sync event for the sweep (so other devices refresh)', async () => {
-  const su = await superCookie()
+  const su = await operator()
   const { cookie, id: sweepId } = await adminCookieFor(su)
   const h = { host: 'platform.test', cookie }
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' } })).json()
@@ -287,9 +292,9 @@ test('bulk ownership writes publish a sync event for the sweep (so other devices
 test('links are built from publicOrigin when it is set', async () => {
   const alt = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz', publicOrigin: 'http://127.0.0.1:5173' })
   await alt.ready()
-  // same sessionSecret, and the super cookie is stateless — reuse it rather than
-  // spending one of the 10-per-15-min /api/super/session mints.
-  const res = await alt.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: await superCookie() }, payload: { name: 'Origin' } })
+  // the operator account session is stored in the shared db, not this app instance,
+  // so it resolves against `alt` exactly as it does against `app`.
+  const res = await alt.inject({ method: 'POST', url: '/api/super/sweeps', headers: await operator(), payload: { name: 'Origin' } })
   expect(res.json().memberLink).toBe(`http://127.0.0.1:5173/g/${res.json().memberToken}`)
   await alt.close()
 })

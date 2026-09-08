@@ -12,6 +12,7 @@ import { grantMatchRewards } from '../src/wagering/rewards.js'
 import { correctFixture } from '../src/corrections.js'
 import { recomputeStandings } from '../src/worker/recompute-standings.js'
 import { ensureGrants, balanceOf } from '../src/wagering/ledger.js'
+import { ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 afterAll(async () => { await pool.end() })
@@ -173,6 +174,26 @@ test('the correction route is operator-only, and rejects a silent one', async ()
 
     const missing = await app.inject({ method: 'POST', url: '/api/super/fixtures/nope/correct', headers: { cookie }, payload: body })
     expect(missing.statusCode).toBe(404)
+  } finally {
+    await app.close()
+  }
+})
+
+// requireSuper is transitional (api/src/sweeps/auth.js): the legacy cookie OR an
+// operator account. A signed-in account that is NOT an operator is exactly the case
+// the cookie could never express — this is real 403-at-the-guard coverage, not a stub.
+test('a signed-in non-operator account cannot correct a score', async () => {
+  const { buildApp } = await import('../src/app.js')
+  const app = buildApp(db, { sessionSecret: 's' })
+  await app.ready()
+  try {
+    const [f] = await db.select().from(event).limit(1)
+    const res = await app.inject({
+      method: 'POST', url: `/api/super/fixtures/${f.id}/correct`,
+      headers: await ownerHeaders(db),
+      payload: { score1: 1, score2: 0, reason: 'test' },
+    })
+    expect(res.statusCode).toBe(403)
   } finally {
     await app.close()
   }

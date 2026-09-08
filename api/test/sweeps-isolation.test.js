@@ -3,20 +3,23 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { sweep, person, ownership, support, event } from '../src/db/schema.js'
+import { sweep, person, ownership, support, event, account } from '../src/db/schema.js'
+import { ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz' })
+const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
 
 async function sessionCookie(token) {
   const res = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token } })
   return res.headers['set-cookie']
 }
 
-async function superCookie() {
-  const res = await app.inject({ method: 'POST', url: '/api/super/session', headers: { host: 'platform.test' }, payload: { token: 'super-xyz' } })
-  return res.headers['set-cookie']
+async function operator() {
+  await db.insert(account).values({
+    id: 'ac_op_isolation', email: 'op-isolation@example.test', role: 'operator',
+  }).onConflictDoNothing()
+  return ownerHeaders(db, 'ac_op_isolation')
 }
 
 beforeAll(async () => {
@@ -131,9 +134,9 @@ test('renaming a person from another sweep is 404 (cross-sweep scoping)', async 
 })
 
 test('an admin of one sweep cannot rename a person in another sweep (404 not 200)', async () => {
-  const su = await superCookie()
+  const auth = await operator()
   // create a fresh sweep C with its own admin
-  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: { cookie: su }, payload: { name: 'C' } })).json()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'C' } })).json()
   const sessC = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token: created.adminToken } })
   const cookieC = sessC.headers['set-cookie']
   // sweep C admin tries to rename pb1 (lives in sw_b) → invisible → 404
