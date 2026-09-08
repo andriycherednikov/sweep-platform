@@ -162,8 +162,8 @@ the change that widens the credential is the change that must make it revocable.
 **Schema.** `account.role`, defaulting to a normal user. `requireOperator` beside
 `requireAccount`. No new table for the role itself.
 
-**Can:** list every sweep and account; correct a fixture score; force a competition
-resync and read sync failures; **archive and unarchive** a sweep.
+**Can:** list every sweep; correct a fixture score; **archive, unarchive and rename** a
+sweep.
 
 **Cannot:** open a sweep as its members; read picks, chat, wagers or the ledger; touch
 billing.
@@ -301,6 +301,10 @@ in step 7; the constraint buys nothing after that.
 - **Shortening the account session TTL.** Considered; kept at 90 days.
 - **2FA, password strength meters, lockout beyond the existing rate limit.**
 - **Member identity.** Companion spec.
+- **Forced resync and operator visibility into sync failures.** §5 originally listed
+  both under Can. Neither was built: no resync route exists, and `/api/sync-status`
+  keys on a sweep cookie an operator does not hold. Recorded here so this reads as a
+  decision, not an oversight.
 
 ---
 

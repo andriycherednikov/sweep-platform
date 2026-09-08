@@ -5,8 +5,11 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 // sweep session cookie — mock the client so these tests never touch fetch.
 vi.mock('./lib/accountClient.js', () => ({
   requestLogin: vi.fn(async () => ({ ok: true })),
-  redeemLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })),
-  passwordLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })),
+  // Neither redeem nor password-session response carries hasPassword — only
+  // GET /api/account does. A mock that invented the field once let a dead branch
+  // reading it look tested; keep this shape honest.
+  redeemLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
+  passwordLogin: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
   setPassword: vi.fn(async () => ({})),
   getAccount: vi.fn(async () => ({ id: 'a1', email: 'x@y.com', name: null })),
   getAccountToken: vi.fn(() => null),
@@ -126,27 +129,21 @@ test('a plain /account visit shows no partial sign-out notice', () => {
   expect(screen.queryByText(/could not sign out your other devices/i)).toBeNull()
 })
 
-test('/account/login/:token redeems the token then navigates to the account home', async () => {
+// The redeem response never carries a hasPassword field (only GET /api/account does —
+// see accountClient.test.js's honest shape), and this card is the only change-password
+// UI in the app, so every redeem shows it: skipping it for someone who already has a
+// password would leave them with no way to ever change it.
+test('every magic-link redeem shows a dismissible set/change-password card, not an immediate navigate', async () => {
   window.history.replaceState(null, '', '/account/login/abc')
   const replace = vi.fn()
   Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
   render(<AccountRoot />)
   await waitFor(() => expect(accountClient.redeemLogin).toHaveBeenCalledWith('abc'))
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/account'))
-})
-
-test('a magic-link redeem on an account with no password shows a dismissible set-password card', async () => {
-  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
-  window.history.replaceState(null, '', '/account/login/abc')
-  const replace = vi.fn()
-  Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
-  render(<AccountRoot />)
-  expect(await screen.findByRole('heading', { name: /set a password/i })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: /password/i })).toBeInTheDocument()
   expect(replace).not.toHaveBeenCalled()
 })
 
-test('dismissing the set-password card ("Not now") continues to the account without setting one', async () => {
-  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
+test('dismissing the card ("Not now") continues to the account without setting a password', async () => {
   window.history.replaceState(null, '', '/account/login/abc')
   const replace = vi.fn()
   Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
@@ -156,14 +153,13 @@ test('dismissing the set-password card ("Not now") continues to the account with
   expect(accountClient.setPassword).not.toHaveBeenCalled()
 })
 
-test('setting a password from the card calls setPassword then continues to the account', async () => {
-  accountClient.redeemLogin.mockResolvedValueOnce({ id: 'a1', email: 'x@y.com', name: null, hasPassword: false })
+test('saving a password from the card calls setPassword then continues to the account', async () => {
   window.history.replaceState(null, '', '/account/login/abc')
   const replace = vi.fn()
   Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
   render(<AccountRoot />)
   fireEvent.change(await screen.findByLabelText(/new password/i), { target: { value: 'longenoughpassword' } })
-  fireEvent.click(screen.getByRole('button', { name: /^set password$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^save password$/i }))
   await waitFor(() => expect(accountClient.setPassword).toHaveBeenCalledWith('longenoughpassword'))
   await waitFor(() => expect(replace).toHaveBeenCalledWith('/account'))
 })

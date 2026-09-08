@@ -216,9 +216,12 @@ function Entry() {
     : <PasswordEntry onMagic={() => setMode("magic")} notice={notice} />;
 }
 
-/** Shown once, right after a magic-link redeem, only when the account has no password
- *  yet. Dismissible, not a wall: the link that just worked keeps working, so nobody
- *  is trapped here — "Not now" continues to the account exactly as before this task. */
+/** Shown after every magic-link redeem — for someone who has never set a password and
+ *  for someone replacing one; server-side (a fresh link session) those are the same
+ *  operation, and this card is the only change-password UI in the app, so there is no
+ *  other way in for the second case. Dismissible, not a wall: the link that just
+ *  worked keeps working, so nobody is trapped here — "Not now" continues to the
+ *  account exactly as before this task. */
 function SetPasswordCard({ onDone }) {
   const [password, setFieldPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -236,7 +239,7 @@ function SetPasswordCard({ onDone }) {
   return (
     <AuthPanel
       tag="Signed in"
-      title="Set a *password*"
+      title="Set or change your *password*"
       lede="Optional — skip it and the email link keeps working, same as always."
     >
       <form className="au-form" onSubmit={submit}>
@@ -253,7 +256,7 @@ function SetPasswordCard({ onDone }) {
           value={password}
           onChange={(e) => setFieldPassword(e.target.value)}
         />
-        <button type="submit" className="lp-btn au-btn" disabled={busy}>{busy ? "Saving…" : "Set password"}</button>
+        <button type="submit" className="lp-btn au-btn" disabled={busy}>{busy ? "Saving…" : "Save password"}</button>
         {error && <p className="au-err">Something went wrong. Try again, or skip for now.</p>}
       </form>
       <button type="button" className="au-alt" onClick={onDone}>Not now</button>
@@ -263,21 +266,20 @@ function SetPasswordCard({ onDone }) {
 
 function Redeem({ token }) {
   const [error, setError] = useState(false);
-  const [needsPassword, setNeedsPassword] = useState(false);
+  const [redeemed, setRedeemed] = useState(false);
 
   useEffect(() => {
     let alive = true;
     redeemLogin(token)
-      .then((account) => {
-        if (!alive) return;
-        if (account?.hasPassword) window.location.replace("/account");
-        else setNeedsPassword(true);
-      })
+      .then(() => { if (alive) setRedeemed(true); })
       .catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
   }, [token]);
 
-  if (needsPassword) return <SetPasswordCard onDone={() => window.location.replace("/account")} />;
+  // No hasPassword branch here: the redeem response never carries one (only
+  // GET /api/account does), and the card below is the only change-password UI in the
+  // app — always showing it is what makes a change possible at all.
+  if (redeemed) return <SetPasswordCard onDone={() => window.location.replace("/account")} />;
 
   if (!error) return <div className="sweep-gate" />;
 

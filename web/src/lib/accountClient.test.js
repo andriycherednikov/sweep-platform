@@ -55,7 +55,7 @@ test('redeemLogin exchanges the magic-link token and persists the returned accou
 test('passwordLogin exchanges email + password for a session and persists the accountToken', async () => {
   fetch.mockResolvedValueOnce(jsonResponse(201, {
     accountToken: 'tok3',
-    account: { id: 'a1', email: 'x@y.com', name: null, hasPassword: true },
+    account: { id: 'a1', email: 'x@y.com', name: null },
   }))
   const account = await passwordLogin('x@y.com', 'hunter22')
   expect(fetch).toHaveBeenCalledWith('/api/account/password/session', expect.objectContaining({
@@ -63,7 +63,7 @@ test('passwordLogin exchanges email + password for a session and persists the ac
     body: JSON.stringify({ email: 'x@y.com', password: 'hunter22' }),
   }))
   expect(getAccountToken()).toBe('tok3')
-  expect(account).toEqual({ id: 'a1', email: 'x@y.com', name: null, hasPassword: true })
+  expect(account).toEqual({ id: 'a1', email: 'x@y.com', name: null })
 })
 
 test('setPassword posts only the password when no current one is given (fresh magic-link session)', async () => {
