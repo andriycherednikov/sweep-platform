@@ -50,6 +50,13 @@
       "when": 1788836960370,
       "tag": "0006_burly_sprite",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788837240371,
+      "tag": "0007_sour_reptil",
+      "breakpoints": true
     }
   ]
 }

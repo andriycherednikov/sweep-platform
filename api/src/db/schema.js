@@ -165,6 +165,7 @@ export const account = pgTable('account', {
   // 'operator' is the platform owner: operate, never impersonate (spec §5). Granted by
   // hand — a self-serve route that grants this is a privilege-escalation hole.
   role: text('role').notNull().default('user'),
+  passwordHash: text('password_hash'),   // nullable — magic-link-only accounts predate passwords
 })
 
 export const loginToken = pgTable('login_token', {
@@ -180,6 +181,10 @@ export const accountSession = pgTable('account_session', {
   accountId: text('account_id').notNull().references(() => account.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  // How this session was proven. A 'link' session younger than 15 minutes may SET a
+  // password without knowing the old one — that exemption is what makes forgotten-
+  // password recovery possible at all.
+  via: text('via').notNull().default('link'),
 })
 
 /** Operator actions are competition-wide and irreversible in places, so every one is
