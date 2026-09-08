@@ -4,6 +4,10 @@ import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { makeApi } from '../test/factories.js'
 
+vi.mock('./lib/accountClient.js', async (orig) => ({
+  ...(await orig()),
+  getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'ada@x.test' })),
+}))
 vi.mock('./api/client.js', () => ({
   postJoinCode: vi.fn(async () => ({ ok: true })),
   postJoinSession: vi.fn(async () => ({ accountToken: 't', account: { id: 'ac_1' } })),
@@ -13,7 +17,7 @@ vi.mock('./api/client.js', () => ({
 import { postJoinCode, postJoinSession, postMe, uploadPhoto } from './api/client.js'
 import { JoinSheet } from './JoinSheet.jsx'
 import { getMe, setMe } from './social.js'
-import { clearAccountToken, setAccountToken } from './lib/accountClient.js'
+import { clearAccountToken, setAccountToken, getAccount, getAccountToken } from './lib/accountClient.js'
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -109,4 +113,34 @@ test('a failed upload still leaves you in the sweep', async () => {
   })
   fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
   await waitFor(() => expect(onClose).toHaveBeenCalled())
+})
+
+// A token in localStorage is not proof of a session: it expires, it gets revoked, and a
+// dev database gets wiped. Trusting its mere presence dropped people into a form that
+// could only 401 — behind a gate with no close button, which is a dead end.
+test('a stale token sends you back to the email step instead of a doomed form', async () => {
+  setAccountToken('stale')
+  getAccount.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
+  render(<JoinSheet onClose={() => {}} />)
+  expect(await screen.findByLabelText('Your email')).toBeInTheDocument()
+  expect(screen.queryByLabelText('First name')).toBeNull()
+  expect(getAccountToken()).toBeNull()
+})
+
+test('a valid token still goes straight to setup', async () => {
+  setAccountToken('good')
+  render(<JoinSheet onClose={() => {}} />)
+  expect(await screen.findByLabelText('First name')).toBeInTheDocument()
+})
+
+// Belt and braces: a session can lapse between opening the sheet and submitting it.
+test('a 401 on submit says what happened and offers a way forward', async () => {
+  setAccountToken('good')
+  postMe.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
+  render(<JoinSheet onClose={() => {}} />)
+  fireEvent.change(await screen.findByLabelText('First name'), { target: { value: 'Ada' } })
+  fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
+  expect(await screen.findByRole('alert')).toHaveTextContent(/sign(ed)? ?in|expired/i)
+  expect(await screen.findByLabelText('Your email')).toBeInTheDocument()
+  expect(getAccountToken()).toBeNull()
 })

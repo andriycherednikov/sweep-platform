@@ -10,10 +10,10 @@
    both the "already registered, sign them straight in" branch and the path an
    owner takes to play in their own sweep.
    ============================================================ */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Icon, PersonAvatar } from "./components.jsx";
 import { postJoinCode, postJoinSession, postMe, uploadPhoto } from "./api/client.js";
-import { getAccountToken } from "./lib/accountClient.js";
+import { getAccount, getAccountToken, clearAccountToken } from "./lib/accountClient.js";
 import { setMe, toast } from "./social.js";
 import { SWEEP as S } from "./data.js";
 
@@ -35,6 +35,25 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [note, setNote] = useState(null);
+
+  // A token in localStorage is not proof of a session — it expires, it gets revoked,
+  // and in dev the row behind it can simply be gone. Trusting its mere presence dropped
+  // people onto the setup form with a POST /api/me that could only 401, behind a gate
+  // with no close button. Check it once on the way in, and fall back to the email step.
+  const signedOut = () => {
+    clearAccountToken();
+    setFile(null); setNote(null);
+    setStep("email");
+    setErr("You're not signed in any more. Pop your email in and we'll send a fresh code.");
+  };
+  useEffect(() => {
+    if (step !== "setup" || !getAccountToken()) return;
+    let alive = true;
+    getAccount().catch(() => { if (alive) signedOut(); });
+    return () => { alive = false; };
+    // once, on mount: a later step change is this component's own doing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const name = [first.trim(), last.trim()].filter(Boolean).join(" ");
   const preview = { initials: name ? initialsFor(name) : "?", av: name ? avFor(name) : "var(--muted2)" };
@@ -72,7 +91,9 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
       toast(`You're in as ${person.short}`);
       onClose?.();
     } catch (e2) {
-      setErr(e2?.message?.includes("403")
+      // A session can lapse between opening this sheet and submitting it.
+      if (e2?.status === 401) { signedOut(); setBusy(false); return; }
+      setErr(e2?.status === 403
         ? "You're not able to join this sweep. Ask whoever runs it."
         : "Couldn't finish that just now. Try again.");
       setBusy(false);
