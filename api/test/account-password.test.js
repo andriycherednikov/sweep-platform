@@ -102,6 +102,28 @@ test('a 72-character multi-byte password is rejected cleanly, not with a 500', a
   expect(res.json()).toEqual({ error: 'password_too_long' })
 })
 
+// The other explicit revoke (DELETE /api/account/sessions) is not the only way to kill
+// a leaked 90-day token any more, and it's what every other service already does.
+test('changing the password signs out every other session, but not the caller\'s own', async () => {
+  await db.insert(account).values({
+    id: 'ac_pw_revoke', email: 'pw-revoke@example.test', passwordHash: await hashPassword('original-passphrase'),
+  }).onConflictDoNothing()
+  await db.insert(account).values({
+    id: 'ac_pw_other', email: 'pw-other@example.test',
+  }).onConflictDoNothing()
+  const caller = await ownerHeaders(db, 'ac_pw_revoke')
+  const another = await ownerHeaders(db, 'ac_pw_revoke')
+  const untouched = await ownerHeaders(db, 'ac_pw_other')
+
+  const res = await setPw(caller, { password: 'a-newer-passphrase', current: 'original-passphrase' })
+  expect(res.statusCode).toBe(204)
+
+  expect((await app.inject({ method: 'GET', url: '/api/account', headers: caller })).statusCode).toBe(200)
+  expect((await app.inject({ method: 'GET', url: '/api/account', headers: another })).statusCode).toBe(401)
+  // proves the delete is scoped by accountId, not a blanket sweep of the table
+  expect((await app.inject({ method: 'GET', url: '/api/account', headers: untouched })).statusCode).toBe(200)
+})
+
 test('sign out drops this session only; sign out everywhere drops the rest', async () => {
   const a = await ownerHeaders(db, 'ac_pw')
   const b = await ownerHeaders(db, 'ac_pw')

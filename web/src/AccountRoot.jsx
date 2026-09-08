@@ -190,7 +190,7 @@ function usePartialSignOutNotice() {
   const [notice] = useState(() => {
     if (typeof window === "undefined") return null;
     if (new URLSearchParams(window.location.search).get("signout") !== "partial") return null;
-    return "Signed out on this device, but we could not sign out your other devices. Try again, or change your password to lock them out.";
+    return "Signed out on this device, but we could not sign out your other devices. Try again, or change your password — that signs out every other device too.";
   });
 
   useEffect(() => {

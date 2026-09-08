@@ -1,4 +1,4 @@
-import { eq, and, isNull, gt } from 'drizzle-orm'
+import { eq, and, ne, isNull, gt } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
@@ -138,6 +138,16 @@ export async function accountRoutes(app) {
     await app.db.update(account)
       .set({ passwordHash: await hashPassword(req.body.password) })
       .where(eq(account.id, acc.id))
+    // Every other service already does this, and it is the only recourse when the one
+    // explicit revoke (DELETE /api/account/sessions) has just failed — a stolen 90-day
+    // token dies here too, not just via that route. After the update, never before: a
+    // failed password change must not sign out every other device for nothing. The
+    // caller keeps their own session — changing your password mid-session must not
+    // immediately sign you out of the device you're using.
+    await app.db.delete(accountSession).where(and(
+      eq(accountSession.accountId, acc.id),
+      ne(accountSession.token, req.headers['x-account-token']),
+    ))
     await app.sendMail(acc.email, 'Your password was changed',
       'The password on your Sweep account was just changed. If that was not you, reply to this email.')
     return reply.code(204).send()
