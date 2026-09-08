@@ -94,6 +94,27 @@ test('a stale link session cannot change an existing password without current ei
   expect(res.json()).toEqual({ error: 'current_required' })
 })
 
+// The one case the 15-minute grace exists FOR: an owner who HAS a password, forgot it,
+// and clicks a fresh sign-in link. Every other test here pins a refusal, so nothing
+// noticed when the grace narrowed to "first password only" — which would leave a
+// forgotten password with no way back in at all.
+test('a fresh link session recovers a forgotten password, no current needed', async () => {
+  await db.insert(account).values({
+    id: 'ac_pw_forgot', email: 'pw-forgot@example.test',
+    passwordHash: await hashPassword('forgotten-passphrase'),
+  }).onConflictDoNothing()
+  const token = newToken()
+  await db.insert(accountSession).values({
+    token, accountId: 'ac_pw_forgot', via: 'link',
+    createdAt: new Date(Date.now() - 5 * 60_000),   // inside the grace, but not this instant
+    expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+  })
+  const res = await setPw({ 'x-account-token': token }, { password: 'a-recovered-passphrase' })
+  expect(res.statusCode).toBe(204)
+  // recovery that does not actually let you back in is not recovery
+  expect((await login({ email: 'pw-forgot@example.test', password: 'a-recovered-passphrase' })).statusCode).toBe(201)
+})
+
 // hashPassword's cap is 72 BYTES; the schema's maxLength is 72 UTF-16 units — a
 // multi-byte password can clear the schema and still overflow the hash.
 test('a 72-character multi-byte password is rejected cleanly, not with a 500', async () => {
