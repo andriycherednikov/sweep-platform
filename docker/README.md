@@ -108,9 +108,34 @@ curl https://sweep-portal.yowiebay.au/api/health   # {"ok":true}
 curl https://sweep-portal.yowiebay.au/api/whoami   # {"sweepId":null,"role":null}
 ```
 
-Then sign in: request a magic link in the SPA and read it out of the api log
-(`make logs S=api` — `sendMail` is still a console stub, so links are not
-emailed). Provision a sweep from the catalog, open the join link.
+## First sign-in, and the operator role
+
+Sign-in links are emailed, and only emailed — the console-stub fallback that used to
+print them into `make logs S=api` is refused in production, because a sign-in link is a
+bearer credential and log access is not account access. So mail has to work before
+anyone can get in:
+
+- `RESEND_API_KEY` — from the Resend dashboard.
+- `MAIL_FROM` — e.g. `The Sweep <hello@yourdomain.tld>`. **The domain must be verified
+  in Resend, with the SPF and DKIM records it gives you published in DNS.** Resend will
+  accept and "deliver" mail from an unverified domain; inbox providers put it in spam,
+  silently, and the sign-in link looks like it was never sent.
+
+Then, in the SPA: enter your email, open the link that arrives, and you have an account.
+Provision a sweep from the catalog and open the join link.
+
+**Granting yourself the operator role.** `/super` — the platform console — is gated on
+`account.role = 'operator'`, and there is deliberately no route that grants it: a
+self-serve one would be privilege escalation. The account row is created by the *first*
+sign-in, so sign in before running this:
+
+```bash
+ssh root@134.199.153.212 "docker exec simulation-postgres psql -U simulation -d sweep_portal \
+  -c \"update account set role = 'operator' where email = 'you@yourdomain.tld'\""
+# expect: UPDATE 1   (UPDATE 0 means that email has never signed in)
+```
+
+Sign out and back in is not needed — the role is read per request. Reload `/super`.
 
 ## Operations
 
