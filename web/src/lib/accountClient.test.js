@@ -2,7 +2,7 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
-  revokeSession, revokeAllSessions,
+  revokeSession, revokeAllSessions, rotateSweep,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -158,4 +158,11 @@ test('startCheckout (bodyless POST) does not include content-type header or body
   const callArgs = fetch.mock.calls[0][1]
   expect(callArgs.headers['content-type']).toBeUndefined()
   expect(callArgs.body).toBeUndefined()
+})
+
+test('rotateSweep POSTs the sweep rotate route and returns the fresh member link', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(200, { memberLink: 'https://h/g/new' }))
+  await expect(rotateSweep('sw1')).resolves.toEqual({ memberLink: 'https://h/g/new' })
+  expect(fetch).toHaveBeenCalledWith('/api/account/sweeps/sw1/rotate', expect.objectContaining({ method: 'POST' }))
 })

@@ -37,6 +37,9 @@ export const getCatalog = (params = {}) => {
 export const getAccountSweeps = () => call('GET', '/api/account/sweeps')
 export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
+// Replaces the member token, which is the ONLY credential POST /api/session accepts:
+// the leaked link dies, and so does everyone else's. Returns the fresh { memberLink }.
+export const rotateSweep = (id) => call('POST', `/api/account/sweeps/${id}/rotate`)
 export const getBilling = () => call('GET', '/api/account/billing')
 export const confirmCheckout = (sessionId) => call('POST', '/api/account/billing/confirm', { sessionId })
 export const startCheckout = () => call('POST', '/api/account/billing/checkout')

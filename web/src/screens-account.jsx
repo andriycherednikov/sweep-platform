@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMarketingShell } from "./screens-landing.jsx";
 import {
-  getBilling, getAccountSweeps, archiveSweep,
+  getBilling, getAccountSweeps, archiveSweep, rotateSweep,
   startCheckout, openPortal, clearAccountToken, revokeSession, revokeAllSessions,
 } from "./lib/accountClient.js";
 
@@ -195,6 +195,9 @@ function SweepRow({ s, billing, reload }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(false);
+  const [rotConfirm, setRotConfirm] = useState(false);
+  const [rotated, setRotated] = useState(null);
+  const [rotErr, setRotErr] = useState(false);
   const { trialing, lapsed, daysLeft, stopping, endsOn } = useBilling(billing);
   const acts = useBillingActions();
 
@@ -216,6 +219,23 @@ function SweepRow({ s, billing, reload }) {
     finally { setBusy(false); }
   }
 
+  // The member link is the sweep's only credential, so a link pasted into the wrong
+  // chat can only be taken back by replacing it — which locks out everyone still
+  // using the old one. Hence the two-step confirm, same shape as Archive's, and the
+  // new link shown straight after so the owner can send it on. Never gated on
+  // billing: a lapsed owner needs this more than anyone (api rotate is requireLive:false).
+  async function rotate() {
+    if (!rotConfirm) { setRotConfirm(true); return; }
+    setBusy(true); setRotErr(false);
+    try {
+      const { memberLink } = await rotateSweep(s.id);
+      setRotated(memberLink);
+      setRotConfirm(false);
+      await reload();
+    } catch { setRotErr(true); setRotConfirm(false); }
+    finally { setBusy(false); }
+  }
+
   return (
     <section className="ac-card">
       <div className="ac-card-top">
@@ -224,7 +244,17 @@ function SweepRow({ s, billing, reload }) {
           {confirm ? "Really archive?" : "Archive"}
         </button>
       </div>
-      <LinkField label="Member link — send this to the group" value={s.memberLink} />
+      <LinkField label="Member link — send this to the group" value={rotated || s.memberLink} />
+      {rotated && <p className="ac-b">New link ready — send it to the group. The old link stopped working.</p>}
+      {rotConfirm && (
+        <p className="ac-warn">
+          This replaces the link for everyone: anyone using the old one is locked out until you send them this new one.
+        </p>
+      )}
+      <button className="ac-ghost is-danger" style={{ marginTop: 10 }} disabled={busy} onClick={rotate}>
+        {rotConfirm ? "Yes, replace the link" : "Replace link"}
+      </button>
+      {rotErr && <p className="ac-warn">Couldn't replace the link — try again.</p>}
       <div className="ac-tier">
         <span className={"ac-pill" + tier.tone}>{tier.label}</span>
         {billing.subscribed ? (

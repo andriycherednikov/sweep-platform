@@ -7,6 +7,7 @@ vi.mock('./lib/accountClient.js', () => ({
   getBilling: vi.fn(),
   getAccountSweeps: vi.fn(),
   archiveSweep: vi.fn(async () => ({})),
+  rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
   startCheckout: vi.fn(),
   openPortal: vi.fn(),
   clearAccountToken: vi.fn(),
@@ -16,7 +17,7 @@ vi.mock('./lib/accountClient.js', () => ({
 
 import { AccountHome } from './screens-account.jsx'
 import {
-  getBilling, getAccountSweeps, archiveSweep, startCheckout, openPortal, clearAccountToken,
+  getBilling, getAccountSweeps, archiveSweep, rotateSweep, startCheckout, openPortal, clearAccountToken,
   revokeSession, revokeAllSessions,
 } from './lib/accountClient.js'
 
@@ -191,4 +192,40 @@ test('a non-empty sweep list shows a New sweep button to the catalog', async () 
   await screen.findByText('My NBA')
   fireEvent.click(screen.getByRole('button', { name: /new sweep/i }))
   expect(window.location.assign).toHaveBeenCalledWith('/account/new')
+})
+
+// A member link pasted into the wrong chat is permanent otherwise: it is the only
+// credential POST /api/session accepts, and archiving (killing the sweep for everyone)
+// was the owner's only remedy.
+test('a leaked member link can be replaced, after a warning that it locks everyone out', async () => {
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
+  render(<AccountHome />)
+  fireEvent.click(await screen.findByRole('button', { name: /^replace link$/i }))
+  expect(rotateSweep).not.toHaveBeenCalled() // one tap warns, it does not rotate
+  expect(screen.getByText(/locked out/i)).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /yes, replace the link/i }))
+  await waitFor(() => expect(rotateSweep).toHaveBeenCalledWith('sw1'))
+  // the owner needs the new link in hand — it is what they send the group next
+  expect(await screen.findByDisplayValue('https://h/g/new')).toBeTruthy()
+})
+
+// Revoking a leaked link is damage control, not a paid feature — and a lapsed owner
+// is exactly who needs it (api/src/routes/account.js rotates with requireLive:false).
+test('a lapsed owner can still replace the link', async () => {
+  const past = new Date(Date.now() - 86400000).toISOString()
+  getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: past, liveSweeps: 1, quantity: 0 })
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
+  render(<AccountHome />)
+  const btn = await screen.findByRole('button', { name: /^replace link$/i })
+  expect(btn.disabled).toBe(false)
+})
+
+test('a failed rotate says so and leaves the old link showing', async () => {
+  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
+  rotateSweep.mockRejectedValueOnce(new Error('boom'))
+  render(<AccountHome />)
+  fireEvent.click(await screen.findByRole('button', { name: /^replace link$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /yes, replace the link/i }))
+  expect(await screen.findByText(/couldn't replace the link/i)).toBeTruthy()
+  expect(screen.getByDisplayValue('https://h/g/old')).toBeTruthy()
 })
