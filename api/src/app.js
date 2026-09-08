@@ -29,6 +29,7 @@ import { publicRoutes } from './routes/public.js'
 import { billingRoutes } from './routes/billing.js'
 import { stripeWebhookRoutes } from './routes/stripe-webhook.js'
 import { providerFor } from './providers/registry.js'
+import { transportFromEnv } from './mail.js'
 
 export function buildApp(db, opts = {}) {
   // Trust the forwarded headers only from the shared Caddy, which overwrites
@@ -78,8 +79,16 @@ export function buildApp(db, opts = {}) {
   // Tests await fillsIdle() where they need the data; production never waits.
   app.decorate('fills', new Set())
   app.decorate('fillsIdle', () => Promise.allSettled([...app.fills]))
-  // magic-link delivery seam — console logger IS dev mode; a real provider is an ops decision (P4+)
-  app.decorate('sendMail', opts.sendMail ?? (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
+  // Sign-in links and member verification both ride this. A production boot with no
+  // transport would print bearer credentials to stdout, so it is refused — the same
+  // shape as the sessionSecret guard above. opts.sendMail is the test seam, so the
+  // guard must read the ENV, not the option, or a configured prod boot would throw.
+  const nodeEnv = opts.nodeEnv ?? process.env.NODE_ENV
+  const sendMail = opts.sendMail
+    ?? transportFromEnv(opts.env ?? process.env)
+    ?? (nodeEnv === 'production' ? null : (async (to, subject, body) => console.log(`[mail] to=${to} subject=${subject}\n${body}`)))
+  if (!sendMail) throw new Error('a mail transport must be configured in production')
+  app.decorate('sendMail', sendMail)
   // Stripe seam (P4): tests inject a fake; dev without a key runs fine (billing routes 503).
   const stripeKey = opts.stripeKey ?? process.env.STRIPE_SECRET_KEY ?? ''
   if (/^(sk|rk)_live/.test(stripeKey) && process.env.NODE_ENV !== 'production') {

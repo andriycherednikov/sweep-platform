@@ -18,7 +18,8 @@ test('production refuses to boot without SESSION_SECRET', () => {
 test('production boots when the secret is supplied', () => {
   process.env.NODE_ENV = 'production'
   process.env.SESSION_SECRET = 'a-real-secret'
-  const app = buildApp(db, { platformHost: 'p.test' })
+  // Not testing mail here — inject the seam so this stays a SESSION_SECRET-only test.
+  const app = buildApp(db, { platformHost: 'p.test', sendMail: async () => {} })
   expect(app.sessionSecret).toBe('a-real-secret')
   return app.close()
 })
