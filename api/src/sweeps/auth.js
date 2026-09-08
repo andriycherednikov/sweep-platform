@@ -1,3 +1,5 @@
+import { requireOperator } from '../accounts/auth.js'
+
 export const SWEEP_COOKIE = 'sweep_session'
 export const SUPER_COOKIE = 'sweep_super'
 export const COOKIE_MAX_AGE = 8 * 3600 // seconds
@@ -52,12 +54,17 @@ export function requireSweep(roles) {
   }
 }
 
-/** preHandler: require a valid super cookie. */
+/** preHandler: transitional — the legacy super cookie OR an operator account session.
+ *  The cookie half is deleted in Task 10, at which point this becomes requireOperator
+ *  outright. Same additive move Task 3 made for sweepResolver. */
 export function requireSuper(app) {
+  const operator = requireOperator(app)
   return async (req, reply) => {
     const raw = req.cookies?.[SUPER_COOKIE]
-    if (!raw) return reply.code(401).send({ error: 'unauthorized' })
-    const un = app.unsignCookie(raw)
-    if (!un.valid || un.value !== 'ok') return reply.code(401).send({ error: 'unauthorized' })
+    if (raw) {
+      const un = app.unsignCookie(raw)
+      if (un.valid && un.value === 'ok') return
+    }
+    return operator(req, reply)
   }
 }
