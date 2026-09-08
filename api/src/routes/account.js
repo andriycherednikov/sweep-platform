@@ -1,6 +1,9 @@
-import { eq, and, ne, isNull, gt } from 'drizzle-orm'
+import { eq, and, ne, isNull, isNotNull, gt, sql } from 'drizzle-orm'
 import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
+import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
+import { requireSweep } from '../sweeps/auth.js'
+import { codeMail } from '../mail.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount, sweepLiveNow } from '../accounts/billing.js'
@@ -42,7 +45,16 @@ const setPasswordBody = {
     current: { type: 'string', minLength: 1, maxLength: MAX_PASSWORD_BYTES },
   },
 }
+const codeSessionBody = {
+  type: 'object', required: ['email', 'code'], additionalProperties: false,
+  properties: { email: loginBody.properties.email, code: { type: 'string', pattern: '^[0-9]{6}$' } },
+}
 const LINK_GRACE_MS = 15 * 60_000
+// Three coded rows per address per window. Anyone holding the group link can make our
+// domain mail an address of their choosing, and a cold sending domain does not survive
+// being used that way.
+const MAX_CODES_PER_WINDOW = 3
+const MAX_CODE_ATTEMPTS = 5
 const patchSweepBody = {
   type: 'object', additionalProperties: false, minProperties: 1,
   properties: {
@@ -60,6 +72,19 @@ export async function accountRoutes(app) {
    *  unconditional {ok:true} exists to withhold. */
   const notify = (req, ...mail) =>
     app.sendMail(...mail).catch((err) => req.log.error({ err }, 'notification mail failed'))
+
+  /** The account is born HERE, from a verified address, whichever way it was proved.
+   *  onConflictDoNothing + re-select survives a concurrent first-login race.
+   *  `via` records what proved it: only 'link' earns the set-a-password grace below. */
+  async function mintSession(email, via) {
+    await app.db.insert(account).values({ id: `ac_${newToken(12)}`, email }).onConflictDoNothing()
+    const [acc] = await app.db.select().from(account).where(eq(account.email, email))
+    const token = newToken()
+    await app.db.insert(accountSession).values({
+      token, accountId: acc.id, via, expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+    })
+    return { accountToken: token, account: { id: acc.id, email: acc.email, name: acc.name } }
+  }
 
   app.post('/api/account/login', {
     schema: { body: loginBody },
@@ -83,12 +108,73 @@ export async function accountRoutes(app) {
       .where(and(eq(loginToken.token, req.body.token), isNull(loginToken.usedAt), gt(loginToken.expiresAt, now)))
       .returning()
     if (!lt) return reply.code(401).send({ error: 'unauthorized' })
-    // account is born HERE (verified email). onConflictDoNothing + re-select survives a concurrent first-login race.
-    await app.db.insert(account).values({ id: `ac_${newToken(12)}`, email: lt.email }).onConflictDoNothing()
-    const [acc] = await app.db.select().from(account).where(eq(account.email, lt.email))
-    const token = newToken()
-    await app.db.insert(accountSession).values({ token, accountId: acc.id, expiresAt: new Date(now.getTime() + SESSION_TTL_MS) })
-    return reply.code(201).send({ accountToken: token, account: { id: acc.id, email: acc.email, name: acc.name } })
+    return reply.code(201).send(await mintSession(lt.email, 'link'))
+  })
+
+  /* --- joining a sweep by email -------------------------------------------------
+     A member proves an address without leaving the page. Both routes sit behind the
+     sweep session, so holding the group link is the only way to make us send anything;
+     both paths are already under EXEMPT_PREFIX in sweeps/read-only.js, so a lapsed
+     sweep can still be signed into (it just cannot be joined - see POST /api/me). */
+  const inSweep = requireSweep(['member', 'admin'])
+
+  app.post('/api/account/login/code', {
+    preHandler: inSweep,
+    schema: { body: loginBody },
+    // 30, not the magic link's 5: a pub is one NAT, which is why POST /api/session is
+    // deliberately 100/15min. The per-address cap below is what stops the mail abuse.
+    config: { rateLimit: { max: 30, timeWindow: '15 minutes' } },
+  }, async (req, reply) => {
+    const email = req.body.email.trim().toLowerCase()
+    const now = new Date()
+    const since = new Date(now.getTime() - LOGIN_TOKEN_TTL_MS)
+    const [{ n }] = await app.db.select({ n: sql`count(*)::int` }).from(loginToken)
+      .where(and(eq(loginToken.email, email), isNotNull(loginToken.code), gt(loginToken.createdAt, since)))
+    // ponytail: check-then-insert, so a race over-sends by one. This is an anti-spam
+    // cap, not a security boundary - the attempt counter is the boundary.
+    if (n >= MAX_CODES_PER_WINDOW) return reply.code(201).send({ ok: true })
+
+    // Exactly one live code per address: it keeps a guess at 1e-6 and gives the attempt
+    // counter a single row to land on. isNotNull(code) is what spares magic-link rows.
+    await app.db.update(loginToken).set({ usedAt: now })
+      .where(and(eq(loginToken.email, email), isNotNull(loginToken.code), isNull(loginToken.usedAt)))
+    const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
+    await app.db.insert(loginToken).values({
+      token: newToken(), email, code, expiresAt: new Date(now.getTime() + LOGIN_TOKEN_TTL_MS),
+    })
+    const m = codeMail(code, req.sweep.name)
+    await notify(req, email, m.subject, m.text, m.html)
+    // always — the journey branches on "already registered" AFTER the code, so nothing
+    // here may reveal which addresses exist, in the body or in the timing.
+    return reply.code(201).send({ ok: true })
+  })
+
+  app.post('/api/account/session/code', {
+    preHandler: inSweep,
+    schema: { body: codeSessionBody },
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+  }, async (req, reply) => {
+    const email = req.body.email.trim().toLowerCase()
+    const now = new Date()
+    // atomic claim, same shape as the magic-link redeem above
+    const [lt] = await app.db.update(loginToken).set({ usedAt: now }).where(and(
+      eq(loginToken.email, email), eq(loginToken.code, req.body.code), isNotNull(loginToken.code),
+      isNull(loginToken.usedAt), gt(loginToken.expiresAt, now),
+      sql`${loginToken.attempts} < ${MAX_CODE_ATTEMPTS}`,
+    )).returning()
+
+    if (!lt) {
+      // Count the miss and burn the row on the last one. Safe as a blind UPDATE because
+      // there is at most one live coded row per address.
+      await app.db.update(loginToken).set({
+        attempts: sql`${loginToken.attempts} + 1`,
+        usedAt: sql`case when ${loginToken.attempts} + 1 >= ${MAX_CODE_ATTEMPTS} then now() else ${loginToken.usedAt} end`,
+      }).where(and(eq(loginToken.email, email), isNotNull(loginToken.code), isNull(loginToken.usedAt)))
+      // one code for wrong, expired, spent and burnt: the next move is the same in all
+      // four, and separate codes would leak where in the flow you are.
+      return reply.code(401).send({ error: 'bad_code' })
+    }
+    return reply.code(201).send(await mintSession(lt.email, 'code'))
   })
 
   app.get('/api/account', { preHandler: requireAccount(app) }, async (req) => ({
