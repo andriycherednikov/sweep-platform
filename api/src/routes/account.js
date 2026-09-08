@@ -3,7 +3,7 @@ import { account, accountSession, loginToken, catalogLeague, competition, event,
 import { newToken } from '../sweeps/tokens.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
-import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount } from '../accounts/billing.js'
+import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount, sweepLiveNow } from '../accounts/billing.js'
 import { seasonInWindow } from '../providers/registry.js'
 import { syncCompetitors } from '../worker/sync-competitors.js'
 import { syncBaseline } from '../worker/baseline-sync.js'
@@ -43,6 +43,14 @@ const setPasswordBody = {
   },
 }
 const LINK_GRACE_MS = 15 * 60_000
+const patchSweepBody = {
+  type: 'object', additionalProperties: false, minProperties: 1,
+  properties: {
+    name: { type: 'string', minLength: 1, maxLength: 80 },
+    scoringRule: { type: 'string', minLength: 1, maxLength: 40 },
+    coOwners: { type: 'string', minLength: 1, maxLength: 40 },
+  },
+}
 
 export async function accountRoutes(app) {
   app.post('/api/account/login', {
@@ -245,5 +253,35 @@ export async function accountRoutes(app) {
       return { code: 200, body: { id: row.id, archived: true } }
     })
     return reply.code(result.code).send(result.body)
+  })
+
+  /** The owner's own sweep. 404 for a sweep they do not own — never 403, so the id
+   *  cannot be probed to learn which sweeps exist. */
+  async function ownedSweep(req, reply) {
+    const [row] = await app.db.select().from(sweep)
+      .where(and(eq(sweep.id, req.params.id), eq(sweep.accountId, req.account.id)))
+    if (!row) { reply.code(404).send({ error: 'not_found' }); return null }
+    // The global read-only gate cannot cover this route: it keys on the cookie-resolved
+    // sweep (sweeps/read-only.js:11) and the account console sends no sweep cookie.
+    if (!(await sweepLiveNow(app, row))) { reply.code(403).send({ error: 'sweep_readonly' }); return null }
+    return row
+  }
+
+  app.patch('/api/account/sweeps/:id', {
+    preHandler: accountGuard, schema: { body: patchSweepBody },
+  }, async (req, reply) => {
+    const row = await ownedSweep(req, reply)
+    if (!row) return
+    await app.db.update(sweep).set(req.body).where(eq(sweep.id, row.id))
+    return { ok: true }
+  })
+
+  app.post('/api/account/sweeps/:id/rotate', { preHandler: accountGuard }, async (req, reply) => {
+    const row = await ownedSweep(req, reply)
+    if (!row) return
+    const memberToken = newToken()
+    await app.db.update(sweep).set({ memberToken }).where(eq(sweep.id, row.id))
+    const [next] = await app.db.select().from(sweep).where(eq(sweep.id, row.id))
+    return links(app, next)
   })
 }
