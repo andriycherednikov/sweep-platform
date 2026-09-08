@@ -8,31 +8,40 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { memberClient } from './helpers/session.js'
+import { memberClient, seatFor, releaseSeat } from './helpers/session.js'
 import { photo, person, event } from '../src/db/schema.js'
 import { createStorage } from '../src/photos/storage.js'
 
 const { pool, db } = openTestDb()
 let dir, store, app, client
+let me, seat
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-auto-'))
   store = await createStorage(dir)
   app = buildApp(db, { photosDir: dir, autoApprovePhotos: true })
   await app.ready()
   client = await memberClient(app)
+  me = (await db.select().from(person).limit(1))[0]
+  seat = await seatFor(db, me.id)
 })
-afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
+afterAll(async () => {
+  await releaseSeat(db, me.id)
+  await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true })
+})
 beforeEach(async () => { await db.delete(photo) })
 
 const png = () => sharp({ create: { width: 40, height: 40, channels: 3, background: { r: 7, g: 7, b: 7 } } }).png().toBuffer()
-async function upload(fields, file) {
+async function upload(fields, file, headers = {}) {
   const form = new FormData()
   for (const [k, v] of Object.entries(fields)) form.append(k, v)
   if (file) form.append('file', file, { filename: 'pic.png', contentType: 'image/png' })
-  return client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  return client.inject({
+    method: 'POST', url: '/api/photos',
+    headers: { ...form.getHeaders(), ...headers }, payload: form.getBuffer(),
+  })
 }
 async function aFixture() { const [f] = await db.select().from(event).limit(1); return f }
-async function aPerson() { const [p] = await db.select().from(person).limit(1); return p }
+async function aPerson() { return me }
 
 test('auto-approve: a fan photo goes straight to approved, file in approved dir, shows in /api/photos', async () => {
   const f = await aFixture()
@@ -48,7 +57,7 @@ test('auto-approve: a fan photo goes straight to approved, file in approved dir,
 
 test('auto-approve: a profile photo approves immediately and sets the person avatar', async () => {
   const p = await aPerson()
-  const res = await upload({ kind: 'profile', uploaderName: p.name, personId: p.id }, await png())
+  const res = await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)
   expect(res.statusCode).toBe(201)
   expect(res.json().status).toBe('approved')
   const [row] = await db.select().from(photo).where(eq(photo.personId, p.id))
@@ -59,8 +68,8 @@ test('auto-approve: a profile photo approves immediately and sets the person ava
 
 test('auto-approve: re-uploading a profile supersedes the prior approved one (no 409)', async () => {
   const p = await aPerson()
-  expect((await upload({ kind: 'profile', uploaderName: p.name, personId: p.id }, await png())).statusCode).toBe(201)
-  expect((await upload({ kind: 'profile', uploaderName: p.name, personId: p.id }, await png())).statusCode).toBe(201)
+  expect((await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)).statusCode).toBe(201)
+  expect((await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)).statusCode).toBe(201)
   const approved = (await db.select().from(photo).where(eq(photo.personId, p.id))).filter((r) => r.status === 'approved')
   expect(approved).toHaveLength(1) // prior approved profile superseded
 })

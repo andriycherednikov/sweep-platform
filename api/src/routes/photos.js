@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { photo, person } from '../db/schema.js'
 import { eventInCompetition } from '../db/event-shape.js'
 import { validateUpload, processImage } from '../photos/process.js'
-import { requireSweep } from '../sweeps/auth.js'
+import { requireSweep, attachPerson } from '../sweeps/auth.js'
 
 export async function photoRoutes(app) {
   const member = requireSweep(['member', 'admin'])
@@ -18,14 +18,19 @@ export async function photoRoutes(app) {
     }))
   })
 
-  app.post('/api/photos', { preHandler: member }, async (req, reply) => {
+  app.post('/api/photos', { preHandler: [member, attachPerson(app)] }, async (req, reply) => {
     const sweepId = req.sweep.id
     const data = await req.file()
     if (!data) return reply.code(400).send({ error: 'missing_file' })
     const fields = data.fields
     const val = (k) => (fields[k] && typeof fields[k].value === 'string' ? fields[k].value : undefined)
     const kind = val('kind'), uploaderName = val('uploaderName')
-    const personId = val('personId'), fixtureId = val('fixtureId'), caption = val('caption') ?? null
+    // A profile photo lands on the caller's own seat. It used to land on whichever
+    // personId the multipart body named - which, with auto-approve on, replaced their
+    // picture and deleted the original file, and with moderation on parked a pending
+    // upload that 409'd their own.
+    const personId = req.person?.id
+    const fixtureId = val('fixtureId'), caption = val('caption') ?? null
 
     if (kind !== 'fan' && kind !== 'profile') return reply.code(400).send({ error: 'bad_kind' })
     if (!uploaderName) return reply.code(400).send({ error: 'missing_uploader' })
@@ -39,16 +44,16 @@ export async function photoRoutes(app) {
       if (!fixtureId) return reply.code(400).send({ error: 'missing_fixture' })
       const fx = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
       if (!fx) return reply.code(400).send({ error: 'unknown_fixture' })
-    } else {
-      if (!personId) return reply.code(400).send({ error: 'missing_person' })
-      const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-      if (!p) return reply.code(400).send({ error: 'unknown_person' })
+    } else if (!personId) {
+      return reply.code(403).send({ error: 'no_seat' })
     }
 
     // one pending per person per kind (moderation mode only — auto-approve never queues)
     if (!app.autoApprovePhotos) {
       const dupConds = [eq(photo.status, 'pending'), eq(photo.kind, kind), eq(photo.sweepId, sweepId)]
-      dupConds.push(kind === 'profile' ? eq(photo.personId, personId) : eq(photo.uploaderName, uploaderName))
+      // Fan uploads key on the seat when there is one: keying on a free-text name let
+      // one member 409 another's uploads just by typing it.
+      dupConds.push(kind === 'profile' || personId ? eq(photo.personId, personId) : eq(photo.uploaderName, uploaderName))
       const dup = await app.db.select().from(photo).where(and(...dupConds))
       if (dup.length) return reply.code(409).send({ error: 'pending_exists' })
     }
