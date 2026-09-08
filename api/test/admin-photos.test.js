@@ -3,21 +3,20 @@ import { expect, test, afterAll, beforeAll, beforeEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { photo, person, event } from '../src/db/schema.js'
 import { person as personT } from '../src/db/schema.js'
+import { memberCookie, ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const PASS = '1234'
-let dir, app, cookie
+let dir, app, auth
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-adm-'))
-  app = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's' })
+  app = buildApp(db, { photosDir: dir, sessionSecret: 's' })
   await app.ready()
-  cookie = (await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  auth = { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
 beforeEach(async () => { await db.delete(photo) })
@@ -37,7 +36,7 @@ test('GET /api/admin/photos requires admin (member is forbidden)', async () => {
 
 test('GET /api/admin/photos lists pending + approved with kind/subject tags', async () => {
   const f = await seedPending()
-  const res = await app.inject({ method: 'GET', url: '/api/admin/photos', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/photos', headers: auth })
   expect(res.statusCode).toBe(200)
   const body = res.json()
   expect(body.pending).toHaveLength(1)
@@ -47,7 +46,7 @@ test('GET /api/admin/photos lists pending + approved with kind/subject tags', as
 
 test('GET /api/admin/photos/:id/file streams the pending image to the admin', async () => {
   await seedPending()
-  const res = await app.inject({ method: 'GET', url: '/api/admin/photos/ph1/file', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/photos/ph1/file', headers: auth })
   expect(res.statusCode).toBe(200)
   expect(res.headers['content-type']).toMatch(/image\//)
   expect(res.rawPayload.toString()).toBe('img')
@@ -55,14 +54,14 @@ test('GET /api/admin/photos/:id/file streams the pending image to the admin', as
 
 test('approve a fan photo → moves file, status approved, emits photo-approved', async () => {
   const published = []
-  const app2 = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's', publish: (e) => published.push(e) })
+  const app2 = buildApp(db, { photosDir: dir, sessionSecret: 's', publish: (e) => published.push(e) })
   await app2.ready()
-  const ck = (await app2.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  const auth2 = { cookie: await memberCookie(app2), ...(await ownerHeaders(db)) }
   const [f] = await db.select().from(event).limit(1)
   await app2.photos.writePending('appr.jpg', Buffer.from('img'))
   await db.insert(photo).values({ id: 'ph2', sweepId: 'default', kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, filePath: 'appr.jpg', thumbPath: 'appr.jpg', status: 'pending' })
 
-  const res = await app2.inject({ method: 'POST', url: '/api/admin/photos/ph2', headers: { cookie: ck }, payload: { action: 'approve' } })
+  const res = await app2.inject({ method: 'POST', url: '/api/admin/photos/ph2', headers: auth2, payload: { action: 'approve' } })
   expect(res.statusCode).toBe(200)
   const [row] = await db.select().from(photo).where(eq(photo.id, 'ph2'))
   expect(row.status).toBe('approved')
@@ -74,7 +73,7 @@ test('approve a profile photo sets person.avatar_path and supersedes prior', asy
   const [p] = await db.select().from(personT).limit(1)
   await app.photos.writePending('prof.jpg', Buffer.from('img'))
   await db.insert(photo).values({ id: 'ph3', sweepId: 'default', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'prof.jpg', thumbPath: 'prof.jpg', status: 'pending' })
-  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph3', headers: { cookie }, payload: { action: 'approve' } })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph3', headers: auth, payload: { action: 'approve' } })
   expect(res.statusCode).toBe(200)
   const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
   expect(pp.avatarPath).toBe('/photos/prof.jpg')
@@ -82,7 +81,7 @@ test('approve a profile photo sets person.avatar_path and supersedes prior', asy
 
 test('reject leaves no served file and marks rejected', async () => {
   await seedPending()
-  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph1', headers: { cookie }, payload: { action: 'reject' } })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph1', headers: auth, payload: { action: 'reject' } })
   expect(res.statusCode).toBe(200)
   const [row] = await db.select().from(photo).where(eq(photo.id, 'ph1'))
   expect(row.status).toBe('rejected')
@@ -90,15 +89,15 @@ test('reject leaves no served file and marks rejected', async () => {
 
 test('remove an approved profile reverts the person to initials and emits photo-removed', async () => {
   const published = []
-  const app3 = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's', publish: (e) => published.push(e) })
+  const app3 = buildApp(db, { photosDir: dir, sessionSecret: 's', publish: (e) => published.push(e) })
   await app3.ready()
-  const ck = (await app3.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  const auth3 = { cookie: await memberCookie(app3), ...(await ownerHeaders(db)) }
   const [p] = await db.select().from(personT).limit(1)
   await app3.photos.writePending('rm.jpg', Buffer.from('img')); await app3.photos.moveToApproved('rm.jpg')
   await db.update(personT).set({ avatarPath: '/photos/rm.jpg' }).where(eq(personT.id, p.id))
   await db.insert(photo).values({ id: 'ph4', sweepId: 'default', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'rm.jpg', thumbPath: 'rm.jpg', status: 'approved' })
 
-  const res = await app3.inject({ method: 'POST', url: '/api/admin/photos/ph4', headers: { cookie: ck }, payload: { action: 'remove' } })
+  const res = await app3.inject({ method: 'POST', url: '/api/admin/photos/ph4', headers: auth3, payload: { action: 'remove' } })
   expect(res.statusCode).toBe(200)
   const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
   expect(pp.avatarPath).toBe(null)

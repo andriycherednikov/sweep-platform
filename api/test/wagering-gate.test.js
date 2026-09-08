@@ -1,15 +1,14 @@
 import { expect, test, afterAll } from 'vitest'
 import { and, eq } from 'drizzle-orm'
-import bcrypt from 'bcryptjs'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { sweep, person, event, competition, competitor, bet, coinLedger, account } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
+import { memberCookie, ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const published = []
-const PASS = '1234'
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', publish: (e) => published.push(e), adminHash: bcrypt.hashSync(PASS, 8) })
+const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', publish: (e) => published.push(e) })
 afterAll(async () => {
   await db.delete(bet).where(eq(bet.sweepId, 'sw_wgnba'))
   await db.delete(coinLedger).where(eq(coinLedger.sweepId, 'sw_wgnba'))
@@ -21,11 +20,10 @@ afterAll(async () => {
   await app.close(); await pool.end()
 })
 
-// mirrors admin-auth.test.js / admin-settle-stale.test.js: passcode login mints the
-// DEFAULT sweep's admin cookie (the default sweep has no adminToken to key off of).
+// mirrors admin-settle-stale.test.js: the seeded owner account is admin of the
+// DEFAULT sweep by ownership (the default sweep has no adminToken to key off of).
 async function adminSession() {
-  const res = await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })
-  return res.headers['set-cookie']
+  return { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 }
 
 test('sweep.wageringEnabled defaults false; seeded default sweep is true', async () => {
@@ -88,14 +86,14 @@ test('self-excluded person cannot bet or parlay server-side; expiry restores', a
 })
 
 test('admin toggle flips wageringEnabled for the resolved sweep', async () => {
-  const adminCookie = await adminSession()
+  const auth = await adminSession()
   try {
-    const off = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: false } })
+    const off = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: auth, payload: { enabled: false } })
     expect(off.statusCode).toBe(200)
     expect(off.json()).toEqual({ wageringEnabled: false })
     const [row] = await db.select().from(sweep).where(eq(sweep.id, 'default'))
     expect(row.wageringEnabled).toBe(false)
-    const on = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: { cookie: adminCookie }, payload: { enabled: true } })
+    const on = await app.inject({ method: 'POST', url: '/api/admin/wagering', headers: auth, payload: { enabled: true } })
     expect(on.json()).toEqual({ wageringEnabled: true })
   } finally { await setWagering(true) } // a mid-test failure must not leave the shared default sweep wagering-disabled for later files
 })

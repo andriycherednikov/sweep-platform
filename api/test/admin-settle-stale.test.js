@@ -3,21 +3,20 @@ import { expect, test, afterAll, beforeAll, beforeEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
+import { memberCookie, ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const PASS = '1234'
-let dir, app, cookie
+let dir, app, auth
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-settle-'))
-  app = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's' })
+  app = buildApp(db, { photosDir: dir, sessionSecret: 's' })
   await app.ready()
-  cookie = (await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  auth = { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
 beforeEach(async () => { await db.delete(bet); await db.delete(coinLedger) })
@@ -35,7 +34,7 @@ test('POST /api/admin/settle-stale grades open bets on already-final fixtures', 
   await db.insert(bet).values({ id: 'b_stale', sweepId: 'default', personId: p.id, fixtureId: f.id, selection: 'HOME',
     stake: 100, oddsDecimal: '2', book: 'Pinnacle', potentialPayout: 200, status: 'open' })
 
-  const res = await app.inject({ method: 'POST', url: '/api/admin/settle-stale', headers: { cookie } })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/settle-stale', headers: auth })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toEqual({ swept: 1 })
   const [b] = await db.select().from(bet).where(eq(bet.id, 'b_stale'))

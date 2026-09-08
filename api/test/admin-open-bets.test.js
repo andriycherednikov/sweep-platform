@@ -3,22 +3,21 @@ import { expect, test, afterAll, beforeAll, beforeEach } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import bcrypt from 'bcryptjs'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { event, person, coinLedger, bet, parlay, sweep, competition, competitor } from '../src/db/schema.js'
 import { detailMerge } from '../src/db/event-shape.js'
 import { openBetsBySweep } from '../src/wagering/ledger.js'
+import { memberCookie, ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const PASS = '1234'
-let dir, app, cookie
+let dir, app, auth
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-openbets-'))
-  app = buildApp(db, { photosDir: dir, adminHash: bcrypt.hashSync(PASS, 8), sessionSecret: 's' })
+  app = buildApp(db, { photosDir: dir, sessionSecret: 's' })
   await app.ready()
-  cookie = (await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: PASS } })).headers['set-cookie']
+  auth = { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
 beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db.delete(coinLedger) })
@@ -46,7 +45,7 @@ test('groups open bets by person, annotates fixture status, flags stale, and tot
   await db.insert(bet).values({ id: 'leg1', sweepId: 'default', personId: pa.id, fixtureId: fup1.id, parlayId: 'par_x', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
   await db.insert(bet).values({ id: 'leg2', sweepId: 'default', personId: pa.id, fixtureId: fup2.id, parlayId: 'par_x', selection: 'AWAY', market: '1x2', stake: 0, oddsDecimal: '3', potentialPayout: 0, status: 'open' })
 
-  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: auth })
   expect(res.statusCode).toBe(200)
   const body = res.json()
 
@@ -84,7 +83,7 @@ test('flags a parlay stale once every leg grades (all legs final and graded)', a
   await db.insert(bet).values({ id: 'dleg1', sweepId: 'default', personId: pa.id, fixtureId: f1.id, parlayId: 'par_done', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
   await db.insert(bet).values({ id: 'dleg2', sweepId: 'default', personId: pa.id, fixtureId: f2.id, parlayId: 'par_done', selection: 'DRAW', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
 
-  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: auth })
   const body = res.json()
   expect(body.totalStale).toBe(1)
   expect(body.people[0].parlays[0].stale).toBe(true)
@@ -101,7 +100,7 @@ test('flags a parlay stale when one leg has already lost, even with an upcoming 
   await db.insert(bet).values({ id: 'lleg1', sweepId: 'default', personId: pa.id, fixtureId: f1.id, parlayId: 'par_lost', selection: 'HOME', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' }) // HOME lost
   await db.insert(bet).values({ id: 'lleg2', sweepId: 'default', personId: pa.id, fixtureId: f2.id, parlayId: 'par_lost', selection: 'AWAY', market: '1x2', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'open' })
 
-  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: auth })
   const body = res.json()
   expect(body.totalStale).toBe(1)
   expect(body.people[0].parlays[0].stale).toBe(true)
@@ -115,7 +114,7 @@ test('does not flag a single on a final fixture that has no result data yet', as
   await db.update(event).set({ status: 'final', winnerCode: null, detail: detailMerge({ reg: null }) }).where(eq(event.id, f1.id))
   await db.insert(bet).values({ id: 'b_ungrade', sweepId: 'default', personId: pa.id, fixtureId: f1.id, selection: 'HOME', market: '1x2', stake: 30, oddsDecimal: '2', potentialPayout: 60, status: 'open' })
 
-  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: { cookie } })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: auth })
   const body = res.json()
   expect(body.totalOpen).toBe(1)
   expect(body.totalStale).toBe(0)
