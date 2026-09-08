@@ -4,12 +4,12 @@ import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { sweep, person, ownership, support, event, account, accountSession } from '../src/db/schema.js'
-import { memberClient, adminHeaders } from './helpers/session.js'
+import { memberClient, adminHeaders, seatFor } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const memberB = newToken()
 const app = buildApp(db, { sessionSecret: 'test-secret' })
-let client
+let client, seatB
 beforeAll(async () => { client = await memberClient(app) })
 
 /** The owner account adminHeaders minted for `sweepId`, once its sweep is gone. */
@@ -32,6 +32,7 @@ beforeAll(async () => {
   await db.insert(sweep).values({ id: 'sw_b', name: 'B', kind: 'token', memberToken: memberB, competitionId: 'apifootball:1:2026' })
   await db.insert(person).values({ id: 'pb1', sweepId: 'sw_b', name: 'Bee', short: 'Bee', initials: 'B', avColor: '#111' })
   await db.insert(ownership).values({ sweepId: 'sw_b', personId: 'pb1', competitorId: 'cp_apifootball:1:2026_hr' })
+  seatB = await seatFor(db, 'pb1')
 })
 afterAll(async () => {
   // Leave the shared test DB as we found it (seed.test.js counts persons globally).
@@ -39,6 +40,8 @@ afterAll(async () => {
   await db.delete(ownership).where(eq(ownership.sweepId, 'sw_b'))
   await db.delete(person).where(eq(person.sweepId, 'sw_b'))
   await db.delete(sweep).where(eq(sweep.id, 'sw_b'))
+  await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_seat_pb1'))
+  await db.delete(account).where(eq(account.id, 'ac_seat_pb1'))
   await dropOwner('sw_b')
   await app.close(); await pool.end()
 })
@@ -65,8 +68,8 @@ test('platform host with no cookie is 401 on scoped data', async () => {
 test('a support pick in sweep B is invisible to the default sweep', async () => {
   const cookie = await sessionCookie(memberB)
   const [m0] = await db.select().from(event).where(eq(event.id, 'm0'))
-  await app.inject({ method: 'POST', url: '/api/support', headers: { host: 'platform.test', cookie },
-    payload: { fixtureId: 'm0', personId: 'pb1', teamCode: m0.c1Code } })
+  await app.inject({ method: 'POST', url: '/api/support', headers: { host: 'platform.test', cookie, ...seatB },
+    payload: { fixtureId: 'm0', teamCode: m0.c1Code } })
   // default host social must not contain pb1's pick
   const def = (await client.inject({ method: 'GET', url: '/api/social' })).json()
   const all = Object.values(def.support).flatMap((m) => Object.keys(m))

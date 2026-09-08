@@ -1,15 +1,15 @@
 import { and, eq } from 'drizzle-orm'
-import { person, support, competition } from '../db/schema.js'
+import { support, competition } from '../db/schema.js'
 import { eventInCompetition, flattenEvent } from '../db/event-shape.js'
-import { requireSweep } from '../sweeps/auth.js'
+import { requireSweep, requirePerson } from '../sweeps/auth.js'
 import { sportConfig } from '../sports.js'
 
 const DRAW = 'DRAW'
 const member = requireSweep(['member', 'admin'])
 
 const supportBody = {
-  type: 'object', required: ['fixtureId', 'personId', 'teamCode'], additionalProperties: false,
-  properties: { fixtureId: { type: 'string' }, personId: { type: 'string' }, teamCode: { type: 'string' } },
+  type: 'object', required: ['fixtureId', 'teamCode'], additionalProperties: false,
+  properties: { fixtureId: { type: 'string' }, teamCode: { type: 'string' } },
 }
 
 export async function socialRoutes(app) {
@@ -21,14 +21,15 @@ export async function socialRoutes(app) {
     return { support: support_ }
   })
 
-  app.post('/api/support', { preHandler: member, schema: { body: supportBody } }, async (req, reply) => {
+  app.post('/api/support', {
+    preHandler: [member, requirePerson(app)], schema: { body: supportBody },
+  }, async (req, reply) => {
     const sweepId = req.sweep.id
-    const { fixtureId, personId, teamCode } = req.body
+    const { fixtureId, teamCode } = req.body
+    const personId = req.person.id
     const row = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
     if (!row) return reply.code(400).send({ error: 'unknown_fixture' })
     const f = flattenEvent(row)
-    const [p] = await app.db.select().from(person).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-    if (!p) return reply.code(400).send({ error: 'unknown_person' })
     let validPick = teamCode === f.t1Code || teamCode === f.t2Code
     if (!validPick && teamCode === DRAW && f.stage === 'group') {
       // draw picks only exist in sports that can draw (football); NBA etc. are 2-way
