@@ -1,16 +1,19 @@
-import { expect, test, afterAll } from 'vitest'
+import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { competition, competitor, ranking, sweep } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db)
+let client
+beforeAll(async () => { client = await memberClient(app) })
 afterAll(async () => { await app.close(); await pool.end() })
 
 test('GET /api/standings groups teams A–L, sorted by points, group keys in alphabetical order', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/standings' })
+  const res = await client.inject({ method: 'GET', url: '/api/standings' })
   expect(res.statusCode).toBe(200)
   const tables = res.json()
   // asserts actual key ORDER (not a sorted copy) — group order must be deterministic,
@@ -40,9 +43,9 @@ test('GET /api/standings groups by conference (meta.group fallback) and sorts by
   await db.insert(sweep).values({ id: 'sw_standings_test', name: 'Standings Test', kind: 'token', memberToken, adminToken: newToken(), competitionId: NBA })
 
   try {
-    const login = await app.inject({ method: 'POST', url: '/api/session', headers: { host: app.platformHost }, payload: { token: memberToken } })
+    const login = await app.inject({ method: 'POST', url: '/api/session', payload: { token: memberToken } })
     const cookie = login.headers['set-cookie']
-    const res = await app.inject({ method: 'GET', url: '/api/standings', headers: { host: app.platformHost, cookie } })
+    const res = await app.inject({ method: 'GET', url: '/api/standings', headers: { cookie } })
     expect(res.statusCode).toBe(200)
     const tables = res.json()
     // group key order: Eastern before Western, alphabetical — not DB heap order.

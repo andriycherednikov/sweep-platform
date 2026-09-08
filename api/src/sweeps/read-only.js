@@ -1,7 +1,7 @@
 import { sweepLiveNow } from '../accounts/billing.js'
 
 const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
-const EXEMPT_EXACT = new Set(['/api/session', '/api/session/logout', '/api/admin/login', '/api/admin/logout'])
+const EXEMPT_EXACT = new Set(['/api/session', '/api/session/logout'])
 // Only what must work while lapsed: signing in, paying, and reading. The prefix used to
 // be a blanket '/api/account', which would have exempted the owner sweep-editing routes
 // from the very gate that exists to stop them. This list is defence in depth — the real

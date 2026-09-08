@@ -17,7 +17,7 @@ const WHSEC = 'whsec_e2e'
 const sdk = new Stripe('sk_test_dummy')
 const stripeFake = { ...fakeStripe({ subscription: { id: 'sub_e2e', status: 'active', items: { data: [{ id: 'si_e2e' }] } } }), webhooks: sdk.webhooks }
 const app = buildApp(db, {
-  sessionSecret: 'test-secret', platformHost: 'platform.test',
+  sessionSecret: 'test-secret',
   stripe: stripeFake, stripeWebhookSecret: WHSEC, stripePriceId: 'price_e2e',
   sendMail: async (to, subject, body) => mails.push(body),
   providerFor: () => createRecordedBasketballProvider({ leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings') }),

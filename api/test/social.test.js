@@ -1,12 +1,15 @@
-import { expect, test, afterAll, beforeEach } from 'vitest'
+import { expect, test, afterAll, beforeEach, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { support, person, event } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const published = []
 const app = buildApp(db, { publish: (e) => published.push(e) })
+let client
+beforeAll(async () => { client = await memberClient(app) })
 afterAll(async () => { await app.close(); await pool.end() })
 
 // A known fixture + two people the seed already provides; assert they exist, else skip-safe pick.
@@ -24,7 +27,7 @@ async function twoPeople() {
 }
 
 test('GET /api/social returns an empty support map when nobody has acted', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/social' })
+  const res = await client.inject({ method: 'GET', url: '/api/social' })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toEqual({ support: {} })
 })
@@ -33,7 +36,7 @@ test('GET /api/social groups support by fixture→person→team', async () => {
   const f = await aFixture()
   const [p1] = await twoPeople()
   await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: p1.id, teamCode: f.c1Code })
-  const body = (await app.inject({ method: 'GET', url: '/api/social' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/social' })).json()
   expect(body.support[f.id][p1.id]).toBe(f.c1Code)
 })
 
@@ -41,13 +44,13 @@ test('POST /api/support sets, switches, and toggles-off backing; publishes each 
   const f = await aFixture()
   const [p1] = await twoPeople()
 
-  const set = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c1Code } })
+  const set = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c1Code } })
   expect(set.json()).toMatchObject({ fixtureId: f.id, personId: p1.id, supporting: f.c1Code })
 
-  const switched = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c2Code } })
+  const switched = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c2Code } })
   expect(switched.json().supporting).toBe(f.c2Code)
 
-  const off = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c2Code } })
+  const off = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: f.c2Code } })
   expect(off.json().supporting).toBe(null)
 
   const supportEvents = published.filter((e) => e.type === 'support')
@@ -61,7 +64,7 @@ test('POST /api/support sets, switches, and toggles-off backing; publishes each 
 test('POST /api/support 400s when teamCode is not one of the fixture teams', async () => {
   const f = await aFixture()
   const [p1] = await twoPeople()
-  const bad = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'zz' } })
+  const bad = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'zz' } })
   expect(bad.statusCode).toBe(400)
 })
 
@@ -69,11 +72,11 @@ test('POST /api/support accepts a DRAW pick on a group-stage fixture', async () 
   const f = await aFixture()
   await db.update(event).set({ stage: 'group' }).where(eq(event.id, f.id))
   const [p1] = await twoPeople()
-  const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
+  const res = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toMatchObject({ fixtureId: f.id, personId: p1.id, supporting: 'DRAW' })
 
-  const body = (await app.inject({ method: 'GET', url: '/api/social' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/social' })).json()
   expect(body.support[f.id][p1.id]).toBe('DRAW')
 })
 
@@ -81,7 +84,7 @@ test('POST /api/support rejects a DRAW pick on a knockout fixture', async () => 
   const f = await aFixture()
   await db.update(event).set({ stage: 'r16' }).where(eq(event.id, f.id))
   const [p1] = await twoPeople()
-  const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
+  const res = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: f.id, personId: p1.id, teamCode: 'DRAW' } })
   expect(res.statusCode).toBe(400)
   expect(res.json()).toEqual({ error: 'invalid_team' })
 })

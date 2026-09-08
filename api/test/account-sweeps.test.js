@@ -19,7 +19,7 @@ const recordedB = () => {
 }
 const stripeFake = fakeStripe()
 const app = buildApp(db, {
-  sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: stripeFake,
+  sessionSecret: 'test-secret', stripe: stripeFake,
   providerFor: (comp) => {
     if (comp.provider !== 'apibasketball') throw new Error(`unexpected provider ${comp.provider}`)
     const p = recordedB()

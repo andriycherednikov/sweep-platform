@@ -5,7 +5,7 @@ import { buildApp } from '../src/app.js'
 import { account, accountSession, catalogLeague } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 
 beforeAll(async () => {
   await app.ready()

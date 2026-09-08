@@ -3,9 +3,10 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { buildApp } from '../src/app.js'
 import { account, competition, sweep } from '../src/db/schema.js'
+import { memberCookie as seededMemberCookie } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 const COMP = 'apibasketball:12:readonly'
 const H = { host: 'platform.test' }
 
@@ -49,8 +50,8 @@ test('lapsed sweep: reads 200 + readOnly flag, writes 403, sign-in exempt', asyn
 })
 
 test('ops (unowned) sweeps are never read-only', async () => {
-  // non-platform host resolves the seeded default sweep (accountId null)
-  const boot = await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { host: 'localhost:3000' } })
+  // the seeded default sweep carries no accountId, so nothing can lapse
+  const boot = await app.inject({ method: 'GET', url: '/api/bootstrap', headers: { cookie: await seededMemberCookie(app) } })
   expect(boot.statusCode).toBe(200)
   expect(boot.json().readOnly).toBe(false)
 })

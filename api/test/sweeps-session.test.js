@@ -60,7 +60,7 @@ import { sweep } from '../src/db/schema.js'
 
 const { pool: pool2, db: db2 } = openTestDb()
 const memberTok = newToken(), adminTok = newToken()
-const app2 = buildApp(db2, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app2 = buildApp(db2, { sessionSecret: 'test-secret' })
 afterAll(async () => { await app2.close(); await pool2.end() })
 
 test('POST /api/session with a member token sets a member-scoped cookie', async () => {

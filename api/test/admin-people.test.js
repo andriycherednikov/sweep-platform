@@ -48,8 +48,8 @@ test('the adult flag flows through /api/bootstrap', async () => {
 
 test('a non-admin (member) cannot change the age gate', async () => {
   await seedPerson()
-  // anonymous localhost request resolves to the default sweep as a member → 403
-  const res = await app.inject({ method: 'PATCH', url: '/api/admin/people/kidp', payload: { adult: false } })
+  // a signed-in member of this sweep, which is not its owner → 403
+  const res = await app.inject({ method: 'PATCH', url: '/api/admin/people/kidp', headers: { cookie: await memberCookie(app) }, payload: { adult: false } })
   expect(res.statusCode).toBe(403)
 })
 

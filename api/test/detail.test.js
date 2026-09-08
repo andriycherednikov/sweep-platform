@@ -1,15 +1,18 @@
-import { expect, test, afterAll } from 'vitest'
+import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { photo, event } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db)
+let client
+beforeAll(async () => { client = await memberClient(app) })
 afterAll(async () => { await app.close(); await pool.end() })
 
 test('GET /api/people returns 16 with their teams', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/people' })
+  const res = await client.inject({ method: 'GET', url: '/api/people' })
   expect(res.statusCode).toBe(200)
   const people = res.json()
   expect(people).toHaveLength(16)
@@ -17,12 +20,12 @@ test('GET /api/people returns 16 with their teams', async () => {
 })
 
 test('GET /api/teams/hr returns Croatia with owners', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/teams/hr' })
+  const res = await client.inject({ method: 'GET', url: '/api/teams/hr' })
   expect(res.statusCode).toBe(200)
   const t = res.json()
   expect(t.name).toBe('Croatia')
   expect(t.owners.map((o) => o.id)).toContain('p4')
-  const missing = await app.inject({ method: 'GET', url: '/api/teams/zz' })
+  const missing = await client.inject({ method: 'GET', url: '/api/teams/zz' })
   expect(missing.statusCode).toBe(404)
 })
 
@@ -31,10 +34,10 @@ test('GET /api/photos returns only approved, tagged with a fixtureId; ?fixture f
   const [f] = await db.select().from(event).limit(1)
   await db.insert(photo).values({ id: 'detail-ph', sweepId: 'default', kind: 'fan', uploaderName: 'T', fixtureId: f.id, filePath: 'x.jpg', status: 'approved' }).onConflictDoNothing()
   try {
-    const all = (await app.inject({ method: 'GET', url: '/api/photos' })).json()
+    const all = (await client.inject({ method: 'GET', url: '/api/photos' })).json()
     expect(all.every((p) => p.status === 'approved')).toBe(true)
     expect(all.find((p) => p.id === 'detail-ph')?.fixtureId).toBe(f.id)
-    const one = (await app.inject({ method: 'GET', url: `/api/photos?fixture=${f.id}` })).json()
+    const one = (await client.inject({ method: 'GET', url: `/api/photos?fixture=${f.id}` })).json()
     expect(one.length).toBeGreaterThan(0)
     expect(one.every((p) => p.fixtureId === f.id)).toBe(true)
   } finally {

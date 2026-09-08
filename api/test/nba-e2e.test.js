@@ -13,7 +13,7 @@ import { recomputeStandings } from '../src/worker/recompute-standings.js'
 import { newToken } from '../src/sweeps/tokens.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 const load = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
 const ID = 'apibasketball:12:2023-2024'
 const memberToken = newToken()

@@ -6,7 +6,7 @@ import { account, sweep } from '../src/db/schema.js'
 import { GOOD_STANDING } from '../src/accounts/billing.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => { await app.ready() })
 afterAll(async () => { await app.close(); await pool.end() })
 

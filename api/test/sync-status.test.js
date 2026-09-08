@@ -1,36 +1,38 @@
-import { expect, test, afterAll, beforeEach } from 'vitest'
+import { expect, test, afterAll, beforeEach, beforeAll } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { eq, inArray } from 'drizzle-orm'
 import { syncLog, competition, sweep } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { DEFAULT_SWEEP_ID } from '../src/sweeps/constants.js'
+import { memberClient } from './helpers/session.js'
 
-// A request with no platform Host resolves to the seeded default sweep, so rows must
-// carry ITS competition to answer for it — that is the whole point of the scoping.
+// The asking member belongs to the seeded sweep, so rows must carry ITS competition to
+// answer for it — that is the whole point of the scoping.
 const defaultCompetitionId = async () =>
-  (await db.select().from(sweep).where(eq(sweep.id, DEFAULT_SWEEP_ID)))[0].competitionId
+  (await db.select().from(sweep).where(eq(sweep.id, 'default')))[0].competitionId
 
 const { pool, db } = openTestDb()
 const app = buildApp(db)
+let client
+beforeAll(async () => { client = await memberClient(app) })
 afterAll(async () => { await app.close(); await pool.end() })
 beforeEach(async () => { await db.delete(syncLog) })
 
 test('stale=true when no baseline sync has ever run', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/sync-status' })
+  const res = await client.inject({ method: 'GET', url: '/api/sync-status' })
   expect(res.statusCode).toBe(200)
   expect(res.json()).toMatchObject({ stale: true, lastBaselineAt: null })
 })
 
 test('stale=false right after a successful baseline sync', async () => {
   await db.insert(syncLog).values({ source: 'api-football', kind: 'baseline', status: 'ok', competitionId: await defaultCompetitionId() })
-  expect((await app.inject({ method: 'GET', url: '/api/sync-status' })).json().stale).toBe(false)
+  expect((await client.inject({ method: 'GET', url: '/api/sync-status' })).json().stale).toBe(false)
 })
 
 test('stale=true when newest OK baseline is older than 18h', async () => {
   const old = new Date(Date.now() - 19 * 3600_000)
   await db.insert(syncLog).values({ source: 'api-football', kind: 'baseline', status: 'ok', ranAt: old, competitionId: await defaultCompetitionId() })
-  expect((await app.inject({ method: 'GET', url: '/api/sync-status' })).json().stale).toBe(true)
+  expect((await client.inject({ method: 'GET', url: '/api/sync-status' })).json().stale).toBe(true)
 })
 
 // One healthy competition used to make every other sweep report "fresh": sync_log had
@@ -47,9 +49,9 @@ async function sweepOn(competitionId, name) {
   await db.insert(sweep).values({
     id: `sw_${name}`, name, kind: 'token', memberToken, adminToken: newToken(), competitionId,
   })
-  const login = await app.inject({ method: 'POST', url: '/api/session', headers: { host: app.platformHost }, payload: { token: memberToken } })
+  const login = await app.inject({ method: 'POST', url: '/api/session', payload: { token: memberToken } })
   const cookie = login.headers['set-cookie']
-  return () => app.inject({ method: 'GET', url: '/api/sync-status', headers: { host: app.platformHost, cookie } })
+  return () => app.inject({ method: 'GET', url: '/api/sync-status', headers: { cookie } })
 }
 
 test("one competition's healthy sync does not vouch for another's", async () => {

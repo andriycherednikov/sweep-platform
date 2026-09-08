@@ -8,16 +8,18 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { photo, person, event } from '../src/db/schema.js'
 import { createStorage } from '../src/photos/storage.js'
 
 const { pool, db } = openTestDb()
-let dir, store, app
+let dir, store, app, client
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-auto-'))
   store = await createStorage(dir)
   app = buildApp(db, { photosDir: dir, autoApprovePhotos: true })
   await app.ready()
+  client = await memberClient(app)
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
 beforeEach(async () => { await db.delete(photo) })
@@ -27,7 +29,7 @@ async function upload(fields, file) {
   const form = new FormData()
   for (const [k, v] of Object.entries(fields)) form.append(k, v)
   if (file) form.append('file', file, { filename: 'pic.png', contentType: 'image/png' })
-  return app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  return client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
 }
 async function aFixture() { const [f] = await db.select().from(event).limit(1); return f }
 async function aPerson() { const [p] = await db.select().from(person).limit(1); return p }
@@ -40,7 +42,7 @@ test('auto-approve: a fan photo goes straight to approved, file in approved dir,
   const [row] = await db.select().from(photo)
   expect(row.status).toBe('approved')
   await access(store.approvedPath(row.filePath)) // moved to approved/ (no throw)
-  const list = (await app.inject({ method: 'GET', url: `/api/photos?fixture=${f.id}` })).json()
+  const list = (await client.inject({ method: 'GET', url: `/api/photos?fixture=${f.id}` })).json()
   expect(list).toHaveLength(1)
 })
 

@@ -27,9 +27,9 @@ export function requireAccount(app) {
 
 /** preHandler: an account session whose account carries the operator role. */
 export function requireOperator(app) {
-  const account = requireAccount(app)
+  const signedIn = requireAccount(app)
   return async (req, reply) => {
-    await account(req, reply)
+    await signedIn(req, reply)
     if (reply.sent) return
     if (req.account?.role !== 'operator') return reply.code(403).send({ error: 'forbidden' })
   }

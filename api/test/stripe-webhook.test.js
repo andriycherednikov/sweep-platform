@@ -11,7 +11,7 @@ const WHSEC = 'whsec_testsecret'
 const sdk = new Stripe('sk_test_dummy') // offline: only .webhooks is used
 // hybrid: fake API surface + REAL signature verification
 const stripeFake = { ...fakeStripe(), webhooks: sdk.webhooks }
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: stripeFake, stripeWebhookSecret: WHSEC })
+const app = buildApp(db, { sessionSecret: 'test-secret', stripe: stripeFake, stripeWebhookSecret: WHSEC })
 const COMP = 'apibasketball:12:webhook'
 
 const send = (event) => {

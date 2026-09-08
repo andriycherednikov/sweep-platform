@@ -22,10 +22,10 @@ test('a configured key yields a transport that sends', async () => {
 // an account to anyone with log access, so a prod boot without mail must not happen.
 test('production refuses to boot with no transport', () => {
   expect(() => buildApp(db, {
-    sessionSecret: 's', platformHost: 'h', nodeEnv: 'production', env: {},
+    sessionSecret: 's', nodeEnv: 'production', env: {},
   })).toThrow(/mail transport/)
 })
 
 test('dev still boots and logs to the console', () => {
-  expect(() => buildApp(db, { sessionSecret: 's', platformHost: 'h' })).not.toThrow()
+  expect(() => buildApp(db, { sessionSecret: 's' })).not.toThrow()
 })

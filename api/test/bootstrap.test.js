@@ -1,13 +1,16 @@
-import { expect, test, afterAll } from 'vitest'
+import { expect, test, afterAll, beforeAll } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db)
+let client
+beforeAll(async () => { client = await memberClient(app) })
 afterAll(async () => { await app.close(); await pool.end() })
 
 test('GET /api/bootstrap returns teams, people, ownership, scoring', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/bootstrap' })
+  const res = await client.inject({ method: 'GET', url: '/api/bootstrap' })
   expect(res.statusCode).toBe(200)
   const body = res.json()
   expect(body.teams).toHaveLength(48)
@@ -18,24 +21,24 @@ test('GET /api/bootstrap returns teams, people, ownership, scoring', async () =>
 })
 
 test('bootstrap teams carry a squad field (null by default)', async () => {
-  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(body.teams.every((t) => 'squad' in t)).toBe(true)
   expect(body.teams[0].squad).toBeNull()
 })
 
 test('bootstrap returns the current sweep id and display name (D7a)', async () => {
-  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(body.sweep).toEqual({ id: 'default', name: 'The Sweep', role: 'member' })
 })
 
 test('bootstrap sweep carries the viewer role (drives admin-entry visibility)', async () => {
-  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   // unauthenticated default-host viewer resolves to the member role
   expect(body.sweep.role).toBe('member')
 })
 
 test('bootstrap people carry a createdAt timestamp (for sort-by-when-added)', async () => {
-  const body = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   const p = body.people[0]
   expect(p.createdAt).toBeTruthy()
   expect(Number.isNaN(Date.parse(p.createdAt))).toBe(false)

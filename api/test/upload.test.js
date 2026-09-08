@@ -7,16 +7,18 @@ import FormData from 'form-data'
 import sharp from 'sharp'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { photo, person, event } from '../src/db/schema.js'
 import { createStorage } from '../src/photos/storage.js'
 
 const { pool, db } = openTestDb()
-let dir, store, app
+let dir, store, app, client
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-up-'))
   store = await createStorage(dir)
   app = buildApp(db, { photosDir: dir })
   await app.ready()
+  client = await memberClient(app)
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
 beforeEach(async () => { await db.delete(photo) })
@@ -27,7 +29,7 @@ async function upload(fields, file) {
   const form = new FormData()
   for (const [k, v] of Object.entries(fields)) form.append(k, v)
   if (file) form.append('file', file, { filename: 'pic.png', contentType: 'image/png' })
-  return app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  return client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
 }
 async function aFixture() { const [f] = await db.select().from(event).limit(1); return f }
 async function aPerson() { const [p] = await db.select().from(person).limit(1); return p }
@@ -55,7 +57,7 @@ test('rejects a non-image file type', async () => {
   const form = new FormData()
   form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('fixtureId', f.id)
   form.append('file', Buffer.from('not an image'), { filename: 'x.gif', contentType: 'image/gif' })
-  const res = await app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
   expect(res.statusCode).toBe(400)
 })
 

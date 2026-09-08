@@ -7,7 +7,7 @@ import { account, operatorAction } from '../src/db/schema.js'
 import { recordOperatorAction } from '../src/accounts/audit.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({
@@ -30,10 +30,8 @@ test('an audit row records the actor and the sweeps an action touched', async ()
   expect(row.sweepIds).toEqual(['default'])
 })
 
-// requireSuper is transitional: the legacy super cookie OR an operator account session.
-// The cookie half is deleted in Task 10, at which point a super route is requireOperator
-// outright — these four cases are exactly the semantics that guard settles into.
-const superApp = buildApp(db, { sessionSecret: 'test-secret', superToken: 'super-bridge-test' })
+// A super route is requireOperator outright: an operator account session, or nothing.
+const superApp = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => { await superApp.ready() })
 afterAll(async () => { await superApp.close() })
 
@@ -52,9 +50,7 @@ test('no credentials at all is 401 on a super route', async () => {
   expect(res.statusCode).toBe(401)
 })
 
-test('the legacy super cookie still works — every unmigrated call site stays green', async () => {
-  const login = await superApp.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-bridge-test' } })
-  const cookie = login.headers['set-cookie']
-  const res = await superApp.inject({ method: 'GET', url: '/api/super/sweeps', headers: { cookie } })
-  expect(res.statusCode).toBe(200)
+test('the passcode-era super session is gone, not merely unused', async () => {
+  const res = await superApp.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'anything' } })
+  expect(res.statusCode).toBe(404)
 })

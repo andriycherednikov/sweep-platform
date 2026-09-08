@@ -22,7 +22,7 @@ afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recu
 beforeEach(async () => { await db.delete(bet); await db.delete(coinLedger) })
 
 test('POST /api/admin/settle-stale requires admin', async () => {
-  const res = await app.inject({ method: 'POST', url: '/api/admin/settle-stale' })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/settle-stale', headers: { cookie: await memberCookie(app) } })
   expect(res.statusCode).toBe(403)
 })
 

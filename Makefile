@@ -11,7 +11,7 @@
 .DEFAULT_GOAL := help
 .PHONY: help install dev dev-front dev-api dev-web test test-api test-web build \
         worker sync crosswalk cutover db-migrate db-seed \
-        provision db-reset psql admin-hash clean deploy deploy-status logs
+        provision db-reset psql clean deploy deploy-status logs
 
 help: ## Show this help
 	@echo "The Sweep — make targets:"
@@ -112,9 +112,5 @@ psql: ## Open a SQL shell on the dev DB
 	@set -a; . ./.env; set +a; psql "$$DATABASE_URL"
 
 # ---- misc ----
-admin-hash: ## Generate a bcrypt admin passcode hash:  make admin-hash PASS=1234
-	@test -n "$(PASS)" || { echo "usage: make admin-hash PASS=<passcode>"; exit 1; }
-	npm run admin:hash -w api -- "$(PASS)"
-
 clean: ## Remove build output + local photo uploads (keeps node_modules)
 	rm -rf web/dist photos-data api/photos-data

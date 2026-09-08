@@ -6,7 +6,7 @@ import { person, ownership, account } from '../src/db/schema.js'
 import { ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => { await app.ready() })
 afterAll(async () => {
   // Leave the shared test DB as we found it (seed.test.js counts persons globally).
@@ -27,13 +27,6 @@ async function operator() {
   return _op
 }
 
-// Tests the login route itself (token check, cookie mint), not a helper for something
-// else — same as admin-auth.test.js, this is Task 10 fallout, not a Task 8 migration.
-test('super session requires the right token', async () => {
-  expect((await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'nope' } })).statusCode).toBe(401)
-  expect((await app.inject({ method: 'POST', url: '/api/super/session', payload: { token: 'super-xyz' } })).statusCode).toBe(200)
-})
-
 test('super can create a sweep and gets two tokens + links', async () => {
   const auth = await operator()
   const res = await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Acme' } })
@@ -52,7 +45,22 @@ test('creating a sweep with an unknown competitionId is 400 unknown_competition'
   expect(res.json().error).toBe('unknown_competition')
 })
 
-test('creating a sweep without a super cookie is 401', async () => {
+// Operating on a sweep is not entering it: the console lists sweeps to act on, and a
+// live member token in that list would be the ability to open any group's sweep as one
+// of its members, leaving no trace.
+test('the sweep listing carries no member link and no token', async () => {
+  const auth = await operator()
+  const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Listed' } })).json()
+  const row = (await app.inject({ method: 'GET', url: '/api/super/sweeps', headers: auth })).json()
+    .find((s) => s.id === created.id)
+  expect(row).toEqual({
+    id: created.id, name: 'Listed', kind: 'token', archivedAt: null,
+    createdAt: expect.any(String), accountId: null, competitionId: expect.any(String),
+  })
+  expect(JSON.stringify(row)).not.toContain(created.memberToken)
+})
+
+test('creating a sweep without operator credentials is 401', async () => {
   expect((await app.inject({ method: 'POST', url: '/api/super/sweeps', payload: { name: 'X' } })).statusCode).toBe(401)
 })
 
@@ -145,7 +153,7 @@ test('super can rename a sweep and edit scoring (PATCH returns updated row)', as
   expect(list.find((s) => s.id === created.id).name).toBe('New Name')
 })
 
-test('PATCH a sweep without a super cookie is 401', async () => {
+test('PATCH a sweep without operator credentials is 401', async () => {
   const auth = await operator()
   const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'Guarded' } })).json()
   const res = await app.inject({ method: 'PATCH', url: `/api/super/sweeps/${created.id}`, payload: { name: 'Nope' } })
@@ -174,7 +182,7 @@ test('super can un-archive a sweep; an archived sweep becomes usable again', asy
   expect(sess.json().sweepId).toBe(created.id)
 })
 
-test('un-archive without a super cookie is 401', async () => {
+test('un-archive without operator credentials is 401', async () => {
   const auth = await operator()
   const created = (await app.inject({ method: 'POST', url: '/api/super/sweeps', headers: auth, payload: { name: 'GuardedUn' } })).json()
   const res = await app.inject({ method: 'POST', url: `/api/super/sweeps/${created.id}/unarchive` })
@@ -263,7 +271,7 @@ test('bulk ownership writes publish a sync event for the sweep (so other devices
   const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' } })).json()
   // A second app over the SAME db + secret so the cookie/sweep resolve, but with a publish spy.
   const events = []
-  const spy = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz', publish: (e) => events.push(e) })
+  const spy = buildApp(db, { sessionSecret: 'test-secret', publish: (e) => events.push(e) })
   await spy.ready()
   try {
     // successful insert → publishes { type:'sync', sweepId }
@@ -285,12 +293,10 @@ test('bulk ownership writes publish a sync event for the sweep (so other devices
   }
 })
 
-// PLATFORM_HOST is the Host-header match key for the sweep resolver, not a browsable
-// origin: in dev the SPA is on Vite and the api only ever sees the proxy-rewritten Host.
-// Link building therefore reads publicOrigin, which defaults to https://<platformHost>
-// (asserted by the default-path test above) but can be pointed at wherever the browser is.
+// Outbound links are built from publicOrigin — the origin the BROWSER uses, which in
+// dev is Vite and in production is the Caddy site. Nothing else derives it.
 test('links are built from publicOrigin when it is set', async () => {
-  const alt = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', superToken: 'super-xyz', publicOrigin: 'http://127.0.0.1:5173' })
+  const alt = buildApp(db, { sessionSecret: 'test-secret', publicOrigin: 'http://127.0.0.1:5173' })
   await alt.ready()
   // the operator account session is stored in the shared db, not this app instance,
   // so it resolves against `alt` exactly as it does against `app`.

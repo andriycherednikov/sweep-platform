@@ -6,7 +6,7 @@ import { ownerHeaders } from './helpers/session.js'
 import { account, sweep } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({

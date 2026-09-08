@@ -23,7 +23,7 @@ afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recu
 beforeEach(async () => { await db.delete(bet); await db.delete(parlay); await db.delete(coinLedger) })
 
 test('GET /api/admin/open-bets requires admin', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets' })
+  const res = await app.inject({ method: 'GET', url: '/api/admin/open-bets', headers: { cookie: await memberCookie(app) } })
   expect(res.statusCode).toBe(403)
 })
 

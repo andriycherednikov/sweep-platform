@@ -53,7 +53,6 @@ export function buildApp(db, opts = {}) {
   // serve approved/ at /photos (in prod Caddy does this; harmless to also expose here)
   app.register(fstatic, { root: store.approvedDir, prefix: '/photos/', decorateReply: false })
 
-  app.decorate('adminHash', opts.adminHash ?? process.env.ADMIN_PASSCODE ?? '')
   // Signs the admin/member session cookies, so a default is role forgery for anyone who
   // has read this repo. Compose won't catch a missing one: `required: true` on the
   // env_file asserts the file exists, not that anything inside it is set.
@@ -61,18 +60,14 @@ export function buildApp(db, opts = {}) {
     ?? (process.env.NODE_ENV === 'production' ? null : 'dev-insecure-secret')
   if (!sessionSecret) throw new Error('SESSION_SECRET must be set in production')
   app.decorate('sessionSecret', sessionSecret)
-  // Host that serves token-scoped sweeps. Required in production; a non-routable
-  // sentinel in dev/test so it never collides with localhost (which → default sweep).
-  const platformHost = opts.platformHost ?? process.env.PLATFORM_HOST
-    ?? (process.env.NODE_ENV === 'production' ? null : 'platform.invalid')
-  if (!platformHost) throw new Error('PLATFORM_HOST must be set in production')
-  app.decorate('platformHost', platformHost)
-  // PLATFORM_HOST above is the Host-HEADER match key (sweeps/resolve.js) — not a URL.
-  // Outbound links need the origin the BROWSER uses, which is only the same thing in
-  // production, where one Caddy serves the SPA and the api. In dev the SPA is on Vite
-  // and the api only ever sees the proxy-rewritten Host, so the two must be settable apart.
-  app.decorate('publicOrigin', opts.publicOrigin ?? process.env.PUBLIC_ORIGIN ?? `https://${platformHost}`)
-  app.decorate('superToken', opts.superToken ?? process.env.SUPER_ADMIN_TOKEN ?? '')
+  // The origin the BROWSER uses. Every outbound link is built from it — sign-in links,
+  // invite links, the Stripe return — so a wrong one mails people a dead URL and a
+  // missing one would silently mail them "undefined". Required in production, same
+  // guard shape as sessionSecret above; in dev the SPA is on Vite, hence the default.
+  const publicOrigin = opts.publicOrigin ?? process.env.PUBLIC_ORIGIN
+    ?? (process.env.NODE_ENV === 'production' ? null : 'http://localhost:5173')
+  if (!publicOrigin) throw new Error('PUBLIC_ORIGIN must be set in production')
+  app.decorate('publicOrigin', publicOrigin)
   // adapter resolution seam — tests inject recorded providers; live code gets the registry
   app.decorate('providerFor', opts.providerFor ?? providerFor)
   // Feed fills started by a request but not waited on by it (see routes/account.js).

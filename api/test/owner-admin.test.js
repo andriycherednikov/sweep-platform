@@ -5,7 +5,7 @@ import { memberCookie, ownerHeaders } from './helpers/session.js'
 import { account } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({
@@ -33,4 +33,16 @@ test('a different account is only a member', async () => {
 test('no account header falls back to the cookie role', async () => {
   const res = await whoami({ cookie: await memberCookie(app) })
   expect(res.json()).toEqual({ sweepId: 'default', role: 'member' })
+})
+
+// The floor under all of this: with the default-sweep fallback gone, a request that
+// proves nothing is a member of nothing — not silently a member of the seeded sweep.
+test('an anonymous cookieless request is 401, not a member of anything', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/bootstrap' })
+  expect(res.statusCode).toBe(401)
+})
+
+test('the passcode login is gone', async () => {
+  const res = await app.inject({ method: 'POST', url: '/api/admin/login', payload: { passcode: '2026' } })
+  expect(res.statusCode).toBe(404)
 })

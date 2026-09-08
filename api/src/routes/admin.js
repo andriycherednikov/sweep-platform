@@ -1,36 +1,14 @@
 import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
 import { photo, person, sweep } from '../db/schema.js'
-import { verifyPasscode } from '../auth.js'
 import { settleStaleBets } from '../wagering/settle.js'
 import { openBetsBySweep } from '../wagering/ledger.js'
-import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, requireSweep, readSweepList, withSweep } from '../sweeps/auth.js'
-import { DEFAULT_SWEEP_ID } from '../sweeps/constants.js'
-
-const loginBody = {
-  type: 'object', required: ['passcode'], additionalProperties: false,
-  properties: { passcode: { type: 'string', minLength: 1, maxLength: 200 } },
-}
+import { requireSweep } from '../sweeps/auth.js'
 
 export async function adminRoutes(app) {
+  // Admin of this sweep = the account that owns it (sweeps/resolve.js derives the role
+  // per request). There is no passcode to hold any more.
   const admin = requireSweep(['admin'])
-
-  app.post('/api/admin/login', {
-    schema: { body: loginBody },
-    config: { rateLimit: { max: 5, timeWindow: '15 minutes' } },
-  }, async (req, reply) => {
-    if (!verifyPasscode(req.body.passcode, app.adminHash)) return reply.code(401).send({ error: 'bad_passcode' })
-    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), DEFAULT_SWEEP_ID, 'admin'))), {
-      httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
-      secure: process.env.NODE_ENV === 'production',
-    })
-    return { admin: true }
-  })
-
-  app.post('/api/admin/logout', async (_req, reply) => {
-    reply.clearCookie(SWEEP_COOKIE, { path: '/' })
-    return { admin: false }
-  })
 
   app.get('/api/admin/me', { preHandler: admin }, async () => ({ admin: true }))
 

@@ -14,7 +14,7 @@
 # (DNS-only, no proxy) — otherwise Caddy's ACME challenge fails on a loop and
 # can trip Let's Encrypt rate limits.
 #
-# This host IS the platform host (PLATFORM_HOST in .env.docker): an
+# This host IS the browser-facing origin (PUBLIC_ORIGIN in .env.docker): an
 # unauthenticated visitor gets the account landing, and /g/<token> links mint a
 # session scoped to that one sweep.
 # =============================================================================

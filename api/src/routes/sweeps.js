@@ -1,8 +1,8 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
 import { eq, or, and, asc, inArray } from 'drizzle-orm'
 import { sweep, person, ownership, competition, competitor } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
-import { SWEEP_COOKIE, SUPER_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSuper, requireSweep } from '../sweeps/auth.js'
+import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSweep } from '../sweeps/auth.js'
+import { requireOperator } from '../accounts/auth.js'
 import { codeToCompetitorId } from './competitors.js'
 import { correctFixture } from '../corrections.js'
 
@@ -86,27 +86,18 @@ export async function sweepsRoutes(app) {
     return { ok: true }
   })
 
-  const superGuard = requireSuper(app)
+  // The platform owner is an ordinary account carrying the operator role — there is no
+  // shared token to hold, and every operator is therefore a named actor in the audit log.
+  const superGuard = requireOperator(app)
 
-  app.post('/api/super/session', {
-    config: { rateLimit: { max: 10, timeWindow: '15 minutes' } },
-    schema: { body: { type: 'object', required: ['token'], additionalProperties: false, properties: { token: { type: 'string', minLength: 1, maxLength: 200 } } } },
-  }, async (req, reply) => {
-    // Constant-time compare on fixed-size SHA-256 digests (no length leak).
-    const digest = (s) => createHash('sha256').update(String(s)).digest()
-    if (!app.superToken || !timingSafeEqual(digest(req.body.token), digest(app.superToken))) {
-      return reply.code(401).send({ error: 'unauthorized' })
-    }
-    reply.setCookie(SUPER_COOKIE, reply.signCookie('ok'), {
-      httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
-      secure: process.env.NODE_ENV === 'production',
-    })
-    return { super: true }
-  })
-
+  // No links: a live member token here IS the ability to open any group's sweep as one
+  // of its members, un-audited. Operating on a sweep never means entering it.
   app.get('/api/super/sweeps', { preHandler: superGuard }, async () => {
     const rows = await app.db.select().from(sweep)
-    return rows.map((r) => ({ id: r.id, name: r.name, kind: r.kind, archivedAt: r.archivedAt, createdAt: r.createdAt, ...links(app, r) }))
+    return rows.map((r) => ({
+      id: r.id, name: r.name, kind: r.kind, archivedAt: r.archivedAt, createdAt: r.createdAt,
+      accountId: r.accountId, competitionId: r.competitionId,
+    }))
   })
 
   app.post('/api/super/sweeps', { preHandler: superGuard, schema: { body: createBody } }, async (req, reply) => {
@@ -166,7 +157,7 @@ export async function sweepsRoutes(app) {
   })
 
   app.post('/api/super/fixtures/:id/correct', { preHandler: superGuard, schema: { body: correctBody } }, async (req, reply) => {
-    const out = await correctFixture(app.db, req.params.id, req.body, app.publish)
+    const out = await correctFixture(app.db, req.params.id, req.body, app.publish, req.account.id)
     if (!out) return reply.code(404).send({ error: 'unknown_fixture' })
     return out
   })

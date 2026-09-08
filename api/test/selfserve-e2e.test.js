@@ -34,7 +34,7 @@ const eplProvider = () => createRecordedProvider({
   predictions: { response: [] },
 })
 const app = buildApp(db, {
-  sessionSecret: 'test-secret', platformHost: 'platform.test',
+  sessionSecret: 'test-secret',
   sendMail: async (to, subject, body) => mails.push(body),
   providerFor: (c) => (c.provider === 'apibasketball'
     ? createRecordedBasketballProvider({ leagues: loadB('leagues'), teams: loadB('teams'), games: loadB('games'), standings: loadB('standings') })

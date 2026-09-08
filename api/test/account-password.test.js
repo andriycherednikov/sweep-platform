@@ -9,7 +9,7 @@ import { SESSION_TTL_MS } from '../src/accounts/auth.js'
 import { hashPassword } from '../src/auth.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' })
+const app = buildApp(db, { sessionSecret: 'test-secret' })
 beforeAll(async () => {
   await app.ready()
   await db.insert(account).values({

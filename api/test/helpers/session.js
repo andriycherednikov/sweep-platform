@@ -17,6 +17,15 @@ export async function memberCookie(app) {
   return c
 }
 
+/** An app-shaped client whose every inject carries a member cookie for the seeded sweep.
+ *  For the suites that predate accounts and simply need to BE somebody in that sweep —
+ *  there is no anonymous membership to fall back into any more. Per-call headers win,
+ *  so a test can still send its own cookie, or an account token alongside this one. */
+export async function memberClient(app) {
+  const cookie = await memberCookie(app)
+  return { inject: (opts) => app.inject({ ...opts, headers: { cookie, ...opts.headers } }) }
+}
+
 /** An account session, inserted directly — no magic link, no mail, no rate limit. */
 export async function ownerHeaders(db, accountId = 'ac_seed') {
   const token = newToken()

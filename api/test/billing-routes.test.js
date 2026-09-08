@@ -7,7 +7,7 @@ import { fakeStripe } from './helpers/fake-stripe.js'
 
 const { pool, db } = openTestDb()
 const stripeFake = fakeStripe()
-const app = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: stripeFake, stripePriceId: 'price_test5' })
+const app = buildApp(db, { sessionSecret: 'test-secret', publicOrigin: 'https://platform.test', stripe: stripeFake, stripePriceId: 'price_test5' })
 const M = { headers: { 'x-account-token': 'billsession' } }
 const COMP = 'apibasketball:12:billing-routes'
 
@@ -79,7 +79,7 @@ test('billing status reports a subscription that is set to stop, and when', asyn
 test('confirm: the return from checkout is verified against Stripe, not trusted', async () => {
   // a session belonging to someone else must not activate this account
   const foreign = fakeStripe({ session: { id: 'cs_foreign_1', status: 'complete', payment_status: 'paid', client_reference_id: 'ac_someone_else', customer: 'cus_x', subscription: 'sub_x' } })
-  const appX = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: foreign, stripePriceId: 'price_test5' })
+  const appX = buildApp(db, { sessionSecret: 'test-secret', stripe: foreign, stripePriceId: 'price_test5' })
   await appX.ready()
   const bad = await appX.inject({ method: 'POST', url: '/api/account/billing/confirm', ...M, payload: { sessionId: 'cs_foreign_1' } })
   expect(bad.statusCode).toBe(404)
@@ -87,7 +87,7 @@ test('confirm: the return from checkout is verified against Stripe, not trusted'
 
   // an unpaid session reports back as pending, and changes nothing
   const unpaid = fakeStripe({ session: { id: 'cs_pending_1', status: 'open', payment_status: 'unpaid', client_reference_id: 'ac_bill', customer: 'cus_fake1', subscription: null } })
-  const appP = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test', stripe: unpaid, stripePriceId: 'price_test5' })
+  const appP = buildApp(db, { sessionSecret: 'test-secret', stripe: unpaid, stripePriceId: 'price_test5' })
   await appP.ready()
   const pending = await appP.inject({ method: 'POST', url: '/api/account/billing/confirm', ...M, payload: { sessionId: 'cs_pending_1' } })
   expect(pending.statusCode).toBe(200)
@@ -118,7 +118,7 @@ test('status + portal + already-subscribed guard', async () => {
 })
 
 test('checkout + portal: 503 billing_unconfigured when Stripe is not wired up', async () => {
-  const app2 = buildApp(db, { sessionSecret: 'test-secret', platformHost: 'platform.test' }) // no stripe opt → app2.stripe is null
+  const app2 = buildApp(db, { sessionSecret: 'test-secret' }) // no stripe opt → app2.stripe is null
   await app2.ready()
   await db.insert(account).values({ id: 'ac_bill_nostripe', email: 'nostripe@x.test' })
   await db.insert(accountSession).values({ token: 'nostripesession', accountId: 'ac_bill_nostripe', expiresAt: new Date(Date.now() + 3600_000) })

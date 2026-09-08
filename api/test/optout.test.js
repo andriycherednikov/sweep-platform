@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { person } from '../src/db/schema.js'
 import { untilFor, isExcluded, extendUntil, FOREVER } from '../src/optout.js'
 
@@ -33,12 +34,13 @@ describe('optout helpers', () => {
 })
 
 const { pool, db } = openTestDb()
-let dir, app
+let dir, app, client
 const PID = 'optp'
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-optout-'))
   app = buildApp(db, { photosDir: dir, sessionSecret: 's' })
   await app.ready()
+  client = await memberClient(app)
 })
 afterAll(async () => {
   await db.delete(person).where(eq(person.id, PID)) // don't leak the test person into other suites' counts
@@ -50,7 +52,7 @@ beforeEach(async () => {
 })
 
 // member self-service: an anonymous localhost request resolves to the default sweep as a member
-const optout = (payload) => app.inject({ method: 'POST', url: '/api/optout', payload })
+const optout = (payload) => client.inject({ method: 'POST', url: '/api/optout', payload })
 
 test('a member can self-exclude for a fixed window; the person is then marked excluded', async () => {
   const res = await optout({ personId: PID, duration: '7d' })
@@ -63,7 +65,7 @@ test('a member can self-exclude for a fixed window; the person is then marked ex
 
 test('the excluded flag flows through /api/bootstrap for the admin list', async () => {
   await optout({ personId: PID, duration: '3d' })
-  const b = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const b = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(b.people.find((p) => p.id === PID)).toMatchObject({ excluded: true })
 })
 
@@ -84,7 +86,7 @@ test('binding: a shorter window cannot reverse/shorten an existing forever exclu
 
 test('an expired window serializes as not excluded', async () => {
   await db.update(person).set({ excludedUntil: new Date(Date.now() - 86_400_000) }).where(eq(person.id, PID))
-  const b = (await app.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  const b = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
   expect(b.people.find((p) => p.id === PID)).toMatchObject({ excluded: false })
 })
 

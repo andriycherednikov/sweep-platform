@@ -8,7 +8,7 @@ import { cleanupExpiredAuth } from '../src/accounts/auth.js'
 const { pool, db } = openTestDb()
 const mails = []
 const app = buildApp(db, {
-  sessionSecret: 'test-secret', platformHost: 'platform.test',
+  sessionSecret: 'test-secret',
   sendMail: async (to, subject, body) => mails.push({ to, subject, body }),
 })
 beforeAll(async () => { await app.ready() })

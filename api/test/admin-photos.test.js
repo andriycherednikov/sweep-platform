@@ -29,9 +29,8 @@ async function seedPending() {
 }
 
 test('GET /api/admin/photos requires admin (member is forbidden)', async () => {
-  // On localhost an anonymous request resolves to the default sweep as a member,
-  // so the admin guard returns 403 (forbidden), not 401.
-  expect((await app.inject({ method: 'GET', url: '/api/admin/photos' })).statusCode).toBe(403)
+  // A member of this sweep is signed in and still refused: 403 forbidden, not 401.
+  expect((await app.inject({ method: 'GET', url: '/api/admin/photos', headers: { cookie: await memberCookie(app) } })).statusCode).toBe(403)
 })
 
 test('GET /api/admin/photos lists pending + approved with kind/subject tags', async () => {

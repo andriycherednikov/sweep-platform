@@ -10,12 +10,13 @@ import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
+import { memberClient } from './helpers/session.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { competition, competitor, event, person, support, bet, parlay, coinLedger, photo, sweep } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const OTHER = 'test:other:1'
-let dir, app
+let dir, app, client
 
 async function sessionCookie(token) {
   const res = await app.inject({ method: 'POST', url: '/api/session', headers: { host: 'platform.test' }, payload: { token } })
@@ -24,8 +25,9 @@ async function sessionCookie(token) {
 
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-scope-'))
-  app = buildApp(db, { photosDir: dir, sessionSecret: 'test-secret', platformHost: 'platform.test' })
+  app = buildApp(db, { photosDir: dir, sessionSecret: 'test-secret' })
   await app.ready()
+  client = await memberClient(app)
   // a second competition with an upcoming, odds-bearing event - never visible to the default sweep
   await db.insert(competition).values({ id: OTHER, provider: 'test', sport: 'basketball', leagueId: 'other', season: '1', format: 'league', name: 'Other League' })
   await db.insert(competitor).values([
@@ -56,27 +58,27 @@ afterAll(async () => {
 const aPerson = async () => (await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1))[0]
 
 test('GET /api/fixtures/:id 404s for another competitions event', async () => {
-  const res = await app.inject({ method: 'GET', url: '/api/fixtures/evO_1' })
+  const res = await client.inject({ method: 'GET', url: '/api/fixtures/evO_1' })
   expect(res.statusCode).toBe(404)
 })
 
 test('POST /api/support rejects another competitions event', async () => {
   const p = await aPerson()
-  const res = await app.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: 'evO_1', personId: p.id, teamCode: 'lal' } })
+  const res = await client.inject({ method: 'POST', url: '/api/support', payload: { fixtureId: 'evO_1', personId: p.id, teamCode: 'lal' } })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
 
 test('POST /api/bet rejects another competitions event', async () => {
   const p = await aPerson()
-  const res = await app.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: 'evO_1', personId: p.id, selection: 'HOME', stake: 10 } })
+  const res = await client.inject({ method: 'POST', url: '/api/bet', payload: { fixtureId: 'evO_1', personId: p.id, selection: 'HOME', stake: 10 } })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
 
 test('POST /api/parlay rejects a leg on another competitions event', async () => {
   const p = await aPerson()
-  const res = await app.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [
+  const res = await client.inject({ method: 'POST', url: '/api/parlay', payload: { personId: p.id, stake: 10, legs: [
     { fixtureId: 'evO_1', selection: 'HOME' },
     { fixtureId: 'evO_1', market: 'ou25', selection: 'OVER' },
   ] } })
@@ -89,7 +91,7 @@ test('fan-photo upload rejects another competitions event', async () => {
   const form = new FormData()
   form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('fixtureId', 'evO_1')
   form.append('file', png, { filename: 'pic.png', contentType: 'image/png' })
-  const res = await app.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
