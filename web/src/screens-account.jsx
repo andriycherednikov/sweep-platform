@@ -244,6 +244,17 @@ function SweepRow({ s, billing, reload }) {
           {confirm ? "Really archive?" : "Archive"}
         </button>
       </div>
+      {/* who is actually in there — the question this screen could not answer */}
+      {s.members && (
+        <p className="ac-b">
+          {s.members.total} in the sweep
+          {s.members.total > s.members.registered
+            ? ` · ${s.members.total - s.members.registered} not joined yet`
+            : ""}
+          {" · "}
+          <a className="ac-inline" href={`/s/${s.id}/admin`}>Manage members</a>
+        </p>
+      )}
       <LinkField label="Member link — send this to the group" value={rotated || s.memberLink} />
       {rotated && <p className="ac-b">New link ready — send it to the group. The old link stopped working.</p>}
       {rotConfirm && (

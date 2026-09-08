@@ -1221,6 +1221,7 @@ function TeamPicker({ selected, onToggle, hideCodes }) {
 // Add a new person + (optionally) allocate teams straight away.
 function AddMemberSheet({ onClose, onToast, refresh }) {
   const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [sel, setSel] = useState(new Set());
   const [busy, setBusy] = useState(false);
   const toggle = (c) => setSel((p) => { const n = new Set(p); n.has(c) ? n.delete(c) : n.add(c); return n; });
@@ -1233,9 +1234,10 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
     if (!nm || busy) return;
     setBusy(true);
     try {
-      const created = await createPerson({ name: nm, ...identityFromName(nm), av: avFor(nm) });
+      const em = email.trim();
+      const created = await createPerson({ name: nm, ...identityFromName(nm), av: avFor(nm), ...(em ? { email: em } : {}) });
       if (sel.size) await bulkPostOwnership([...sel].map((tc) => ({ personId: created.id, teamCode: tc })));
-      onToast("Person added"); await refresh(); onClose();
+      onToast(em ? "Person added — invite sent" : "Person added"); await refresh(); onClose();
     } catch { onToast("Couldn't add — try again"); setBusy(false); }
   }
   return (
@@ -1246,6 +1248,14 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
         <div className="sheet-body">
           <div className="field"><label>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Macca" autoFocus />
+          </div>
+          <div className="field"><label>Email (optional)</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="macca@example.com" />
+            <small className="field-note">
+              Add an email and we'll send them the group link. They set their own photo and
+              take over this seat — teams and all. Leave it blank and they stay on the roster
+              as display-only.
+            </small>
           </div>
           <div className="alloc-rand">
             <span className="alloc-lbl">Allocate random</span>
@@ -1283,7 +1293,10 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
   const [removes, setRemoves] = useState(new Set()); // owned teams to delete
   const [editName, setEditName] = useState(person.name);
   const [adult, setAdult] = useState(person.adult !== false); // wagers age gate
+  const [email, setEmail] = useState(person.email || "");
   const [busy, setBusy] = useState(false);
+  // two-tap confirm, the same idiom as the account console's Archive/Replace link
+  const [confirm, setConfirm] = useState(null); // 'eject' | 'delete'
 
   const current = useMemo(() => {
     const s = new Set(person.teams);
@@ -1325,9 +1338,29 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
   }
   async function removePerson() {
     if (busy) return;
+    if (confirm !== "delete") { setConfirm("delete"); return; }
     setBusy(true);
-    try { await deletePerson(person.id); onToast("Person removed"); await refresh(); onClose(); }
-    catch { onToast("Couldn't remove — try again"); setBusy(false); }
+    try { await deletePerson(person.id); onToast("Person deleted"); await refresh(); onClose(); }
+    catch { onToast("Couldn't delete — try again"); setBusy(false); }
+  }
+  // Eject keeps the row: their picks, wagers and ledger stay referenced, so the
+  // leaderboard keeps its shape. Only their ability to act goes.
+  async function setEjected(next) {
+    if (busy) return;
+    if (next && confirm !== "eject") { setConfirm("eject"); return; }
+    setBusy(true);
+    try {
+      await patchPerson(person.id, { ejected: next });
+      onToast(next ? "Removed from the sweep" : "Back in the sweep");
+      await refresh(); onClose();
+    } catch { onToast("Couldn't save — try again"); setBusy(false); }
+  }
+  async function resendInvite() {
+    const em = email.trim();
+    if (busy || !em) return;
+    setBusy(true);
+    try { await patchPerson(person.id, { email: em }); onToast("Invite sent"); await refresh(); onClose(); }
+    catch { onToast("Couldn't send — try again"); setBusy(false); }
   }
 
   const currentCodes = [...current];
@@ -1341,8 +1374,55 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
           <div className="alloc-person">
             <PersonAvatar p={person} cls="pav alloc-av" />
             <input className="alloc-name-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" placeholder="Name" />
-            <button className="alloc-remove" disabled={busy} onClick={removePerson} aria-label={"Remove " + person.name} title="Remove person"><Icon.trash /></button>
+            <button className="alloc-remove" disabled={busy} onClick={removePerson}
+              aria-label={confirm === "delete" ? "Confirm delete " + person.name : "Delete " + person.name}
+              title="Delete permanently"><Icon.trash /></button>
           </div>
+          {confirm === "delete" && (
+            <p className="alloc-warn" role="alert">
+              Deletes {person.name}, their teams, their picks and their wagers. This cannot be
+              undone — tap the bin again to confirm.
+            </p>
+          )}
+
+          {/* seat: who holds it, and how to hand it over or take it back */}
+          <div className="field" style={{ marginTop: 12 }}>
+            <label htmlFor="alloc-email">Email</label>
+            {person.claimed ? (
+              <>
+                <input id="alloc-email" readOnly value={person.email || ""} />
+                <small className="field-note">They signed in with this address — only they can change it.</small>
+              </>
+            ) : (
+              <>
+                <input id="alloc-email" type="email" value={email} placeholder="nobody@example.com"
+                  onChange={(e) => setEmail(e.target.value)} />
+                <button type="button" className="cta ghost" style={{ marginTop: 8 }}
+                  disabled={busy || !email.trim()} onClick={resendInvite}>
+                  {person.email ? "Resend invite" : "Send invite"}
+                </button>
+              </>
+            )}
+          </div>
+
+          {person.ejected ? (
+            <button type="button" className="cta ghost" style={{ marginTop: 8 }} disabled={busy}
+              onClick={() => setEjected(false)}>Undo — let them back in</button>
+          ) : (
+            <>
+              <button type="button" className="cta ghost" style={{ marginTop: 8 }} disabled={busy}
+                onClick={() => setEjected(true)}>
+                {confirm === "eject" ? "Tap again to remove" : "Remove from sweep"}
+              </button>
+              {confirm === "eject" && (
+                <p className="alloc-warn" role="alert">
+                  {person.name} can no longer pick, bet or upload, and can't rejoin with this
+                  email. Their teams and history stay. Anyone holding the group link can still
+                  create a new seat — use Replace link in your account to shut that door.
+                </p>
+              )}
+            </>
+          )}
 
           <div className="alloc-age">
             <div className="alloc-age-tx">
@@ -1398,8 +1478,13 @@ export function PeopleAdmin({ onToast, queryClient }) {
 
   const refresh = () => qc?.invalidateQueries({ queryKey: ["sweep"] });
 
+  // "how many have actually signed up" — the question this screen could not answer.
+  // Counted off S.people, so it can never disagree with the list underneath it.
+  const joined = people.filter((p) => p.claimed).length;
+  const notJoined = people.length - joined;
+
   const sorted = useMemo(() => {
-    const arr = people.slice();
+    const arr = sort === "unjoined" ? people.filter((p) => !p.claimed) : people.slice();
     if (sort === "name") arr.sort((a, b) => a.name.localeCompare(b.name));
     else if (sort === "teams") arr.sort((a, b) => b.teams.length - a.teams.length || a.name.localeCompare(b.name));
     else arr.sort((a, b) => String(b.createdAt || "").localeCompare(String(a.createdAt || "")) || a.name.localeCompare(b.name));
@@ -1412,22 +1497,31 @@ export function PeopleAdmin({ onToast, queryClient }) {
     <div className="scroll pad screen-anim" style={{ paddingTop: 10 }}>
       <div className="wrap">
         <div className="adminadd alloc-row" style={{ justifyContent: "space-between" }}>
-          <h3 className="adminsec-h" style={{ margin: 0 }}>People <span className="ct">{people.length}</span></h3>
+          <h3 className="adminsec-h" style={{ margin: 0 }}>
+            People <span className="ct">{people.length}</span>
+            {' '}<span className="ct">{joined} joined</span>
+            {notJoined > 0 && <> <span className="ct ct-warn">{notJoined} not joined</span></>}
+          </h3>
           <button className="qbtn app" aria-label="Add person" title="Add person" onClick={() => setAdding(true)} style={{ minWidth: 0, width: 38, height: 38, padding: 0 }}><Icon.plus /></button>
         </div>
         <div className="filterbar" style={{ marginTop: 8 }}>
           <button className={"fchip" + (sort === "recent" ? " on" : "")} onClick={() => setSort("recent")}>Recently added</button>
           <button className={"fchip" + (sort === "name" ? " on" : "")} onClick={() => setSort("name")}>Name</button>
           <button className={"fchip" + (sort === "teams" ? " on" : "")} onClick={() => setSort("teams")}>Teams</button>
+          <button className={"fchip" + (sort === "unjoined" ? " on" : "")} onClick={() => setSort("unjoined")}>Not joined</button>
         </div>
         <div className="plist" style={{ marginTop: 12 }}>
           {sorted.map((p) => (
             <button className="prow prow-click" key={p.id} onClick={() => setAllocId(p.id)}>
               {p.adult === false && <span className="minor-badge">Minor</span>}
               {p.excluded && <span className="excl-badge" title="Self-excluded from Wagers"><Icon.shield />Excluded</span>}
+              {/* a joined seat gets no badge — the calm default is the common case */}
+              {p.ejected && <span className="seat-badge is-removed">Removed</span>}
+              {!p.ejected && !p.claimed && p.email && <span className="seat-badge is-invited">Invited</span>}
               <PersonAvatar p={p} cls="pav" />
               <div className="pi" style={{ flex: 1, minWidth: 0 }}>
                 <b>{p.name}</b>
+                <small className="seat-mail">{p.email || "No email — display only"}</small>
                 <TeamChips codes={p.teams} />
               </div>
               <div className="pcount"><b>{p.teams.length}</b><small>teams</small></div>

@@ -229,3 +229,24 @@ test('a failed rotate says so and leaves the old link showing', async () => {
   expect(await screen.findByText(/couldn't replace the link/i)).toBeTruthy()
   expect(screen.getByDisplayValue('https://h/g/old')).toBeTruthy()
 })
+
+test('a sweep card reports who has joined and links to managing them', async () => {
+  getAccountSweeps.mockResolvedValue([{
+    id: 'sw_1', name: 'Office', competitionId: 'c', archivedAt: null, createdAt: null,
+    memberLink: 'https://x.test/g/tok', members: { total: 12, registered: 8 },
+  }])
+  render(<AccountHome />)
+  expect(await screen.findByText(/12 in the sweep/)).toBeInTheDocument()
+  expect(screen.getByText(/4 not joined yet/)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /manage members/i })).toHaveAttribute('href', '/s/sw_1/admin')
+})
+
+test('a fully-joined sweep says so without a nag', async () => {
+  getAccountSweeps.mockResolvedValue([{
+    id: 'sw_1', name: 'Office', competitionId: 'c', archivedAt: null, createdAt: null,
+    memberLink: 'https://x.test/g/tok', members: { total: 5, registered: 5 },
+  }])
+  render(<AccountHome />)
+  expect(await screen.findByText(/5 in the sweep/)).toBeInTheDocument()
+  expect(screen.queryByText(/not joined yet/)).toBeNull()
+})

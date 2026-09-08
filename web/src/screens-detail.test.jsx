@@ -644,13 +644,52 @@ test('PeopleAdmin allocation sheet applies a rename + team change together', asy
   await waitFor(() => expect(bulkPostOwnership).toHaveBeenCalledTimes(1))
 })
 
-test('PeopleAdmin allocation sheet removes a person via deletePerson', async () => {
+// Deleting takes their picks, wagers and ledger with it, so it asks twice.
+test('PeopleAdmin allocation sheet deletes a person on the second tap', async () => {
   seedPeople()
   deletePerson.mockResolvedValueOnce({ ok: true })
   const { getByText, getByLabelText } = render(<PeopleAdmin onToast={noop} />)
   fireEvent.click(getByText('Ann'))
-  fireEvent.click(getByLabelText('Remove Ann'))
+  fireEvent.click(getByLabelText('Delete Ann'))
+  expect(deletePerson).not.toHaveBeenCalled()
+  expect(getByText(/cannot be\s+undone/i)).toBeInTheDocument()
+  fireEvent.click(getByLabelText('Confirm delete Ann'))
   await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
+})
+
+test('PeopleAdmin counts who has joined and can filter to who has not', () => {
+  seedPeople()
+  const { getByText, queryByText } = render(<PeopleAdmin onToast={noop} />)
+  expect(getByText(/^\d+ not joined$/)).toBeInTheDocument()
+  fireEvent.click(getByText('Not joined'))
+  expect(queryByText('Ann')).toBeInTheDocument()   // unclaimed seats survive the filter
+})
+
+test('PeopleAdmin shows an address per row, or says there is none', () => {
+  seedPeople()
+  const { getAllByText } = render(<PeopleAdmin onToast={noop} />)
+  expect(getAllByText(/no email — display only/i).length).toBeGreaterThan(0)
+})
+
+test('AllocateSheet removes someone from the sweep on the second tap, keeping the row', async () => {
+  seedPeople()
+  patchPerson.mockResolvedValueOnce({ ok: true })
+  const { getByText, getByRole } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Ann'))
+  fireEvent.click(getByRole('button', { name: /remove from sweep/i }))
+  expect(patchPerson).not.toHaveBeenCalled()
+  fireEvent.click(getByRole('button', { name: /tap again to remove/i }))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { ejected: true }))
+})
+
+test('AllocateSheet sends an invite to an unclaimed seat', async () => {
+  seedPeople()
+  patchPerson.mockResolvedValueOnce({ ok: true })
+  const { getByText, getByLabelText, getByRole } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Ann'))
+  fireEvent.change(getByLabelText('Email'), { target: { value: 'ann@x.test' } })
+  fireEvent.click(getByRole('button', { name: /send invite/i }))
+  await waitFor(() => expect(patchPerson).toHaveBeenCalledWith('p1', { email: 'ann@x.test' }))
 })
 
 test('PeopleAdmin allocation sheet: allocate random + apply → bulk add + invalidate', async () => {
