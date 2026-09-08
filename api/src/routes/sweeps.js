@@ -1,11 +1,12 @@
 import { eq, or, and, inArray } from 'drizzle-orm'
-import { sweep, person, ownership, competitor } from '../db/schema.js'
+import { sweep, person, ownership, competitor, photo } from '../db/schema.js'
 import { newToken } from '../sweeps/tokens.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep, requireSweep } from '../sweeps/auth.js'
 import { requireOperator } from '../accounts/auth.js'
 import { recordOperatorAction } from '../accounts/audit.js'
 import { codeToCompetitorId } from './competitors.js'
 import { correctFixture } from '../corrections.js'
+import { inviteMail } from '../mail.js'
 
 const sessionBody = {
   type: 'object', required: ['token'], additionalProperties: false,
@@ -140,6 +141,7 @@ export async function sweepsRoutes(app) {
 
   const groupAdmin = requireSweep(['admin'])
 
+  const emailProp = { type: 'string', minLength: 3, maxLength: 254, pattern: '^\\s*\\S+@\\S+\\.\\S+\\s*$' }
   const personBody = {
     type: 'object', required: ['name', 'short', 'initials', 'av'], additionalProperties: false,
     properties: {
@@ -147,6 +149,7 @@ export async function sweepsRoutes(app) {
       short: { type: 'string', minLength: 1, maxLength: 40 },
       initials: { type: 'string', minLength: 1, maxLength: 4 },
       av: { type: 'string', minLength: 1, maxLength: 20 },
+      email: emailProp, // optional: an invite. Without one the seat is display-only.
     },
   }
   const personPatchBody = {
@@ -156,7 +159,19 @@ export async function sweepsRoutes(app) {
       short: { type: 'string', minLength: 1, maxLength: 40 },
       initials: { type: 'string', minLength: 1, maxLength: 4 },
       adult: { type: 'boolean' }, // wagers age gate (18+); minors can't see coins
+      email: { ...emailProp, nullable: true }, // setting one (re)sends the invite
+      ejected: { type: 'boolean' },            // revoke acting rights, keep the history
     },
+  }
+
+  /** Tell someone the organiser has a seat waiting for them. It carries the GROUP link:
+   *  a per-person credential pasted into the group chat would hand every seat to
+   *  everyone, permanently (member-identity spec section 2). Mail is a notification, so
+   *  a dead transport must not fail a row that is already written. */
+  function invite(req, email) {
+    const m = inviteMail(req.sweep.name, links(app, req.sweep).memberLink)
+    return app.sendMail(email, m.subject, m.text, m.html)
+      .catch((err) => req.log.error({ err }, 'invite mail failed'))
   }
   const ownBody = {
     type: 'object', required: ['personId', 'teamCode'], additionalProperties: false,
@@ -175,23 +190,41 @@ export async function sweepsRoutes(app) {
     },
   }
 
-  app.post('/api/admin/people', { preHandler: groupAdmin, schema: { body: personBody } }, async (req, reply) => {
+  app.post('/api/admin/people', {
+    preHandler: groupAdmin, schema: { body: personBody },
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } }, // it sends mail now
+  }, async (req, reply) => {
     const id = `pn_${newToken(12)}`
     const { name, short, initials, av } = req.body
-    await app.db.insert(person).values({ id, sweepId: req.sweep.id, name, short, initials, avColor: av })
-    return reply.code(201).send({ id, name, short, initials, av })
+    // Matched with lower() when the seat is claimed, so it is stored normalized.
+    const email = req.body.email ? req.body.email.trim().toLowerCase() : null
+    await app.db.insert(person).values({ id, sweepId: req.sweep.id, name, short, initials, avColor: av, email })
+    if (email) await invite(req, email)
+    return reply.code(201).send({ id, name, short, initials, av, email })
   })
 
   app.delete('/api/admin/people/:id', { preHandler: groupAdmin }, async (req, reply) => {
     const where = and(eq(person.id, req.params.id), eq(person.sweepId, req.sweep.id))
     const [p] = await app.db.select().from(person).where(where)
     if (!p) return reply.code(404).send({ error: 'not_found' })
-    await app.db.delete(ownership).where(and(eq(ownership.personId, p.id), eq(ownership.sweepId, req.sweep.id)))
+    // The rows all cascade now; the FILES do not, so unlink them first. Best-effort: a
+    // missing file must not block the delete, and an orphaned jpeg is not a bug worth
+    // a 500. Ownership is gone with the cascade — it used to be deleted by hand here,
+    // and photo rows were not, which is what made this route 500.
+    const shots = await app.db.select().from(photo).where(eq(photo.personId, p.id))
+    for (const ph of shots) {
+      const drop = ph.status === 'approved' ? app.photos.removeApproved : app.photos.removePending
+      await drop(ph.filePath.split('/').pop()).catch(() => {})
+      if (ph.thumbPath) await drop(ph.thumbPath.split('/').pop()).catch(() => {})
+    }
     await app.db.delete(person).where(where)
     return { id: p.id, deleted: true }
   })
 
-  app.patch('/api/admin/people/:id', { preHandler: groupAdmin, schema: { body: personPatchBody } }, async (req, reply) => {
+  app.patch('/api/admin/people/:id', {
+    preHandler: groupAdmin, schema: { body: personPatchBody },
+    config: { rateLimit: { max: 20, timeWindow: '15 minutes' } },
+  }, async (req, reply) => {
     const where = and(eq(person.id, req.params.id), eq(person.sweepId, req.sweep.id))
     const [p] = await app.db.select().from(person).where(where)
     if (!p) return reply.code(404).send({ error: 'not_found' })
@@ -200,9 +233,19 @@ export async function sweepsRoutes(app) {
     if (req.body.short !== undefined) set.short = req.body.short
     if (req.body.initials !== undefined) set.initials = req.body.initials
     if (req.body.adult !== undefined) set.adult = req.body.adult
+    if (req.body.email !== undefined) set.email = req.body.email ? req.body.email.trim().toLowerCase() : null
+    // Ejecting revokes the seat's acting rights and blocks a re-claim, but keeps the row:
+    // their picks, ledger and bets stay referenced and the leaderboard keeps its shape.
+    if (req.body.ejected !== undefined) set.ejectedAt = req.body.ejected ? new Date() : null
     await app.db.update(person).set(set).where(where)
     const [updated] = await app.db.select().from(person).where(where)
-    return { id: updated.id, name: updated.name, short: updated.short, initials: updated.initials, adult: updated.adult }
+    // Re-sending is the same verb as inviting: one route, and the owner's mental model
+    // ("give this seat an address") is the same either way.
+    if (set.email) await invite(req, set.email)
+    return {
+      id: updated.id, name: updated.name, short: updated.short, initials: updated.initials,
+      adult: updated.adult, email: updated.email, ejected: !!updated.ejectedAt,
+    }
   })
 
   app.post('/api/admin/ownership', { preHandler: groupAdmin, schema: { body: ownBody } }, async (req, reply) => {

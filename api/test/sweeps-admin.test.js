@@ -2,12 +2,16 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq, ne, and, inArray } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, ownership, account, accountSession, sweep, competition, operatorAction } from '../src/db/schema.js'
+import { person, ownership, account, accountSession, sweep, competition, operatorAction, support, event } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
-import { ownerHeaders, adminHeaders } from './helpers/session.js'
+import { ownerHeaders, adminHeaders, memberCookie, seatFor, releaseSeat } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
-const app = buildApp(db, { sessionSecret: 'test-secret' })
+const mails = []
+const app = buildApp(db, {
+  sessionSecret: 'test-secret',
+  sendMail: async (to, subject, body, html) => mails.push({ to, subject, body, html }),
+})
 beforeAll(async () => { await app.ready() })
 afterAll(async () => {
   // Leave the shared test DB as we found it (seed.test.js counts persons globally).
@@ -317,4 +321,95 @@ test('links are built from publicOrigin when it is set', async () => {
   } finally {
     await alt.close()
   }
+})
+
+/* --- owner member management ------------------------------------------------ */
+
+test('adding a person with an email stores it lowercased and mails the group link', async () => {
+  const auth = await adminHeaders(app, db, 'default', 'ac_seed')
+  mails.length = 0
+  const res = await app.inject({
+    method: 'POST', url: '/api/admin/people', headers: auth,
+    payload: { name: 'Invited Ivy', short: 'Ivy', initials: 'IV', av: '#123456', email: '  Ivy@X.TEST ' },
+  })
+  expect(res.statusCode).toBe(201)
+  const [row] = await db.select().from(person).where(eq(person.id, res.json().id))
+  expect(row.email).toBe('ivy@x.test')
+  expect(mails).toHaveLength(1)
+  expect(mails[0].to).toBe('ivy@x.test')
+  // the GROUP link, never a per-person credential
+  expect(mails[0].body).toContain('/g/')
+  await db.delete(person).where(eq(person.id, res.json().id))
+})
+
+test('setting the email again is the resend button', async () => {
+  const auth = await adminHeaders(app, db, 'default', 'ac_seed')
+  const created = (await app.inject({
+    method: 'POST', url: '/api/admin/people', headers: auth,
+    payload: { name: 'Resend Rae', short: 'Rae', initials: 'RA', av: '#123456' },
+  })).json()
+  mails.length = 0
+  const res = await app.inject({
+    method: 'PATCH', url: `/api/admin/people/${created.id}`, headers: auth,
+    payload: { email: 'rae@x.test' },
+  })
+  expect(res.statusCode).toBe(200)
+  expect(mails).toHaveLength(1)
+  await db.delete(person).where(eq(person.id, created.id))
+})
+
+test('ejecting stops them acting, and keeps everything they did', async () => {
+  const auth = await adminHeaders(app, db, 'default', 'ac_seed')
+  const created = (await app.inject({
+    method: 'POST', url: '/api/admin/people', headers: auth,
+    payload: { name: 'Gone Greg', short: 'Greg', initials: 'GG', av: '#123456' },
+  })).json()
+  const seat = await seatFor(db, created.id)
+  const [f] = await db.select().from(event).limit(1)
+  await db.insert(support).values({ sweepId: 'default', fixtureId: f.id, personId: created.id, teamCode: 'zz' })
+
+  const off = await app.inject({
+    method: 'PATCH', url: `/api/admin/people/${created.id}`, headers: auth, payload: { ejected: true },
+  })
+  expect(off.statusCode).toBe(200)
+  expect(off.json().ejected).toBe(true)
+
+  const act = await app.inject({
+    method: 'POST', url: '/api/support', headers: { ...auth, ...seat },
+    payload: { fixtureId: f.id, teamCode: 'zz' },
+  })
+  expect(act.statusCode).toBe(403)
+  expect(act.json()).toEqual({ error: 'no_seat' })
+  // their history is still there — the leaderboard keeps its shape
+  expect(await db.select().from(support).where(eq(support.personId, created.id))).toHaveLength(1)
+
+  const on = await app.inject({
+    method: 'PATCH', url: `/api/admin/people/${created.id}`, headers: auth, payload: { ejected: false },
+  })
+  expect(on.json().ejected).toBe(false)
+
+  await db.delete(support).where(eq(support.personId, created.id))
+  await releaseSeat(db, created.id)
+  await db.delete(person).where(eq(person.id, created.id))
+})
+
+test('a member cannot invite or eject anyone', async () => {
+  const cookie = await memberCookie(app)
+  const [p] = await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1)
+  const res = await app.inject({
+    method: 'PATCH', url: `/api/admin/people/${p.id}`, headers: { cookie }, payload: { ejected: true },
+  })
+  expect(res.statusCode).toBe(403)
+})
+
+test('the account console can say how many of a sweep have actually joined', async () => {
+  const auth = await adminHeaders(app, db, 'default', 'ac_seed')
+  const seat = await seatFor(db, 'p4')
+  try {
+    const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: auth })).json()
+    const row = rows.find((r) => r.id === 'default')
+    expect(row.members.total).toBeGreaterThan(0)
+    expect(row.members.registered).toBeGreaterThanOrEqual(1)
+    expect(row.members.registered).toBeLessThanOrEqual(row.members.total)
+  } finally { await releaseSeat(db, 'p4') }
 })

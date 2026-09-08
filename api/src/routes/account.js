@@ -1,5 +1,5 @@
-import { eq, and, ne, isNull, isNotNull, gt, sql } from 'drizzle-orm'
-import { account, accountSession, loginToken, catalogLeague, competition, event, sweep } from '../db/schema.js'
+import { eq, and, ne, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
+import { account, accountSession, loginToken, catalogLeague, competition, event, person, sweep } from '../db/schema.js'
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
 import { requireSweep } from '../sweeps/auth.js'
@@ -341,7 +341,24 @@ export async function accountRoutes(app) {
 
   app.get('/api/account/sweeps', { preHandler: accountGuard }, async (req) => {
     const rows = await app.db.select().from(sweep).where(eq(sweep.accountId, req.account.id))
-    return rows.map((r) => ({ id: r.id, name: r.name, competitionId: r.competitionId, archivedAt: r.archivedAt, createdAt: r.createdAt, ...links(app, r) }))
+    // "how many have actually joined" is the question the console could not answer.
+    // count(col) skips NULLs, so `registered` is free once we are grouping anyway.
+    const counts = new Map()
+    if (rows.length) {
+      const tallies = await app.db.select({
+        sweepId: person.sweepId,
+        total: sql`count(*)::int`,
+        registered: sql`count(${person.accountId})::int`,
+      }).from(person)
+        .where(inArray(person.sweepId, rows.map((r) => r.id)))
+        .groupBy(person.sweepId)
+      for (const t of tallies) counts.set(t.sweepId, { total: t.total, registered: t.registered })
+    }
+    return rows.map((r) => ({
+      id: r.id, name: r.name, competitionId: r.competitionId, archivedAt: r.archivedAt,
+      createdAt: r.createdAt, members: counts.get(r.id) ?? { total: 0, registered: 0 },
+      ...links(app, r),
+    }))
   })
 
   app.post('/api/account/sweeps/:id/archive', { preHandler: accountGuard }, async (req, reply) => {
