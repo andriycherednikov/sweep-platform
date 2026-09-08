@@ -66,10 +66,13 @@ export const postParlay = ({ personId, stake, legs }) => post('/api/parlay', { p
 
 // `extra` headers (e.g. adminHeaders() below) are opt-in per call, never ambient:
 // only the handful of call sites that need them pass them.
+// Each throw carries `.status`: the operator console (screens-super.jsx) tells "sign in"
+// (401) apart from "not an operator" (403) by the code, never by reading a role field
+// the client can't verify — the server is the only authority on that.
 async function getCreds(path, extra) {
   const headers = { ...sweepHeaders(), ...extra }
   const res = await fetch(path, { credentials: 'include', ...(Object.keys(headers).length ? { headers } : {}) })
-  if (!res.ok) throw new Error(`GET ${path} failed: HTTP ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`GET ${path} failed: HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
 async function postCreds(path, body, extra) {
@@ -78,7 +81,7 @@ async function postCreds(path, body, extra) {
     headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`POST ${path} failed: HTTP ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`POST ${path} failed: HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
 async function patchCreds(path, body, extra) {
@@ -87,7 +90,7 @@ async function patchCreds(path, body, extra) {
     headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`PATCH ${path} failed: HTTP ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`PATCH ${path} failed: HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
 async function deleteCreds(path, body, extra) {
@@ -96,15 +99,15 @@ async function deleteCreds(path, body, extra) {
     headers: { 'Content-Type': 'application/json', ...sweepHeaders(), ...extra },
     body: JSON.stringify(body),
   })
-  if (!res.ok) throw new Error(`DELETE ${path} failed: HTTP ${res.status}`)
+  if (!res.ok) throw Object.assign(new Error(`DELETE ${path} failed: HTTP ${res.status}`), { status: res.status })
   return res.json()
 }
 
-/** Proof of sweep ownership for the dozen /api/admin/* calls only — never folded into
- *  sweepHeaders(), which rides on every fetch the SPA makes. That would make a 90-day
- *  account credential ambient across the whole member app: on a shared browser,
- *  whoever opens a sweep next would silently inherit admin over every sweep the
- *  account owns. Attached only where the server actually checks it. */
+/** Proof of account auth for the dozen /api/admin/* calls and the operator's
+ *  /api/super/* calls — never folded into sweepHeaders(), which rides on every fetch
+ *  the SPA makes. That would make a 90-day account credential ambient across the whole
+ *  member app: on a shared browser, whoever opens a sweep next would silently inherit
+ *  admin over every sweep the account owns. Attached only where the server checks it. */
 const adminHeaders = () => {
   const token = getAccountToken()
   return token ? { 'x-account-token': token } : {}
@@ -142,15 +145,12 @@ export const bulkPostOwnership = (items) => postCreds('/api/admin/ownership/bulk
 export const bulkDeleteOwnership = (items) => deleteCreds('/api/admin/ownership/bulk', { items }, adminHeaders())
 
 // --- super-admin (platform owner) ---
-// patchCreds(path, body) is defined above (Slice 3); imported/used here, never redefined.
-// POST /api/super/session is gone (operator status now comes from account role, not a
-// shared token), but screens-super.jsx's sign-in still calls this — replacing it is a
-// separate task (operator account sign-in) that touches that whole screen. Left in place,
-// still 404ing, so that screen's build doesn't break out from under an unrelated task.
-export const postSuperSession = (token) => postCreds('/api/super/session', { token })
-export const fetchSuperSweeps = () => getCreds('/api/super/sweeps')
-export const createSweep = (name) => postCreds('/api/super/sweeps', { name })
-export const rotateSweepToken = (id, which) => postCreds(`/api/super/sweeps/${id}/rotate`, { which })
-export const archiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/archive`, {})
-export const unarchiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/unarchive`, {})
-export const patchSweep = (id, fields) => patchCreds(`/api/super/sweeps/${id}`, fields)
+// An operator is an ordinary account whose role the server checks (requireOperator) —
+// there is no separate super token or session to sign in with any more. No create and
+// no rotate here: those routes are gone server-side (Task 10) — a member token minted
+// by an operator is the ability to walk into any group's sweep, which operating on a
+// sweep must never mean.
+export const fetchSuperSweeps = () => getCreds('/api/super/sweeps', adminHeaders())
+export const archiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/archive`, {}, adminHeaders())
+export const unarchiveSweep = (id) => postCreds(`/api/super/sweeps/${id}/unarchive`, {}, adminHeaders())
+export const patchSweep = (id, fields) => patchCreds(`/api/super/sweeps/${id}`, fields, adminHeaders())

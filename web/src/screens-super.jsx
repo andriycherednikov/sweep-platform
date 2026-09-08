@@ -1,12 +1,11 @@
 /* ============================================================
    THE SWEEP — super-admin (platform owner) console
-   Token-gated: list / create / rotate / archive / rename sweeps.
+   Account-gated: list / archive / rename sweeps.
    ============================================================ */
 import { useState, useEffect, useCallback } from "react";
 import { Icon, PageHeader } from "./components.jsx";
 import {
-  postSuperSession, fetchSuperSweeps, createSweep, rotateSweepToken,
-  archiveSweep, unarchiveSweep, patchSweep,
+  fetchSuperSweeps, archiveSweep, unarchiveSweep, patchSweep,
 } from "./api/client.js";
 
 /* readonly, tap-to-select link field — "copyable" without a clipboard dependency */
@@ -25,7 +24,7 @@ export function LinkField({ label, value }) {
   );
 }
 
-/* one sweep row: rename, rotate member/admin (with tail note), archive/restore */
+/* one sweep row: rename, archive/restore */
 function SweepRow({ s, onToast, reload }) {
   const [name, setName] = useState(s.name || "");
   const [busy, setBusy] = useState(false);
@@ -56,136 +55,93 @@ function SweepRow({ s, onToast, reload }) {
       </div>
 
       {/* The default sweep is host-bound (no capability tokens); only its name is editable.
-          No link is ever shown here: a live member token in the operator console is the
-          ability to enter a customer's sweep, which the API deliberately stopped handing
-          out (fetchSuperSweeps() carries no link fields any more). */}
+          No link is ever shown here, and no rotate button either: a live member token in
+          the operator console is the ability to open a customer's sweep as one of its
+          members, which the API deliberately stopped handing out (fetchSuperSweeps()
+          carries no link fields, and the rotate route is gone server-side). */}
       {s.kind !== "default" && (
-        <>
-          <div className="super-actions">
-            <button className="allocbtn" disabled={busy} aria-label={`Rotate member ${s.id}`}
-              onClick={() => run(() => rotateSweepToken(s.id, "member"), "Member link rotated")}>Rotate member link</button>
-            <button className="allocbtn" disabled={busy} aria-label={`Rotate admin ${s.id}`}
-              onClick={() => run(() => rotateSweepToken(s.id, "admin"), "Admin link rotated")}>Rotate admin link</button>
-            {archived
-              ? <button className="allocbtn" disabled={busy} aria-label={`Restore ${s.id}`}
-                  onClick={() => run(() => unarchiveSweep(s.id), "Restored")}>Restore</button>
-              : <button className="allocbtn danger" disabled={busy} aria-label={`Archive ${s.id}`}
-                  onClick={() => run(() => archiveSweep(s.id), "Archived")}>Archive</button>}
-          </div>
-        </>
+        <div className="super-actions">
+          {archived
+            ? <button className="allocbtn" disabled={busy} aria-label={`Restore ${s.id}`}
+                onClick={() => run(() => unarchiveSweep(s.id), "Restored")}>Restore</button>
+            : <button className="allocbtn danger" disabled={busy} aria-label={`Archive ${s.id}`}
+                onClick={() => run(() => archiveSweep(s.id), "Archived")}>Archive</button>}
+        </div>
       )}
     </div>
   );
 }
 
-function SuperList({ onToast }) {
-  const [sweeps, setSweeps] = useState([]);
-  const [newName, setNewName] = useState("");
-  const [created, setCreated] = useState(null); // {name}
-  const [busy, setBusy] = useState(false);
-
-  const reload = useCallback(async () => {
-    try { setSweeps(await fetchSuperSweeps()); }
-    catch { onToast("Couldn't load sweeps"); }
-  }, [onToast]);
-
-  useEffect(() => { reload(); }, [reload]);
-
-  async function create() {
-    const nm = newName.trim();
-    if (!nm || busy) return;
-    setBusy(true);
-    try {
-      const res = await createSweep(nm);
-      setCreated(res);
-      setNewName("");
-      await reload();
-      onToast("Sweep created");
-    } catch { onToast("Create failed — try again"); }
-    finally { setBusy(false); }
-  }
-
+function SweepList({ sweeps, onToast, reload }) {
   return (
     <div className="scroll pad screen-anim" style={{ paddingTop: 12 }}>
       <div className="wrap super-wrap">
-        {/* create */}
-        <div className="block" style={{ padding: "12px 14px", marginBottom: 14 }}>
-          <div className="field">
-            <label>New sweep</label>
-            <div className="super-row">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="New sweep name" style={{ flex: 1 }} />
-              <button className="allocbtn primary" disabled={busy || !newName.trim()} onClick={create}>Create sweep</button>
-            </div>
-          </div>
-          {created && (
-            <div style={{ marginTop: 10 }}>
-              {/* No link shown: an operator holding a member link could enter the group's
-                  sweep as one of its members, which fetchSuperSweeps()/createSweep() no
-                  longer hand out. */}
-              <div style={{ fontSize: 12, fontWeight: 700, color: "var(--live)" }}>“{created.name}” created.</div>
-            </div>
-          )}
-        </div>
-
-        <div className="note-line" style={{ marginBottom: 12 }}>
-          <Icon.shield style={{ stroke: "var(--live)" }} />
-          <span>Rotating a link takes effect immediately for new joins; the old link keeps working for up to 8h while existing sessions expire.</span>
-        </div>
-
         {sweeps.map((s) => <SweepRow key={s.id} s={s} onToast={onToast} reload={reload} />)}
-        {sweeps.length === 0 && <div className="empty"><div className="ic">🗂️</div><h3>No sweeps yet</h3><p>Create the first one above.</p></div>}
+        {sweeps.length === 0 && <div className="empty"><div className="ic">🗂️</div><h3>No sweeps yet</h3><p>Sweeps appear here once an owner sets one up.</p></div>}
       </div>
     </div>
   );
 }
 
-export function SuperConsole({ onBack, onToast, autoToken }) {
-  const [unlocked, setUnlocked] = useState(false);
-  const [token, setToken] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
+/** Not signed in (401) vs signed in but not an operator (403) — told apart only by the
+ *  HTTP status the server actually returned, never by a role field the client reads
+ *  off its own account. The server is the one authority on who is an operator. */
+function LockedOut({ status, onBack }) {
+  const forbidden = status === "forbidden";
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <PageHeader title="Super admin" sub="Platform owner only" onBack={onBack} />
+      <div className="scroll pad screen-anim" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 28, textAlign: "center" }}>
+        <div className="lockic"><Icon.lock /></div>
+        <h3 style={{ fontFamily: "'Barlow Condensed'", fontWeight: 800, fontSize: 20, textTransform: "uppercase", color: "var(--navy)" }}>
+          {forbidden ? "Not an operator" : "Sign in required"}
+        </h3>
+        <p style={{ fontSize: 12.5, color: "var(--muted2)", marginTop: 8, maxWidth: 320 }}>
+          {forbidden
+            ? "This account isn't allowed to run the platform console."
+            : "The super console runs on your account, not a link — sign in to continue."}
+        </p>
+        {!forbidden && (
+          <a className="cta" href="/account" style={{ marginTop: 14, maxWidth: 360, width: "100%" }}>Sign in</a>
+        )}
+      </div>
+    </div>
+  );
+}
 
-  const submit = useCallback(async (t) => {
-    const tk = (t ?? "").trim();
-    if (!tk) return;
-    setBusy(true); setError(false);
-    try { await postSuperSession(tk); setUnlocked(true); }
-    catch { setError(true); }
-    finally { setBusy(false); }
+export function SuperConsole({ onBack, onToast }) {
+  const [status, setStatus] = useState("checking"); // checking | signedOut | forbidden | ok
+  const [sweeps, setSweeps] = useState([]);
+
+  const reload = useCallback(async () => {
+    try {
+      const rows = await fetchSuperSweeps();
+      setSweeps(rows);
+      setStatus("ok");
+    } catch (err) {
+      setStatus(err?.status === 403 ? "forbidden" : "signedOut");
+    }
   }, []);
 
-  // /super/<token> deep link: auto-submit once on mount
-  useEffect(() => { if (autoToken) submit(autoToken); }, [autoToken, submit]);
+  // No token to submit any more — the account session already carries whatever role
+  // it has, so the console just tries the listing and reads what the server says.
+  useEffect(() => { reload(); }, [reload]);
 
-  if (!unlocked) {
+  if (status === "checking") {
     return (
       <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
         <PageHeader title="Super admin" sub="Platform owner only" onBack={onBack} />
-        <div className="scroll pad screen-anim" style={{ display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 28 }}>
-          <div className="lockic"><Icon.lock /></div>
-          <h3 style={{ fontFamily: "'Barlow Condensed'", fontWeight: 800, fontSize: 20, textTransform: "uppercase", color: "var(--navy)" }}>Enter super token</h3>
-          <div className="field" style={{ width: "100%", maxWidth: 360, marginTop: 14 }}>
-            <input
-              type="password"
-              value={token}
-              onChange={(e) => setToken(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") submit(token); }}
-              placeholder="Super token"
-            />
-          </div>
-          {error && <p style={{ fontSize: 12.5, color: "var(--accent)", marginTop: 8 }}>That token didn’t work.</p>}
-          <button className="cta" disabled={busy || !token.trim()} onClick={() => submit(token)} style={{ marginTop: 14, maxWidth: 360, width: "100%" }}>
-            {busy ? "Checking…" : "Unlock"}
-          </button>
-        </div>
+        <div className="sweep-gate" />
       </div>
     );
   }
 
+  if (status !== "ok") return <LockedOut status={status} onBack={onBack} />;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <PageHeader title="Super admin" sub="Sweeps" onBack={onBack} right={<div className="iconbtn"><Icon.shield /></div>} />
-      <SuperList onToast={onToast} />
+      <SweepList sweeps={sweeps} onToast={onToast} reload={reload} />
     </div>
   );
 }

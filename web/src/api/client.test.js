@@ -291,21 +291,12 @@ test('bulkPostOwnership and bulkDeleteOwnership send items to the bulk route', a
   expect(JSON.parse(calls[1].opts.body)).toEqual({ items })
 })
 
-// The route is gone (operator status comes from account role now), but the caller in
-// screens-super.jsx is out of scope here — kept so that screen keeps building.
-test('postSuperSession POSTs the token to /api/super/session with credentials', async () => {
-  const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ super: true }) } }))
-  const { postSuperSession } = await import('./client.js')
-  const res = await postSuperSession('sup3rt0ken')
-  expect(res).toEqual({ super: true })
-  expect(calls[0].url).toMatch(/\/api\/super\/session$/)
-  expect(calls[0].opts.method).toBe('POST')
-  expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ token: 'sup3rt0ken' })
-})
-
-test('fetchSuperSweeps GETs /api/super/sweeps with credentials', async () => {
+// No create, no rotate, no separate super session any more: an operator is just an
+// account whose role the server checks via x-account-token (requireOperator) — the
+// same credential /api/admin/* calls carry, attached the same opt-in way.
+test('fetchSuperSweeps GETs /api/super/sweeps with credentials and the account-token header', async () => {
+  const { setAccountToken } = await import('../lib/accountClient.js')
+  setAccountToken('op_tok')
   const calls = []
   vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ([{ id: 'sw_a', name: 'A' }]) } }))
   const { fetchSuperSweeps } = await import('./client.js')
@@ -313,29 +304,13 @@ test('fetchSuperSweeps GETs /api/super/sweeps with credentials', async () => {
   expect(list).toHaveLength(1)
   expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
   expect(calls[0].opts.credentials).toBe('include')
+  expect(calls[0].opts.headers['x-account-token']).toBe('op_tok')
 })
 
-test('createSweep POSTs the name and returns the link bundle', async () => {
-  const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 201, json: async () => ({ id: 'sw_b', name: 'Office', memberLink: '/g/m' }) } }))
-  const { createSweep } = await import('./client.js')
-  const res = await createSweep('Office')
-  expect(res.memberLink).toBe('/g/m')
-  expect(calls[0].url).toMatch(/\/api\/super\/sweeps$/)
-  expect(calls[0].opts.method).toBe('POST')
-  expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ name: 'Office' })
-})
-
-test('rotateSweepToken POSTs which to the rotate route', async () => {
-  const calls = []
-  vi.stubGlobal('fetch', vi.fn(async (url, opts) => { calls.push({ url, opts }); return { ok: true, status: 200, json: async () => ({ memberLink: '/g/new' }) } }))
-  const { rotateSweepToken } = await import('./client.js')
-  await rotateSweepToken('sw_a', 'member')
-  expect(calls[0].url).toMatch(/\/api\/super\/sweeps\/sw_a\/rotate$/)
-  expect(calls[0].opts.method).toBe('POST')
-  expect(calls[0].opts.credentials).toBe('include')
-  expect(JSON.parse(calls[0].opts.body)).toEqual({ which: 'member' })
+test('a failed fetchSuperSweeps throws an Error carrying the HTTP status (401 vs 403 tell sign-in apart from non-operator)', async () => {
+  vi.stubGlobal('fetch', vi.fn(async () => ({ ok: false, status: 403, json: async () => ({ error: 'forbidden' }) })))
+  const { fetchSuperSweeps } = await import('./client.js')
+  await expect(fetchSuperSweeps()).rejects.toMatchObject({ status: 403 })
 })
 
 test('archiveSweep and unarchiveSweep hit their routes with credentials', async () => {

@@ -14,10 +14,7 @@ vi.mock('./lib/analytics.js', () => ({
 }))
 vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
-  postSuperSession: vi.fn(async () => ({ super: true })),
   fetchSuperSweeps: vi.fn(async () => ([])),
-  createSweep: vi.fn(async () => ({})),
-  rotateSweepToken: vi.fn(async () => ({})),
   archiveSweep: vi.fn(async () => ({})),
   unarchiveSweep: vi.fn(async () => ({})),
   patchSweep: vi.fn(async () => ({})),
@@ -98,19 +95,18 @@ test('navigating to /sweeps opens the My-sweeps switcher overlay', () => {
   expect(screen.getByText('Office')).toBeInTheDocument()
 })
 
-test('opening /super renders the SuperConsole token prompt', () => {
+test('opening /super renders the SuperConsole with no token prompt', async () => {
   window.history.replaceState(null, '', '/super')
-  const { getByPlaceholderText, getByRole } = render(<App />)
-  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
-  expect(getByRole('button', { name: /unlock/i })).toBeTruthy()
+  const { findByText, queryByPlaceholderText } = render(<App />)
+  // an operator account session, not a token: the console just lists (mock resolves empty)
+  expect(await findByText(/no sweeps yet/i)).toBeTruthy()
+  expect(queryByPlaceholderText(/token/i)).toBeNull()
 })
 
-test('readView maps /super/<token> so the console can auto-submit it', () => {
-  // /super/<token> must resolve to the super overlay; the token rides along for auto-submit.
-  window.history.replaceState(null, '', '/super/sekret')
-  const { getByPlaceholderText } = render(<App />)
-  // still the super overlay (prompt visible before the async auto-submit resolves)
-  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
+test('readView maps /super/<token> to the super overlay (the token rides along, unused by the console)', () => {
+  // /super/<token> must still resolve to the super overlay — main.jsx relies on this to
+  // strip the token from the URL on load, even though SuperConsole no longer submits it.
+  expect(readView('/super/sekret')).toMatchObject({ overlay: { type: 'super', token: 'sekret' } })
 })
 
 test('urlFor never includes the super token (analytics + history never see it)', () => {
@@ -119,14 +115,14 @@ test('urlFor never includes the super token (analytics + history never see it)',
   expect(urlFor({ tab: 'home', overlay: { type: 'super', token: null } })).toBe('/super')
 })
 
-test('mounting /super/<token> strips the token from the URL but still auto-submits it', async () => {
+test('mounting /super/<token> strips the token from the URL; the console loads on the account session, not the token', async () => {
   window.history.replaceState(null, '', '/super/sekret')
   render(<App />)
   // token is gone from the address bar immediately (no lingering secret, no GA leak)
   expect(window.location.pathname).toBe('/super')
   expect(window.location.href).not.toContain('sekret')
-  // ...but the console still received it (via in-memory state) and auto-submitted
-  await waitFor(() => expect(client.postSuperSession).toHaveBeenCalledWith('sekret'))
+  // ...and the console never sees or uses it — it just lists on whatever session exists
+  await waitFor(() => expect(client.fetchSuperSweeps).toHaveBeenCalled())
 })
 
 test('the super pageview path sent to analytics excludes the token', async () => {

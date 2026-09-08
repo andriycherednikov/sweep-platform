@@ -3,7 +3,6 @@ import { render, fireEvent, waitFor } from '@testing-library/react'
 
 // Mock the whole client module; assert observable calls (no spyOn of ESM named imports).
 vi.mock('./api/client.js', () => ({
-  postSuperSession: vi.fn(async () => ({ super: true })),
   // The real listing carries no link field at all — a live member token in the
   // operator console is the ability to enter a customer's sweep as one of its
   // members, which the API deliberately stopped handing out.
@@ -11,8 +10,6 @@ vi.mock('./api/client.js', () => ({
     { id: 'sw_a', name: 'Office Sweep', kind: 'group', archivedAt: null, createdAt: '2026-06-01T00:00:00Z', accountId: 'acc_1', competitionId: 'c1' },
     { id: 'sw_b', name: 'Pub Sweep', kind: 'group', archivedAt: '2026-06-02T00:00:00Z', createdAt: '2026-06-01T00:00:00Z', accountId: 'acc_2', competitionId: 'c1' },
   ])),
-  createSweep: vi.fn(async () => ({ id: 'sw_c', name: 'New One' })),
-  rotateSweepToken: vi.fn(async () => ({})),
   archiveSweep: vi.fn(async () => ({})),
   unarchiveSweep: vi.fn(async () => ({})),
   patchSweep: vi.fn(async () => ({})),
@@ -24,56 +21,43 @@ import * as client from './api/client.js'
 const noop = () => {}
 beforeEach(() => { vi.clearAllMocks() })
 
-test('SuperConsole prompts for the super token when not yet authed', () => {
-  const { getByPlaceholderText, getByRole, queryByText } = render(<SuperConsole onBack={noop} onToast={noop} />)
-  expect(getByPlaceholderText(/super token/i)).toBeTruthy()
-  expect(getByRole('button', { name: /unlock/i })).toBeTruthy()
-  // the list is not rendered until authed
-  expect(queryByText('Office Sweep')).toBeNull()
-})
-
-test('submitting the token unlocks and lists the sweeps with kind + archived state', async () => {
-  const { getByPlaceholderText, getByRole, findByText, getByText } = render(<SuperConsole onBack={noop} onToast={noop} />)
-  fireEvent.change(getByPlaceholderText(/super token/i), { target: { value: 'tok' } })
-  fireEvent.click(getByRole('button', { name: /unlock/i }))
-  expect(client.postSuperSession).toHaveBeenCalledWith('tok')
+// There is no token to submit any more: an operator is an ordinary account whose role
+// the server checks. The console just tries the listing and reads what came back.
+test('lists the sweeps straight away, with kind + archived state, no sign-in step', async () => {
+  const { findByText, getByText, queryByPlaceholderText } = render(<SuperConsole onBack={noop} onToast={noop} />)
   expect(await findByText('Office Sweep')).toBeTruthy()
   expect(getByText('Pub Sweep')).toBeTruthy()
   expect(client.fetchSuperSweeps).toHaveBeenCalledTimes(1)
-  // archived sweep is flagged
   expect(getByText(/Archived/)).toBeTruthy()
+  expect(queryByPlaceholderText(/token/i)).toBeNull()
 })
 
-test('an autoToken prop auto-submits the super token and skips the prompt', async () => {
-  const { findByText, queryByPlaceholderText } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
-  await waitFor(() => expect(client.postSuperSession).toHaveBeenCalledWith('secret'))
-  expect(await findByText('Office Sweep')).toBeTruthy()
-  expect(queryByPlaceholderText(/super token/i)).toBeNull()
+test('a 401 (signed out) points at /account instead of prompting for a token', async () => {
+  client.fetchSuperSweeps.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
+  const { findByRole, queryByText } = render(<SuperConsole onBack={noop} onToast={noop} />)
+  expect(await findByRole('link', { name: /sign in/i })).toHaveAttribute('href', '/account')
+  expect(queryByText('Office Sweep')).toBeNull()
 })
 
-test('creating a sweep confirms by name, with no link rendered', async () => {
-  const { getByPlaceholderText, getByRole, findByText, queryByDisplayValue } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
-  await findByText('Office Sweep') // wait for unlock + initial load
-  fireEvent.change(getByPlaceholderText(/new sweep name/i), { target: { value: 'New One' } })
-  fireEvent.click(getByRole('button', { name: /create sweep/i }))
-  await waitFor(() => expect(client.createSweep).toHaveBeenCalledWith('New One'))
-  expect(await findByText(/“New One” created/)).toBeTruthy()
+test('a 403 (signed in, not an operator) says so — and never invites signing in again', async () => {
+  client.fetchSuperSweeps.mockRejectedValueOnce(Object.assign(new Error('HTTP 403'), { status: 403 }))
+  const { findByText, queryByRole } = render(<SuperConsole onBack={noop} onToast={noop} />)
+  expect(await findByText(/not an operator/i)).toBeTruthy()
+  expect(queryByRole('link', { name: /sign in/i })).toBeNull()
+})
+
+test('no create-sweep form and no rotate buttons — those routes are gone', async () => {
+  const { findByText, queryByPlaceholderText, queryByRole, queryByDisplayValue } = render(<SuperConsole onBack={noop} onToast={noop} />)
+  await findByText('Office Sweep')
+  expect(queryByPlaceholderText(/new sweep name/i)).toBeNull()
+  expect(queryByRole('button', { name: /create sweep/i })).toBeNull()
+  expect(queryByRole('button', { name: /rotate/i })).toBeNull()
   // no member/admin link field anywhere in the console
   expect(queryByDisplayValue(/^\/g\//)).toBeNull()
 })
 
-test('rotate shows the <=8h tail note and calls rotateSweepToken', async () => {
-  const { getByText, getAllByRole, findByText } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
-  await findByText('Office Sweep')
-  // tail note is visible in the console
-  expect(getByText(/up to 8h/i)).toBeTruthy()
-  const rotateButtons = getAllByRole('button', { name: /rotate member/i })
-  fireEvent.click(rotateButtons[0])
-  await waitFor(() => expect(client.rotateSweepToken).toHaveBeenCalledWith('sw_a', 'member'))
-})
-
 test('archive/unarchive call the right action per row state', async () => {
-  const { getByRole, findByText } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
+  const { getByRole, findByText } = render(<SuperConsole onBack={noop} onToast={noop} />)
   await findByText('Office Sweep')
   // active sweep (sw_a) shows Archive; archived sweep (sw_b) shows Restore
   fireEvent.click(getByRole('button', { name: /^Archive sw_a$/ }))
@@ -83,7 +67,7 @@ test('archive/unarchive call the right action per row state', async () => {
 })
 
 test('rename submits the new name via patchSweep', async () => {
-  const { getByDisplayValue, getByRole, findByText } = render(<SuperConsole onBack={noop} onToast={noop} autoToken="secret" />)
+  const { getByDisplayValue, getByRole, findByText } = render(<SuperConsole onBack={noop} onToast={noop} />)
   await findByText('Office Sweep')
   const nameInput = getByDisplayValue('Office Sweep')
   fireEvent.change(nameInput, { target: { value: 'Renamed Sweep' } })
