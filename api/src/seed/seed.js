@@ -28,9 +28,17 @@ export async function seed(db) {
     id: COMPETITION_ID, provider: 'apifootball', sport: 'football', leagueId: '1',
     season: '2026', format: 'groups_then_ko', name: 'World Cup 2026',
   }).onConflictDoNothing()
+  // The seeded sweep is owned, like every real sweep. 'active' is not decoration:
+  // an owned sweep whose account is neither subscribed nor in trial is read-only
+  // (accounts/billing.js:10-16), which would 403 every mutating test in the suite.
+  await db.insert(s.account).values({
+    id: 'ac_seed', email: 'seed@example.test', name: 'Seed Owner',
+    subscriptionStatus: 'active',
+  }).onConflictDoNothing()
   await db.insert(s.sweep).values({
     id: 'default', name: 'The Sweep', kind: 'default', scoringRule: 'top3',
     coOwners: 'all_win', competitionId: COMPETITION_ID, wageringEnabled: true,
+    memberToken: 'seedmembertoken000000', accountId: 'ac_seed',
   }).onConflictDoNothing()
 
   for (const code of Object.keys(g.teams)) {
