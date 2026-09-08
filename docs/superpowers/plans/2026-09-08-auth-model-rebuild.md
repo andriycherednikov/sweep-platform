@@ -1038,34 +1038,46 @@ git commit -m "feat(api): sign in with a password, and be able to sign out again
 
 ## Task 8: Move the admin and super tests onto account sessions
 
-No source changes. Both the old and new credentials work at this point, which is what makes this safe and what makes Task 10 cheap.
+Mostly no source changes — the exception is a small bridge in `requireSuper`, forced by
+a gap this plan didn't originally see (below). Both the old and new credentials work at
+this point, which is what makes the rest of this safe and what makes Task 10 cheap.
 
-**Files (test only):**
-- Modify: `api/test/admin-auth.test.js`, `admin-open-bets.test.js`, `admin-people.test.js`, `admin-photos.test.js`, `admin-settle-stale.test.js`, `wagering-gate.test.js` — swap the `POST /api/admin/login` helper for `ownerHeaders(db)`.
-- Modify: `api/test/sweeps-admin.test.js`, `sweeps-super.test.js`, `correct-fixture.test.js` — swap `superCookie()` for an operator account session.
+**`admin-auth.test.js` is not migrated.** All four of its tests exercise the passcode
+mechanism itself — `POST /api/admin/login` and `/logout` directly, plus a 403-without-
+a-cookie case that depends on the `DEFAULT_SWEEP_ID` fallback — not a helper used to
+reach something else. There is no operator-session analog for "wrong passcode" or
+"logout"; those are already covered for the new mechanism elsewhere
+(`account-password.test.js`). Migrating it would mean asserting on the passcode route
+regardless or deleting assertions — this file's fate is Task 10 deleting it wholesale,
+not a Task 8 migration.
+
+**Files (test only, except the bridge in Step 4):**
+- Modify: `api/test/admin-open-bets.test.js`, `admin-people.test.js`, `admin-photos.test.js`, `admin-settle-stale.test.js`, `wagering-gate.test.js` — swap the `POST /api/admin/login` helper for `ownerHeaders(db)`. (Five files, not six — `admin-auth.test.js` is excluded, see above.)
+- Modify: `api/src/sweeps/auth.js` — make `requireSuper` accept an operator account session as well as the legacy cookie (Step 4).
+- Modify: `api/test/sweeps-admin.test.js`, `sweeps-isolation.test.js`, `correct-fixture.test.js` — swap `superCookie()` for an operator account session.
 
 - [ ] **Step 1: Migrate one file and prove the pattern**
 
-In `api/test/admin-auth.test.js`, replace the passcode-login helper with:
+In `api/test/admin-open-bets.test.js`, replace the passcode-login helper with:
 
 ```js
-import { ownerHeaders } from './helpers/session.js'
-// …and at each call site, replace `{ cookie: await adminCookie() }` with
+import { memberCookie, ownerHeaders } from './helpers/session.js'
+// …and at each call site, replace the passcode-minted cookie with
 // `{ cookie: await memberCookie(app), ...(await ownerHeaders(db)) }`.
 ```
 
 Run it:
 
 ```bash
-cd api && npx vitest run test/admin-auth.test.js
+cd api && npx vitest run test/admin-open-bets.test.js
 ```
 
 Expected: PASS.
 
-- [ ] **Step 2: Migrate the remaining five passcode files, running each**
+- [ ] **Step 2: Migrate the remaining four passcode files, running each**
 
 ```bash
-cd api && npx vitest run test/admin-open-bets.test.js test/admin-people.test.js test/admin-photos.test.js test/admin-settle-stale.test.js test/wagering-gate.test.js
+cd api && npx vitest run test/admin-people.test.js test/admin-photos.test.js test/admin-settle-stale.test.js test/wagering-gate.test.js
 ```
 
 `admin-photos.test.js` has three separate login blocks — all three must move.
@@ -1078,7 +1090,51 @@ git add api/test
 git commit -m "test(api): admin tests authenticate as the owner, not a passcode"
 ```
 
-- [ ] **Step 4: Migrate the three super files**
+- [ ] **Step 4: Make `requireSuper` transitional, and test the bridge**
+
+There is no free path for the three super files the way there was for the admin ones.
+`sweepResolver` already merges account ownership into `req.role` (Task 3), which is
+*why* the admin routes tolerate either credential today — but `requireSuper` is a
+wholly separate guard that only ever checks `req.cookies[SUPER_COOKIE]`. It has no path
+to `req.account` at all, so an operator's `x-account-token` sent alone to any
+`/api/super/*` route 401s right now. Build the same additive bridge Task 3 built for
+the admin path, in `api/src/sweeps/auth.js`:
+
+```js
+import { requireOperator } from '../accounts/auth.js'
+
+/** Transitional: the legacy super cookie OR an operator account session. The cookie
+ *  half is deleted in Task 10, at which point this becomes requireOperator outright. */
+export function requireSuper(app) {
+  const operator = requireOperator(app)
+  return async (req, reply) => {
+    const raw = req.cookies?.[SUPER_COOKIE]
+    if (raw) {
+      const un = app.unsignCookie(raw)
+      if (un.valid && un.value === 'ok') return
+    }
+    return operator(req, reply)
+  }
+}
+```
+
+No import cycle: `api/src/sweeps/auth.js` has no imports today, and `api/src/accounts/auth.js` never references `sweeps/`.
+
+Add HTTP-level coverage for the bridge itself (this also closes a Task 5 review finding
+that deferred operator-role coverage to "later") — e.g. in `api/test/operator-role.test.js`,
+which already imports `ownerHeaders` unused: an operator account reaching a super route
+with no cookie (200), a non-operator account on the same route (403), no credentials at
+all (401), and the legacy cookie still working (200) — that last one is what keeps every
+unmigrated super-route call site green until Task 10.
+
+```bash
+cd api && npx vitest run test/operator-role.test.js
+cd api && npx vitest run   # whole suite — confirm nothing else regresses
+git add api/src/sweeps/auth.js api/test/operator-role.test.js
+git commit -m "feat(api): a super route now also accepts an operator, not just the cookie"
+```
+
+- [ ] **Step 5: Migrate the three super files**
 
 Replace `superCookie()` with an operator session. In `api/test/sweeps-admin.test.js`, the memoized helper 11 tests run through becomes:
 
@@ -1097,7 +1153,16 @@ async function operator() {
 }
 ```
 
-While in `correct-fixture.test.js`, add the assertion the super cookie could never express:
+`api/test/sweeps-admin.test.js` has one test — `'super session requires the right
+token'` — that, like `admin-auth.test.js`, exercises `POST /api/super/session` itself
+rather than using it as a helper. Leave it on the cookie; it is Task 10 fallout too.
+
+`sweeps-isolation.test.js` (not `sweeps-super.test.js`, which does not exist — the only
+other file using `superCookie()`) needs the same swap for its one call site, which
+creates a throwaway sweep for the cross-sweep isolation check.
+
+Now that the bridge from Step 4 is live, `correct-fixture.test.js` can carry the
+assertion the super cookie could never express **as a real test, not a stub**:
 
 ```js
 test('a signed-in non-operator account cannot correct a score', async () => {
@@ -1110,9 +1175,7 @@ test('a signed-in non-operator account cannot correct a score', async () => {
 })
 ```
 
-This test **fails** until Task 10 re-guards the route. Mark it `test.todo` here and convert it in Task 10, or write it in Task 10 — do not commit it red.
-
-- [ ] **Step 5: Run the whole suite and commit**
+- [ ] **Step 6: Run the whole suite and commit**
 
 ```bash
 cd api && npx vitest run
@@ -1298,11 +1361,13 @@ git commit -m "feat(api): an owner can finally rename and re-link their own swee
 
 Everything now authenticates the new way, so this removes code without removing capability.
 
-**Delete:** the `onPlatform` fork and the `DEFAULT_SWEEP_ID` fallback in `api/src/sweeps/resolve.js`; `api/src/sweeps/constants.js`; `/api/admin/login` and `/api/admin/logout`; `app.adminHash`; the two admin entries in `read-only.js` `EXEMPT_EXACT`; `api/src/seed/admin-hash.js` and its Makefile target; `POST /api/super/session`; `SUPER_COOKIE`; `requireSuper`; `app.superToken`; `PLATFORM_HOST` and `app.platformHost`.
+**Delete:** the `onPlatform` fork and the `DEFAULT_SWEEP_ID` fallback in `api/src/sweeps/resolve.js`; `api/src/sweeps/constants.js`; `/api/admin/login` and `/api/admin/logout`; `app.adminHash`; the two admin entries in `read-only.js` `EXEMPT_EXACT`; `api/src/seed/admin-hash.js` and its Makefile target; `POST /api/super/session`; `SUPER_COOKIE`; `app.superToken`; `PLATFORM_HOST` and `app.platformHost`.
+
+**Note on `requireSuper`:** Task 8 already made it transitional — legacy cookie OR `requireOperator`, cookie checked first (`api/src/sweeps/auth.js`). This task deletes the cookie-checking branch from inside `requireSuper`, it does not replace the guard reference at each route. Once the branch is gone, `requireSuper(app)` reduces to exactly `requireOperator(app)`; either collapse the function to that one line or delete it and point `superGuard` straight at `requireOperator(app)` — same outcome, whichever reads cleaner in the diff.
 
 **Do not delete:** the remaining `/api/super/*` routes. They keep their paths and move onto `requireOperator` — including `POST /api/super/sweeps/:id/unarchive`, which is the **only** unarchive anywhere. Losing it makes archive irreversible for everyone.
 
-**Files:** `api/src/sweeps/resolve.js`, `api/src/sweeps/constants.js` (delete), `api/src/routes/admin.js`, `api/src/routes/sweeps.js`, `api/src/app.js`, `api/src/sweeps/read-only.js`, `Makefile`, `.env.example`, `docker/.env.docker.example`
+**Files:** `api/src/sweeps/resolve.js`, `api/src/sweeps/constants.js` (delete), `api/src/routes/admin.js`, `api/src/routes/sweeps.js`, `api/src/sweeps/auth.js`, `api/src/app.js`, `api/src/sweeps/read-only.js`, `api/test/admin-auth.test.js` (delete), `Makefile`, `.env.example`, `docker/.env.docker.example`
 
 - [ ] **Step 1: Write the tests that pin the new absence**
 
@@ -1320,15 +1385,15 @@ test('the passcode login is gone', async () => {
 })
 ```
 
-And convert the `test.todo` left in `correct-fixture.test.js` at Task 8 Step 4 into a live test.
+(The non-operator-403 assertion in `correct-fixture.test.js` is already live as of Task 8's `requireSuper` bridge — nothing to convert here.)
 
 - [ ] **Step 2: Run and watch them fail**
 
 ```bash
-cd api && npx vitest run test/owner-admin.test.js test/correct-fixture.test.js
+cd api && npx vitest run test/owner-admin.test.js
 ```
 
-Expected: the anonymous request currently 200s as a member of the default sweep; the passcode login 200s; the non-operator correction succeeds.
+Expected: the anonymous request currently 200s as a member of the default sweep; the passcode login 200s.
 
 - [ ] **Step 3: Simplify the resolver**
 
@@ -1372,7 +1437,7 @@ export function sweepResolver(app) {
 
 - [ ] **Step 4: Delete the passcode and the super session**
 
-Remove `/api/admin/login` and `/api/admin/logout` from `api/src/routes/admin.js` along with their `verifyPasscode` and `DEFAULT_SWEEP_ID` imports, and change its guard to the owner check. Remove `POST /api/super/session`, `SUPER_COOKIE` and `requireSuper` from `api/src/routes/sweeps.js` and `api/src/sweeps/auth.js`; change `superGuard` to `requireOperator(app)`. Remove `app.adminHash`, `app.superToken`, `app.platformHost` and the `PLATFORM_HOST` guard from `api/src/app.js`. Delete `api/src/sweeps/constants.js` and `api/src/seed/admin-hash.js`. Drop the `admin:hash` script and Makefile target, and the `ADMIN_PASSCODE` / `SUPER_ADMIN_TOKEN` / `PLATFORM_HOST` lines from both env examples.
+Remove `/api/admin/login` and `/api/admin/logout` from `api/src/routes/admin.js` along with their `verifyPasscode` and `DEFAULT_SWEEP_ID` imports, and change its guard to the owner check. Also delete `admin-auth.test.js` wholesale — Task 8 deliberately left it untouched because all four of its tests exercise exactly this passcode mechanism, and it has no operator-session analog. Remove `POST /api/super/session` and `SUPER_COOKIE` from `api/src/routes/sweeps.js`. In `api/src/sweeps/auth.js`, `requireSuper` is already transitional (Task 8) — strip its cookie-checking branch (not the whole function) so it collapses to `requireOperator(app)`; `superGuard` can keep calling `requireSuper(app)` unchanged, or be pointed straight at `requireOperator(app)` if `requireSuper` is deleted instead. Remove `app.adminHash`, `app.superToken`, `app.platformHost` and the `PLATFORM_HOST` guard from `api/src/app.js`. Delete `api/src/sweeps/constants.js` and `api/src/seed/admin-hash.js`. Drop the `admin:hash` script and Makefile target, and the `ADMIN_PASSCODE` / `SUPER_ADMIN_TOKEN` / `PLATFORM_HOST` lines from both env examples.
 
 - [ ] **Step 5: Add the audit calls**
 
