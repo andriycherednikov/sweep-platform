@@ -649,10 +649,10 @@ test('PeopleAdmin allocation sheet deletes a person on the second tap', async ()
   deletePerson.mockResolvedValueOnce({ ok: true })
   const { getByText, getByLabelText } = render(<PeopleAdmin onToast={noop} />)
   fireEvent.click(getByText('Ann'))
-  fireEvent.click(getByLabelText('Delete Ann'))
+  fireEvent.click(getByText(/^delete permanently$/i))
   expect(deletePerson).not.toHaveBeenCalled()
-  expect(getByText(/cannot be\s+undone/i)).toBeInTheDocument()
-  fireEvent.click(getByLabelText('Confirm delete Ann'))
+  expect(getByText(/cannot be undone/i)).toBeInTheDocument()
+  fireEvent.click(getByText(/tap again to delete permanently/i))
   await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
 })
 
@@ -1266,4 +1266,28 @@ test('PeopleScreen hides the "Hide eliminated" toggle in the Placement view', ()
   expect(queryByText('Hide eliminated')).toBeInTheDocument() // shown in the Wins view
   act(() => { fireEvent.click(getByText('Placement')) })
   expect(queryByText('Hide eliminated')).not.toBeInTheDocument() // meaningless here → hidden
+})
+
+// The two ways out used to be a bin beside the name and a button lower down, with
+// nothing saying one is reversible and the other is not.
+test('AllocateSheet keeps removing and deleting apart, and explains both', () => {
+  seedPeople()
+  const { getByText, container } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Ann'))
+  expect(getByText(/remove from sweep/i)).toBeInTheDocument()
+  expect(getByText(/^delete permanently$/i)).toBeInTheDocument()
+  expect(getByText(/leaderboard keeps its shape/i)).toBeInTheDocument()
+  expect(getByText(/cannot be undone/i)).toBeInTheDocument()
+  // and the bin is gone from the name row, where it read as a third, unlabelled option
+  expect(container.querySelector('.alloc-remove')).toBeNull()
+})
+
+test("wagers access reads as on or off, not as a person's age", () => {
+  seedPeople()
+  const { getByText, getByRole } = render(<PeopleAdmin onToast={noop} />)
+  fireEvent.click(getByText('Ann'))
+  const toggle = getByRole('switch', { name: /wagers access/i })
+  expect(toggle).toHaveTextContent(/^On$/)
+  fireEvent.click(toggle)
+  expect(toggle).toHaveTextContent(/^Off$/)
 })

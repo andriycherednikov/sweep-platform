@@ -827,18 +827,25 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .mstat-fill.l{background:var(--accent);}
 .mstat-fill.r{background:var(--blue);}
 .mstat-fill:first-child{margin-right:2px;}
-.queueitem{background:var(--card); border:1px solid var(--line); border-radius:16px; overflow:hidden; margin-bottom:12px;}
-.queueitem .qimg{aspect-ratio:16/11; position:relative; background:repeating-linear-gradient(45deg,#e8e3db 0 14px,#e0dad1 14px 28px);}
-.queueitem .qimg .lbl{position:absolute; inset:0; display:grid; place-items:center; font-family:'Barlow Semi Condensed'; font-size:11px; color:#8b94a2; font-weight:700;}
-.queueitem .qimg .tag{position:absolute; top:10px; left:10px; display:flex; align-items:center; gap:6px; background:rgba(11,24,40,.65); padding:4px 9px 4px 5px; border-radius:999px;}
+/* A grid, not a stack: one photo per screenful meant an owner could not see what was
+   in their sweep, which is the whole job of this tab. */
+.qgrid{display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:12px; margin-top:2px;}
+.queueitem{background:var(--card); border:1px solid var(--line); border-radius:14px; overflow:hidden; display:flex; flex-direction:column;}
+.queueitem .qimg{aspect-ratio:1; position:relative; background:repeating-linear-gradient(45deg,#e8e3db 0 14px,#e0dad1 14px 28px);}
+/* a corner chip, not a watermark: it used to fill the tile and stamp itself across
+   whatever photo was underneath, from when this box was only ever a placeholder */
+.queueitem .qimg .lbl{position:absolute; top:8px; right:8px; padding:3px 7px; border-radius:999px;
+  background:rgba(15,22,32,.62); font-family:'Barlow Semi Condensed'; font-size:9.5px; letter-spacing:.5px;
+  color:#fff; font-weight:800;}
+.queueitem .qimg .tag{position:absolute; top:8px; left:8px; display:flex; align-items:center; gap:6px; background:rgba(11,24,40,.65); padding:4px 9px 4px 5px; border-radius:999px;}
 .queueitem .qimg .tag img{width:18px; height:13px; border-radius:2px;}
 .queueitem .qimg .tag span{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:10.5px; color:#fff;}
-.queueitem .qmeta{padding:11px 13px;}
-.queueitem .qmeta b{font-family:'Barlow Condensed'; font-weight:700; font-size:16px; display:block;}
+.queueitem .qmeta{padding:9px 11px 0; flex:1;}
+.queueitem .qmeta b{font-family:'Barlow Condensed'; font-weight:700; font-size:14.5px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .queueitem .qmeta small{font-size:11px; color:var(--muted); font-weight:600;}
-.queueitem .qacts{display:flex; gap:9px; padding:0 13px 13px;}
-.qbtn{flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:10px; border-radius:11px; font-family:'Barlow Condensed'; font-weight:800; font-size:14px; letter-spacing:.4px; text-transform:uppercase;}
-.qbtn svg{width:16px; height:16px;}
+.queueitem .qacts{display:flex; gap:8px; padding:9px 11px 11px;}
+.qbtn{flex:1; display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border-radius:10px; font-family:'Barlow Condensed'; font-weight:800; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase;}
+.qbtn svg{width:14px; height:14px;}
 .qbtn.app{background:var(--live); color:#fff;}
 .qbtn.rej{background:#fbecea; color:var(--accent);}
 
@@ -883,14 +890,14 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 /* base avatar look so PersonAvatar renders correctly outside .prow/.dh-person too */
 .pav{display:grid; place-items:center; border-radius:13px; overflow:hidden; object-fit:cover; font-family:'Barlow Condensed'; font-weight:800; color:#fff; flex-shrink:0;}
 /* allocation sheet: person block, +N buttons, remove */
-.alloc-person{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+.alloc-person{display:flex; align-items:center; gap:12px; margin-bottom:18px;}
 .alloc-av{width:46px; height:46px; font-size:18px;}
 .alloc-name-input{flex:1; min-width:0; background:var(--card); border:1px solid var(--line); border-radius:11px; padding:11px 13px; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:16px; color:var(--navy);}
 .alloc-remove{flex:0 0 auto; width:46px; height:46px; display:flex; align-items:center; justify-content:center; border-radius:11px; background:#fbecea; border:1px solid #f3d6d2; cursor:pointer;}
 .alloc-remove svg{width:18px; height:18px; stroke:var(--accent);}
 .alloc-remove:active{transform:scale(.95);}
 /* admin age gate toggle (wagers 18+) */
-.alloc-age{display:flex; align-items:center; gap:12px; justify-content:space-between; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 13px; margin-bottom:6px;}
+.alloc-age{display:flex; align-items:center; gap:14px; justify-content:space-between; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:13px 15px; margin:0 0 18px;}
 .alloc-age-tx b{display:block; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:14px; color:var(--navy);}
 .alloc-age-tx small{display:block; font-size:11px; color:var(--muted); margin-top:2px; max-width:240px;}
 .agetoggle{flex:0 0 auto; min-width:74px; padding:8px 14px; border-radius:10px; border:1px solid #cdddf2; background:#e8f1fc; color:#2563b0; font-family:'Barlow Condensed'; font-weight:800; font-size:14px; letter-spacing:.5px; text-transform:uppercase; cursor:pointer;}
@@ -1948,3 +1955,18 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .ac-group{ margin:6px 0 -4px; font-family:'Archivo',system-ui,sans-serif; font-weight:800; font-size:13px;
   letter-spacing:.4px; text-transform:uppercase; color:var(--paper-ink); opacity:.55; }
 .ac-card-slim{ padding-bottom:16px; }
+
+/* Manage person: the two ways to take somebody out, told apart. They used to be a bin
+   beside the name field and a full-width button lower down, with nothing saying which
+   was which — one is reversible and keeps the leaderboard whole, the other is neither. */
+.alloc-danger{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
+.alloc-danger-h{margin:0 0 9px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:11px;
+  letter-spacing:.8px; text-transform:uppercase; color:var(--muted2);}
+.alloc-danger-b{margin:9px 0 0; font-size:12px; line-height:1.5; color:var(--muted);}
+.alloc-danger-b.is-warn{color:var(--accent); font-weight:600;}
+.alloc-danger-del{display:block; width:100%; margin-top:18px; padding:11px; border:1px solid #f0d3ce;
+  border-radius:12px; background:transparent; font-family:'Barlow Condensed'; font-weight:800; font-size:14px;
+  letter-spacing:.4px; text-transform:uppercase; color:var(--accent); cursor:pointer;}
+.alloc-danger-del:hover{background:#fbecea;}
+.alloc-chips{margin-bottom:16px;}
+.alloc-rand{margin-bottom:18px;}

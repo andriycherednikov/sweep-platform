@@ -1374,16 +1374,7 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
           <div className="alloc-person">
             <PersonAvatar p={person} cls="pav alloc-av" />
             <input className="alloc-name-input" value={editName} onChange={(e) => setEditName(e.target.value)} aria-label="Name" placeholder="Name" />
-            <button className="alloc-remove" disabled={busy} onClick={removePerson}
-              aria-label={confirm === "delete" ? "Confirm delete " + person.name : "Delete " + person.name}
-              title="Delete permanently"><Icon.trash /></button>
           </div>
-          {confirm === "delete" && (
-            <p className="alloc-warn" role="alert">
-              Deletes {person.name}, their teams, their picks and their wagers. This cannot be
-              undone — tap the bin again to confirm.
-            </p>
-          )}
 
           {/* seat: who holds it, and how to hand it over or take it back */}
           <div className="field" style={{ marginTop: 12 }}>
@@ -1405,33 +1396,14 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
             )}
           </div>
 
-          {person.ejected ? (
-            <button type="button" className="cta ghost" style={{ marginTop: 8 }} disabled={busy}
-              onClick={() => setEjected(false)}>Undo — let them back in</button>
-          ) : (
-            <>
-              <button type="button" className="cta ghost" style={{ marginTop: 8 }} disabled={busy}
-                onClick={() => setEjected(true)}>
-                {confirm === "eject" ? "Tap again to remove" : "Remove from sweep"}
-              </button>
-              {confirm === "eject" && (
-                <p className="alloc-warn" role="alert">
-                  {person.name} can no longer pick, bet or upload, and can't rejoin with this
-                  email. Their teams and history stay. Anyone holding the group link can still
-                  create a new seat — use Replace link in your account to shut that door.
-                </p>
-              )}
-            </>
-          )}
-
           <div className="alloc-age">
             <div className="alloc-age-tx">
               <b>Wagers access</b>
-              <small>18+ only — adults can use the wagering feature; minors can’t see it</small>
+              <small>18+ only. Turn it off for anyone under 18 — they won't see the feature at all.</small>
             </div>
-            <button type="button" role="switch" aria-checked={adult} aria-label="Adult account (can use wagers)"
+            <button type="button" role="switch" aria-checked={adult} aria-label="Wagers access"
               className={"agetoggle" + (adult ? " on" : "")} onClick={() => setAdult(a => !a)}>
-              {adult ? "Adult" : "Minor"}
+              {adult ? "On" : "Off"}
             </button>
           </div>
 
@@ -1458,6 +1430,39 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
           <button className="cta" disabled={busy || !dirty} onClick={apply} style={{ marginTop: 14, opacity: dirty ? 1 : 0.5 }}>
             <Icon.check /> {busy ? "Saving…" : "Apply changes"}
           </button>
+
+          {/* Two different things that used to look like one: a bin beside the name and a
+              full-width button lower down, with nothing saying they were not the same.
+              Removing is reversible and keeps the leaderboard whole; deleting is neither. */}
+          <div className="alloc-danger">
+            {person.ejected ? (
+              <>
+                <p className="alloc-danger-h">Removed from the sweep</p>
+                <button type="button" className="cta ghost" disabled={busy}
+                  onClick={() => setEjected(false)}>Let them back in</button>
+              </>
+            ) : (
+              <>
+                <p className="alloc-danger-h">Removing</p>
+                <button type="button" className="cta ghost" disabled={busy} onClick={() => setEjected(true)}>
+                  {confirm === "eject" ? "Tap again to remove" : "Remove from sweep"}
+                </button>
+                <p className={"alloc-danger-b" + (confirm === "eject" ? " is-warn" : "")} role={confirm === "eject" ? "alert" : undefined}>
+                  {person.name} stops picking, betting and uploading, and can't rejoin with this
+                  email. Their teams, picks and wagers stay, so the leaderboard keeps its shape.
+                  You can undo it. Anyone holding the group link can still make a new seat — use
+                  Replace link in your account to shut that door.
+                </p>
+              </>
+            )}
+            <button type="button" className="alloc-danger-del" disabled={busy} onClick={removePerson}>
+              {confirm === "delete" ? "Tap again to delete permanently" : "Delete permanently"}
+            </button>
+            <p className={"alloc-danger-b" + (confirm === "delete" ? " is-warn" : "")} role={confirm === "delete" ? "alert" : undefined}>
+              Wipes {person.name} and everything of theirs — teams, picks, wagers, photos.
+              This one cannot be undone.
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -1656,6 +1661,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
             </>
           ) : (<>
           {photos.length===0 && <div className="empty"><div className="ic">📷</div><h3>No photos yet</h3><p>Whatever the group uploads shows up here, and you can take any of it down.</p></div>}
+          <div className="qgrid">
           {photos.map(p=>(
             <div className="queueitem" key={p.id}>
               {/* the file is public — the same bytes the team pages render */}
@@ -1670,6 +1676,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
               </div>
             </div>
           ))}
+          </div>
           </>)}
         </div>
       </div>
