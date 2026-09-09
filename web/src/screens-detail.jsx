@@ -151,7 +151,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
 }
 
 /* ---------------- PERSON DETAIL ---------------- */
-export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileUpload }) {
+export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileEdit }) {
   useSocial();
   useSpoiler();
   useCoins();
@@ -189,7 +189,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileU
             <button className="backbtn" onClick={onBack}><Icon.back/></button>
             <div className="dh-av">
               <PersonAvatar p={person} cls="pav"/>
-              {isMe && <button className="av-cam" onClick={()=>openProfileUpload && openProfileUpload()} aria-label="Upload profile photo" title="Upload profile photo"><Icon.camera/></button>}
+              {isMe && <button className="av-cam" onClick={()=>openProfileEdit && openProfileEdit()} aria-label="Edit your details" title="Edit your details"><Icon.swap/></button>}
             </div>
             <div className="dh-id" style={{minWidth:0}}>
               <h2>{person.name}</h2>
@@ -548,7 +548,8 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
 }
 
 /* ---------------- UPLOAD FLOW ---------------- */
-export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
+export function UploadSheet({ presetFixture, onClose, onToast }) {
+  const kind = "fan";
   useSpoiler();
   const me = getMe();
   const [name, setName] = useState(()=> me ? me.name : "");
@@ -559,8 +560,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const inputRef = useRef(null);
-  const isProfile = kind === "profile";
-  const ok = name.trim() && file && (isProfile ? !!me : !!fixtureId) && !busy;
+  const ok = name.trim() && file && !!fixtureId && !busy;
 
   // taggable games: all fixtures in kickoff (start-time) order, searchable
   const games = useMemo(() => {
@@ -583,10 +583,10 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
   const listRef = useRef(null);
   const targetRef = useRef(null);
   useEffect(() => {
-    if (q.trim() || isProfile) return;
+    if (q.trim()) return;
     const list = listRef.current, target = targetRef.current;
     if (list && target) list.scrollTop = Math.max(0, target.offsetTop - list.clientHeight / 2 + target.clientHeight / 2);
-  }, [scrollToId, q, isProfile]);
+  }, [scrollToId, q]);
 
   async function submit(){
     if (!ok) return;
@@ -595,7 +595,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
       const fd = new FormData();
       fd.append("kind", kind);
       fd.append("uploaderName", name.trim());
-      if (isProfile) fd.append("personId", me.id); else fd.append("fixtureId", fixtureId);
+      fd.append("fixtureId", fixtureId);
       if (caption.trim()) fd.append("caption", caption.trim());
       fd.append("file", file);
       await uploadPhoto(fd);
@@ -611,7 +611,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
         <div className="grab"></div>
         {!done ? (
           <>
-            <div className="sheet-head"><h3>{isProfile ? "Upload profile photo" : "Add a fan photo"}</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
+            <div className="sheet-head"><h3>Add a fan photo</h3><button className="x" onClick={onClose}><Icon.x/></button></div>
             {S.readOnly ? (
               <div className="sheet-body"><p style={{color:"var(--muted)",fontSize:13,textAlign:"center"}}>Uploads are paused while the sweep is read-only.</p></div>
             ) : (
@@ -628,7 +628,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                 <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Macca" />
               </div>
 
-              {!isProfile && (
+              {(
                 <div className="field">
                   <label>Tag a game</label>
                   <SearchInput value={q} onChange={setQ} placeholder="Search by team or matchup" />
@@ -660,7 +660,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
           <div className="success">
             <div className="ring"><Icon.check/></div>
             <h3>Uploaded</h3>
-            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up{isProfile ? " — that is your avatar now." : " on the match and team pages."}</p>
+            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {(pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up on the match and team pages.</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}

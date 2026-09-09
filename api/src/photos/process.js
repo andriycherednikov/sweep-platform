@@ -18,7 +18,10 @@ export function validateUpload(mimetype, size) {
 export async function processImage(input, kind) {
   const base = sharp(input).rotate() // honor orientation, then drop metadata on output
   const main = kind === 'profile'
-    ? base.resize(256, 256, { fit: 'cover', position: 'attention' })
+    // centre, not 'attention': the upload sheet shows you the crop before you commit to
+    // it, and it can only promise that if the rule is one a browser can reproduce.
+    // Smart-cropping was better on some photos and a surprise on others.
+    ? base.resize(256, 256, { fit: 'cover', position: 'centre' })
     : base.resize({ width: 1280, withoutEnlargement: true })
   const buffer = await main.jpeg({ quality: 82 }).toBuffer()
   const thumb = await sharp(buffer).resize({ width: 320, withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer()

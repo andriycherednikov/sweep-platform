@@ -54,3 +54,31 @@ test('processImage(profile) crops to a 256×256 square', async () => {
   expect(meta.width).toBe(256)
   expect(meta.height).toBe(256)
 })
+
+// The upload sheet previews this crop and tells the member "this is how it will be cut".
+// It can only keep that promise while the rule stays one a browser can reproduce, so
+// smart-cropping must not come back without the preview changing with it.
+test('a profile photo is cut to a centred square, not a clever one', async () => {
+  // three equal vertical bands: a centre crop keeps only the middle one
+  const wide = await sharp({ create: { width: 1200, height: 400, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+    .composite([{
+      input: Buffer.from(
+        '<svg width="1200" height="400">'
+        + '<rect x="0" width="400" height="400" fill="#ff0000"/>'
+        + '<rect x="400" width="400" height="400" fill="#00ff00"/>'
+        + '<rect x="800" width="400" height="400" fill="#0000ff"/></svg>'),
+      top: 0, left: 0,
+    }]).png().toBuffer()
+
+  const { buffer } = await processImage(wide, 'profile')
+  const meta = await sharp(buffer).metadata()
+  expect([meta.width, meta.height]).toEqual([256, 256])
+
+  const at = async (x, y) => [...(await sharp(buffer).extract({ left: x, top: y, width: 1, height: 1 }).raw().toBuffer())]
+  for (const [x, y] of [[128, 128], [4, 4], [251, 4], [4, 251], [251, 251]]) {
+    const [r, g, b] = await at(x, y)
+    expect(g).toBeGreaterThan(200)   // the middle band, everywhere
+    expect(r).toBeLessThan(80)
+    expect(b).toBeLessThan(80)
+  }
+})

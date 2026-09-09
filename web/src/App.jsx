@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { JoinSheet } from './JoinSheet.jsx';
+import { ProfileSheet } from './ProfileSheet.jsx';
 import { SWEEP as S } from "./data.js";
 import {
   Icon, BottomNav, Sidebar, SweepsSheet, useIsDesktop, ReadOnlyBanner,
@@ -137,7 +138,7 @@ export default function App() {
   const openMatch  = (f) => { trackEvent("match_open", { match_id: f.id }); navigate({ modal: { type: "match", id: f.id } }); };
   const openPhoto  = (p) => navigate({ modal: { type: "photo", id: p.id } });
   const openUpload = () => navigate({ modal: { type: "upload" } });
-  const openProfileUpload = () => navigate({ modal: { type: "upload", kind: "profile" } });
+  const openProfileEdit = () => navigate({ modal: { type: "profile" } });
   const openAdmin  = () => navigate({ overlay: { type: "admin" } });
   const openKnock  = () => navigate({ overlay: { type: "knockouts" } });
   const openBet    = (id) => navigate({ overlay: { type: "betdetail", id } });
@@ -166,7 +167,7 @@ export default function App() {
     : <HomeScreen go={go} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto} onAdmin={openAdmin} onSweeps={openSweeps}/>;
 
   let ov = null, ovZ = 25;
-  if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileUpload={openProfileUpload}/>;
+  if (overlay?.type==="person" && person) ov = <PersonDetail person={person} onBack={goBack} openMatch={openMatch} openTeam={openTeam} openProfileEdit={openProfileEdit}/>;
   else if (overlay?.type==="team")      ov = <TeamDetail code={overlay.code} onBack={goBack} openMatch={openMatch} openPerson={openPerson} openUpload={openUpload}/>;
   else if (overlay?.type==="knockouts") ov = <KnockoutsScreen onBack={goBack} openMatch={openMatch} openTeam={openTeam} openPerson={openPerson}/>;
   else if (overlay?.type==="admin")   { ov = <AdminScreen onBack={goBack} onToast={showToast} openMatch={openMatch}/>; ovZ = 60; }
@@ -178,12 +179,14 @@ export default function App() {
   // Holding the link gets you a look, not a turn: until you have a seat the join sheet
   // is a gate, not a sheet. The owner is exempt — administering a sweep is not playing
   // in it, and forcing them to take a seat to reach Manage would be a new dead end.
-  const gated = !getMe() && S.sweep?.role !== "admin";
+  const me = getMe();
+  const gated = !me && S.sweep?.role !== "admin";
   const modals = (
     <>
       {gated && <JoinSheet blocking queryClient={qc}/>}
       {modal?.type==="match" && matchF && <MatchSheet f={matchF} onClose={goBack} onToast={showToast} openTeam={openTeam} openPerson={openPerson} openPhoto={openPhoto}/>}
-      {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} kind={modal.kind||"fan"} onClose={goBack} onToast={showToast}/>}
+      {modal?.type==="upload" && <UploadSheet presetFixture={modal.fixtureId} onClose={goBack} onToast={showToast}/>}
+      {modal?.type==="profile" && me && <ProfileSheet person={me} onClose={goBack} onToast={showToast} queryClient={qc}/>}
       {modal?.type==="photo" && photoP && <PhotoLightbox photo={photoP} onClose={goBack} openMatch={openMatch}/>}
       {!gated && modal?.type==="join" && <JoinSheet onClose={goBack} queryClient={qc}/>}
       {overlay?.type==="sweeps" && <SweepsSheet activeSweepId={S.sweep?.id ?? null} onClose={goBack} queryClient={qc}/>}
