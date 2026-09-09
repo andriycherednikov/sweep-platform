@@ -175,7 +175,17 @@ export async function accountRoutes(app) {
       // four, and separate codes would leak where in the flow you are.
       return reply.code(401).send({ error: 'bad_code' })
     }
-    return reply.code(201).send(await mintSession(lt.email, 'code'))
+    const session = await mintSession(lt.email, 'code')
+    // Signing back in is not joining. If this account already holds a seat here, say so,
+    // or the client cannot tell a returning member from a newcomer and asks both to type
+    // a name the roster already knows. An ejected seat is not one to come back to.
+    const [seat] = await app.db.select().from(person).where(and(
+      eq(person.sweepId, req.sweep.id), eq(person.accountId, session.account.id), isNull(person.ejectedAt),
+    ))
+    return reply.code(201).send({
+      ...session,
+      person: seat ? { id: seat.id, name: seat.name, short: seat.short } : null,
+    })
   })
 
   /** Redeem a per-seat invite: sign the address in AND take the seat it names, in one

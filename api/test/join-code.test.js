@@ -2,7 +2,7 @@ import { test, expect, beforeAll, beforeEach, afterAll } from 'vitest'
 import { eq, inArray, isNotNull } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { buildApp } from '../src/app.js'
-import { account, accountSession, loginToken } from '../src/db/schema.js'
+import { account, accountSession, loginToken, person } from '../src/db/schema.js'
 import { memberCookie } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
@@ -19,18 +19,24 @@ beforeAll(async () => { await app.ready(); cookie = await memberCookie(app) })
 beforeEach(async () => {
   mails.length = 0
   await db.delete(loginToken).where(inArray(loginToken.email, EMAILS))
+  const seats = await db.select().from(person).where(inArray(person.email, ['joiner@x.test', 'other@x.test']))
+  for (const s of seats) await db.delete(person).where(eq(person.id, s.id))
 })
 afterAll(async () => {
+  const seats = await db.select().from(person).where(inArray(person.email, ['joiner@x.test', 'other@x.test']))
+  for (const s of seats) await db.delete(person).where(eq(person.id, s.id))
   await db.delete(accountSession)
   await db.delete(loginToken).where(inArray(loginToken.email, EMAILS))
   await db.delete(account).where(inArray(account.email, ['joiner@x.test', 'other@x.test']))
   await app.close(); await pool.end()
 })
 
-const ask = (email, headers = { cookie }) =>
-  app.inject({ method: 'POST', url: '/api/account/login/code', headers, payload: { email } })
-const answer = (email, code, headers = { cookie }) =>
-  app.inject({ method: 'POST', url: '/api/account/session/code', headers, payload: { email, code } })
+// The redeem route is rate-limited per IP (20/15min) and this file makes more calls than
+// that between them, so each test that needs headroom gets its own bucket.
+const ask = (email, headers = { cookie }, remoteAddress) =>
+  app.inject({ method: 'POST', url: '/api/account/login/code', headers, remoteAddress, payload: { email } })
+const answer = (email, code, headers = { cookie }, remoteAddress) =>
+  app.inject({ method: 'POST', url: '/api/account/session/code', headers, remoteAddress, payload: { email, code } })
 const codeOf = (mail) => mail.subject.match(/^(\d{6})/)[1]
 
 test('a code is mailed and the address is normalized', async () => {
@@ -143,4 +149,42 @@ test('a third live code in fifteen minutes sends nothing, and still says ok', as
   const live = await db.select().from(loginToken)
     .where(eq(loginToken.email, 'other@x.test')).where(isNotNull(loginToken.code))
   expect(live.length).toBeGreaterThan(0)
+})
+
+// Signing back in is not joining. The account already holds a seat in this sweep, so the
+// redeem says which one — otherwise the client has no way to tell a returning member
+// from a newcomer and asks both to type their name.
+test('the redeem names the seat this account already holds', async () => {
+  const ip = '10.0.0.21'
+  await ask('joiner@x.test', { cookie }, ip)
+  const first = (await answer('joiner@x.test', codeOf(mails[0]), { cookie }, ip)).json()
+  expect(first.person).toBeNull() // brand new: nothing to come back to
+
+  // take a seat, then sign in again
+  const created = (await app.inject({
+    method: 'POST', url: '/api/me',
+    headers: { cookie, 'x-account-token': first.accountToken },
+    payload: { name: 'Ada Lovelace' },
+  })).json()
+
+  mails.length = 0
+  await ask('joiner@x.test', { cookie }, ip)
+  const again = (await answer('joiner@x.test', codeOf(mails[0]), { cookie }, ip)).json()
+  expect(again.person).toMatchObject({ id: created.id, short: 'Ada' })
+})
+
+test('an ejected member is not handed their old seat back', async () => {
+  const ip = '10.0.0.22'
+  await ask('joiner@x.test', { cookie }, ip)
+  const first = (await answer('joiner@x.test', codeOf(mails[0]), { cookie }, ip)).json()
+  const created = (await app.inject({
+    method: 'POST', url: '/api/me',
+    headers: { cookie, 'x-account-token': first.accountToken }, payload: { name: 'Ada' },
+  })).json()
+  await db.update(person).set({ ejectedAt: new Date() }).where(eq(person.id, created.id))
+
+  mails.length = 0
+  await ask('joiner@x.test', { cookie }, ip)
+  const again = (await answer('joiner@x.test', codeOf(mails[0]), { cookie }, ip)).json()
+  expect(again.person).toBeNull()
 })

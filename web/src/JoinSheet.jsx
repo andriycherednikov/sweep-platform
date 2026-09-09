@@ -69,7 +69,19 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
   async function verify(e) {
     e.preventDefault();
     setErr(null); setBusy(true);
-    try { await postJoinSession(email, code); setStep("setup"); }
+    try {
+      const { person } = await postJoinSession(email, code);
+      // Coming back is not joining: the seat is already there, with a name on it. Asking
+      // a returning member to type it again was the whole complaint.
+      if (person) {
+        setMe(person.id);
+        queryClient?.invalidateQueries({ queryKey: ["sweep"] });
+        toast(`Welcome back, ${person.short}`);
+        onClose?.();
+        return;
+      }
+      setStep("setup");
+    }
     catch { setErr("That code doesn't match, or it's expired. Send yourself a fresh one."); }
     finally { setBusy(false); }
   }
@@ -100,7 +112,9 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
     }
   }
 
-  const head = step === "email" ? "Join this sweep" : step === "code" ? "Check your email" : "Set yourself up";
+  // One door for both: we cannot know whether this address is already in the sweep until
+  // they give it to us, so the copy must not promise either.
+  const head = step === "email" ? "Sign in" : step === "code" ? "Check your email" : "Set yourself up";
 
   return (
     <div className="overlay" onClick={blocking ? undefined : onClose}>
@@ -116,10 +130,8 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
           {step === "email" && (
             <form onSubmit={sendCode}>
               <p style={{ fontSize: 12.5, color: "var(--muted)", lineHeight: 1.45, marginBottom: 14 }}>
-                {S.people.length > 0
-                  ? `${S.people.length} ${S.people.length === 1 ? "person is" : "people are"} already in. `
-                  : ""}
-                Your email keeps your teams, picks and wagers with you on any device.
+                Already in this sweep? This signs you back in, with your teams, picks and
+                wagers where you left them. New here? It sets you up.
               </p>
               <div className="field">
                 <label htmlFor="join-email">Your email</label>

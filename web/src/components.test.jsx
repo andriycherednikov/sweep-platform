@@ -438,7 +438,7 @@ test('IdentityControl: signed out, the chip joins the sweep and offers no picker
   expect(queryByLabelText('Change perspective')).toBeNull()
   expect(queryByText('Who are you?')).toBeNull()
   expect(queryByText('Tap to pick')).toBeNull()
-  fireEvent.click(getByLabelText('Join this sweep'))
+  fireEvent.click(getByLabelText('Sign in to this sweep'))
   expect(join).toHaveBeenCalled()
   delete window.__sweepJoin
 })

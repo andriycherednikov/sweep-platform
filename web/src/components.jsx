@@ -702,11 +702,13 @@ export function IdentityControl({ dark, style }){
   const others = S.people.length;
   return (
     <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-      <button className="idmain" onClick={join} aria-label="Join this sweep">
+      {/* "Sign in", not "join": whoever logged out a moment ago is not a newcomer, and
+          the same door serves both. */}
+      <button className="idmain" onClick={join} aria-label="Sign in to this sweep">
         <span className="idq">?</span>
         <span className="idtxt">
           <small>{others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet"}</small>
-          <b>Join this sweep</b>
+          <b>Sign in</b>
         </span>
       </button>
     </div>

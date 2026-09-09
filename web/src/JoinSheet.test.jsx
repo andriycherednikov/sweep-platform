@@ -144,3 +144,34 @@ test('a 401 on submit says what happened and offers a way forward', async () => 
   expect(await screen.findByLabelText('Your email')).toBeInTheDocument()
   expect(getAccountToken()).toBeNull()
 })
+
+// Logging out and being asked to "join" again — with a form asking for a name the
+// roster already knows — was the complaint. A returning member goes straight in.
+test('a returning member is signed back in, not asked to set up again', async () => {
+  postJoinSession.mockResolvedValueOnce({
+    accountToken: 't', account: { id: 'ac_1' }, person: { id: 'p1', short: 'Ada' },
+  })
+  const onClose = vi.fn()
+  const qc = { invalidateQueries: vi.fn() }
+  render(<JoinSheet onClose={onClose} queryClient={qc} />)
+
+  fireEvent.change(screen.getByLabelText('Your email'), { target: { value: 'ada@x.test' } })
+  fireEvent.click(screen.getByRole('button', { name: /send my code/i }))
+  fireEvent.change(await screen.findByLabelText('Your code'), { target: { value: '481920' } })
+  fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+
+  await waitFor(() => expect(onClose).toHaveBeenCalled())
+  expect(postMe).not.toHaveBeenCalled()
+  expect(screen.queryByLabelText('First name')).toBeNull()
+  expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
+})
+
+test('a newcomer still gets the setup step', async () => {
+  postJoinSession.mockResolvedValueOnce({ accountToken: 't', account: { id: 'ac_1' }, person: null })
+  render(<JoinSheet onClose={() => {}} />)
+  fireEvent.change(screen.getByLabelText('Your email'), { target: { value: 'new@x.test' } })
+  fireEvent.click(screen.getByRole('button', { name: /send my code/i }))
+  fireEvent.change(await screen.findByLabelText('Your code'), { target: { value: '481920' } })
+  fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
+  expect(await screen.findByLabelText('First name')).toBeInTheDocument()
+})
