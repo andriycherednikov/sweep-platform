@@ -29,6 +29,7 @@ export const Icon = {
   bars:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M5 21V9M12 21V4M19 21v-7"/></svg>,
   back:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   chev:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M9 5l7 7-7 7"/></svg>,
+  gear:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z"/></svg>,
   swap:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>,
   pencil:  (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
   exit:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>,
@@ -661,6 +662,57 @@ export function SearchInput({ value, onChange, placeholder, autoFocus }){
   );
 }
 
+/* The gear beside your name. Small enough to live here rather than become a general
+   Menu component: one trigger, three items, no nesting, no submenus. */
+function IdentityMenu({ onAccount, onSweeps, onSignOut, armed, dark }) {
+  const [open, setOpen] = useState(false);
+  // In the sidebar the row sits at the bottom, so the menu opens upward. The SAME
+  // control rides in the mobile home header, where upward is off-screen — flip when
+  // there is no room above.
+  const [down, setDown] = useState(false);
+  const boxRef = useRef(null);
+
+  // A menu you cannot dismiss by looking away is a trap on touch. Escape closes it too,
+  // and the trigger keeps focus so the keyboard lands somewhere sensible after.
+  useEffect(() => {
+    if (!open) return;
+    const away = (e) => { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); };
+    const box = boxRef.current?.getBoundingClientRect();
+    if (box) setDown(box.top < 240); // menu is ~150 tall; leave room for a finger
+    const key = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", key);
+    return () => { document.removeEventListener("mousedown", away); document.removeEventListener("keydown", key); };
+  }, [open]);
+
+  // Signing out arms first and says so, the same as it did as a bare icon — the next
+  // thing you see is the join gate, and there is no undo from there.
+  const items = [
+    { key: "account", label: "Your account", onClick: onAccount },
+    onSweeps && { key: "sweeps", label: "Switch sweep", onClick: onSweeps },
+    onSignOut && { key: "out", label: armed ? "Tap again to log out" : "Log out", onClick: onSignOut, danger: true, armed },
+  ].filter(Boolean);
+
+  return (
+    <div className="idmenu" ref={boxRef}>
+      <button className="idbtn" aria-label="Settings" title="Settings"
+        aria-haspopup="menu" aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}><Icon.gear/></button>
+      {open && (
+        <div className={"idmenu-pop" + (dark ? " dark" : "") + (down ? " is-down" : "")} role="menu">
+          {items.map((it) => (
+            <button key={it.key} role="menuitem"
+              className={"idmenu-item" + (it.danger ? " is-danger" : "") + (it.armed ? " is-armed" : "")}
+              onClick={() => { it.onClick(); if (!it.danger) setOpen(false); }}>
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* identity ---------------------------------------------------- */
 // Signed in: tap the avatar/name → your own profile; the split button signs out.
 // Signed out: the whole chip opens the join journey. It used to open a picker that
@@ -681,6 +733,10 @@ export function IdentityControl({ dark, style, onSweeps }){
     return () => clearTimeout(t);
   }, [armed]);
 
+  // revokeSession + clearAccountToken revoke an ACCOUNT session; a link-only visitor
+  // has none to revoke, so the item would do nothing but reload the page at them.
+  const canSignOut = !!(me || S.account);
+
   const signOut = async () => {
     if (!armed) { setArmed(true); return; }
     try { await revokeSession(); } catch { /* ignore */ }
@@ -688,12 +744,20 @@ export function IdentityControl({ dark, style, onSweeps }){
     window.location.reload();
   };
 
-  const swap = onSweeps && (
-    <button className="idbtn" onClick={onSweeps} aria-label="My sweeps" title="My sweeps"><Icon.swap/></button>
+  // Three unlabelled icons beside a name is three guesses. One gear, and the actions
+  // say what they are. Everything that is not "look at my own profile" lives in here.
+  const menu = (
+    <IdentityMenu
+      onAccount={() => { window.location.assign("/account"); }}
+      onSweeps={onSweeps}
+      onSignOut={canSignOut ? signOut : null}
+      armed={armed}
+      dark={dark}
+    />
   );
 
-  // Signed in you are a fact, not a control: your face and your name, with the two ways
-  // out of here sitting beside them at the same height.
+  // Signed in you are a fact, not a control: your face and your name, with everything
+  // you can DO about it behind the gear beside them.
   if (me) return (
     <div className={"idme" + (dark ? " dark" : "")} style={style}>
       <button className="idme-main" onClick={() => window.__sweepViewMe && window.__sweepViewMe()} aria-label="View your profile">
@@ -703,14 +767,7 @@ export function IdentityControl({ dark, style, onSweeps }){
           <b>{me.short}</b>
         </span>
       </button>
-      <button
-        className={"idbtn" + (armed ? " is-armed" : "")}
-        onClick={signOut}
-        aria-label={armed ? "Tap again to log out" : "Log out"}
-        title={armed ? "Tap again to log out" : "Log out"}
-      ><Icon.exit/></button>
-      {swap}
-      {armed && <p className="idme-confirm" role="alert">Tap again to log out</p>}
+      {menu}
     </div>
   );
 
@@ -735,7 +792,7 @@ export function IdentityControl({ dark, style, onSweeps }){
           <b>{anon.cta}</b>
         </span>
       </button>
-      {swap}
+      {menu}
     </div>
   );
 }

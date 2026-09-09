@@ -423,38 +423,59 @@ test('HomeScreen: with no photos the community section is just the invitation', 
   expect(go).toHaveBeenCalledWith('upload')
 })
 
-test('IdentityControl: signed in, it states who you are and offers the way out as an icon', () => {
+test('IdentityControl: signed in, it states who you are and keeps the actions behind a gear', () => {
   setMe('p1')
   const viewMe = vi.fn()
   window.__sweepViewMe = viewMe
-  const { getByLabelText, getByText, container } = render(<IdentityControl />)
+  const { getByLabelText, getByText, queryByText, container } = render(<IdentityControl />)
   expect(getByText('Signed in as')).toBeInTheDocument()
   fireEvent.click(getByLabelText('View your profile'))
   expect(viewMe).toHaveBeenCalled()
-  expect(getByLabelText('Log out')).toBeInTheDocument()
+  expect(queryByText('Log out')).toBeNull()          // nothing spills into the row...
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Log out')).toBeInTheDocument()   // ...until the gear is opened
   expect(container.querySelector('.idchip')).toBeNull() // no card: you are a fact, not a control
   delete window.__sweepViewMe
 })
 
-// Signing out drops you at the join gate, so it asks twice rather than acting on a
-// mistap — and says so, because an icon that silently armed itself would be worse.
-test('IdentityControl: logging out is confirmed before it happens', async () => {
-  setMe('p1')
-  const { getByLabelText, findByRole } = render(<IdentityControl />)
-  fireEvent.click(getByLabelText('Log out'))
-  expect(await findByRole('alert')).toHaveTextContent(/tap again to log out/i)
-  expect(revokeSession).not.toHaveBeenCalled()
-  fireEvent.click(getByLabelText('Tap again to log out'))
-  await waitFor(() => expect(revokeSession).toHaveBeenCalled())
-})
-
-test('IdentityControl: the sweep switcher sits beside it, in the same style', () => {
+// Three unlabelled icons beside a name is three guesses.
+test('IdentityControl: the gear names every action it holds', () => {
   setMe('p1')
   const onSweeps = vi.fn()
-  const { getByLabelText, container } = render(<IdentityControl onSweeps={onSweeps} />)
-  fireEvent.click(getByLabelText('My sweeps'))
+  const { getByLabelText, getByText, container } = render(<IdentityControl onSweeps={onSweeps} />)
+  expect(container.querySelectorAll('.idbtn')).toHaveLength(1) // one control, not three
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Your account')).toBeInTheDocument()
+  expect(getByText('Log out')).toBeInTheDocument()
+  fireEvent.click(getByText('Switch sweep'))
   expect(onSweeps).toHaveBeenCalled()
-  expect(container.querySelectorAll('.idbtn')).toHaveLength(2) // peers, one style
+})
+
+// Escape and a click away both dismiss it — a menu you cannot look away from is a trap.
+test('IdentityControl: the gear menu closes on Escape and on a click outside', () => {
+  setMe('p1')
+  const { getByLabelText, getByText, queryByText } = render(<IdentityControl />)
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Your account')).toBeInTheDocument()
+  fireEvent.keyDown(document, { key: 'Escape' })
+  expect(queryByText('Your account')).toBeNull()
+
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Your account')).toBeInTheDocument()
+  fireEvent.mouseDown(document.body)
+  expect(queryByText('Your account')).toBeNull()
+})
+
+// Signing out drops you at the join gate, so it asks twice rather than acting on a
+// mistap — and the menu stays open so the second tap has something to hit.
+test('IdentityControl: logging out is confirmed before it happens', async () => {
+  setMe('p1')
+  const { getByLabelText, getByText } = render(<IdentityControl />)
+  fireEvent.click(getByLabelText('Settings'))
+  fireEvent.click(getByText('Log out'))
+  expect(revokeSession).not.toHaveBeenCalled()
+  fireEvent.click(getByText('Tap again to log out'))
+  await waitFor(() => expect(revokeSession).toHaveBeenCalled())
 })
 
 // The picker is gone: this device can no longer declare itself to be anyone on the
@@ -635,22 +656,25 @@ test('useSweeps re-renders subscribers when sweeps are added and removed', () =>
   expect(result.current).toHaveLength(1)
 })
 
-test('Sidebar shows "My sweeps" with one joined sweep — it is the way to leave it', () => {
+test('Sidebar offers "Switch sweep" with one joined sweep — it is the way to leave it', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
-  const { getByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByLabelText('My sweeps')).toBeInTheDocument()
+  const { getByLabelText, getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Switch sweep')).toBeInTheDocument()
 })
 
-test('Sidebar hides "My sweeps" with no joined sweeps', () => {
-  const { queryByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(queryByLabelText('My sweeps')).toBeNull()
+test('Sidebar hides "Switch sweep" with no joined sweeps', () => {
+  const { getByLabelText, queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  fireEvent.click(getByLabelText('Settings'))
+  expect(queryByText('Switch sweep')).toBeNull()
 })
 
-test('Sidebar shows "My sweeps" with two joined sweeps', () => {
+test('Sidebar offers "Switch sweep" with two joined sweeps', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
-  const { getByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByLabelText('My sweeps')).toBeInTheDocument()
+  const { getByLabelText, getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Switch sweep')).toBeInTheDocument()
 })
 
 test('HomeHeader shows the sweeps button with one joined sweep', () => {
@@ -1193,4 +1217,22 @@ test('IdentityControl: a real stranger still gets the plain sign-in chip', () =>
   setSweepData({ ...assembleSweep(makeApi()), account: null })
   const { getByText } = render(<IdentityControl />)
   expect(getByText('Sign in')).toBeInTheDocument()
+})
+
+// Getting back out to the account meant tapping an unlabelled swap icon and finding the
+// last row of the sheet it opens. The gear names it.
+test('Sidebar reaches the account through the gear', () => {
+  const { getByLabelText, getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  fireEvent.click(getByLabelText('Settings'))
+  expect(getByText('Your account')).toBeInTheDocument()
+})
+
+// The rail puts this row at the bottom, so the menu opens upward. The mobile home
+// header puts the same control near the top, where upward is off-screen.
+test('IdentityControl: the gear menu opens downward when there is no room above', () => {
+  setMe('p1')
+  const { getByLabelText, container } = render(<IdentityControl />)
+  // jsdom reports 0 for every rect, i.e. top < 240 — the header case
+  fireEvent.click(getByLabelText('Settings'))
+  expect(container.querySelector('.idmenu-pop').classList.contains('is-down')).toBe(true)
 })
