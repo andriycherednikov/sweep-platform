@@ -4,7 +4,7 @@ import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { codeMail } from '../mail.js'
+import { codeMail, loginMail } from '../mail.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount, sweepLiveNow } from '../accounts/billing.js'
@@ -94,7 +94,8 @@ export async function accountRoutes(app) {
     const email = req.body.email.trim().toLowerCase()
     const token = newToken()
     await app.db.insert(loginToken).values({ token, email, expiresAt: new Date(Date.now() + LOGIN_TOKEN_TTL_MS) })
-    await notify(req, email, 'Your sign-in link', `${app.publicOrigin}/account/login/${token}`)
+    const m = loginMail(`${app.publicOrigin}/account/login/${token}`)
+    await notify(req, email, m.subject, m.text, m.html)
     return { ok: true } // always — never leak whether the email has an account
   })
 

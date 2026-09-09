@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { transportFromEnv, codeMail, inviteMail } from '../src/mail.js'
+import { transportFromEnv, codeMail, inviteMail, loginMail } from '../src/mail.js'
 
 const { db } = openTestDb()
 
@@ -71,4 +71,17 @@ test('the invite mail carries the group link, escaped, in both parts', () => {
   expect(m.text).toContain('https://sweep.test/g/tok"onerror=x')
   expect(m.html).toContain('&quot;onerror=x')
   expect(m.html).not.toContain('"onerror=x"')
+})
+
+// The sign-in link went out as a bare URL with no subject beyond "Your sign-in link" —
+// the one mail an account holder sees most often, and the only one that looked like
+// phishing.
+test('the sign-in mail is a designed mail, not a naked URL', () => {
+  const m = loginMail('https://sweep.test/account/login/tok"onerror=x')
+  expect(m.subject).toContain('The Sweep')
+  expect(m.text).toContain('https://sweep.test/account/login/tok"onerror=x')
+  expect(m.html).toContain('The Sweep')                 // masthead
+  expect(m.html).toContain('&quot;onerror=x')           // escaped into the href
+  expect(m.html).not.toContain('"onerror=x"')
+  expect(m.html).toMatch(/15 minutes/)                  // the TTL is stated
 })

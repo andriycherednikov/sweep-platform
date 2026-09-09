@@ -154,6 +154,35 @@ export function codeMail(code, sweepName) {
   }
 }
 
+/** The sign-in link. This is the mail an account holder sees most often, and it used to
+ *  be a bare URL in an empty body — indistinguishable from phishing, and the one place
+ *  the product had no chance to look like itself. Same shell as the rest; the button and
+ *  the pasteable URL both carry the link, because link-stripping clients exist. */
+export function loginMail(link) {
+  return {
+    subject: 'Your sign-in link for The Sweep',
+    text: `THE SWEEP\n\nHere is your sign-in link:\n\n${link}\n\n`
+      + 'Open it and you are signed in on this device. It works once and\n'
+      + 'expires in 15 minutes.\n\n'
+      + "Didn't ask to sign in? Ignore this email - the link goes nowhere\n"
+      + 'without it being opened, and nobody gets into your account.\n',
+    html: shell({
+      preheader: 'Open the link and you are signed in \u2014 it expires in 15 minutes.',
+      eyebrow: 'Sign in',
+      heading: 'Your sign-in link',
+      lede: 'Open this and you are signed in on this device. Nothing to type, no password to remember.',
+      block: `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" style="background:${ACCENT};border-radius:10px;">
+            <a href="${esc(link)}" style="display:inline-block;padding:15px 32px;font-family:${SANS};font-size:15px;font-weight:700;letter-spacing:.4px;text-decoration:none;color:#ffffff;">Sign me in</a>
+          </td>
+        </tr></table>
+        <p class="muted" style="margin:16px 0 0;font-family:${SANS};font-size:12px;line-height:1.55;word-break:break-all;color:#a09a95;">Button not working? Paste this into your browser:<br>${esc(link)}</p>`,
+      foot: 'The link works once and expires in 15 minutes. If you did not ask to sign in, '
+        + 'ignore this &mdash; nobody gets into your account without opening it.',
+    }),
+  }
+}
+
 /** The organiser set a seat aside for someone. The link is addressed to THIS seat and
  *  THIS address: opening it signs them in and hands them the seat, teams and all, so
  *  they never retype the address the organiser just typed for them. Single-use and
