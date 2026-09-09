@@ -217,6 +217,21 @@ function BillingPanel({ billing }) {
   );
 }
 
+/** What the sweep follows. The name is whatever the owner typed — "Office Pool" says
+ *  nothing — so this is the line that makes a list of sweeps readable at a glance. */
+function CompetitionLine({ s, note }) {
+  const c = s.competition;
+  if (!c && !note) return null;
+  return (
+    <p className="ac-comp">
+      {c?.logo && <img className="ac-comp-logo" src={c.logo} alt="" loading="lazy" />}
+      {c && <span className="ac-comp-name">{c.name}</span>}
+      {c && <span className="ac-comp-sport">{c.sport}</span>}
+      {note && <span className="ac-comp-note">{note}</span>}
+    </p>
+  );
+}
+
 function SweepRow({ s, billing, reload }) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -265,7 +280,10 @@ function SweepRow({ s, billing, reload }) {
   return (
     <section className="ac-card">
       <div className="ac-card-top">
-        <h3 className="ac-card-h">{s.name}</h3>
+        <div className="ac-card-id">
+          <h3 className="ac-card-h">{s.name}</h3>
+          <CompetitionLine s={s} />
+        </div>
         <button className="ac-ghost is-danger" disabled={busy} onClick={archive}>
           {confirm ? "Really archive?" : "Archive"}
         </button>
@@ -319,13 +337,20 @@ function SweepRow({ s, billing, reload }) {
  *  those are the owner's. Just a way back into it. */
 function MemberRow({ s }) {
   return (
-    <section className="ac-card ac-card-slim">
-      <div className="ac-card-top">
+    /* The whole card is the link — there is one thing to do with a sweep you only play
+       in, so a target the size of the row beats a 36px chevron. An <a> rather than an
+       onClick keeps middle-click, cmd-click and the keyboard working for free. */
+    <a className="ac-card ac-row ac-rowlink" href={`/s/${s.id}`}>
+      <div className="ac-card-id">
         <h3 className="ac-card-h">{s.name}</h3>
-        <a className="ac-ghost" href={`/s/${s.id}`}>Open</a>
+        {/* "Member" carries what the paragraph used to say: the billing and the roster
+            are the owner's. It rides in the meta line so the row stays one line tall. */}
+        <CompetitionLine s={s} note="Member" />
       </div>
-      <p className="ac-b">You play in this one. Whoever runs it looks after the billing and the roster.</p>
-    </section>
+      <span className="ac-open" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7"/></svg>
+      </span>
+    </a>
   );
 }
 
@@ -350,15 +375,19 @@ function SweepList({ sweeps, billing, reload }) {
           list is noise, and most people will only ever have one kind. */}
       {owned.length > 0 && joined.length > 0 && <h2 className="ac-group">Sweeps you run</h2>}
       {owned.map((s) => <SweepRow key={s.id} s={s} billing={billing} reload={reload} />)}
+      {joined.length > 0 && owned.length > 0 && <h2 className="ac-group">Sweeps you're in</h2>}
+      {joined.map((s) => <MemberRow key={s.id} s={s} />)}
+      {/* Last, not first: somebody who already plays in a sweep came here to find it,
+          not to be told what they haven't done. */}
       {owned.length === 0 && (
-        <section className="ac-card ac-empty">
-          <h3 className="ac-card-h">You don't run one yet</h3>
-          <p className="ac-b">Pick a competition and spin one up — the fixtures come with it.</p>
-          <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
+        <section className="ac-card ac-row">
+          <div className="ac-card-id">
+            <h3 className="ac-card-h">You don't run one yet</h3>
+            <p className="ac-b" style={{ margin: "4px 0 0" }}>Pick a competition and spin one up — the fixtures come with it.</p>
+          </div>
+          <button className="lp-btn ac-row-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
         </section>
       )}
-      {joined.length > 0 && <h2 className="ac-group">Sweeps you're in</h2>}
-      {joined.map((s) => <MemberRow key={s.id} s={s} />)}
     </>
   );
 }

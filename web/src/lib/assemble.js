@@ -95,6 +95,17 @@ export function threeWayProb(prob) {
  * Pure: turn the API bundle ({bootstrap, fixtures, standings, photos, syncStatus})
  * into the SWEEP-shaped object the components consume.
  */
+/** The name to show for a competition. A sweep is bound to ONE season, but the feed's
+ *  league name usually is not: api-basketball calls it "NBA" and api-football "La Liga",
+ *  so the header read as the league in general rather than the season being played.
+ *  Some names already carry it ("World Cup 2026") — don't say it twice. */
+export function withCompetitionLabel(comp) {
+  const name = comp.name || ''
+  const season = comp.season ? String(comp.season) : ''
+  const label = !season || name.includes(season) ? name : `${name} ${season}`
+  return { ...comp, label }
+}
+
 export function assembleSweep(api) {
   const { bootstrap, fixtures: rawFixtures, standings: rawStandings, photos: rawPhotos } = api
 
@@ -340,7 +351,8 @@ export function assembleSweep(api) {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
     nextMatch, liveMatch, scoring: bootstrap.scoring,
     sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
-    competition: bootstrap.competition ?? { sport: 'football', hasDraws: true, name: '', season: '', format: 'groups_then_ko', logo: null },
+    account: bootstrap.account ?? null,
+    competition: withCompetitionLabel(bootstrap.competition ?? { sport: 'football', hasDraws: true, name: '', season: '', format: 'groups_then_ko', logo: null }),
     readOnly: bootstrap.readOnly === true,
     wageringEnabled: bootstrap.wageringEnabled !== false,
     vocab: vocabFor((bootstrap.competition ?? {}).sport || 'football'),

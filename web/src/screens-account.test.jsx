@@ -264,7 +264,7 @@ test('sweeps you are in are listed, separately from the ones you run', async () 
   expect(screen.getByText('Office Footy')).toBeTruthy()
   expect(screen.getByText(/sweeps you run/i)).toBeTruthy()
   expect(screen.getByText(/sweeps you're in/i)).toBeTruthy()
-  expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/s/sw2')
+  expect(screen.getByRole('link', { name: /office footy/i })).toHaveAttribute('href', '/s/sw2')
 })
 
 // A member has no billing, no link to hand out and nothing to archive — those belong
@@ -285,4 +285,44 @@ test('the rail says who you are signed in as', async () => {
   render(<AccountHome />)
   expect(await screen.findByText('Ada Lovelace')).toBeTruthy()
   expect(screen.getByText(/signed in as/i)).toBeTruthy()
+})
+
+// A sweep's name is whatever the owner typed. "Office Pool" says nothing about what it
+// follows, so the competition is what makes a list of several sweeps readable.
+test('every sweep names the competition it follows', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw1', name: 'Office Pool', role: 'owner', archivedAt: null, memberLink: 'https://h/g/m1',
+      competition: { name: 'NBA 2025-26', sport: 'basketball', logo: null } },
+    { id: 'sw2', name: 'The Lads', role: 'member', archivedAt: null,
+      competition: { name: 'Premier League 2025-26', sport: 'football', logo: null } },
+  ])
+  render(<AccountHome />)
+  expect(await screen.findByText('NBA 2025-26')).toBeTruthy()
+  expect(screen.getByText('Premier League 2025-26')).toBeTruthy()
+  expect(screen.getByText('basketball')).toBeTruthy()
+})
+
+// Somebody who already plays in a sweep came here to find it, not to be told what they
+// have not done — the invitation to run one used to sit above their own sweeps.
+test('the sweeps you are in come before the invitation to run one', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw2', name: 'The Lads', role: 'member', archivedAt: null, competition: null },
+  ])
+  const { container } = render(<AccountHome />)
+  await screen.findByText('The Lads')
+  const text = container.textContent
+  expect(text.indexOf('The Lads')).toBeLessThan(text.indexOf("You don't run one yet"))
+})
+
+// One thing to do with a sweep you only play in, so the whole row is the target —
+// a real <a> so cmd-click and the keyboard keep working.
+test('a sweep you are in is clickable across the whole row', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw2', name: 'The Lads', role: 'member', archivedAt: null, competition: null },
+  ])
+  render(<AccountHome />)
+  const row = (await screen.findByText('The Lads')).closest('a')
+  expect(row).toBeTruthy()
+  expect(row.getAttribute('href')).toBe('/s/sw2')
+  expect(row.classList.contains('ac-card')).toBe(true) // the card itself, not a child link
 })

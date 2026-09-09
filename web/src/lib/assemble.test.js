@@ -1,5 +1,5 @@
 import { expect, test, it } from 'vitest'
-import { assembleSweep, twoWayProb, threeWayProb, progressProb, winnerCodeOf } from './assemble.js'
+import { assembleSweep, twoWayProb, threeWayProb, progressProb, winnerCodeOf, withCompetitionLabel } from './assemble.js'
 import { makeApi, makeBootstrap } from '../../test/factories.js'
 
 const api = {
@@ -537,3 +537,15 @@ it('basketball standings mirror the route: conference keys in route order, rows 
 })
 
 
+
+// A sweep is bound to ONE season, but the feed's league name usually isn't: the header
+// read "NBA" for a sweep on the 2023-2024 season, which is the league, not the season.
+test('the competition label carries the season the sweep is actually on', () => {
+  expect(withCompetitionLabel({ name: 'NBA', season: '2023-2024' }).label).toBe('NBA 2023-2024')
+  expect(withCompetitionLabel({ name: 'La Liga', season: '2026' }).label).toBe('La Liga 2026')
+  // some feed names already carry it — don't say it twice
+  expect(withCompetitionLabel({ name: 'World Cup 2026', season: '2026' }).label).toBe('World Cup 2026')
+  // and nothing to add is not a trailing space
+  expect(withCompetitionLabel({ name: 'NBA', season: '' }).label).toBe('NBA')
+  expect(withCompetitionLabel({ name: '', season: '' }).label).toBe('')
+})
