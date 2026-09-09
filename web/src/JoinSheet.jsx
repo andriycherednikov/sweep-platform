@@ -29,8 +29,7 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
   const [step, setStep] = useState(() => (getAccountToken() ? "setup" : "email"));
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
-  const [first, setFirst] = useState("");
-  const [last, setLast] = useState("");
+  const [fullName, setFullName] = useState("");
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -55,7 +54,10 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const name = [first.trim(), last.trim()].filter(Boolean).join(" ");
+  // One field, same as the organiser's Add-person sheet. The server derives the short
+  // name and initials from the whole string either way, so two boxes only ever bought
+  // a second place to leave blank.
+  const name = fullName.trim().replace(/\s+/g, " ");
   const preview = { initials: name ? initialsFor(name) : "?", av: name ? avFor(name) : "var(--muted2)" };
 
   async function sendCode(e) {
@@ -190,14 +192,10 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
                 {note && <p className="join-face-name">{note}</p>}
               </div>
               <div className="field">
-                <label htmlFor="join-first">First name</label>
-                <input id="join-first" required autoFocus autoComplete="given-name" maxLength={40}
-                       value={first} onChange={(e) => setFirst(e.target.value)} />
-              </div>
-              <div className="field">
-                <label htmlFor="join-last">Last name</label>
-                <input id="join-last" autoComplete="family-name" maxLength={40}
-                       value={last} onChange={(e) => setLast(e.target.value)} />
+                <label htmlFor="join-name">Your name</label>
+                <input id="join-name" required autoFocus autoComplete="name" maxLength={80}
+                       placeholder="e.g. Macca McCallum"
+                       value={fullName} onChange={(e) => setFullName(e.target.value)} />
               </div>
               <button className="cta" type="submit" disabled={busy || !name}>
                 {busy ? "Joining…" : "Join the sweep"}

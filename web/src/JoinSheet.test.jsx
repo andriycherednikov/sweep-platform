@@ -41,8 +41,7 @@ test('email → code → setup, and joining sets the identity', async () => {
   fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
   await waitFor(() => expect(postJoinSession).toHaveBeenCalledWith('ada@x.test', '481920'))
 
-  typeIn('First name', 'Ada')
-  typeIn('Last name', 'Lovelace')
+  typeIn('Your name', 'Ada Lovelace')
   fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
   await waitFor(() => expect(postMe).toHaveBeenCalledWith('Ada Lovelace'))
   await waitFor(() => expect(onClose).toHaveBeenCalled())
@@ -54,7 +53,7 @@ test('email → code → setup, and joining sets the identity', async () => {
 test('an account already signed in skips straight to setup', () => {
   setAccountToken('tok')
   render(<JoinSheet onClose={() => {}} />)
-  expect(screen.getByLabelText('First name')).toBeInTheDocument()
+  expect(screen.getByLabelText('Your name')).toBeInTheDocument()
   expect(screen.queryByLabelText('Your email')).toBeNull()
 })
 
@@ -83,7 +82,7 @@ test('a photo is optional — you can join without one', async () => {
   setAccountToken('tok')
   const onClose = vi.fn()
   render(<JoinSheet onClose={onClose} />)
-  typeIn('First name', 'Ada')
+  typeIn('Your name', 'Ada')
   fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
   await waitFor(() => expect(postMe).toHaveBeenCalledWith('Ada'))
   expect(uploadPhoto).not.toHaveBeenCalled()
@@ -94,7 +93,7 @@ test('a photo is uploaded with the seat', async () => {
   setAccountToken('tok')
   const onClose = vi.fn()
   render(<JoinSheet onClose={onClose} />)
-  typeIn('First name', 'Ada')
+  typeIn('Your name', 'Ada')
   const file = new File(['x'], 'me.png', { type: 'image/png' })
   fireEvent.change(screen.getByLabelText('Add a photo'), { target: { files: [file] } })
   fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
@@ -107,7 +106,7 @@ test('a failed upload still leaves you in the sweep', async () => {
   uploadPhoto.mockRejectedValueOnce(new Error('HTTP 409'))
   const onClose = vi.fn()
   render(<JoinSheet onClose={onClose} />)
-  typeIn('First name', 'Ada')
+  typeIn('Your name', 'Ada')
   fireEvent.change(screen.getByLabelText('Add a photo'), {
     target: { files: [new File(['x'], 'me.png', { type: 'image/png' })] },
   })
@@ -123,14 +122,14 @@ test('a stale token sends you back to the email step instead of a doomed form', 
   getAccount.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
   render(<JoinSheet onClose={() => {}} />)
   expect(await screen.findByLabelText('Your email')).toBeInTheDocument()
-  expect(screen.queryByLabelText('First name')).toBeNull()
+  expect(screen.queryByLabelText('Your name')).toBeNull()
   expect(getAccountToken()).toBeNull()
 })
 
 test('a valid token still goes straight to setup', async () => {
   setAccountToken('good')
   render(<JoinSheet onClose={() => {}} />)
-  expect(await screen.findByLabelText('First name')).toBeInTheDocument()
+  expect(await screen.findByLabelText('Your name')).toBeInTheDocument()
 })
 
 // Belt and braces: a session can lapse between opening the sheet and submitting it.
@@ -138,7 +137,7 @@ test('a 401 on submit says what happened and offers a way forward', async () => 
   setAccountToken('good')
   postMe.mockRejectedValueOnce(Object.assign(new Error('HTTP 401'), { status: 401 }))
   render(<JoinSheet onClose={() => {}} />)
-  fireEvent.change(await screen.findByLabelText('First name'), { target: { value: 'Ada' } })
+  fireEvent.change(await screen.findByLabelText('Your name'), { target: { value: 'Ada' } })
   fireEvent.click(screen.getByRole('button', { name: /join the sweep/i }))
   expect(await screen.findByRole('alert')).toHaveTextContent(/sign(ed)? ?in|expired/i)
   expect(await screen.findByLabelText('Your email')).toBeInTheDocument()
@@ -162,7 +161,7 @@ test('a returning member is signed back in, not asked to set up again', async ()
 
   await waitFor(() => expect(onClose).toHaveBeenCalled())
   expect(postMe).not.toHaveBeenCalled()
-  expect(screen.queryByLabelText('First name')).toBeNull()
+  expect(screen.queryByLabelText('Your name')).toBeNull()
   expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] })
 })
 
@@ -173,5 +172,5 @@ test('a newcomer still gets the setup step', async () => {
   fireEvent.click(screen.getByRole('button', { name: /send my code/i }))
   fireEvent.change(await screen.findByLabelText('Your code'), { target: { value: '481920' } })
   fireEvent.click(screen.getByRole('button', { name: /^continue$/i }))
-  expect(await screen.findByLabelText('First name')).toBeInTheDocument()
+  expect(await screen.findByLabelText('Your name')).toBeInTheDocument()
 })
