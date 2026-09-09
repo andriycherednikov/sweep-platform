@@ -16,7 +16,7 @@ vi.mock('./api/client.js', () => ({
   bulkPostOwnership: vi.fn(async () => ({})),
   bulkDeleteOwnership: vi.fn(async () => ({})),
 }))
-import { MatchSheet, TeamDetail, PersonDetail } from './screens-detail.jsx'
+import { MatchSheet, TeamDetail, PersonDetail, UploadSheet } from './screens-detail.jsx'
 import { SWEEP as S, setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { setMe, setSocialData } from './social.js'
@@ -1290,4 +1290,26 @@ test("wagers access reads as on or off, not as a person's age", () => {
   expect(toggle).toHaveTextContent(/^On$/)
   fireEvent.click(toggle)
   expect(toggle).toHaveTextContent(/^Off$/)
+})
+
+import { uploadPhoto } from './api/client.js'
+
+// The uploader is whoever is signed in. Asking for a name again invited a second,
+// contradictory identity — and the server no longer reads the field anyway.
+test('the fan photo sheet never asks for a name and never sends one', async () => {
+  const f = sheetFixture(null)
+  const { container, queryByText } = render(
+    <UploadSheet presetFixture={f.id} onClose={noop} onToast={noop} />,
+  )
+  expect(queryByText(/your name/i)).toBeNull()
+  expect([...container.querySelectorAll('label')].map(l => l.textContent)).toEqual(['Tag a game'])
+
+  const file = new File(['x'], 'pic.jpg', { type: 'image/jpeg' })
+  const picker = container.querySelector('input[type="file"]')
+  await act(async () => { fireEvent.change(picker, { target: { files: [file] } }) })
+  await act(async () => { fireEvent.click(queryByText('Upload')) })
+
+  const fd = uploadPhoto.mock.calls[0][0]
+  expect(fd.get('uploaderName')).toBeNull()
+  expect(fd.get('kind')).toBe('fan')
 })

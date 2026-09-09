@@ -46,7 +46,7 @@ async function aPerson() { return me }
 
 test('a fan photo is live the moment it is uploaded', async () => {
   const f = await aFixture()
-  const res = await upload({ kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, caption: 'colours!' }, await png())
+  const res = await upload({ kind: 'fan', fixtureId: f.id, caption: 'colours!' }, await png(), seat)
   expect(res.statusCode).toBe(201)
   const body = res.json()
   expect(body).toMatchObject({ kind: 'fan', status: 'approved', fixtureId: f.id })
@@ -61,7 +61,7 @@ test('a fan photo is live the moment it is uploaded', async () => {
 })
 
 test('rejects a fan photo with an unknown fixture', async () => {
-  const res = await upload({ kind: 'fan', uploaderName: 'X', fixtureId: 'nope-999' }, await png())
+  const res = await upload({ kind: 'fan', fixtureId: 'nope-999' }, await png(), seat)
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
@@ -69,9 +69,9 @@ test('rejects a fan photo with an unknown fixture', async () => {
 test('rejects a non-image file type', async () => {
   const f = await aFixture()
   const form = new FormData()
-  form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('fixtureId', f.id)
+  form.append('kind', 'fan'); form.append('fixtureId', f.id)
   form.append('file', Buffer.from('not an image'), { filename: 'x.gif', contentType: 'image/gif' })
-  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: { ...form.getHeaders(), ...seat }, payload: form.getBuffer() })
   expect(res.statusCode).toBe(400)
 })
 
@@ -79,9 +79,9 @@ test('rejects a non-image file type', async () => {
 // refused because the first is still sitting in a queue that no longer exists.
 test('a second profile photo supersedes the first, it is not refused', async () => {
   const p = await aPerson()
-  const first = await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)
+  const first = await upload({ kind: 'profile' }, await png(), seat)
   expect(first.statusCode).toBe(201)
-  const second = await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)
+  const second = await upload({ kind: 'profile' }, await png(), seat)
   expect(second.statusCode).toBe(201)
 
   const [row] = await db.select().from(person).where(eq(person.id, me.id))
@@ -93,12 +93,12 @@ test('a second profile photo supersedes the first, it is not refused', async () 
 
 test('missing file → 400', async () => {
   const f = await aFixture()
-  expect((await upload({ kind: 'fan', uploaderName: 'X', fixtureId: f.id })).statusCode).toBe(400)
+  expect((await upload({ kind: 'fan', fixtureId: f.id }, null, seat)).statusCode).toBe(400)
 })
 
 test('a profile photo without a seat is refused', async () => {
   const p = await aPerson()
-  const res = await upload({ kind: 'profile', uploaderName: p.name }, await png())
+  const res = await upload({ kind: 'profile' }, await png())
   expect(res.statusCode).toBe(403)
   expect(res.json()).toEqual({ error: 'no_seat' })
 })
@@ -112,4 +112,21 @@ test('a multipart personId cannot attach a photo to someone else', async () => {
   expect(res.json().personId).toBe(me.id)
   const rows = await db.select().from(photo).where(eq(photo.personId, other.id))
   expect(rows).toHaveLength(0)
+})
+
+// You cannot see a sweep without being in it, so the uploader's name is already known.
+// Asking for it was a free-text field the server then believed.
+test('the uploader is named by their seat, not by the form', async () => {
+  const f = await aFixture()
+  const res = await upload({ kind: 'fan', uploaderName: 'Somebody Else', fixtureId: f.id }, await png(), seat)
+  expect(res.statusCode).toBe(201)
+  const [row] = await db.select().from(photo).where(eq(photo.id, res.json().id))
+  expect(row.uploaderName).toBe(me.name)
+})
+
+test('a link-holder with no seat cannot post to the wall', async () => {
+  const f = await aFixture()
+  const res = await upload({ kind: 'fan', fixtureId: f.id }, await png())
+  expect(res.statusCode).toBe(403)
+  expect(res.json()).toEqual({ error: 'no_seat' })
 })

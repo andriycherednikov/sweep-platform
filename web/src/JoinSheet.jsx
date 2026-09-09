@@ -94,7 +94,7 @@ export function JoinSheet({ onClose, queryClient, blocking }) {
       setMe(person.id);
       if (file) {
         const fd = new FormData();
-        fd.append("kind", "profile"); fd.append("uploaderName", name); fd.append("file", file);
+        fd.append("kind", "profile"); fd.append("file", file);
         // The photo is a bonus, never a gate: a failed upload must not cost someone the
         // seat they just took, so this swallows and carries on.
         await uploadPhoto(fd).catch(() => null);

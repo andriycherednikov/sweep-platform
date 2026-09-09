@@ -552,7 +552,7 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
   const kind = "fan";
   useSpoiler();
   const me = getMe();
-  const [name, setName] = useState(()=> me ? me.name : "");
+
   const [fixtureId, setFixtureId] = useState(presetFixture || null);
   const [q, setQ] = useState("");
   const [file, setFile] = useState(null);
@@ -560,7 +560,9 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const inputRef = useRef(null);
-  const ok = name.trim() && file && !!fixtureId && !busy;
+  // The server names the uploader from the caller's seat, so there is nothing here to
+  // ask for beyond the picture and the game it belongs to.
+  const ok = file && !!fixtureId && !busy;
 
   // taggable games: all fixtures in kickoff (start-time) order, searchable
   const games = useMemo(() => {
@@ -594,7 +596,6 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
     try {
       const fd = new FormData();
       fd.append("kind", kind);
-      fd.append("uploaderName", name.trim());
       fd.append("fixtureId", fixtureId);
       if (caption.trim()) fd.append("caption", caption.trim());
       fd.append("file", file);
@@ -621,11 +622,6 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
                 <div className="ic" style={{background:file?"#e7f6ee":"var(--line2)"}}>{file?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
                 <b>{file?file.name:"Tap to add a photo"}</b>
                 <small>{file?"Looks good — ready to send":"JPG, PNG or WebP · up to 8 MB"}</small>
-              </div>
-
-              <div className="field" style={{marginTop:16}}>
-                <label>Your name</label>
-                <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Macca" />
               </div>
 
               {(
@@ -660,7 +656,7 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
           <div className="success">
             <div className="ring"><Icon.check/></div>
             <h3>Uploaded</h3>
-            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {(pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up on the match and team pages.</p>
+            <p>Thanks{me?`, ${me.short||me.name.split(" ")[0]}`:""}! Your {(pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up on the match and team pages.</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}

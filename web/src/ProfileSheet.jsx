@@ -52,7 +52,6 @@ export function ProfileSheet({ person, onClose, onToast, queryClient }) {
       if (file) {
         const fd = new FormData();
         fd.append("kind", "profile");
-        fd.append("uploaderName", name);
         fd.append("file", file);
         await uploadPhoto(fd);
       }

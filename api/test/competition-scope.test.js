@@ -96,9 +96,9 @@ test('POST /api/parlay rejects a leg on another competitions event', async () =>
 test('fan-photo upload rejects another competitions event', async () => {
   const png = await sharp({ create: { width: 40, height: 40, channels: 3, background: { r: 5, g: 5, b: 5 } } }).png().toBuffer()
   const form = new FormData()
-  form.append('kind', 'fan'); form.append('uploaderName', 'X'); form.append('fixtureId', 'evO_1')
+  form.append('kind', 'fan'); form.append('fixtureId', 'evO_1')
   form.append('file', png, { filename: 'pic.png', contentType: 'image/png' })
-  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: form.getHeaders(), payload: form.getBuffer() })
+  const res = await client.inject({ method: 'POST', url: '/api/photos', headers: { ...form.getHeaders(), ...seat }, payload: form.getBuffer() })
   expect(res.statusCode).toBe(400)
   expect(res.json().error).toBe('unknown_fixture')
 })
