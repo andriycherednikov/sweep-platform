@@ -1899,24 +1899,28 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .adminsec-h .ct{display:inline-block; margin-left:6px; padding:2px 8px; border-radius:999px; background:#eef1f5; color:var(--muted2); font-family:'Barlow Semi Condensed'; font-size:10.5px; font-weight:800; letter-spacing:.4px; text-transform:uppercase; vertical-align:middle; white-space:nowrap;}
 .adminsec-h .ct.ct-warn{background:rgba(184,134,11,.16); color:#8a6508;}
 
-/* Signed-in identity: your face and name on the left, the way out on the right.
-   Reuses .idtxt so the label/name typography matches the guest chip. */
-.idme{display:flex; align-items:center; gap:8px; width:100%;}
-.idme-main{display:flex; align-items:center; gap:9px; flex:1; min-width:0; text-align:left; padding:0; background:transparent; border:0; color:inherit;}
-.idme .idtxt{flex:1; min-width:0; line-height:1.1;}
+/* Signed-in identity: your face and name, then the two ways out of here beside them.
+   Everything on the row is IDBTN (40px) tall so nothing floats against anything else. */
+.idme{display:flex; align-items:center; gap:8px; width:100%; flex-wrap:wrap;}
+.idme-main{display:flex; align-items:center; gap:9px; flex:1; min-width:0; height:40px; text-align:left; padding:0; background:transparent; border:0; color:inherit;}
+.idme-av{width:40px; height:40px; font-size:15px; flex-shrink:0;}
+.idme .idtxt{flex:1; min-width:0; line-height:1.15;}
 .idme .idtxt small{display:block; font-size:8.5px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; color:var(--muted2); white-space:nowrap;}
 .idme.dark .idtxt small{color:#7e97bb;}
 .idme .idtxt b{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:var(--navy); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
 .idme.dark .idtxt b{color:#fff;}
-.idme-out{flex-shrink:0; display:inline-flex; align-items:center; gap:4px; padding:6px 9px; border:1px solid var(--line); border-radius:999px; background:transparent; font-family:'Barlow Semi Condensed'; font-weight:700; font-size:10px; letter-spacing:.4px; text-transform:uppercase; color:var(--muted2); cursor:pointer;}
-.idme-out svg{width:13px; height:13px; flex-shrink:0;}
-.idme.dark .idme-out{border-color:rgba(255,255,255,.16); color:#7e97bb;}
-.idme-out:hover{border-color:var(--accent); color:var(--accent);}
-/* Compact sidebar icon button — the sweep switcher tucks under Log out, on its edge,
-   so the two ways out of here line up instead of sitting on opposite sides. */
-.sb-icon{align-self:flex-end; display:grid; place-items:center; width:38px; height:38px; margin-top:8px; border-radius:11px; border:1px solid rgba(255,255,255,.12); background:transparent; color:#7e97bb; cursor:pointer;}
-.sb-icon svg{width:18px; height:18px;}
-.sb-icon:hover{color:#fff; border-color:rgba(255,255,255,.28);}
+.idme-confirm{flex-basis:100%; margin:2px 0 0; font-family:'Barlow'; font-size:11.5px; font-weight:600; color:var(--accent);}
+
+/* One button style for both actions — they are peers, so they look like peers. */
+.idbtn{flex-shrink:0; display:grid; place-items:center; width:40px; height:40px; border-radius:11px; border:1px solid var(--line); background:transparent; color:var(--muted2); cursor:pointer;}
+.idbtn svg{width:18px; height:18px;}
+.idchip.dark .idbtn, .idme.dark .idbtn{border-color:rgba(255,255,255,.14); color:#7e97bb;}
+.idbtn:hover{border-color:var(--accent); color:var(--accent);}
+.idbtn.is-armed{border-color:var(--accent); color:#fff; background:var(--accent);}
+/* the guest chip keeps its card, so its button sits outside it */
+.idchip{gap:8px; background:transparent; border:0; overflow:visible;}
+.idchip .idmain{height:40px; border:1px solid var(--line); border-radius:12px; padding:0 11px;}
+.idchip.dark .idmain{border-color:rgba(255,255,255,.12); background:rgba(255,255,255,.07);}
 .join-face{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:16px;}
 .join-face-av{border:2px solid var(--line);}
 .join-face-btn{display:inline-block; padding:8px 16px; border:1.5px solid var(--line); border-radius:999px; background:var(--card); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--navy); cursor:pointer;}

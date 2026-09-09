@@ -1,6 +1,12 @@
 // web/src/components.test.jsx
 import { expect, test, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, renderHook, act } from '@testing-library/react'
+import { render, screen, fireEvent, renderHook, act, waitFor } from '@testing-library/react'
+
+vi.mock('./lib/accountClient.js', async (orig) => ({
+  ...(await orig()),
+  revokeSession: vi.fn(async () => ({})),
+}))
+import { revokeSession } from './lib/accountClient.js'
 
 vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
@@ -415,7 +421,7 @@ test('HomeScreen: empty community box prompts upload (go upload)', () => {
   expect(go).toHaveBeenCalledWith('upload')
 })
 
-test('IdentityControl: signed in, it states who you are and offers a log-out link', () => {
+test('IdentityControl: signed in, it states who you are and offers the way out as an icon', () => {
   setMe('p1')
   const viewMe = vi.fn()
   window.__sweepViewMe = viewMe
@@ -423,10 +429,30 @@ test('IdentityControl: signed in, it states who you are and offers a log-out lin
   expect(getByText('Signed in as')).toBeInTheDocument()
   fireEvent.click(getByLabelText('View your profile'))
   expect(viewMe).toHaveBeenCalled()
-  expect(getByText('Log out')).toBeInTheDocument()
-  // no card around it — signed in you are a fact, not a control
-  expect(container.querySelector('.idchip')).toBeNull()
+  expect(getByLabelText('Log out')).toBeInTheDocument()
+  expect(container.querySelector('.idchip')).toBeNull() // no card: you are a fact, not a control
   delete window.__sweepViewMe
+})
+
+// Signing out drops you at the join gate, so it asks twice rather than acting on a
+// mistap — and says so, because an icon that silently armed itself would be worse.
+test('IdentityControl: logging out is confirmed before it happens', async () => {
+  setMe('p1')
+  const { getByLabelText, findByRole } = render(<IdentityControl />)
+  fireEvent.click(getByLabelText('Log out'))
+  expect(await findByRole('alert')).toHaveTextContent(/tap again to log out/i)
+  expect(revokeSession).not.toHaveBeenCalled()
+  fireEvent.click(getByLabelText('Tap again to log out'))
+  await waitFor(() => expect(revokeSession).toHaveBeenCalled())
+})
+
+test('IdentityControl: the sweep switcher sits beside it, in the same style', () => {
+  setMe('p1')
+  const onSweeps = vi.fn()
+  const { getByLabelText, container } = render(<IdentityControl onSweeps={onSweeps} />)
+  fireEvent.click(getByLabelText('My sweeps'))
+  expect(onSweeps).toHaveBeenCalled()
+  expect(container.querySelectorAll('.idbtn')).toHaveLength(2) // peers, one style
 })
 
 // The picker is gone: this device can no longer declare itself to be anyone on the

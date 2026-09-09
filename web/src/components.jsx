@@ -633,12 +633,10 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
       </>}
       <div className="sb-foot">
         <SpoilerToggle/>
-        <IdentityControl dark/>
-        {/* Shown from the first sweep: the sheet holds Leave, the only exit from a
-            sweep session. Gating it on 2+ left the single-sweep case with none. */}
-        {onSweeps && sweeps.length > 0 && (
-          <button className="sb-icon" onClick={onSweeps} aria-label="My sweeps" title="My sweeps"><Icon.swap/></button>
-        )}
+        {/* The switcher rides in the identity row: the sheet holds Leave, the only exit
+            from a sweep session, so it is shown from the first sweep — gating it on 2+
+            left the single-sweep case with none. */}
+        <IdentityControl dark onSweeps={onSweeps && sweeps.length > 0 ? onSweeps : null}/>
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>
@@ -668,41 +666,56 @@ export function SearchInput({ value, onChange, placeholder, autoFocus }){
 // let this device claim to be anyone on the roster — the server took its word for it.
 // Same .idchip markup either way, so the rail slot, the mobile header and the
 // scroll-shrink animation are untouched.
-export function IdentityControl({ dark, style }){
+export function IdentityControl({ dark, style, onSweeps }){
   useSocial();
   const me = getMe();
+  const [armed, setArmed] = useState(false);   // log out asks twice
   const join = () => window.__sweepJoin && window.__sweepJoin();
-  // Best-effort revoke, then forget locally either way and reload: a failed DELETE
-  // (offline, already-expired) must not strand this browser signed in.
+
+  // Signing out is not undoable from here — the next thing you see is the join gate —
+  // so the icon arms first and says so, and disarms itself if you walk away from it.
+  useEffect(() => {
+    if (!armed) return;
+    const t = setTimeout(() => setArmed(false), 4000);
+    return () => clearTimeout(t);
+  }, [armed]);
+
   const signOut = async () => {
+    if (!armed) { setArmed(true); return; }
     try { await revokeSession(); } catch { /* ignore */ }
     clearAccountToken();
     window.location.reload();
   };
 
-  // Signed in you are not a control to be operated, you are a fact — no box, no chrome,
-  // just your face and your name, with signing out as the one thing you might want to do.
+  const swap = onSweeps && (
+    <button className="idbtn" onClick={onSweeps} aria-label="My sweeps" title="My sweeps"><Icon.swap/></button>
+  );
+
+  // Signed in you are a fact, not a control: your face and your name, with the two ways
+  // out of here sitting beside them at the same height.
   if (me) return (
     <div className={"idme" + (dark ? " dark" : "")} style={style}>
       <button className="idme-main" onClick={() => window.__sweepViewMe && window.__sweepViewMe()} aria-label="View your profile">
-        <PersonAvatar p={me} cls="av" style={{width:34,height:34,border:0,margin:0,fontSize:13}}/>
+        <PersonAvatar p={me} cls="av idme-av" style={{border:0,margin:0}}/>
         <span className="idtxt">
           <small>Signed in as</small>
           <b>{me.short}</b>
         </span>
       </button>
-      {/* Keeps its word: the bare cross this replaced read as "close", not "sign out". */}
-      <button className="idme-out" onClick={signOut} title="Log out">
-        <Icon.exit/><span>Log out</span>
-      </button>
+      <button
+        className={"idbtn" + (armed ? " is-armed" : "")}
+        onClick={signOut}
+        aria-label={armed ? "Tap again to log out" : "Log out"}
+        title={armed ? "Tap again to log out" : "Log out"}
+      ><Icon.exit/></button>
+      {swap}
+      {armed && <p className="idme-confirm" role="alert">Tap again to log out</p>}
     </div>
   );
 
   const others = S.people.length;
   return (
     <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-      {/* "Sign in", not "join": whoever logged out a moment ago is not a newcomer, and
-          the same door serves both. */}
       <button className="idmain" onClick={join} aria-label="Sign in to this sweep">
         <span className="idq">?</span>
         <span className="idtxt">
@@ -710,6 +723,7 @@ export function IdentityControl({ dark, style }){
           <b>Sign in</b>
         </span>
       </button>
+      {swap}
     </div>
   );
 }
