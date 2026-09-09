@@ -556,10 +556,21 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
   const [fixtureId, setFixtureId] = useState(presetFixture || null);
   const [q, setQ] = useState("");
   const [file, setFile] = useState(null);
+  const [preview, setPreview] = useState(null);
   const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const inputRef = useRef(null);
+
+  // Object URLs are a resource, not a string: revoke the old one whenever it changes.
+  // A fan photo keeps its shape on the wall (the server only bounds its width), so the
+  // preview is object-fit:contain — nothing here is cut off later.
+  useEffect(() => {
+    if (!file) { setPreview(null); return; }
+    const url = URL.createObjectURL(file);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
   // The server names the uploader from the caller's seat, so there is nothing here to
   // ask for beyond the picture and the game it belongs to.
   const ok = file && !!fixtureId && !busy;
@@ -619,9 +630,11 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
             <div className="sheet-body">
               <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>setFile(e.target.files?.[0]||null)} />
               <div className="dropzone" onClick={()=>inputRef.current&&inputRef.current.click()} style={{cursor:"pointer",borderColor:file?"var(--live)":"var(--line)",background:file?"#f1faf4":"var(--card)"}}>
-                <div className="ic" style={{background:file?"#e7f6ee":"var(--line2)"}}>{file?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
+                {preview
+                  ? <img className="dz-prev" src={preview} alt="" />
+                  : <div className="ic" style={{background:"var(--line2)"}}><Icon.camera/></div>}
                 <b>{file?file.name:"Tap to add a photo"}</b>
-                <small>{file?"Looks good — ready to send":"JPG, PNG or WebP · up to 8 MB"}</small>
+                <small>{file?"This is how it goes up — tap to swap it":"JPG, PNG or WebP · up to 8 MB"}</small>
               </div>
 
               {(

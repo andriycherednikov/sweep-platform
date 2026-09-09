@@ -756,6 +756,8 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .dropzone .ic svg{width:22px; height:22px; stroke:var(--muted);}
 .dropzone b{font-family:'Barlow Condensed'; font-weight:800; font-size:15px; color:var(--navy); display:block;}
 .dropzone small{font-size:11px; color:var(--muted); display:block; margin-top:4px;}
+/* the picked file, shown whole: a fan photo keeps its shape on the wall */
+.dz-prev{display:block; max-width:100%; max-height:200px; margin:0 auto 10px; border-radius:10px; object-fit:contain; background:var(--line2);}
 .note-line{font-size:11px; color:var(--muted); line-height:1.4; display:flex; gap:7px; margin-top:4px;}
 .note-line svg{width:14px; height:14px; stroke:var(--live); flex-shrink:0; margin-top:1px;}
 

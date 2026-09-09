@@ -74,6 +74,10 @@ const renderSheet = (f) => render(
 
 beforeEach(() => { localStorage.clear(); setMe(null); vi.clearAllMocks(); setSpoiler(false) })
 
+// jsdom has no object URLs; the upload sheets preview through one.
+global.URL.createObjectURL ??= () => 'blob:pic'
+global.URL.revokeObjectURL ??= () => {}
+
 test('MatchSheet hides the match-events timeline under privacy mode, shows it on reveal', () => {
   const events = [{ id: 'g1', type: 'goal', teamCode: 'hr', player: 'L. Modric', minute: 41, detail: 'Normal Goal' }]
   const f = sheetFixture(null, {}, events, { status: 'final', score: [1, 0] })
@@ -1312,4 +1316,15 @@ test('the fan photo sheet never asks for a name and never sends one', async () =
   const fd = uploadPhoto.mock.calls[0][0]
   expect(fd.get('uploaderName')).toBeNull()
   expect(fd.get('kind')).toBe('fan')
+})
+
+// You cannot tell one WhatsApp filename from another. The sheet shows the picture.
+test('the fan photo sheet previews the file you picked', async () => {
+  const f = sheetFixture(null)
+  const { container } = render(<UploadSheet presetFixture={f.id} onClose={noop} onToast={noop} />)
+  expect(container.querySelector('.dropzone img')).toBeNull()
+
+  const file = new File(['x'], 'pic.jpg', { type: 'image/jpeg' })
+  await act(async () => { fireEvent.change(container.querySelector('input[type="file"]'), { target: { files: [file] } }) })
+  expect(container.querySelector('.dropzone img').getAttribute('src')).toBe('blob:pic')
 })
