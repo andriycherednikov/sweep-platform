@@ -231,7 +231,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
                 <Flag code={t.code} w={50} h={36} cls={"bigflag" + (isTeamOut ? " is-elim" : "")} />
                 <div className="ti">
                   <b>{t.name}{isTeamOut && <span className="elim-badge">OUT</span>}</b>
-                  <div className="sub"><span className="poolbadge">Pool {t.pool}</span><span>Group {t.group}</span><span>{t.outlook}</span></div>
+                  <div className="sub">{t.group && <span>{S.vocab.groupHeading(t.group)}</span>}<span>{t.outlook}</span></div>
                 </div>
                 <div className="wbox"><b>{t.strength}</b><small>Strength</small></div>
               </div>
@@ -326,7 +326,6 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
 
 /* ---------------- TEAMS ---------------- */
 export function TeamsScreen({ go, openTeam }) {
-  const [mode, setMode] = useState("group"); // group | pool
   const [hideElim, setHideElim] = useState(false);
   const [q, setQ] = useState("");
   const scrollRef = useRef(null);
@@ -338,13 +337,13 @@ export function TeamsScreen({ go, openTeam }) {
     : null;
   const totalTeams = S.teamList.length;
   const aliveTeams = S.teamList.filter(t => !S.isTeamEliminated(t.code)).length;
+  // The API already grouped and sorted per sport (conference for NBA, letter group for
+  // a World Cup, one unnamed table for a league) — take its word for both.
+  const entries = Object.entries(S.standings);
+  const sections = entries.length ? entries : [["", S.teamList]];
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
       <AppHeader title="Teams" go={go} scrolled={scrolled} />
-      <div className="filterbar">
-        <button className={"fchip"+(mode==="group"?" on":"")} onClick={()=>setMode("group")}>{`By ${S.vocab.groupLabel.toLowerCase()}`}</button>
-        <button className={"fchip"+(mode==="pool"?" on":"")} onClick={()=>setMode("pool")}>By sweep pool</button>
-      </div>
       <div className="scroll pad screen-anim" style={{paddingTop:8}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
@@ -358,10 +357,12 @@ export function TeamsScreen({ go, openTeam }) {
             matches.length === 0
               ? <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No teams match “{q}”.</p>
               : <TeamGroup title={matches.length+" team"+(matches.length!==1?"s":"")} teams={matches} openTeam={openTeam} hideElim={hideElim} />
-          ) : mode==="group" ? S.groups.map(g=>(
-            <TeamGroup key={g} title={S.vocab.groupHeading(g)} teams={S.standings[g] ?? []} openTeam={openTeam} rank hideElim={hideElim} />
-          )) : ["A","B"].map(pool=>(
-            <TeamGroup key={pool} title={"Pool "+pool} teams={S.teamList.filter(t=>t.pool===pool).sort((a,b)=>b.strength-a.strength)} openTeam={openTeam} hideElim={hideElim} hidePts />
+          ) : sections.map(([key, rows]) => (
+            // one unnamed section = a flat league table, so it gets no heading. The
+            // headings used to come from t.group while the rows came from standings —
+            // a league keys its table on '', so "Group null" sat above nothing.
+            <TeamGroup key={key || "all"} title={key ? S.vocab.groupHeading(key) : null}
+              teams={rows} openTeam={openTeam} rank hideElim={hideElim} />
           ))}
         </div>
       </div>
@@ -376,7 +377,7 @@ export function TeamGroup({ title, teams, openTeam, rank, hideElim, hidePts }) {
   if (hideElim && teams.every(t => S.isTeamEliminated(t.code))) return null;
   return (
     <div style={{marginBottom:6}}>
-      <div className="sec-h" style={{marginBottom:7}}><h2>{title}</h2></div>
+      {title && <div className="sec-h" style={{marginBottom:7}}><h2>{title}</h2></div>}
       <div className="plist" style={{marginBottom:12}}>
         {teams.map((t,i)=>{
           const isTeamOut = S.isTeamEliminated(t.code);
@@ -393,7 +394,7 @@ export function TeamGroup({ title, teams, openTeam, rank, hideElim, hidePts }) {
                     : <span className="t" style={{color:"var(--muted2)"}}>No owner</span>}
                 </div>
               </div>
-              {!hidePts && (S.competition.format === "league"
+              {!hidePts && (t.pct != null
                 ? <div className="stat"><div className="pp">{fmtPct(t.pct)}</div><small>pct</small></div>
                 : <div className="stat"><div className="pp">{t.pts}</div><small>pts</small></div>)}
               <Icon.chev className="chev"/>
@@ -438,11 +439,9 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
                 </div>
                 <div className="meta">
                   {t.group && <span className="b">{S.vocab.groupHeading(t.group)}</span>}
-                  <span className="b">Pool {t.pool}</span>
-                  <span className="b">{pos}{pos===1?"st":pos===2?"nd":pos===3?"rd":"th"} · {S.competition.format === "league" ? `${fmtPct(t.pct)} pct` : `${t.pts} pts`}</span>
+                  {pos > 0 && <span className="b">{pos}{pos===1?"st":pos===2?"nd":pos===3?"rd":"th"} · {t.pct != null ? `${fmtPct(t.pct)} pct` : `${t.pts} pts`}</span>}
                 </div>
               </div>
-              <button className="iconbtn" onClick={()=>openUpload(code)} aria-label="Add a fan photo"><Icon.camera/></button>
             </div>
           </div>
         </div>

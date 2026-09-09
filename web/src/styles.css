@@ -586,7 +586,6 @@ img.flag.is-elim{opacity:.35; filter:grayscale(1);}
 .teamtile .ti{flex:1; min-width:0;}
 .teamtile .ti b{font-family:'Barlow Condensed'; font-weight:800; font-size:19px; letter-spacing:.3px; display:block; line-height:1;}
 .teamtile .ti .sub{font-size:11px; color:var(--muted); font-weight:600; margin-top:4px; display:flex; gap:7px; flex-wrap:wrap;}
-.teamtile .ti .sub .poolbadge{background:var(--line2); color:#5b6577; padding:1px 6px; border-radius:5px; font-weight:700; font-size:10px;}
 .teamtile .wbox{text-align:center; flex-shrink:0;}
 .teamtile .wbox b{font-family:'Barlow Condensed'; font-weight:800; font-size:18px; color:var(--navy);}
 .teamtile .wbox small{font-size:8px; letter-spacing:.8px; color:var(--muted2); font-weight:700; text-transform:uppercase; display:block;}

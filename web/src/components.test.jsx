@@ -258,7 +258,7 @@ test('SquadList renders nothing for an empty squad', () => {
 
 test('HomeScreen renders with zero approved fan photos (empty community state)', () => {
   // Real-world prod state: nobody has uploaded/been-approved yet → photos: [].
-  // The "Our photos" carousel must not crash on an undefined photo.
+  // The "Memories" carousel must not crash on an undefined photo.
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -279,7 +279,7 @@ test('HomeScreen renders with zero approved fan photos (empty community state)',
   const { getByText } = render(
     <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
   )
-  expect(getByText('Our photos')).toBeTruthy()
+  expect(getByText('Memories')).toBeTruthy()
 })
 
 function homeWith(photos) {

@@ -1115,49 +1115,34 @@ test('TeamsScreen "Hide eliminated" hides OUT teams and restores them on toggle'
   expect(queryByText('South Korea')).toBeTruthy() // restored
 })
 
-test('TeamsScreen "By sweep pool" omits the PTS column (points are group-only)', () => {
+// A flat league has no groups and no sweep pools. The headings used to come from
+// t.group while the rows came from standings, so a league — which keys its one table on
+// '' — rendered "Group null" above nothing, beside an empty "Pool A"/"Pool B".
+test('TeamsScreen lists a flat league with no heading and no pool chips', () => {
   setSweepData(assembleSweep({
     bootstrap: {
+      competition: { sport: 'football', format: 'league' },
       teams: [
-        { code: 'ar', name: 'Argentina', group: 'C', pool: 'A', color: '#0a7', strength: 90 },
-        { code: 'fr', name: 'France', group: 'D', pool: 'A', color: '#00f', strength: 88 },
+        { code: 'bre', name: 'Brentford', group: null, pool: null, color: '#c00', strength: 90 },
+        { code: 'ful', name: 'Fulham', group: null, pool: null, color: '#fff', strength: 70 },
       ],
       people: [], ownership: {}, scoring: null,
     },
     fixtures: [],
-    standings: {
-      C: [{ code: 'ar', name: 'Argentina', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 }],
-      D: [{ code: 'fr', name: 'France', played: 3, win: 3, draw: 0, loss: 0, gf: 5, ga: 1, pts: 9 }],
-    },
+    standings: { '': [
+      { code: 'bre', name: 'Brentford', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 },
+      { code: 'ful', name: 'Fulham', played: 3, win: 0, draw: 0, loss: 3, gf: 0, ga: 6, pts: 0 },
+    ] },
     photos: [], syncStatus: { stale: false },
   }))
   const noop = () => {}
-  const { getByText, queryAllByText } = render(<TeamsScreen go={noop} openTeam={noop} />)
-  expect(queryAllByText('pts').length).toBeGreaterThan(0)  // group view shows points
-  act(() => { fireEvent.click(getByText('By sweep pool')) })
-  expect(queryAllByText('pts').length).toBe(0)             // pool view hides points
-  expect(getByText('Argentina')).toBeTruthy()              // teams still listed
-})
-
-test('TeamsScreen filter chip label follows sport vocab: "By group" for football, "By conference" for basketball', () => {
-  const sweep = (sport) => assembleSweep({
-    bootstrap: {
-      competition: { sport },
-      teams: [{ code: 'ar', name: 'Argentina', group: 'C', pool: 'A', color: '#0a7', strength: 90 }],
-      people: [], ownership: {}, scoring: null,
-    },
-    fixtures: [], standings: { C: [] }, photos: [], syncStatus: { stale: false },
-  })
-  const noop = () => {}
-  setSweepData(sweep('football'))
-  const foot = render(<TeamsScreen go={noop} openTeam={noop} />)
-  expect(foot.getByText('By group')).toBeTruthy()
-  foot.unmount()
-
-  setSweepData(sweep('basketball'))
-  const ball = render(<TeamsScreen go={noop} openTeam={noop} />)
-  expect(ball.getByText('By conference')).toBeTruthy()
-  ball.unmount()
+  const { getByText, queryByText, container } = render(<TeamsScreen go={noop} openTeam={noop} />)
+  expect(getByText('Brentford')).toBeTruthy()     // the teams actually render...
+  expect(getByText('Fulham')).toBeTruthy()
+  expect(container.querySelector('.sec-h')).toBeNull()   // ...under no heading at all
+  expect(container.textContent).not.toMatch(/pool/i)     // and no sweep-pool anything
+  expect(container.textContent).not.toMatch(/group/i)
+  expect(container.querySelector('.filterbar')).toBeNull()
 })
 
 test('TeamsScreen group headings follow sport vocab: "Group A" for football, conference name verbatim for basketball', () => {

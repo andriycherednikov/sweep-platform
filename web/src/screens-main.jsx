@@ -242,7 +242,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   const community = (
     <>
-      <div className="sec-h"><h2>Our photos</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
+      <div className="sec-h"><h2>Memories</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
       {photo ? <>
       <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
         {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
