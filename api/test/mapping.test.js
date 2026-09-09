@@ -116,8 +116,16 @@ test('mapSquad: null when empty or missing', () => {
   expect(mapSquad(null)).toBeNull()
 })
 
-test('mapTeam extracts provider id, name, code, country', () => {
-  expect(load('teams').response.map(mapTeam)[0]).toEqual({ providerTeamId: 3001, name: 'Croatia', code: 'CRO', country: 'Croatia' })
+// The crest the feed hands us for every team. Dropping it left football competitors with
+// a null logo, and assemble's football branch then built a flagcdn URL out of a CLUB code
+// — Liverpool has no country flag, so every crest in a club league was a broken image.
+test('mapTeam extracts provider id, name, code, country and crest', () => {
+  expect(load('teams').response.map(mapTeam)[0])
+    .toEqual({ providerTeamId: 3001, name: 'Croatia', code: 'CRO', country: 'Croatia', logo: null })
+  // ...and the real feed sends one for every team. Dropping it is what left club leagues
+  // with a null logo and a flagcdn URL built from a club code.
+  expect(mapTeam({ team: { id: 40, name: 'Liverpool', code: 'LIV', country: 'England', logo: 'https://media.api-sports.io/football/teams/40.png' } }))
+    .toEqual({ providerTeamId: 40, name: 'Liverpool', code: 'LIV', country: 'England', logo: 'https://media.api-sports.io/football/teams/40.png' })
 })
 
 const XW = new Map([[3001, 'hr'], [3002, 'be']])

@@ -74,7 +74,7 @@ test('fetchCompetitors sends league/season params and maps teams', async () => {
   const calledUrl = new URL(fetch.mock.calls[0][0])
   expect(calledUrl.searchParams.get('league')).toBe('1')
   expect(calledUrl.searchParams.get('season')).toBe('2026')
-  expect(t).toEqual({ providerTeamId: 3001, name: 'Croatia', code: 'CRO', country: 'Croatia' })
+  expect(t).toEqual({ providerTeamId: 3001, name: 'Croatia', code: 'CRO', country: 'Croatia', logo: null })
 })
 
 test('fetchOdds maps a Match Winner market to implied probs', async () => {

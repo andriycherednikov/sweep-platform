@@ -278,7 +278,14 @@ export function mapMarkets(rawResponse) {
 }
 
 export function mapTeam(raw) {
-  return { providerTeamId: raw.team.id, name: raw.team.name, code: raw.team.code ?? null, country: raw.team.country ?? null }
+  // The crest rides along. Without it every football competitor stored a null logo, and
+  // assemble's football branch fell back to a flagcdn URL built from the team CODE —
+  // right for a World Cup of countries, a broken image for every club in a league.
+  return {
+    providerTeamId: raw.team.id, name: raw.team.name,
+    code: raw.team.code ?? null, country: raw.team.country ?? null,
+    logo: raw.team.logo ?? null,
+  }
 }
 
 /**
