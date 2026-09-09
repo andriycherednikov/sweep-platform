@@ -115,7 +115,7 @@ async function adminFor() {
 
 test('group admin creates a person and assigns a team', async () => {
   const { h } = await adminFor()
-  const created = await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Zoe', short: 'Zoe', initials: 'Z', av: '#abc' } })
+  const created = await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Zoe', short: 'Zoe', initials: 'Z', av: '#abc' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })
   expect(created.statusCode).toBe(201)
   const personId = created.json().id
   const assign = await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId, teamCode: 'br' } })
@@ -127,14 +127,14 @@ test('group admin creates a person and assigns a team', async () => {
 test('a member cookie cannot reach group-admin routes (403)', async () => {
   const created = await makeSweep('Mem')
   const sess = await app.inject({ method: 'POST', url: '/api/session', payload: { token: created.memberToken } })
-  const res = await app.inject({ method: 'POST', url: '/api/admin/people', headers: { host: 'platform.test', cookie: sess.headers['set-cookie'] }, payload: { name: 'No', short: 'No', initials: 'N', av: '#000' } })
+  const res = await app.inject({ method: 'POST', url: '/api/admin/people', headers: { host: 'platform.test', cookie: sess.headers['set-cookie'] }, payload: { name: 'No', short: 'No', initials: 'N', av: '#000' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })
   expect(res.statusCode).toBe(403)
 })
 
 test('co-ownership allowed: two people CAN own the same team; same person twice is 409', async () => {
   const { h } = await adminFor()
-  const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
-  const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
+  const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
+  const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: a.id, teamCode: 'ar' } })).statusCode).toBe(201)
   // a DIFFERENT person co-owning the same team is allowed:
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: b.id, teamCode: 'ar' } })).statusCode).toBe(201)
@@ -144,7 +144,7 @@ test('co-ownership allowed: two people CAN own the same team; same person twice 
 
 test('assigning/removing an unknown team code is 400 unknown_team (single + bulk)', async () => {
   const { h } = await adminFor()
-  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Nope', short: 'Nope', initials: 'NP', av: '#abc' } })).json()
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Nope', short: 'Nope', initials: 'NP', av: '#abc' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   const assign = await app.inject({ method: 'POST', url: '/api/admin/ownership', headers: h, payload: { personId: p.id, teamCode: 'zz' } })
   expect(assign.statusCode).toBe(400)
   expect(assign.json().error).toBe('unknown_team')
@@ -238,7 +238,7 @@ test('un-archive refuses the default sweep (kind default → 404)', async () => 
 
 test('bulk ownership assigns many teams in one call; /api/people reflects all', async () => {
   const { h } = await adminFor()
-  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Bulk', short: 'Bulk', initials: 'BK', av: '#abc' } })).json()
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Bulk', short: 'Bulk', initials: 'BK', av: '#abc' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   const items = [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }]
   const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items } })
   expect(res.statusCode).toBe(201)
@@ -249,8 +249,8 @@ test('bulk ownership assigns many teams in one call; /api/people reflects all', 
 
 test('bulk ownership is idempotent and allows co-ownership across people', async () => {
   const { h } = await adminFor()
-  const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' } })).json()
-  const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' } })).json()
+  const a = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'A', short: 'A', initials: 'A', av: '#111' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
+  const b = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'B', short: 'B', initials: 'B', av: '#222' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   // first bulk for A: 2 inserted
   expect((await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: a.id, teamCode: 'ar' }, { personId: a.id, teamCode: 'br' }] } })).json().inserted).toBe(2)
   // re-post an owned pair + a new one + B co-owning ar: only the new ones insert (idempotent)
@@ -262,7 +262,7 @@ test('bulk ownership is idempotent and allows co-ownership across people', async
 test('bulk ownership rejects a personId from another sweep (400)', async () => {
   const { h: hA } = await adminFor()
   const { h: hB } = await adminFor()
-  const pB = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: hB, payload: { name: 'Other', short: 'Other', initials: 'OT', av: '#333' } })).json()
+  const pB = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: hB, payload: { name: 'Other', short: 'Other', initials: 'OT', av: '#333' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   // admin A tries to allocate to a person belonging to sweep B
   const res = await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: hA, payload: { items: [{ personId: pB.id, teamCode: 'ar' }] } })
   expect(res.statusCode).toBe(400)
@@ -279,7 +279,7 @@ test('bulk ownership validates payload + guards', async () => {
 
 test('bulk delete removes only the listed pairs, scoped to the sweep', async () => {
   const { h } = await adminFor()
-  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Del', short: 'Del', initials: 'DL', av: '#abc' } })).json()
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Del', short: 'Del', initials: 'DL', av: '#abc' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   await app.inject({ method: 'POST', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'ar' }, { personId: p.id, teamCode: 'fr' }] } })
   const res = await app.inject({ method: 'DELETE', url: '/api/admin/ownership/bulk', headers: h, payload: { items: [{ personId: p.id, teamCode: 'br' }, { personId: p.id, teamCode: 'fr' }] } })
   expect(res.statusCode).toBe(200)
@@ -290,7 +290,7 @@ test('bulk delete removes only the listed pairs, scoped to the sweep', async () 
 
 test('bulk ownership writes publish a sync event for the sweep (so other devices refresh)', async () => {
   const { h, id: sweepId } = await adminFor()
-  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' } })).json()
+  const p = (await app.inject({ method: 'POST', url: '/api/admin/people', headers: h, payload: { name: 'Sync', short: 'Sync', initials: 'SY', av: '#abc' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` } })).json()
   // A second app over the SAME db + secret so the cookie/sweep resolve, but with a publish spy.
   const events = []
   const spy = buildApp(db, { sessionSecret: 'test-secret', publish: (e) => events.push(e) })
@@ -355,7 +355,7 @@ test('setting the email again is the resend button', async () => {
   const auth = await adminHeaders(app, db, 'default', 'ac_seed')
   const created = (await app.inject({
     method: 'POST', url: '/api/admin/people', headers: auth,
-    payload: { name: 'Resend Rae', short: 'Rae', initials: 'RA', av: '#123456' },
+    payload: { name: 'Resend Rae', short: 'Rae', initials: 'RA', av: '#123456' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` },
   })).json()
   mails.length = 0
   const res = await app.inject({
@@ -371,7 +371,7 @@ test('ejecting stops them acting, and keeps everything they did', async () => {
   const auth = await adminHeaders(app, db, 'default', 'ac_seed')
   const created = (await app.inject({
     method: 'POST', url: '/api/admin/people', headers: auth,
-    payload: { name: 'Gone Greg', short: 'Greg', initials: 'GG', av: '#123456' },
+    payload: { name: 'Gone Greg', short: 'Greg', initials: 'GG', av: '#123456' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` },
   })).json()
   const seat = await seatFor(db, created.id)
   const [f] = await db.select().from(event).limit(1)
@@ -430,7 +430,7 @@ test('deleting a person takes their photo files with them', async () => {
   const auth = await adminHeaders(app, db, 'default', 'ac_seed')
   const created = (await app.inject({
     method: 'POST', url: '/api/admin/people', headers: auth,
-    payload: { name: 'Snapper', short: 'Snap', initials: 'SN', av: '#123456' },
+    payload: { name: 'Snapper', short: 'Snap', initials: 'SN', av: '#123456' , email: `p${Math.random().toString(36).slice(2, 8)}@x.test` },
   })).json()
   await app.photos.writeApproved('del1.jpg', Buffer.from('img'))
   await app.photos.writeApproved('del1_t.jpg', Buffer.from('thumb'))

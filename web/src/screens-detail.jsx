@@ -1240,14 +1240,13 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
     setSel((p) => { const n = new Set(p); codes.forEach((c) => n.add(c)); return n; });
   };
   async function save() {
-    const nm = name.trim();
-    if (!nm || busy) return;
+    const nm = name.trim(), em = email.trim();
+    if (!nm || !em || busy) return;
     setBusy(true);
     try {
-      const em = email.trim();
-      const created = await createPerson({ name: nm, ...identityFromName(nm), av: avFor(nm), ...(em ? { email: em } : {}) });
+      const created = await createPerson({ name: nm, ...identityFromName(nm), av: avFor(nm), email: em });
       if (sel.size) await bulkPostOwnership([...sel].map((tc) => ({ personId: created.id, teamCode: tc })));
-      onToast(em ? "Person added — invite sent" : "Person added"); await refresh(); onClose();
+      onToast("Person added — invite sent"); await refresh(); onClose();
     } catch { onToast("Couldn't add — try again"); setBusy(false); }
   }
   return (
@@ -1259,12 +1258,11 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
           <div className="field"><label>Name</label>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Macca" autoFocus />
           </div>
-          <div className="field"><label>Email (optional)</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="macca@example.com" />
+          <div className="field"><label>Email</label>
+            <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="macca@example.com" />
             <small className="field-note">
-              Add an email and we'll send them the group link. They set their own photo and
-              take over this seat — teams and all. Leave it blank and they stay on the roster
-              as display-only.
+              We'll send them the group link. They set their own photo and take over this
+              seat — teams and all.
             </small>
           </div>
           <div className="alloc-rand">
@@ -1287,7 +1285,7 @@ function AddMemberSheet({ onClose, onToast, refresh }) {
           )}
           <h4 className="adminsec-h alloc-h">Add teams</h4>
           <TeamPicker selected={sel} onToggle={toggle} hideCodes={sel} />
-          <button className="cta" disabled={busy || !name.trim()} onClick={save} style={{ marginTop: 14 }}>
+          <button className="cta" disabled={busy || !name.trim() || !email.trim()} onClick={save} style={{ marginTop: 14 }}>
             <Icon.check /> {busy ? "Adding…" : "Add"}
           </button>
         </div>
@@ -1395,6 +1393,12 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
                   disabled={busy || !email.trim()} onClick={resendInvite}>
                   {person.email ? "Resend invite" : "Send invite"}
                 </button>
+                {!person.email && (
+                  <small className="field-note">
+                    This seat has no address, so nobody can claim it — its picks and wagers
+                    are yours to make. Add one and they take it over, teams and all.
+                  </small>
+                )}
               </>
             )}
           </div>

@@ -105,10 +105,13 @@ test('a garbage token is refused', async () => {
 test('an invite to somebody already in the sweep signs them into their own seat', async () => {
   const mine = (await app.inject({
     method: 'POST', url: '/api/admin/people', headers: auth,
-    payload: { name: 'Already', short: 'Al', initials: 'AL', av: '#123456' },
+    payload: { name: 'Already', short: 'Al', initials: 'AL', av: '#123456', email: 'already@x.test' },
   })).json()
   await seatFor(db, mine.id, { accountId: 'ac_inv', email: 'already@x.test' })
 
+  // every new seat now carries an address, so creating one sends an invite of its own —
+  // drop it, the mail under test is the SECOND invite to the same address
+  mails.length = 0
   const second = (await invite('already@x.test')).json()
   const res = await redeem(tokenOf(mails[0]))
   expect(res.statusCode).toBe(201)

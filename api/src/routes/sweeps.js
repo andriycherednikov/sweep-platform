@@ -145,13 +145,17 @@ export async function sweepsRoutes(app) {
 
   const emailProp = { type: 'string', minLength: 3, maxLength: 254, pattern: '^\\s*\\S+@\\S+\\.\\S+\\s*$' }
   const personBody = {
-    type: 'object', required: ['name', 'short', 'initials', 'av'], additionalProperties: false,
+    // Email is required. A seat with no address is display-only: nobody can ever claim
+    // it, so its picks and wagers are the organiser's to make on their behalf, and the
+    // roster quietly fills with people who cannot use the product. Every new seat gets
+    // an invite. Seats created before this rule keep their null address.
+    type: 'object', required: ['name', 'short', 'initials', 'av', 'email'], additionalProperties: false,
     properties: {
       name: { type: 'string', minLength: 1, maxLength: 80 },
       short: { type: 'string', minLength: 1, maxLength: 40 },
       initials: { type: 'string', minLength: 1, maxLength: 4 },
       av: { type: 'string', minLength: 1, maxLength: 20 },
-      email: emailProp, // optional: an invite. Without one the seat is display-only.
+      email: emailProp,
     },
   }
   const personPatchBody = {

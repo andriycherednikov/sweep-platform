@@ -608,10 +608,14 @@ test('PeopleAdmin add-member sheet creates a person (+ optional teams) then inva
   const { getByText, getByLabelText, getByPlaceholderText } = render(<PeopleAdmin onToast={noop} queryClient={qc} />)
   fireEvent.click(getByLabelText('Add person'))                       // open the sheet
   fireEvent.change(getByPlaceholderText('e.g. Macca'), { target: { value: 'Bo' } })
+  // a seat with no address can never be claimed, so the button stays dead without one
+  expect(getByText('Add').closest('button').disabled).toBe(true)
+  fireEvent.change(getByPlaceholderText('macca@example.com'), { target: { value: 'bo@x.test' } })
   fireEvent.click(getByText('Add'))                              // submit (cta)
   await waitFor(() => expect(createPerson).toHaveBeenCalledTimes(1))
-  const av = createPerson.mock.calls[0][0].av
+  const { av, email } = createPerson.mock.calls[0][0]
   expect(av).toMatch(/^#[0-9a-fA-F]{3,8}$/)
+  expect(email).toBe('bo@x.test')
   await waitFor(() => expect(qc.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sweep'] }))
 })
 
