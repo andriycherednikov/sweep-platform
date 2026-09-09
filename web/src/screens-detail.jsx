@@ -1502,7 +1502,7 @@ export function PeopleAdmin({ onToast, queryClient }) {
             {' '}<span className="ct">{joined} joined</span>
             {notJoined > 0 && <> <span className="ct ct-warn">{notJoined} not joined</span></>}
           </h3>
-          <div className="alloc-row" style={{ gap: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             {/* The organiser who spun this sweep up from the console owns it but holds no
                 seat, so the roster reads 0 and nothing here says how to fix that. Same
                 journey as the identity chip's — POST /api/me claims or creates the seat. */}
