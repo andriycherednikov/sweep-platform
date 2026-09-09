@@ -4,8 +4,9 @@ import { eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { fakeStripe } from './helpers/fake-stripe.js'
 import { buildApp } from '../src/app.js'
-import { account, accountSession, catalogLeague, competition, competitor, event, ranking, sweep } from '../src/db/schema.js'
+import { account, accountSession, catalogLeague, competition, competitor, event, person, ranking, sweep } from '../src/db/schema.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
+import { ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
 const loadB = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
@@ -252,4 +253,65 @@ test('archive re-asserts stripe quantity for subscribed accounts', async () => {
   expect(stripeFake.calls.subUpdate).toEqual([
     { id: 'sub_lapse', items: [{ id: 'si_lapse', quantity: 1 }], proration_behavior: 'none' },
   ])
+})
+
+/* --- the console shows what you are in, not only what you run ------------------- */
+
+// Being in somebody else's sweep is the common case — most people never run one — and
+// the console could not see them at all.
+test('the list carries the sweeps you are a member of, marked as such', async () => {
+  const auth = await ownerHeaders(db, 'ac_seed')
+  const pid = `pn_mem_${Date.now()}`
+  await db.insert(person).values({
+    id: pid, sweepId: 'default', name: 'Seed Owner', short: 'Seed', initials: 'SO',
+    avColor: '#123456', accountId: 'ac_seed', claimedAt: new Date(),
+  })
+  try {
+    const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: auth })).json()
+    const mine = rows.find((r) => r.id === 'default')
+    expect(mine).toBeTruthy()
+    expect(mine.role).toBe('owner') // ac_seed owns the seeded sweep, and owning wins
+  } finally {
+    await db.delete(person).where(eq(person.id, pid))
+  }
+})
+
+test('a member sees the sweep, its role, and no member link', async () => {
+  await db.insert(account).values({ id: 'ac_justmember', email: 'justmember@x.test' }).onConflictDoNothing()
+  const pid = `pn_jm_${Date.now()}`
+  await db.insert(person).values({
+    id: pid, sweepId: 'default', name: 'Just Member', short: 'JM', initials: 'JM',
+    avColor: '#123456', accountId: 'ac_justmember', claimedAt: new Date(),
+  })
+  const auth = await ownerHeaders(db, 'ac_justmember')
+  try {
+    const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: auth })).json()
+    const row = rows.find((r) => r.id === 'default')
+    expect(row).toMatchObject({ id: 'default', role: 'member' })
+    // the link is the owner's to hand out; a member already came in through one
+    expect(row.memberLink).toBeUndefined()
+    expect(row.members).toBeUndefined()
+  } finally {
+    await db.delete(person).where(eq(person.id, pid))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_justmember'))
+    await db.delete(account).where(eq(account.id, 'ac_justmember'))
+  }
+})
+
+test('an ejected member is not still in the sweep', async () => {
+  await db.insert(account).values({ id: 'ac_gone', email: 'gone@x.test' }).onConflictDoNothing()
+  const pid = `pn_gone_${Date.now()}`
+  await db.insert(person).values({
+    id: pid, sweepId: 'default', name: 'Gone', short: 'Gone', initials: 'GO',
+    avColor: '#123456', accountId: 'ac_gone', claimedAt: new Date(), ejectedAt: new Date(),
+  })
+  const auth = await ownerHeaders(db, 'ac_gone')
+  try {
+    const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: auth })).json()
+    expect(rows.find((r) => r.id === 'default')).toBeUndefined()
+  } finally {
+    await db.delete(person).where(eq(person.id, pid))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_gone'))
+    await db.delete(account).where(eq(account.id, 'ac_gone'))
+  }
 })

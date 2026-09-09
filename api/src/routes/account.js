@@ -399,25 +399,48 @@ export async function accountRoutes(app) {
   })
 
   app.get('/api/account/sweeps', { preHandler: accountGuard }, async (req) => {
-    const rows = await app.db.select().from(sweep).where(eq(sweep.accountId, req.account.id))
+    // Two ways to be in a sweep, and most people only ever have the second: you run it,
+    // or you have a seat in it. The console could see only the first, so a member's list
+    // was empty however many groups they played in.
+    const owned = await app.db.select().from(sweep).where(eq(sweep.accountId, req.account.id))
+    const ownedIds = new Set(owned.map((r) => r.id))
+    const joined = await app.db.select({ sweep }).from(person)
+      .innerJoin(sweep, eq(sweep.id, person.sweepId))
+      .where(and(
+        eq(person.accountId, req.account.id),
+        isNull(person.ejectedAt),
+        isNull(sweep.archivedAt),
+      ))
+
     // "how many have actually joined" is the question the console could not answer.
     // count(col) skips NULLs, so `registered` is free once we are grouping anyway.
     const counts = new Map()
-    if (rows.length) {
+    if (owned.length) {
       const tallies = await app.db.select({
         sweepId: person.sweepId,
         total: sql`count(*)::int`,
         registered: sql`count(${person.accountId})::int`,
       }).from(person)
-        .where(inArray(person.sweepId, rows.map((r) => r.id)))
+        .where(inArray(person.sweepId, owned.map((r) => r.id)))
         .groupBy(person.sweepId)
       for (const t of tallies) counts.set(t.sweepId, { total: t.total, registered: t.registered })
     }
-    return rows.map((r) => ({
-      id: r.id, name: r.name, competitionId: r.competitionId, archivedAt: r.archivedAt,
-      createdAt: r.createdAt, members: counts.get(r.id) ?? { total: 0, registered: 0 },
-      ...links(app, r),
-    }))
+
+    const base = (r) => ({
+      id: r.id, name: r.name, competitionId: r.competitionId,
+      archivedAt: r.archivedAt, createdAt: r.createdAt,
+    })
+    return [
+      ...owned.map((r) => ({
+        ...base(r), role: 'owner',
+        members: counts.get(r.id) ?? { total: 0, registered: 0 },
+        ...links(app, r),
+      })),
+      // Owning wins: the owner of a sweep who also plays in it gets one row, the one
+      // with the controls on it. And a member gets no member link — it is the owner's
+      // to hand out, and they already came in through one.
+      ...joined.filter((j) => !ownedIds.has(j.sweep.id)).map((j) => ({ ...base(j.sweep), role: 'member' })),
+    ]
   })
 
   app.post('/api/account/sweeps/:id/archive', { preHandler: accountGuard }, async (req, reply) => {

@@ -1,5 +1,5 @@
 import { eq, and, sql, isNull } from 'drizzle-orm'
-import { person, ownership } from '../db/schema.js'
+import { account, person, ownership } from '../db/schema.js'
 import { serializePerson } from '../serialize.js'
 import { requireSweep } from '../sweeps/auth.js'
 import { newToken } from '../sweeps/tokens.js'
@@ -42,6 +42,12 @@ export async function peopleRoutes(app) {
     const sweepId = req.sweep.id
     const name = req.body.name.trim()
     const derived = identityFor(name)
+
+    // account.name was declared and never written, so the account console had only an
+    // email to greet you by. This is the one moment somebody tells us their name.
+    if (req.account.name !== name) {
+      await app.db.update(account).set({ name }).where(eq(account.id, req.account.id))
+    }
 
     const [held] = await app.db.select().from(person)
       .where(and(eq(person.sweepId, sweepId), eq(person.accountId, req.account.id)))

@@ -1933,3 +1933,18 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .join-face-btn{display:inline-block; padding:8px 16px; border:1.5px solid var(--line); border-radius:999px; background:var(--card); font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; letter-spacing:.4px; text-transform:uppercase; color:var(--navy); cursor:pointer;}
 .join-face-btn:hover{border-color:var(--accent); color:var(--accent);}
 .join-face-name{margin:0; font-family:'Barlow'; font-size:11.5px; color:var(--muted2); max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+
+/* account console: whose account this is, and the two kinds of sweep in it */
+.ac-me{ display:flex; align-items:center; gap:9px; padding:8px 2px 2px; }
+.ac-me-av{ width:36px; height:36px; flex-shrink:0; border-radius:11px; display:grid; place-items:center;
+  background:var(--glass2); color:#fff; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:14px; letter-spacing:.5px; }
+.ac-me-tx{ flex:1; min-width:0; line-height:1.15; }
+.ac-me-tx small{ display:block; font-size:8.5px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; color:var(--ink3); }
+.ac-me-tx b{ display:block; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ac-me-out{ flex-shrink:0; display:grid; place-items:center; width:34px; height:34px; border-radius:10px;
+  border:1px solid var(--edge); background:transparent; color:var(--ink2); cursor:pointer; }
+.ac-me-out svg{ width:16px; height:16px; }
+.ac-me-out:hover{ color:var(--lp-accent); border-color:rgba(236,48,19,.45); }
+.ac-group{ margin:6px 0 -4px; font-family:'Archivo',system-ui,sans-serif; font-weight:800; font-size:13px;
+  letter-spacing:.4px; text-transform:uppercase; color:var(--paper-ink); opacity:.55; }
+.ac-card-slim{ padding-bottom:16px; }

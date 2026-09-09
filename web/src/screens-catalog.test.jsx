@@ -5,6 +5,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // tests never touch fetch. The server is the filter/search; the component
 // just re-queries it (no client-side filtering).
 vi.mock('./lib/accountClient.js', () => ({
+  getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'you@x.test', name: 'Ada Lovelace' })),
   getCatalog: vi.fn(),
   createSweep: vi.fn(),
 }))

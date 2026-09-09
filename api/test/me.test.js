@@ -144,3 +144,18 @@ test('a lapsed sweep can be signed into, not joined', async () => {
   expect(res.statusCode).toBe(403)
   expect(res.json()).toEqual({ error: 'sweep_readonly' })
 })
+
+// account.name was declared and never written by any route, so the account console had
+// only an email to show. Taking a seat is the one moment someone tells us their name.
+test('taking a seat teaches the account your name', async () => {
+  await join('ac_me_1', 'Ada Lovelace')
+  const [acc] = await db.select().from(account).where(eq(account.id, 'ac_me_1'))
+  expect(acc.name).toBe('Ada Lovelace')
+})
+
+test('renaming your seat renames you', async () => {
+  await join('ac_me_1', 'Ada Lovelace')
+  await join('ac_me_1', 'Augusta Byron')
+  const [acc] = await db.select().from(account).where(eq(account.id, 'ac_me_1'))
+  expect(acc.name).toBe('Augusta Byron')
+})

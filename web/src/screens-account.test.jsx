@@ -4,6 +4,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 // The account shell is header-token auth, separate from the sweep session —
 // mock accountClient so these tests never touch fetch.
 vi.mock('./lib/accountClient.js', () => ({
+  getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'you@x.test', name: 'Ada Lovelace' })),
   getBilling: vi.fn(),
   getAccountSweeps: vi.fn(),
   archiveSweep: vi.fn(async () => ({})),
@@ -140,7 +141,7 @@ test('subscribed + past_due shows a soft payment warning', async () => {
 
 test('sign out (this device) revokes the session, clears the token and reloads', async () => {
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^sign out$/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^log out$/i }))
   await waitFor(() => expect(revokeSession).toHaveBeenCalled())
   expect(revokeAllSessions).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
@@ -159,7 +160,7 @@ test('sign out everywhere revokes every session, clears the token and reloads', 
 test('sign out still clears locally and reloads even when the server revoke fails', async () => {
   revokeSession.mockRejectedValueOnce(new Error('network'))
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^sign out$/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^log out$/i }))
   await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.reload).toHaveBeenCalled()
 })
@@ -249,4 +250,39 @@ test('a fully-joined sweep says so without a nag', async () => {
   render(<AccountHome />)
   expect(await screen.findByText(/5 in the sweep/)).toBeInTheDocument()
   expect(screen.queryByText(/not joined yet/)).toBeNull()
+})
+
+// Most people never run a sweep — they are only ever in somebody else's, and the
+// console could not see those at all.
+test('sweeps you are in are listed, separately from the ones you run', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', role: 'owner', memberLink: 'https://h/g/m1', members: { total: 3, registered: 2 } },
+    { id: 'sw2', name: 'Office Footy', competitionId: 'c2', archivedAt: null, createdAt: 'x', role: 'member' },
+  ])
+  render(<AccountHome />)
+  expect(await screen.findByText('My NBA')).toBeTruthy()
+  expect(screen.getByText('Office Footy')).toBeTruthy()
+  expect(screen.getByText(/sweeps you run/i)).toBeTruthy()
+  expect(screen.getByText(/sweeps you're in/i)).toBeTruthy()
+  expect(screen.getByRole('link', { name: /open/i })).toHaveAttribute('href', '/s/sw2')
+})
+
+// A member has no billing, no link to hand out and nothing to archive — those belong
+// to whoever runs it.
+test('a sweep you only play in carries none of the owner controls', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw2', name: 'Office Footy', competitionId: 'c2', archivedAt: null, createdAt: 'x', role: 'member' },
+  ])
+  render(<AccountHome />)
+  expect(await screen.findByText('Office Footy')).toBeTruthy()
+  expect(screen.queryByRole('button', { name: /^archive$/i })).toBeNull()
+  expect(screen.queryByRole('button', { name: /replace link/i })).toBeNull()
+  // and it still nudges them to run one of their own
+  expect(screen.getByText(/don't run one yet/i)).toBeTruthy()
+})
+
+test('the rail says who you are signed in as', async () => {
+  render(<AccountHome />)
+  expect(await screen.findByText('Ada Lovelace')).toBeTruthy()
+  expect(screen.getByText(/signed in as/i)).toBeTruthy()
 })

@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useMarketingShell } from "./screens-landing.jsx";
 import {
-  getBilling, getAccountSweeps, archiveSweep, rotateSweep,
+  getAccount, getBilling, getAccountSweeps, archiveSweep, rotateSweep,
   startCheckout, openPortal, clearAccountToken, revokeSession, revokeAllSessions,
 } from "./lib/accountClient.js";
 
@@ -16,8 +16,23 @@ export function goTo(url) { window.location.assign(url); }
 
 /** The account console shell: a dark rail carrying the brand and where you are,
  *  a light pane carrying the work. Every signed-in page outside a sweep uses it. */
+/** Initials from a name, or from the address when nobody has told us a name yet. */
+function initialsOf(name, email) {
+  const src = (name || "").trim();
+  if (src) return src.replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase() || "??";
+  return (email || "?").slice(0, 2).toUpperCase();
+}
+
 export function Console({ here, children }) {
   useMarketingShell();
+  // Who you are, in the rail, the same as inside a sweep — the console knew your
+  // account and greeted you with two unlabelled sign-out buttons.
+  const [who, setWho] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    getAccount().then((a) => { if (alive) setWho(a); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
   const item = (key, label, badge) => (
     <button
       className={"ac-nav-i" + (here === key ? " is-here" : "") + (key === "new" ? " is-go" : "")}
@@ -57,7 +72,18 @@ export function Console({ here, children }) {
         <div className="ac-side-foot">
           <button className={"lp-btn ac-btn" + (here === "new" ? " is-here" : "")}
                   onClick={() => goTo("/account/new")}>New sweep</button>
-          <button className="ac-ghost" onClick={signOutHere}>Sign out</button>
+          {who && (
+            <div className="ac-me">
+              <span className="ac-me-av">{initialsOf(who.name, who.email)}</span>
+              <span className="ac-me-tx">
+                <small>Signed in as</small>
+                <b>{who.name || who.email}</b>
+              </span>
+              <button className="ac-me-out" onClick={signOutHere} aria-label="Log out" title="Log out">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>
+              </button>
+            </div>
+          )}
           <button className="ac-ghost" onClick={signOutEverywhere}>Sign out everywhere</button>
         </div>
       </aside>
@@ -289,8 +315,25 @@ function SweepRow({ s, billing, reload }) {
   );
 }
 
+/** A sweep you are simply in. No link to hand out, no billing, nothing to archive —
+ *  those are the owner's. Just a way back into it. */
+function MemberRow({ s }) {
+  return (
+    <section className="ac-card ac-card-slim">
+      <div className="ac-card-top">
+        <h3 className="ac-card-h">{s.name}</h3>
+        <a className="ac-ghost" href={`/s/${s.id}`}>Open</a>
+      </div>
+      <p className="ac-b">You play in this one. Whoever runs it looks after the billing and the roster.</p>
+    </section>
+  );
+}
+
 function SweepList({ sweeps, billing, reload }) {
   const active = sweeps.filter((s) => !s.archivedAt);
+  const owned = active.filter((s) => s.role !== "member");
+  const joined = active.filter((s) => s.role === "member");
+
   if (active.length === 0) {
     return (
       <section className="ac-card ac-empty">
@@ -300,7 +343,24 @@ function SweepList({ sweeps, billing, reload }) {
       </section>
     );
   }
-  return active.map((s) => <SweepRow key={s.id} s={s} billing={billing} reload={reload} />);
+
+  return (
+    <>
+      {/* Only label the groups when there are two of them — a heading over a single
+          list is noise, and most people will only ever have one kind. */}
+      {owned.length > 0 && joined.length > 0 && <h2 className="ac-group">Sweeps you run</h2>}
+      {owned.map((s) => <SweepRow key={s.id} s={s} billing={billing} reload={reload} />)}
+      {owned.length === 0 && (
+        <section className="ac-card ac-empty">
+          <h3 className="ac-card-h">You don't run one yet</h3>
+          <p className="ac-b">Pick a competition and spin one up — the fixtures come with it.</p>
+          <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
+        </section>
+      )}
+      {joined.length > 0 && <h2 className="ac-group">Sweeps you're in</h2>}
+      {joined.map((s) => <MemberRow key={s.id} s={s} />)}
+    </>
+  );
 }
 
 export function AccountHome() {
