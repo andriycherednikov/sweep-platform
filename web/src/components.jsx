@@ -30,6 +30,7 @@ export const Icon = {
   back:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   chev:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M9 5l7 7-7 7"/></svg>,
   swap:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>,
+  exit:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>,
   x:       (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M6 6l12 12M18 6L6 18"/></svg>,
   check:   (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M4 12l5 5L20 6"/></svg>,
   plus:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" {...p}><path d="M12 5v14"/><path d="M5 12h14"/></svg>,
@@ -636,7 +637,9 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
         <IdentityControl dark/>
         {/* Shown from the first sweep: the sheet holds Leave, the only exit from a
             sweep session. Gating it on 2+ left the single-sweep case with none. */}
-        {onSweeps && sweeps.length > 0 && <button className="sb-item" onClick={onSweeps} style={{marginTop:8}}><Icon.swap/><span>My sweeps</span></button>}
+        {onSweeps && sweeps.length > 0 && (
+          <button className="sb-icon" onClick={onSweeps} aria-label="My sweeps" title="My sweeps"><Icon.swap/></button>
+        )}
         <div className="dt" style={{marginTop:12}}><b>{fmtDate(new Date())}</b></div>
       </div>
     </aside>
@@ -683,13 +686,16 @@ export function IdentityControl({ dark, style }){
   if (me) return (
     <div className={"idme" + (dark ? " dark" : "")} style={style}>
       <button className="idme-main" onClick={() => window.__sweepViewMe && window.__sweepViewMe()} aria-label="View your profile">
-        <PersonAvatar p={me} cls="av" style={{width:38,height:38,border:0,margin:0,fontSize:15}}/>
+        <PersonAvatar p={me} cls="av" style={{width:34,height:34,border:0,margin:0,fontSize:13}}/>
         <span className="idtxt">
           <small>Signed in as</small>
           <b>{me.short}</b>
         </span>
       </button>
-      <button className="idme-out" onClick={signOut}>Log out</button>
+      {/* Keeps its word: the bare cross this replaced read as "close", not "sign out". */}
+      <button className="idme-out" onClick={signOut} title="Log out">
+        <Icon.exit/><span>Log out</span>
+      </button>
     </div>
   );
 

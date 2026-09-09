@@ -607,20 +607,20 @@ test('useSweeps re-renders subscribers when sweeps are added and removed', () =>
 
 test('Sidebar shows "My sweeps" with one joined sweep — it is the way to leave it', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
-  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByText('My sweeps')).toBeInTheDocument()
+  const { getByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByLabelText('My sweeps')).toBeInTheDocument()
 })
 
 test('Sidebar hides "My sweeps" with no joined sweeps', () => {
-  const { queryByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(queryByText('My sweeps')).toBeNull()
+  const { queryByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(queryByLabelText('My sweeps')).toBeNull()
 })
 
 test('Sidebar shows "My sweeps" with two joined sweeps', () => {
   addSweep({ sweepId: 'sw_a', name: 'Office', role: 'admin', token: 'ta' })
   addSweep({ sweepId: 'sw_b', name: 'Pub', role: 'member', token: 'tb' })
-  const { getByText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
-  expect(getByText('My sweeps')).toBeInTheDocument()
+  const { getByLabelText } = render(<Sidebar current="home" go={() => {}} onKnock={() => {}} onAdmin={() => {}} onSweeps={() => {}} />)
+  expect(getByLabelText('My sweeps')).toBeInTheDocument()
 })
 
 test('HomeHeader shows the sweeps button with one joined sweep', () => {
