@@ -717,31 +717,22 @@ export function IdentityControl({ dark, style, onSweeps }){
   // Signed into an account but holding no seat — the owner who spun this sweep up from
   // the console is the common case. Saying "Nobody yet" at somebody whose name we know
   // reads as a failure; say who they are, and that the seat is the thing still missing.
+  // Signed out and seated look the same in the rail — same row, same height, no box
+  // around one of them. The bordered chip made the one state that is NOT you the
+  // loudest thing in the sidebar.
   const acct = S.account;
-  if (acct) {
-    const who = acct.name || acct.email;
-    return (
-      <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-        <button className="idmain" onClick={join} aria-label="Take a seat in this sweep">
-          <span className="idq">{(acct.name || acct.email || "?").trim().charAt(0).toUpperCase()}</span>
-          <span className="idtxt">
-            <small title={who}>{who}</small>
-            <b>Take a seat</b>
-          </span>
-        </button>
-        {swap}
-      </div>
-    );
-  }
-
   const others = S.people.length;
+  const anon = acct
+    ? { initial: (acct.name || acct.email).trim().charAt(0).toUpperCase(), top: acct.name || acct.email, cta: "Take a seat", label: "Take a seat in this sweep" }
+    : { initial: "?", top: others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet", cta: "Sign in", label: "Sign in to this sweep" };
+
   return (
-    <div className={"idchip" + (dark ? " dark" : "")} style={style}>
-      <button className="idmain" onClick={join} aria-label="Sign in to this sweep">
-        <span className="idq">?</span>
+    <div className={"idme" + (dark ? " dark" : "")} style={style}>
+      <button className="idme-main" onClick={join} aria-label={anon.label}>
+        <span className="av idme-av idme-anon" aria-hidden="true">{anon.initial}</span>
         <span className="idtxt">
-          <small>{others ? `${others} ${others === 1 ? "person is" : "people are"} in` : "Nobody yet"}</small>
-          <b>Sign in</b>
+          <small title={anon.top}>{anon.top}</small>
+          <b>{anon.cta}</b>
         </span>
       </button>
       {swap}
