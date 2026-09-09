@@ -1365,3 +1365,21 @@ test('the fan photo sheet lets a tapped game be untagged', async () => {
   await act(async () => { fireEvent.click(picked()) })
   expect(container.querySelector('.gpk.on')).toBeNull()
 })
+
+// The organiser who spun the sweep up from the console owns it but holds no seat, so the
+// roster reads 0 and sort chips sit over nothing. Say what is missing and offer the fix.
+test('PeopleAdmin: an empty roster drops the sort chips and offers a way in', async () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 80 }],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  setMe(null)
+  const { getByText, queryByText, container } = render(<PeopleAdmin onToast={noop} />)
+  expect(container.querySelector('.filterbar')).toBeNull()
+  expect(queryByText('Recently added')).toBeNull()
+  expect(getByText(/nobody is in this sweep yet/i)).toBeInTheDocument()
+  expect(getByText('Add me to the sweep')).toBeInTheDocument()
+})

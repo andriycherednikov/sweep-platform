@@ -1502,14 +1502,25 @@ export function PeopleAdmin({ onToast, queryClient }) {
             {' '}<span className="ct">{joined} joined</span>
             {notJoined > 0 && <> <span className="ct ct-warn">{notJoined} not joined</span></>}
           </h3>
-          <button className="qbtn app" aria-label="Add person" title="Add person" onClick={() => setAdding(true)} style={{ minWidth: 0, width: 38, height: 38, padding: 0 }}><Icon.plus /></button>
+          <div className="alloc-row" style={{ gap: 8 }}>
+            {/* The organiser who spun this sweep up from the console owns it but holds no
+                seat, so the roster reads 0 and nothing here says how to fix that. Same
+                journey as the identity chip's — POST /api/me claims or creates the seat. */}
+            {!getMe() && (
+              <button className="fchip" onClick={() => window.__sweepJoin && window.__sweepJoin()}>Add me to the sweep</button>
+            )}
+            <button className="qbtn app" aria-label="Add person" title="Add person" onClick={() => setAdding(true)} style={{ minWidth: 0, width: 38, height: 38, padding: 0 }}><Icon.plus /></button>
+          </div>
         </div>
-        <div className="filterbar" style={{ marginTop: 8 }}>
+        {people.length > 0 && <div className="filterbar" style={{ marginTop: 8 }}>
           <button className={"fchip" + (sort === "recent" ? " on" : "")} onClick={() => setSort("recent")}>Recently added</button>
           <button className={"fchip" + (sort === "name" ? " on" : "")} onClick={() => setSort("name")}>Name</button>
           <button className={"fchip" + (sort === "teams" ? " on" : "")} onClick={() => setSort("teams")}>Teams</button>
           <button className={"fchip" + (sort === "unjoined" ? " on" : "")} onClick={() => setSort("unjoined")}>Not joined</button>
-        </div>
+        </div>}
+        {people.length === 0 && (
+          <p className="adminempty">Nobody is in this sweep yet. Send the group your member link, or add people here.</p>
+        )}
         <div className="plist" style={{ marginTop: 12 }}>
           {sorted.map((p) => (
             <button className="prow prow-click" key={p.id} onClick={() => setAllocId(p.id)}>
