@@ -39,6 +39,11 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
    ponytail: one shell, two callers, interpolated — a render({...}) engine with
    six knobs would be more machinery than the two mails it serves. */
 const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+// The wordmark IS the logo (web/src/styles.css:1037). Caveat is requested for the
+// clients that honour a webfont — Apple Mail does — and the rest fall through a stack of
+// script faces that actually ship on their platform, so it still reads as a signature
+// rather than as a heading. Never uppercased: on the site it is sentence case.
+const SCRIPT = "'Caveat','Bradley Hand','Segoe Script','Brush Script MT',cursive"
 const MONO = "ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace"
 const INK = '#0f1620'
 const ACCENT = '#ec3013'
@@ -52,6 +57,7 @@ function shell({ preheader, eyebrow, heading, lede, block, foot }) {
 <meta name="color-scheme" content="light dark">
 <title>The Sweep</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
 @media (prefers-color-scheme: dark) {
   .page{background:#0a0f16 !important;}
   .card{background:#131c26 !important;}
@@ -76,8 +82,8 @@ function shell({ preheader, eyebrow, heading, lede, block, foot }) {
   <!-- masthead: the brand is a navy band, because a typeface cannot be relied on -->
   <tr><td style="background:${INK};border-radius:14px 14px 0 0;padding:22px 34px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-      <td align="left" style="font-family:${SANS};font-size:16px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffffff;">The&nbsp;Sweep</td>
-      <td align="right" style="font-family:${SANS};font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:#7d8b9a;">${eyebrow}</td>
+      <td align="left" style="font-family:${SCRIPT};font-size:30px;font-weight:700;line-height:1.1;color:#ffffff;">The Sweep</td>
+      <td align="right" style="font-family:${SANS};font-size:12px;font-weight:600;letter-spacing:.3px;color:#8d9aa8;">${eyebrow}</td>
     </tr></table>
   </td></tr>
   <!-- the accent lives here: one hairline, and it survives every client -->
