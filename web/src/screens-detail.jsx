@@ -1679,7 +1679,9 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
                   </>}
             </>
           ) : (<>
-          {list.length===0 && <div className="empty"><div className="ic">✅</div><h3>Queue clear</h3><p>No {tab} photos right now.</p></div>}
+          {list.length===0 && (tab==="pending"
+            ? <div className="empty"><div className="ic">✅</div><h3>Nothing waiting</h3><p>Every upload has been dealt with.</p></div>
+            : <div className="empty"><div className="ic">📷</div><h3>No photos yet</h3><p>Whatever the group uploads shows up here, and you can take any of it down.</p></div>)}
           {list.map(p=>(
             <div className="queueitem" key={p.id}>
               <QueueImage src={p.fileUrl}>
