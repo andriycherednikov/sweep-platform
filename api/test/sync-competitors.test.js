@@ -65,3 +65,25 @@ test('a leaver with historical events is kept (loud skip), not an FK crash', asy
   const rows = await db.select().from(competitor).where(eq(competitor.competitionId, NBA.id))
   expect(rows.map((c) => c.code)).toContain('oklahoma-city-thunder') // history preserved
 })
+
+// Matching is by providerId, so a curated roster matches nothing and every team lands a
+// SECOND time under a slug code — 48 countries became 96 when this was tried for real.
+// The seeded half keeps all the ownership, so the duplicate set is invisible until the
+// roster page shows everyone twice.
+test('syncCompetitors refuses a curated roster rather than duplicating it', async () => {
+  const CURATED = { ...NBA, id: `${NBA.id}-curated`, season: `${NBA.season}-curated` }
+  await db.insert(competition).values({ ...CURATED, format: 'league', name: 'NBA curated' }).onConflictDoNothing()
+  await db.insert(competitor).values({
+    id: `cp_${CURATED.id}_hr`, competitionId: CURATED.id, code: 'hr', name: 'Croatia',
+    color: '#c00', providerId: null,
+  })
+  const provider = createRecordedBasketballProvider({ teams: load('teams'), standings: load('standings') })
+  try {
+    await expect(syncCompetitors(db, provider, CURATED)).rejects.toThrow(/curated, not feed-born/)
+    const rows = await db.select().from(competitor).where(eq(competitor.competitionId, CURATED.id))
+    expect(rows).toHaveLength(1) // untouched, not 31
+  } finally {
+    await db.delete(competitor).where(eq(competitor.competitionId, CURATED.id))
+    await db.delete(competition).where(eq(competition.id, CURATED.id))
+  }
+})

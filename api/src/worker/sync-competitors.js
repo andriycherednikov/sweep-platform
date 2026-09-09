@@ -34,6 +34,14 @@ export async function syncCompetitors(db, provider, comp) {
     provider.fetchStandings(comp),
     db.select().from(competitor).where(eq(competitor.competitionId, comp.id)),
   ])
+  // Matching is by providerId. A curated roster has none, so NOTHING matches and every
+  // team is inserted a second time under a slug code — 48 countries become 96, with the
+  // seeded half still holding all the ownership. Refuse rather than reconcile: a seeded
+  // roster is operator data, the same way `curated` is on catalog_league.
+  const orphans = ours.filter((c) => c.providerId == null).length
+  if (orphans) {
+    throw new Error(`${comp.id}: ${orphans} competitor(s) carry no providerId — this roster is curated, not feed-born, and syncing it would duplicate every team`)
+  }
   const conferenceByProvider = new Map(standings.map((s) => [s.providerTeamId, s.group]))
   const oursByProviderId = new Map(ours.filter((c) => c.providerId != null).map((c) => [c.providerId, c]))
   const usedCodes = new Set(ours.map((c) => c.code))

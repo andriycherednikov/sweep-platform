@@ -17,6 +17,7 @@
     "catalog:curate": "node --env-file=../.env src/worker/catalog-curate.js",
     "crosswalk:sync": "node --env-file=../.env src/worker/crosswalk-sync.js",
     "squads:sync": "node --env-file=../.env src/worker/run-squads.js",
+    "competitors:sync": "node --env-file=../.env src/worker/run-competitors.js",
     "stats:backfill": "node --env-file=../.env src/worker/run-stats-backfill.js",
     "cutover": "node --env-file=../.env src/worker/cutover.js",
     "regrade:gs": "node --env-file=../.env src/wagering/regrade-gs.js"
