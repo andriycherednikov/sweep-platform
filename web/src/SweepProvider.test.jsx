@@ -183,42 +183,76 @@ test('a 401 on a sweep path re-exchanges that sweep\'s stored token once', async
   window.history.replaceState({}, '', '/')
 })
 
-// The sweep cookie is 8h; the account session behind it is 90d. An owner opening their
-// own bookmark on a new phone (no stored link token at all, unlike the case above) must
-// not be told to go find their invite link — this is the common case, not an edge one.
-test('a 401 on a sweep this signed-in account owns navigates straight to its member link', async () => {
+// The sweep cookie is 8h; the account session behind it is 90d. Somebody opening a
+// sweep they belong to on a new phone (no stored link token at all, unlike the case
+// above) must not be told to go find an invite link — this is the common case, not an
+// edge one. It has to work for a MEMBER as well as an owner: the gate used to follow
+// the account row's memberLink, which a member row does not carry, so it navigated to
+// the literal /s/undefined.
+test('a 401 on a sweep this signed-in account belongs to mints the cookie and retries', async () => {
   vi.resetModules()
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_owned')
   vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
-  const getAccountSweeps = vi.fn(async () => ([{ id: 'sw_owned', name: 'Office', memberLink: 'https://h/g/mem_owned' }]))
-  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', getAccountSweeps }))
+  const openSweepSession = vi.fn(async () => ({ sweepId: 'sw_owned' }))
+  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', openSweepSession }))
   mock401()
   const { SweepProvider } = await import('./SweepProvider.jsx')
   const originalLocation = window.location
   Object.defineProperty(window, 'location', {
-    value: { ...originalLocation, assign: vi.fn() },
+    value: { ...originalLocation, assign: vi.fn(), reload: vi.fn() },
     configurable: true, writable: true,
   })
+  sessionStorage.clear()
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
-  await waitFor(() => expect(window.location.assign).toHaveBeenCalledWith('https://h/g/mem_owned'))
+  await waitFor(() => expect(openSweepSession).toHaveBeenCalledWith('sw_owned'))
+  // ...and then RELOADS. A cookie that appears after mount cannot be picked up by
+  // retrying one query: ['social'] already 401'd and 401s are not retried, and the
+  // EventSource captured a null sweep id for the life of the tab.
+  await waitFor(() => expect(window.location.reload).toHaveBeenCalled())
   Object.defineProperty(window, 'location', { value: originalLocation, configurable: true, writable: true })
   window.history.replaceState({}, '', '/')
 })
 
-// A signed-in account that does not own this sweep gets no special treatment: it falls
-// straight through to the ordinary stored-token / needs-invite path below.
-test('a 401 on a sweep this signed-in account does not own falls through to the invite card', async () => {
+// ...but only once per tab per sweep. If the reload comes back still 401ing, spinning
+// forever is worse than the invite card.
+test('the mint reloads once, then falls through rather than looping', async () => {
+  vi.resetModules()
+  localStorage.clear()
+  sessionStorage.clear()
+  sessionStorage.setItem('sweep.entered.sw_owned', '1') // as if we already reloaded
+  window.history.replaceState({}, '', '/s/sw_owned')
+  vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
+  const openSweepSession = vi.fn(async () => ({ sweepId: 'sw_owned' }))
+  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', openSweepSession }))
+  mock401()
+  const { SweepProvider } = await import('./SweepProvider.jsx')
+  const originalLocation = window.location
+  Object.defineProperty(window, 'location', {
+    value: { ...originalLocation, assign: vi.fn(), reload: vi.fn() },
+    configurable: true, writable: true,
+  })
+  render(<SweepProvider><div>app-ready</div></SweepProvider>)
+  await waitFor(() => expect(screen.getByTestId('sweep-needs-invite')).toBeInTheDocument())
+  expect(window.location.reload).not.toHaveBeenCalled()
+  Object.defineProperty(window, 'location', { value: originalLocation, configurable: true, writable: true })
+  sessionStorage.clear()
+  window.history.replaceState({}, '', '/')
+})
+
+// A signed-in account with nothing to do with this sweep gets no special treatment: the
+// server 404s and it falls through to the ordinary stored-token / needs-invite path.
+test('a 401 on a sweep this signed-in account does not belong to falls through to the invite card', async () => {
   vi.resetModules()
   localStorage.clear()
   window.history.replaceState({}, '', '/s/sw_someone_else')
   vi.doMock('./sweeps.js', async (orig) => ({ ...(await orig()), listSweeps: () => [], addSweep: vi.fn() }))
-  const getAccountSweeps = vi.fn(async () => ([]))
-  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', getAccountSweeps }))
+  const openSweepSession = vi.fn(async () => { throw Object.assign(new Error('not_found'), { status: 404 }) })
+  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), getAccountToken: () => 'acct_tok_1', openSweepSession }))
   mock401()
   const { SweepProvider } = await import('./SweepProvider.jsx')
   render(<SweepProvider><div>app-ready</div></SweepProvider>)
-  await waitFor(() => expect(getAccountSweeps).toHaveBeenCalled())
+  await waitFor(() => expect(openSweepSession).toHaveBeenCalled())
   await waitFor(() => expect(screen.getByTestId('sweep-needs-invite')).toBeInTheDocument())
   window.history.replaceState({}, '', '/')
 })

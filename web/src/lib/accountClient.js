@@ -37,6 +37,9 @@ export const getCatalog = (params = {}) => {
 export const getAccountSweeps = () => call('GET', '/api/account/sweeps')
 export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
+// Mints the sweep cookie from the 90-day account session, for a sweep this account
+// owns or has a seat in — the way into a sweep on a browser that never held its link.
+export const openSweepSession = (id) => call('POST', `/api/account/sweeps/${id}/session`)
 // Replaces the member token, which is the ONLY credential POST /api/session accepts:
 // the leaked link dies, and so does everyone else's. Returns the fresh { memberLink }.
 export const rotateSweep = (id) => call('POST', `/api/account/sweeps/${id}/rotate`)

@@ -8,10 +8,29 @@ import { assembleSweep } from './lib/assemble.js'
 import { useEventStream } from './hooks/useEventStream.js'
 import { listSweeps, addSweep, dropToken, isDeadToken } from './sweeps.js'
 import { parseSweepPath } from './lib/joinLink.js'
-import { getAccountToken, getAccountSweeps } from './lib/accountClient.js'
+import { getAccountToken, openSweepSession } from './lib/accountClient.js'
 import { Landing } from './screens-landing.jsx'
 
 const is401 = (err) => /HTTP 401/.test(err?.message || '')
+
+// A sweep cookie that appears AFTER mount cannot be picked up by refetching one query.
+// The ['social'] query already 401'd, and 401s are deliberately not retried (below), so
+// it never re-runs: the support map stays empty and every match reads "No backers",
+// including for picks the viewer has already made. The EventSource is worse — it is
+// opened once at mount and the server captures req.sweep?.id ?? null per connection
+// (api/src/routes/stream.js), so the stream silently drops every sweep-scoped event for
+// the life of the tab. Reload instead, which is what the old /g/<token> navigation did.
+//
+// Guarded, and once per tab per sweep: if the reload comes back still 401ing, fall
+// through to the cards below rather than spin. The flag is cleared on a successful load.
+const RELOADED = (id) => `sweep.entered.${id}`
+function enterSweep(sweepId, refetch) {
+  try {
+    if (sessionStorage.getItem(RELOADED(sweepId))) { refetch(); return }
+    sessionStorage.setItem(RELOADED(sweepId), '1')
+  } catch { /* private mode: one reload is still better than a dead stream */ }
+  window.location.reload()
+}
 
 // Don't retry auth failures (401): a missing/expired session won't fix itself on
 // retry, and retrying would keep the Gate in its loading state during the backoff
@@ -58,7 +77,9 @@ function Gate({ children }) {
     refetchOnReconnect: true,
     queryFn: async () => {
       const api = await fetchAll()
-      setActiveSweep(api.bootstrap?.sweep?.id || null)
+      const loaded = api.bootstrap?.sweep?.id
+      if (loaded) { try { sessionStorage.removeItem(RELOADED(loaded)) } catch { /* ignore */ } }
+      setActiveSweep(loaded || null)
       setSweepData(assembleSweep(api))
       // AFTER setSweepData: getMe() resolves meId against S.people, which has to be
       // populated first (and its rows carry `teams`, which a serialized person does not).
@@ -114,22 +135,23 @@ function Gate({ children }) {
     // sweep's link token, the cookie has merely expired — spend the token once and
     // carry on, which is what makes a bookmark survive the 8h session.
     if (wanted) {
-      // The sweep cookie is 8h; the account session behind it is 90d. An owner opening
-      // their own bookmark on a new phone (or after the cookie expired) has no stored
-      // link token for it at all — without this they'd be told to go find their invite
-      // link, for a sweep they own. Checked first: it applies even when this browser
-      // has never held that sweep's token.
+      // The sweep cookie is 8h; the account session behind it is 90d. Somebody opening
+      // a sweep they belong to on a new phone (or after the cookie expired) has no
+      // stored link token for it at all — without this they'd be told to go find an
+      // invite link for a sweep they are already in. Checked first: it applies even
+      // when this browser has never held that sweep's token.
+      //
+      // This used to read the account's sweep list and follow the row's memberLink.
+      // Members are in that list too and a member row carries no link, so it navigated
+      // to /s/undefined. Minting the cookie server-side works for both roles, and it
+      // is one round trip instead of two.
       if (getAccountToken() && !accountRejoinRef.current) {
         accountRejoinRef.current = true
-        getAccountSweeps()
-          .then((rows) => {
-            const owned = rows.find((s) => s.id === wanted)
-            if (owned) window.location.assign(owned.memberLink)
-            // Not this account's sweep: refetch() re-runs the sweep query, which 401s
-            // again and falls through to the stored-token / needs-invite path below.
-            else refetch()
-          })
-          .catch(() => refetch())
+        // On success the cookie now exists but this tab's other queries and its event
+        // stream do not know it — see enterSweep. On a 404 (not this account's sweep)
+        // refetch() 401s again and falls through to the stored-token / needs-invite
+        // path below.
+        openSweepSession(wanted).then(() => enterSweep(wanted, refetch), () => refetch())
         return (
           <div data-testid="sweep-loading" className="sweep-gate">
             <GateBrand />
@@ -143,7 +165,7 @@ function Gate({ children }) {
       if (stored && !rejoinRef.current) {
         rejoinRef.current = true
         postSession(stored.token)
-          .then(() => refetch())
+          .then(() => enterSweep(wanted, refetch))
           .catch((err) => {
             // A token the server has rejected will never work again (an admin token
             // from before /api/session went member-only; a link since rotated). Forget

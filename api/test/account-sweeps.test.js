@@ -7,6 +7,7 @@ import { buildApp } from '../src/app.js'
 import { account, accountSession, catalogLeague, competition, competitor, event, person, ranking, sweep } from '../src/db/schema.js'
 import { createRecordedBasketballProvider } from '../src/providers/recorded-basketball-provider.js'
 import { ownerHeaders } from './helpers/session.js'
+import { newToken } from '../src/sweeps/tokens.js'
 
 const { pool, db } = openTestDb()
 const loadB = (n) => JSON.parse(readFileSync(new URL(`./fixtures/apibasketball/${n}.json`, import.meta.url)))
@@ -273,6 +274,100 @@ test('the list carries the sweeps you are a member of, marked as such', async ()
     expect(mine.role).toBe('owner') // ac_seed owns the seeded sweep, and owning wins
   } finally {
     await db.delete(person).where(eq(person.id, pid))
+  }
+})
+
+// The sweep's name is whatever the owner typed — "Office Pool" says nothing about
+// what it follows. The competition is the one fact that makes a list of sweeps readable.
+test('every row names the competition it follows', async () => {
+  const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: await ownerHeaders(db, 'ac_seed') })).json()
+  const mine = rows.find((r) => r.id === 'default')
+  // the seeded competition is apifootball:1:2026, whose feed name already carries 2026
+  expect(mine.competition).toMatchObject({ name: 'World Cup 2026', sport: 'football', season: '2026' })
+})
+
+// "Sign in on any device you own it from" is what the console promises, but the only
+// way to mint a sweep cookie was the group link — so a member with an account, on a
+// fresh browser, was told to go find an invite link for a sweep they are already in.
+test('an account can open a sweep it has a seat in, with no invite link', async () => {
+  await db.insert(account).values({ id: 'ac_seatonly', email: 'seatonly@x.test' }).onConflictDoNothing()
+  const pid = `pn_so_${Date.now()}`
+  await db.insert(person).values({
+    id: pid, sweepId: 'default', name: 'Seat Only', short: 'SO', initials: 'SO',
+    avColor: '#123456', accountId: 'ac_seatonly', claimedAt: new Date(),
+  })
+  const auth = await ownerHeaders(db, 'ac_seatonly')
+  try {
+    const res = await app.inject({ method: 'POST', url: '/api/account/sweeps/default/session', headers: auth })
+    expect(res.statusCode).toBe(200)
+    expect(res.json()).toEqual({ sweepId: 'default' })
+    expect(String(res.headers['set-cookie'])).toContain('sweep')
+  } finally {
+    await db.delete(person).where(eq(person.id, pid))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_seatonly'))
+    await db.delete(account).where(eq(account.id, 'ac_seatonly'))
+  }
+})
+
+// The branch the whole feature is named for: an owner opening their own sweep on a
+// browser that never held its link.
+test('a sweep owner can open their own sweep with no invite link', async () => {
+  const auth = await ownerHeaders(db, 'ac_seed') // ac_seed owns the seeded sweep
+  const res = await app.inject({ method: 'POST', url: '/api/account/sweeps/default/session', headers: auth })
+  expect(res.statusCode).toBe(200)
+  expect(res.json()).toEqual({ sweepId: 'default' })
+})
+
+// Ejection revokes acting rights and blocks a re-claim. It has to block this door too,
+// or a removed member walks back in on their own 90-day account session. Removing the
+// isNull(ejectedAt) predicate from the route passes every other test in the suite.
+test('an ejected seat is not a way back into the sweep', async () => {
+  await db.insert(account).values({ id: 'ac_ejected', email: 'ejected@x.test' }).onConflictDoNothing()
+  const pid = `pn_ej_${Date.now()}`
+  await db.insert(person).values({
+    id: pid, sweepId: 'default', name: 'Shown Out', short: 'Shown', initials: 'SO',
+    avColor: '#123456', accountId: 'ac_ejected', claimedAt: new Date(), ejectedAt: new Date(),
+  })
+  const auth = await ownerHeaders(db, 'ac_ejected')
+  try {
+    const res = await app.inject({ method: 'POST', url: '/api/account/sweeps/default/session', headers: auth })
+    expect(res.statusCode).toBe(404)
+    expect(res.headers['set-cookie']).toBeUndefined()
+  } finally {
+    await db.delete(person).where(eq(person.id, pid))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_ejected'))
+    await db.delete(account).where(eq(account.id, 'ac_ejected'))
+  }
+})
+
+// An archived sweep is closed for everyone, its owner included.
+test('an archived sweep cannot be opened, even by its owner', async () => {
+  const id = `sw_arch_${Date.now()}`
+  await db.insert(sweep).values({
+    id, name: 'Archived', competitionId: 'apifootball:1:2026', accountId: 'ac_seed',
+    memberToken: newToken(), archivedAt: new Date(),
+  })
+  const auth = await ownerHeaders(db, 'ac_seed')
+  try {
+    const res = await app.inject({ method: 'POST', url: `/api/account/sweeps/${id}/session`, headers: auth })
+    expect(res.statusCode).toBe(404)
+    expect(res.headers['set-cookie']).toBeUndefined()
+  } finally {
+    await db.delete(sweep).where(eq(sweep.id, id))
+  }
+})
+
+// The id must not become an oracle for which sweeps exist.
+test('an account with no seat in a sweep cannot open it', async () => {
+  await db.insert(account).values({ id: 'ac_stranger', email: 'stranger@x.test' }).onConflictDoNothing()
+  const auth = await ownerHeaders(db, 'ac_stranger')
+  try {
+    const res = await app.inject({ method: 'POST', url: '/api/account/sweeps/default/session', headers: auth })
+    expect(res.statusCode).toBe(404)
+    expect(res.headers['set-cookie']).toBeUndefined()
+  } finally {
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_stranger'))
+    await db.delete(account).where(eq(account.id, 'ac_stranger'))
   }
 })
 

@@ -399,14 +399,25 @@ export async function accountRoutes(app) {
     }
   })
 
+  /** "NBA" is every NBA season there has been; the sweep is bound to one. Some feed
+   *  names already carry it ("World Cup 2026") — don't say it twice. Mirrors
+   *  withCompetitionLabel() on the web side. */
+  const compLabel = (c) =>
+    !c.season || String(c.name).includes(String(c.season)) ? c.name : `${c.name} ${c.season}`
+
   app.get('/api/account/sweeps', { preHandler: accountGuard }, async (req) => {
     // Two ways to be in a sweep, and most people only ever have the second: you run it,
     // or you have a seat in it. The console could see only the first, so a member's list
     // was empty however many groups they played in.
-    const owned = await app.db.select().from(sweep).where(eq(sweep.accountId, req.account.id))
-    const ownedIds = new Set(owned.map((r) => r.id))
-    const joined = await app.db.select({ sweep }).from(person)
+    // The competition rides along on both halves: a sweep's name is whatever the owner
+    // typed, so what it follows is the only thing that makes a list of them readable.
+    const owned = await app.db.select({ sweep, competition }).from(sweep)
+      .leftJoin(competition, eq(competition.id, sweep.competitionId))
+      .where(eq(sweep.accountId, req.account.id))
+    const ownedIds = new Set(owned.map((r) => r.sweep.id))
+    const joined = await app.db.select({ sweep, competition }).from(person)
       .innerJoin(sweep, eq(sweep.id, person.sweepId))
+      .leftJoin(competition, eq(competition.id, sweep.competitionId))
       .where(and(
         eq(person.accountId, req.account.id),
         isNull(person.ejectedAt),
@@ -422,26 +433,65 @@ export async function accountRoutes(app) {
         total: sql`count(*)::int`,
         registered: sql`count(${person.accountId})::int`,
       }).from(person)
-        .where(inArray(person.sweepId, owned.map((r) => r.id)))
+        .where(inArray(person.sweepId, owned.map((r) => r.sweep.id)))
         .groupBy(person.sweepId)
       for (const t of tallies) counts.set(t.sweepId, { total: t.total, registered: t.registered })
     }
 
-    const base = (r) => ({
+    const base = ({ sweep: r, competition: c }) => ({
       id: r.id, name: r.name, competitionId: r.competitionId,
+      // Season included, and folded into the name the way the sweep header does it: a
+      // sweep is bound to ONE season, and "NBA" is every NBA season there has been.
+      competition: c ? { name: compLabel(c), sport: c.sport, season: c.season, logo: c.logo } : null,
       archivedAt: r.archivedAt, createdAt: r.createdAt,
     })
     return [
       ...owned.map((r) => ({
         ...base(r), role: 'owner',
-        members: counts.get(r.id) ?? { total: 0, registered: 0 },
-        ...links(app, r),
+        members: counts.get(r.sweep.id) ?? { total: 0, registered: 0 },
+        ...links(app, r.sweep),
       })),
       // Owning wins: the owner of a sweep who also plays in it gets one row, the one
       // with the controls on it. And a member gets no member link — it is the owner's
       // to hand out, and they already came in through one.
-      ...joined.filter((j) => !ownedIds.has(j.sweep.id)).map((j) => ({ ...base(j.sweep), role: 'member' })),
+      ...joined.filter((j) => !ownedIds.has(j.sweep.id)).map((j) => ({ ...base(j), role: 'member' })),
     ]
+  })
+
+  /** Open a sweep the account belongs to, with no invite link in hand.
+   *
+   *  The sweep cookie could only ever be minted from the group's member token, so the
+   *  console's own promise — "sign in on any device you own it from" — was false for
+   *  anyone on a fresh browser: a member (or an owner whose 8h cookie had lapsed) was
+   *  sent to find an invite link for a sweep they are already in. The account session
+   *  is 90 days and is the stronger credential of the two; this spends it.
+   *
+   *  404, never 403, for a sweep the account has nothing to do with — the id must not
+   *  become an oracle for which sweeps exist. Archived sweeps and ejected seats are
+   *  both nothing-to-do-with. */
+  app.post('/api/account/sweeps/:id/session', { preHandler: accountGuard }, async (req, reply) => {
+    const [row] = await app.db.select().from(sweep)
+      .where(and(eq(sweep.id, req.params.id), isNull(sweep.archivedAt)))
+    if (!row) return reply.code(404).send({ error: 'not_found' })
+
+    const owns = row.accountId === req.account.id
+    if (!owns) {
+      const [seat] = await app.db.select({ id: person.id }).from(person)
+        .where(and(
+          eq(person.sweepId, row.id),
+          eq(person.accountId, req.account.id),
+          isNull(person.ejectedAt),
+        ))
+      if (!seat) return reply.code(404).send({ error: 'not_found' })
+    }
+
+    // Merge, never replace — same as POST /api/session: opening one sweep from the
+    // console must not sign this browser out of another.
+    reply.setCookie(SWEEP_COOKIE, reply.signCookie(signSweepCookie(withSweep(readSweepList(app, req), row.id))), {
+      httpOnly: true, sameSite: 'lax', path: '/', maxAge: COOKIE_MAX_AGE,
+      secure: process.env.NODE_ENV === 'production',
+    })
+    return { sweepId: row.id }
   })
 
   app.post('/api/account/sweeps/:id/archive', { preHandler: accountGuard }, async (req, reply) => {

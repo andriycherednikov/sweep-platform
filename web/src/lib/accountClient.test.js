@@ -2,7 +2,7 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
-  revokeSession, revokeAllSessions, rotateSweep,
+  revokeSession, revokeAllSessions, rotateSweep, openSweepSession,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -165,4 +165,17 @@ test('rotateSweep POSTs the sweep rotate route and returns the fresh member link
   fetch.mockResolvedValueOnce(jsonResponse(200, { memberLink: 'https://h/g/new' }))
   await expect(rotateSweep('sw1')).resolves.toEqual({ memberLink: 'https://h/g/new' })
   expect(fetch).toHaveBeenCalledWith('/api/account/sweeps/sw1/rotate', expect.objectContaining({ method: 'POST' }))
+})
+
+// The route the gate leans on to get anyone into a sweep on a fresh browser. The whole
+// web suite passes with this pointed at a URL that does not exist — it is mocked out
+// wherever it is used — so the path itself has to be pinned here.
+test('openSweepSession POSTs the account sweep-session route with the token', async () => {
+  setAccountToken('t1')
+  fetch.mockResolvedValueOnce(jsonResponse(200, { sweepId: 'sw1' }))
+  await expect(openSweepSession('sw1')).resolves.toEqual({ sweepId: 'sw1' })
+  expect(fetch).toHaveBeenCalledWith('/api/account/sweeps/sw1/session', expect.objectContaining({
+    method: 'POST',
+    headers: expect.objectContaining({ 'x-account-token': 't1' }),
+  }))
 })
