@@ -538,7 +538,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
             <div className="dropzone" onClick={()=>openUpload(code)} style={{cursor:"pointer"}}>
               <div className="ic"><Icon.camera/></div>
               <b>Be the first {t.name} fan photo</b>
-              <small>Upload a snap in team colours — approved by the admin before it shows.</small>
+              <small>Upload a snap in team colours — it goes up straight away.</small>
             </div>
           )}
         </div>
@@ -601,7 +601,7 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
       await uploadPhoto(fd);
       setDone(true);
     } catch (e) {
-      onToast(/pending_exists|409/.test(String(e.message)) ? "You already have a photo awaiting approval" : "Upload failed — try again");
+      onToast("Upload failed — try again");
     } finally { setBusy(false); }
   }
 
@@ -648,10 +648,10 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
                 </div>
               )}
 
-              <div className="note-line"><Icon.shield style={{stroke:"var(--live)"}}/><span>Every upload is checked by the admin before it appears anywhere. One pending photo per person at a time.</span></div>
+              <div className="note-line"><Icon.shield style={{stroke:"var(--live)"}}/><span>Your photo goes up straight away. Whoever runs the sweep can take any photo down.</span></div>
 
               <button className={"cta"} onClick={submit} style={{marginTop:18,opacity:ok?1:.5}}>
-                <Icon.camera/> {busy ? "Sending…" : "Send for approval"}
+                <Icon.camera/> {busy ? "Uploading…" : "Upload"}
               </button>
             </div>
             )}
@@ -659,8 +659,8 @@ export function UploadSheet({ presetFixture, kind = "fan", onClose, onToast }) {
         ) : (
           <div className="success">
             <div className="ring"><Icon.check/></div>
-            <h3>Sent for approval</h3>
-            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is in the queue. The admin will approve it before it shows{isProfile ? " as your avatar." : " on the match and team pages."}</p>
+            <h3>Uploaded</h3>
+            <p>Thanks{name?`, ${name.split(" ")[0]}`:""}! Your {isProfile ? "profile photo" : (pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up{isProfile ? " — that is your avatar now." : " on the match and team pages."}</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}
@@ -1150,7 +1150,7 @@ export function AdminConsole({ onBack, onToast, openMatch }) {
       <div className="admintabs">
         <button className={"admintab"+(tab==="people"?" on":"")} onClick={()=>setTab("people")}>People</button>
         <button className={"admintab"+(tab==="sweep"?" on":"")} onClick={()=>setTab("sweep")}>Sweep</button>
-        <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Moderation</button>
+        <button className={"admintab"+(tab==="mod"?" on":"")} onClick={()=>setTab("mod")}>Photos</button>
       </div>
       {tab==="people" && <PeopleAdmin onToast={onToast} />}
       {tab==="sweep" && <SweepDraw onToast={onToast} />}
@@ -1596,7 +1596,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
   const [open, setOpen] = useState({ people: [], totalOpen: 0, totalStale: 0 });
   const [openErr, setOpenErr] = useState(false);
   const [expanded, setExpanded] = useState({}); // personId → open in the accordion
-  const [tab, setTab] = useState("pending");
+  const [tab, setTab] = useState("approved");
   const [busy, setBusy] = useState(null);
 
   const [staleBusy, setStaleBusy] = useState(false);
@@ -1643,10 +1643,15 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
 
   return (
     <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,height:embedded?"auto":"100%"}}>
-      {!embedded && <PageHeader title="Moderation" sub="Photo queue" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
+      {!embedded && <PageHeader title="Photos" sub="Everything in this sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
       <div className="admintabs">
-        <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Pending {data.pending.length>0 && <span className="ct">{data.pending.length}</span>}</button>
-        <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>Approved · {data.approved.length}</button>
+        {/* Uploads go live now, so the queue is only ever populated where a deployment
+            has turned moderation back on — offering an always-empty tab as the front
+            door made this screen look broken. */}
+        {data.pending.length > 0 && (
+          <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Waiting <span className="ct">{data.pending.length}</span></button>
+        )}
+        <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>In the sweep · {data.approved.length}</button>
         <button className={"admintab"+(tab==="open"?" on":"")} onClick={()=>setTab("open")}>Open bets {open.totalStale>0 ? <span className="ct ct-warn">{open.totalStale}</span> : (open.totalOpen>0 && <span className="ct">{open.totalOpen}</span>)}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:10}}>

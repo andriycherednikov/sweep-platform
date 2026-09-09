@@ -720,10 +720,10 @@ test('PeopleAdmin allocation sheet: unallocate an owned team → bulk delete', a
 import { AdminConsole, AdminQueue } from './screens-detail.jsx'
 import { fetchOpenBets, fetchAdminPhotos, fetchAdminFile } from './api/client.js'
 
-test('AdminConsole offers People + Moderation tabs but no Draw tab', () => {
+test('AdminConsole offers People + Photos tabs but no Draw tab', () => {
   seedPeople()
   const { getByText, queryByText } = render(<AdminConsole onBack={noop} onToast={noop} />)
-  expect(getByText('Moderation')).toBeInTheDocument()
+  expect(getByText('Photos')).toBeInTheDocument()
   expect(queryByText('Draw')).toBeNull()
 })
 
@@ -810,7 +810,9 @@ test('Moderation › Open bets surfaces an error (not "all settled") when the au
 // The bytes behind a PENDING photo are admin-only, and admin is derived from the
 // account token — which a background-image subresource never sends. Rendering the URL
 // straight into CSS 403s, so the queue must fetch it and show the blob instead.
-test('Moderation \u203a a pending photo is fetched with the admin header, not as a bare subresource', async () => {
+// Uploads go live now, so the queue only fills where a deployment has turned moderation
+// back on — and then its tab has to appear and be selectable.
+test('a waiting photo is fetched with the admin header, not as a bare subresource', async () => {
   URL.revokeObjectURL ??= () => {}   // jsdom has no object-URL support
   seedPeople()
   fetchAdminPhotos.mockResolvedValueOnce({
@@ -818,7 +820,8 @@ test('Moderation \u203a a pending photo is fetched with the admin header, not as
       status: 'pending', fileUrl: '/api/admin/photos/ph1/file' }],
     approved: [],
   })
-  const { container, findByText } = render(<AdminQueue embedded onToast={noop} />)
+  const { container, findByText, getByText } = render(<AdminQueue embedded onToast={noop} />)
+  fireEvent.click(await findByText('Waiting'))
   await findByText('Hi')
   expect(fetchAdminFile).toHaveBeenCalledWith('/api/admin/photos/ph1/file')
   await waitFor(() =>

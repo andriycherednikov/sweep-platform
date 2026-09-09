@@ -1912,8 +1912,9 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .idme-out svg{width:13px; height:13px; flex-shrink:0;}
 .idme.dark .idme-out{border-color:rgba(255,255,255,.16); color:#7e97bb;}
 .idme-out:hover{border-color:var(--accent); color:var(--accent);}
-/* Compact sidebar icon button — the sweep switcher sits under the identity row. */
-.sb-icon{display:grid; place-items:center; width:38px; height:38px; margin-top:10px; border-radius:11px; border:1px solid rgba(255,255,255,.12); background:transparent; color:#7e97bb; cursor:pointer;}
+/* Compact sidebar icon button — the sweep switcher tucks under Log out, on its edge,
+   so the two ways out of here line up instead of sitting on opposite sides. */
+.sb-icon{align-self:flex-end; display:grid; place-items:center; width:38px; height:38px; margin-top:8px; border-radius:11px; border:1px solid rgba(255,255,255,.12); background:transparent; color:#7e97bb; cursor:pointer;}
 .sb-icon svg{width:18px; height:18px;}
 .sb-icon:hover{color:#fff; border-color:rgba(255,255,255,.28);}
 .join-face{display:flex; flex-direction:column; align-items:center; gap:10px; margin-bottom:16px;}

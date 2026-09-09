@@ -46,7 +46,11 @@ const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-s
 const SCRIPT = "'Caveat','Bradley Hand','Segoe Script','Brush Script MT',cursive"
 const MONO = "ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace"
 const INK = '#0f1620'
-const ACCENT = '#ec3013'
+const ACCENT = '#ec3013'       // --lp-accent
+// --lp-lift: the same red, lifted for use ON the ink ground. #ec3013 on #0f1620 is
+// 4.3:1, under AA for text this size; the lift is 5.8:1 and the design system already
+// defines it for exactly this (web/src/styles.css:1020).
+const ACCENT_LIFT = '#ff563c'
 
 function shell({ preheader, eyebrow, heading, lede, block, foot }) {
   return `<!doctype html>
@@ -83,7 +87,7 @@ function shell({ preheader, eyebrow, heading, lede, block, foot }) {
   <tr><td style="background:${INK};border-radius:14px 14px 0 0;padding:22px 34px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
       <td align="left" style="font-family:${SCRIPT};font-size:30px;font-weight:700;line-height:1.1;color:#ffffff;">The Sweep</td>
-      <td align="right" style="font-family:${SANS};font-size:12px;font-weight:600;letter-spacing:.3px;color:#8d9aa8;">${eyebrow}</td>
+      <td align="right" style="font-family:${SANS};font-size:12.5px;font-weight:700;letter-spacing:.3px;color:${ACCENT_LIFT};">${eyebrow}</td>
     </tr></table>
   </td></tr>
   <!-- the accent lives here: one hairline, and it survives every client -->

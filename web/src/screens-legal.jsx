@@ -70,7 +70,9 @@ export function Terms() {
         They open a link; they do not need an account and they are never charged. If
         you are the person who set the sweep up, you are the one responsible for who
         you invite, for the names and photos that end up in it, and for having the say
-        of anyone whose photo you upload. Photos are reviewed before they appear.
+        of anyone whose photo you upload. Photos appear as soon as they are uploaded, so
+        that responsibility is yours before the fact, not ours after it — you can remove
+        any of them.
       </Clause>
       <Clause h="Wagering is play money">
         The optional wagering feature uses points with no cash value. Nothing can be
@@ -138,9 +140,9 @@ export function Privacy() {
         they do with the card itself.
       </Clause>
       <Clause h="Photos">
-        Uploaded photos are stored on our own server, stripped of their EXIF metadata
-        (which includes location) when they are processed, and held for review before
-        anyone else can see them. A sweep admin can reject or remove any of them.
+        Uploaded photos are stored on our own server and stripped of their EXIF metadata
+        (which includes location) when they are processed. They are visible to the sweep
+        as soon as they are uploaded; whoever runs it can remove any of them at any time.
       </Clause>
       <Clause h="Cookies">
         Two, both functional, neither for advertising: a signed cookie that remembers
