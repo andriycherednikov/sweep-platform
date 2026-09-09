@@ -1,7 +1,7 @@
 import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
-import { person } from '../src/db/schema.js'
+import { account, accountSession, person } from '../src/db/schema.js'
 import { openTestDb } from './helpers/db.js'
 import { memberClient, seatFor, releaseSeat, ownerHeaders } from './helpers/session.js'
 
@@ -84,4 +84,24 @@ test('members never see each other addresses; the owner does', async () => {
   expect(asOwner.sweep.role).toBe('admin')
   expect(asOwner.people.every((p) => 'email' in p && 'claimedAt' in p)).toBe(true)
   expect(asOwner.people.find((p) => p.id === 'p4').email).toBe('ac_seat_p4@example.test')
+})
+
+// An owner who spun a sweep up from the console has an account but no seat, and the
+// identity chip could only say "Nobody yet" at them. Their own address is not a leak.
+test('bootstrap names the caller even when they hold no seat', async () => {
+  await db.insert(account).values({ id: 'ac_seatless', email: 'seatless@x.test' }).onConflictDoNothing()
+  const auth = await ownerHeaders(db, 'ac_seatless')
+  try {
+    const body = (await client.inject({ method: 'GET', url: '/api/bootstrap', headers: auth })).json()
+    expect(body.meId).toBeNull()                                   // no seat...
+    expect(body.account).toEqual({ email: 'seatless@x.test', name: null }) // ...but we know who they are
+  } finally {
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_seatless'))
+    await db.delete(account).where(eq(account.id, 'ac_seatless'))
+  }
+})
+
+test('bootstrap carries no account for a caller who is not signed in at all', async () => {
+  const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+  expect(body.account).toBeNull()
 })

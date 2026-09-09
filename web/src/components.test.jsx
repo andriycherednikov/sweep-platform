@@ -258,7 +258,7 @@ test('SquadList renders nothing for an empty squad', () => {
 
 test('HomeScreen renders with zero approved fan photos (empty community state)', () => {
   // Real-world prod state: nobody has uploaded/been-approved yet → photos: [].
-  // The "From the community" carousel must not crash on an undefined photo.
+  // The "Our photos" carousel must not crash on an undefined photo.
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -279,7 +279,7 @@ test('HomeScreen renders with zero approved fan photos (empty community state)',
   const { getByText } = render(
     <HomeScreen go={noop} openMatch={noop} openTeam={noop} openPerson={noop} onAdmin={noop} />
   )
-  expect(getByText('From the community')).toBeTruthy()
+  expect(getByText('Our photos')).toBeTruthy()
 })
 
 function homeWith(photos) {
@@ -413,11 +413,13 @@ test('HomeScreen: clicking a community photo opens the lightbox (openPhoto)', ()
   expect(openPhoto).toHaveBeenCalledWith(expect.objectContaining({ id: 'ph1' }))
 })
 
-test('HomeScreen: empty community box prompts upload (go upload)', () => {
+test('HomeScreen: with no photos the community section is just the invitation', () => {
   homeWith([])
   const go = vi.fn()
-  const { getByText } = render(<HomeScreen go={go} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={() => {}} onAdmin={() => {}} />)
-  fireEvent.click(getByText('No fan photos yet'))
+  const { getByText, queryByText, container } = render(<HomeScreen go={go} openMatch={() => {}} openTeam={() => {}} openPerson={() => {}} openPhoto={() => {}} onAdmin={() => {}} />)
+  expect(queryByText('No fan photos yet')).toBeNull()
+  expect(container.querySelector('.fan')).toBeNull()
+  fireEvent.click(getByText('Add yours →'))
   expect(go).toHaveBeenCalledWith('upload')
 })
 
@@ -504,15 +506,17 @@ test('StatusPill reads the sport vocab: "Full time" for football finals, "Final"
   expect(ball.getByText('Final')).toBeInTheDocument()
 })
 
-test('HomeHeader small-print shows the wire competition name, not a hardcoded sport', () => {
-  setSweepData(assembleSweep(makeApi())) // football factory: competition.name = 'World Cup 2026'
+test('HomeHeader small-print names the season being played, not the league in general', () => {
+  setSweepData(assembleSweep(makeApi())) // football factory: name 'World Cup 2026', season '2026'
   const foot = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
-  expect(foot.container.querySelector('.brand-tx small').textContent).toBe('WORLD CUP 2026')
+  expect(foot.container.querySelector('.brand-tx small').textContent).toBe('WORLD CUP 2026') // already carries it
   foot.unmount()
 
-  setSweepData(assembleSweep(makeApi({ sport: 'basketball' }))) // basketball factory: competition.name = 'NBA'
+  // the basketball factory's feed name is the bare league, so the season is appended:
+  // a sweep bound to 2023-2024 said only "NBA", which is every NBA season there has been
+  setSweepData(assembleSweep(makeApi({ sport: 'basketball' })))
   const ball = render(<HomeHeader onAdmin={() => {}} go={() => {}} onSweeps={() => {}} />)
-  expect(ball.container.querySelector('.brand-tx small').textContent).toBe('NBA')
+  expect(ball.container.querySelector('.brand-tx small').textContent).toBe('NBA 2023-2024')
 })
 
 test('SweepsSheet lists stored sweeps and marks the active one', () => {
@@ -1163,3 +1167,30 @@ test('BracketMatchBox drops the whole date line once a match is live (live dot c
 
 
 
+
+// A sweep is a dead end without this: the sheet only knows what this device remembers,
+// so the account — every sweep, any device, plus billing — needs a door from inside one.
+test('SweepsSheet links back to the account', () => {
+  const { getByText } = render(<SweepsSheet activeSweepId={null} onClose={() => {}} />)
+  const link = getByText('Your account').closest('a')
+  expect(link).toBeTruthy()
+  expect(link.getAttribute('href')).toBe('/account')
+})
+
+// The organiser who spun a sweep up from the console owns it but holds no seat. Saying
+// "Nobody yet" at somebody whose address we know reads as a failure, not an invitation.
+test('IdentityControl: signed into an account with no seat, it says who you are', () => {
+  setMe(null)
+  setSweepData({ ...assembleSweep(makeApi()), account: { email: 'andriy@example.test', name: null } })
+  const { getByText, getByLabelText } = render(<IdentityControl />)
+  expect(getByText('andriy@example.test')).toBeInTheDocument()
+  expect(getByText('Take a seat')).toBeInTheDocument()
+  expect(getByLabelText('Take a seat in this sweep')).toBeInTheDocument()
+})
+
+test('IdentityControl: a real stranger still gets the plain sign-in chip', () => {
+  setMe(null)
+  setSweepData({ ...assembleSweep(makeApi()), account: null })
+  const { getByText } = render(<IdentityControl />)
+  expect(getByText('Sign in')).toBeInTheDocument()
+})

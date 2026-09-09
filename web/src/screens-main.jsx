@@ -242,15 +242,15 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
 
   const community = (
     <>
-      <div className="sec-h"><h2>From the community</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
+      <div className="sec-h"><h2>Our photos</h2><span className="lnk" onClick={()=>go("upload")}>Add yours →</span></div>
       {photo ? <>
       <div className="fan" onClick={onFanClick} onTouchStart={onFanTouchStart} onTouchMove={onFanTouchMove} onTouchEnd={onFanTouchEnd}>
         {photo.src ? <img className="ph" src={photo.src} alt={photo.caption||"Fan photo"} loading="lazy"/> : <div className="ph"><span>FAN PHOTO</span></div>}
         {photoFx && <div className="badge"><Flag code={photoFx.t1} w={20} h={15} /><Flag code={photoFx.t2} w={20} h={15} /><span>{S.team(photoFx.t1).name} v {S.team(photoFx.t2).name}</span></div>}
-        <div className="cap"><b>{photo.caption}</b><small>Posted by {photo.uploader}</small></div>
+        <div className="cap">{photo.caption && <b>{photo.caption}</b>}<small>Posted by {photo.uploader}</small></div>
       </div>
       <div className="dots">{approved.map((_,i)=><i key={i} className={i===pi?"on":""} onClick={()=>{pauseAuto();setPi(i);}}></i>)}</div>
-      </> : <div className="fan empty" onClick={()=>go("upload")}><div className="ph"><span>No fan photos yet</span></div><div className="cap"><small>Be the first — tap to add yours.</small></div></div>}
+      </> : null}
     </>
   );
 

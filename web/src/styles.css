@@ -392,6 +392,9 @@ a{color:inherit; text-decoration:none;}
 .idchip .idtxt{flex:1; min-width:0; line-height:1.1;}
 .idchip .idtxt small{display:block; font-size:9px; letter-spacing:1px; text-transform:uppercase; font-weight:700; color:var(--on-ink3);}
 .idchip:not(.dark) .idtxt small{color:var(--muted2);}
+/* an email is long and the rail is narrow — clip it rather than wrap the chip */
+.idchip .idtxt{min-width:0;}
+.idchip .idtxt small{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .idchip .idtxt b{font-family:'Barlow Condensed'; font-weight:800; font-size:16px; letter-spacing:.3px; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; display:block;}
 .idchip:not(.dark) .idtxt b{color:var(--navy);}
 .idchip .idchev{width:16px; height:16px; stroke:var(--on-ink3); flex-shrink:0;}
@@ -1956,19 +1959,49 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .ac-me-out:hover{ color:var(--lp-accent); border-color:rgba(236,48,19,.45); }
 .ac-group{ margin:6px 0 -4px; font-family:'Archivo',system-ui,sans-serif; font-weight:800; font-size:13px;
   letter-spacing:.4px; text-transform:uppercase; color:var(--paper-ink); opacity:.55; }
-.ac-card-slim{ padding-bottom:16px; }
+/* the sweep's name and what it follows, as one block, so the action on the right
+   sits against the pair rather than crowding the title */
+.ac-card-id{ min-width:0; }
+.ac-comp{ display:flex; align-items:center; gap:7px; margin:5px 0 0; min-width:0;
+  font-size:13px; color:var(--ink2); }
+.ac-comp-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ac-comp-logo{ flex-shrink:0; width:16px; height:16px; object-fit:contain; border-radius:3px; }
+.ac-comp-sport{ flex-shrink:0; padding:2px 7px 3px; border-radius:999px; font-size:10px;
+  font-weight:700; letter-spacing:.9px; text-transform:uppercase;
+  background:var(--glass); border:1px solid var(--edge); color:var(--ink3); }
+.ac-comp-note{ flex-shrink:0; font-size:12px; color:var(--ink3); }
+.ac-comp-note::before{ content:"·"; margin-right:7px; }
+/* a sweep you are only in: nothing to configure, so it is one line and a way in */
+.ac-row{ display:flex; align-items:center; justify-content:space-between; gap:14px;
+  padding:14px 14px 14px 20px; }
+.ac-open{ flex-shrink:0; display:grid; place-items:center; width:36px; height:36px;
+  border-radius:10px; border:1px solid var(--edge); color:var(--ink2); transition:.15s; }
+.ac-open svg{ width:17px; height:17px; }
+/* the row IS the link: the whole card lights up, and the chevron moves with it */
+.ac-rowlink{ text-decoration:none; color:inherit; transition:.15s; }
+.ac-rowlink:hover{ border-color:rgba(236,48,19,.45);
+  box-shadow:0 12px 26px -18px rgba(32,30,29,.55); }
+.ac-rowlink:hover .ac-open{ color:var(--lp-accent); border-color:rgba(236,48,19,.45);
+  transform:translateX(2px); }
+.ac-rowlink:focus-visible{ outline:2px solid var(--lp-accent); outline-offset:2px; }
+.ac-row-btn{ flex-shrink:0; padding:9px 16px 10px; font-size:15px; }
+/* admin roster with nobody in it: the sort chips had nothing to sort */
+.adminempty{margin:18px 0 0; font-size:13px; line-height:1.6; color:var(--muted);}
 
-/* Manage person: the two ways to take somebody out, told apart. They used to be a bin
-   beside the name field and a full-width button lower down, with nothing saying which
-   was which — one is reversible and keeps the leaderboard whole, the other is neither. */
+/* Manage person: removing is the only way out, and it is reversible — the seat stays,
+   so the leaderboard keeps its shape and the account is free to join other sweeps. */
+.idacct{display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-top:16px; padding:12px 14px; border:1px solid var(--line); border-radius:12px;
+  background:var(--card); color:var(--navy); text-decoration:none;}
+.idacct:hover{border-color:var(--muted2);}
+.idacct b{display:block; font-size:14px; font-weight:700;}
+.idacct small{display:block; margin-top:2px; font-size:11.5px; color:var(--muted);}
+.idacct svg{flex-shrink:0; width:16px; height:16px; stroke:var(--muted2);}
+
 .alloc-danger{margin-top:22px; padding-top:18px; border-top:1px solid var(--line);}
 .alloc-danger-h{margin:0 0 9px; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:11px;
   letter-spacing:.8px; text-transform:uppercase; color:var(--muted2);}
 .alloc-danger-b{margin:9px 0 0; font-size:12px; line-height:1.5; color:var(--muted);}
 .alloc-danger-b.is-warn{color:var(--accent); font-weight:600;}
-.alloc-danger-del{display:block; width:100%; margin-top:18px; padding:11px; border:1px solid #f0d3ce;
-  border-radius:12px; background:transparent; font-family:'Barlow Condensed'; font-weight:800; font-size:14px;
-  letter-spacing:.4px; text-transform:uppercase; color:var(--accent); cursor:pointer;}
-.alloc-danger-del:hover{background:#fbecea;}
 .alloc-chips{margin-bottom:16px;}
 .alloc-rand{margin-bottom:18px;}

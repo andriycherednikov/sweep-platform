@@ -18,7 +18,7 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, fetchAdminPhotos, removePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, fetchAdminPhotos, removePhoto, settleStaleBets, fetchOpenBets, createPerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { SingleBetRow, ParlayCard } from "./screens-coins.jsx";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
@@ -222,7 +222,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
             </>
           )}
 
-          <div className="sec-h"><h2>Teams drawn</h2></div>
+          {myTeams.length > 0 && <div className="sec-h"><h2>Teams drawn</h2></div>}
           {myTeams.map(t=>{
             const isTeamOut = S.isTeamEliminated(t.code);
             return (
@@ -238,6 +238,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
             );
           })}
 
+          {myFixtures.length > 0 && <>
           <div className="sec-h"><h2>All their matches</h2></div>
           <div className="block">
             {myFixtures.map(f=>{
@@ -282,6 +283,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
               );
             })}
           </div>
+          </>}
 
           {preds.length>0 && <>
           <div className="sec-h"><h2>Prediction history</h2></div>
@@ -527,7 +529,7 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
               {photos.map(p=>(
                 <div className="photocell" key={p.id}>
                   {p.src ? <img className="pcimg" src={p.src} alt={p.caption||"Fan photo"} loading="lazy"/> : <div className="lbl">FAN PHOTO</div>}
-                  <div className="by">{p.caption} · {p.uploader.split(" ")[0]}</div>
+                  <div className="by">{p.caption ? p.caption + " · " : ""}{p.uploader.split(" ")[0]}</div>
                 </div>
               ))}
               <div className="photocell" onClick={()=>openUpload(code)} style={{background:"var(--card)",border:"1.5px dashed var(--line)",display:"grid",placeItems:"center",cursor:"pointer"}}>
@@ -557,7 +559,6 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
   const [q, setQ] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [caption, setCaption] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
   const inputRef = useRef(null);
@@ -571,9 +572,10 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  // The server names the uploader from the caller's seat, so there is nothing here to
-  // ask for beyond the picture and the game it belongs to.
-  const ok = file && !!fixtureId && !busy;
+  // The server names the uploader from the caller's seat, so the picture is the only
+  // thing this sheet actually needs. A game tag puts it on that match and team page too;
+  // without one it still goes up on the wall.
+  const ok = file && !busy;
 
   // taggable games: all fixtures in kickoff (start-time) order, searchable
   const games = useMemo(() => {
@@ -607,8 +609,7 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
     try {
       const fd = new FormData();
       fd.append("kind", kind);
-      fd.append("fixtureId", fixtureId);
-      if (caption.trim()) fd.append("caption", caption.trim());
+      if (fixtureId) fd.append("fixtureId", fixtureId);
       fd.append("file", file);
       await uploadPhoto(fd);
       setDone(true);
@@ -639,11 +640,11 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
 
               {(
                 <div className="field">
-                  <label>Tag a game</label>
+                  <label>Tag a game <span style={{textTransform:"none",letterSpacing:0,fontWeight:600,color:"var(--muted2)"}}>— optional</span></label>
                   <SearchInput value={q} onChange={setQ} placeholder="Search by team or matchup" />
                   <div className="gamepick" ref={listRef}>
                     {games.map((f)=>(
-                      <button key={f.id} ref={f.id===scrollToId?targetRef:null} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(f.id)}>
+                      <button key={f.id} ref={f.id===scrollToId?targetRef:null} type="button" className={"gpk"+(fixtureId===f.id?" on":"")} onClick={()=>setFixtureId(id=>id===f.id?null:f.id)}>
                         <span className="gpk-teams">
                           <Flag code={f.t1} w={22} h={16} />{S.team(f.t1).name}
                           <i>v</i>
@@ -669,7 +670,7 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
           <div className="success">
             <div className="ring"><Icon.check/></div>
             <h3>Uploaded</h3>
-            <p>Thanks{me?`, ${me.short||me.name.split(" ")[0]}`:""}! Your {(pickedFixture?`${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} `:"")+"photo"} is up on the match and team pages.</p>
+            <p>Thanks{me?`, ${me.short||me.name.split(" ")[0]}`:""}! Your {pickedFixture ? `${S.team(pickedFixture.t1).name} v ${S.team(pickedFixture.t2).name} photo is up on the match and team pages.` : "photo is up on the wall."}</p>
             <button className="cta ghost" onClick={onClose} style={{marginTop:20}}>Done</button>
           </div>
         )}
@@ -1345,13 +1346,6 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
       onToast("Changes saved"); await refresh(); onClose();
     } catch { onToast("Couldn't save — try again"); setBusy(false); }
   }
-  async function removePerson() {
-    if (busy) return;
-    if (confirm !== "delete") { setConfirm("delete"); return; }
-    setBusy(true);
-    try { await deletePerson(person.id); onToast("Person deleted"); await refresh(); onClose(); }
-    catch { onToast("Couldn't delete — try again"); setBusy(false); }
-  }
   // Eject keeps the row: their picks, wagers and ledger stay referenced, so the
   // leaderboard keeps its shape. Only their ability to act goes.
   async function setEjected(next) {
@@ -1440,9 +1434,8 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
             <Icon.check /> {busy ? "Saving…" : "Apply changes"}
           </button>
 
-          {/* Two different things that used to look like one: a bin beside the name and a
-              full-width button lower down, with nothing saying they were not the same.
-              Removing is reversible and keeps the leaderboard whole; deleting is neither. */}
+          {/* Removing is the only way out, and it is reversible: the seat stays, so the
+              leaderboard keeps its shape and the account is free to join other sweeps. */}
           <div className="alloc-danger">
             {person.ejected ? (
               <>
@@ -1464,13 +1457,6 @@ function AllocateSheet({ person, onClose, onToast, refresh }) {
                 </p>
               </>
             )}
-            <button type="button" className="alloc-danger-del" disabled={busy} onClick={removePerson}>
-              {confirm === "delete" ? "Tap again to delete permanently" : "Delete permanently"}
-            </button>
-            <p className={"alloc-danger-b" + (confirm === "delete" ? " is-warn" : "")} role={confirm === "delete" ? "alert" : undefined}>
-              Wipes {person.name} and everything of theirs — teams, picks, wagers, photos.
-              This one cannot be undone.
-            </p>
           </div>
         </div>
       </div>
@@ -1679,7 +1665,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
                 {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><Flag code={fx.t1} w={18} h={13} /><Flag code={fx.t2} w={18} h={13} /><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
                 {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
               </div>
-              <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>
+              <div className="qmeta">{p.caption && <b>{p.caption}</b>}<small>{p.uploader}</small></div>
               <div className="qacts">
                 <button className="qbtn rej" disabled={busy===p.id} onClick={()=>takeDown(p.id)} style={{flex:1}}><Icon.trash/> Remove from site</button>
               </div>

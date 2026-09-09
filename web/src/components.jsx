@@ -430,7 +430,7 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
         <button className="brand brand-btn" onClick={toTop} aria-label={home ? "Scroll to top" : "Today"}>
           <div className={"brand-tx" + (home ? "" : " alt")}>
             <b>{home ? "The Sweep" : title}</b>
-            {(home || sub) && <small>{home ? (S.competition?.name ? S.competition.name.toUpperCase() : "") : sub}</small>}
+            {(home || sub) && <small>{home ? (S.competition?.label ? S.competition.label.toUpperCase() : "") : sub}</small>}
           </div>
         </button>
         )}
@@ -614,7 +614,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
   return (
     <aside className="sidebar">
       <button className="sb-brand brand-btn" onClick={()=>go("home")} aria-label="Home">
-        <div><b>The Sweep</b><small>{S.competition?.name ? S.competition.name.toUpperCase() : ""}</small></div>
+        <div><b>The Sweep</b><small>{S.competition?.label ? S.competition.label.toUpperCase() : ""}</small></div>
       </button>
       <div className="sb-sec">Browse</div>
       <nav className="sb-nav">
@@ -713,6 +713,26 @@ export function IdentityControl({ dark, style, onSweeps }){
       {armed && <p className="idme-confirm" role="alert">Tap again to log out</p>}
     </div>
   );
+
+  // Signed into an account but holding no seat — the owner who spun this sweep up from
+  // the console is the common case. Saying "Nobody yet" at somebody whose name we know
+  // reads as a failure; say who they are, and that the seat is the thing still missing.
+  const acct = S.account;
+  if (acct) {
+    const who = acct.name || acct.email;
+    return (
+      <div className={"idchip" + (dark ? " dark" : "")} style={style}>
+        <button className="idmain" onClick={join} aria-label="Take a seat in this sweep">
+          <span className="idq">{(acct.name || acct.email || "?").trim().charAt(0).toUpperCase()}</span>
+          <span className="idtxt">
+            <small title={who}>{who}</small>
+            <b>Take a seat</b>
+          </span>
+        </button>
+        {swap}
+      </div>
+    );
+  }
 
   const others = S.people.length;
   return (
@@ -814,6 +834,15 @@ export function SweepsSheet({ activeSweepId, onClose, queryClient }){
               ))}
             </div>
           )}
+          {/* This list is what this device remembers. The account knows every sweep you
+              are in, from any device — and it is where billing and a new sweep live. */}
+          <a className="idacct" href="/account">
+            <span>
+              <b>Your account</b>
+              <small>Every sweep you are in, on any device</small>
+            </span>
+            <Icon.chev/>
+          </a>
         </div>
       </div>
     </div>

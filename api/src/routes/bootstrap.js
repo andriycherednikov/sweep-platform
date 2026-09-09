@@ -34,6 +34,10 @@ export async function bootstrapRoutes(app) {
       // Who the caller is, resolved server-side. The client used to decide this from a
       // string in localStorage. Free: `people` is already in memory.
       meId: people.find((p) => p.accountId && p.accountId === req.account?.id && !p.ejectedAt)?.id ?? null,
+      // ...and who they are when they have NO seat. An owner who spun this sweep up from
+      // the console has an account but no person row, and the identity chip could only
+      // say "Nobody yet" at them. Their own address is not a disclosure.
+      account: req.account ? { email: req.account.email, name: req.account.name ?? null } : null,
       ownership: ownership_,
       scoring: { rule: req.sweep.scoringRule, coOwners: req.sweep.coOwners },
       sweep: { id: req.sweep.id, name: req.sweep.name, role: req.role },

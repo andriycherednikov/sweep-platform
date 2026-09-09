@@ -647,17 +647,15 @@ test('PeopleAdmin allocation sheet applies a rename + team change together', asy
   await waitFor(() => expect(bulkPostOwnership).toHaveBeenCalledTimes(1))
 })
 
-// Deleting takes their picks, wagers and ledger with it, so it asks twice.
-test('PeopleAdmin allocation sheet deletes a person on the second tap', async () => {
+// An account outlives any one sweep, so the sheet never offers to wipe it.
+test('PeopleAdmin allocation sheet offers no permanent delete', async () => {
   seedPeople()
-  deletePerson.mockResolvedValueOnce({ ok: true })
-  const { getByText, getByLabelText } = render(<PeopleAdmin onToast={noop} />)
+  const { getByText, queryByText } = render(<PeopleAdmin onToast={noop} />)
   fireEvent.click(getByText('Ann'))
-  fireEvent.click(getByText(/^delete permanently$/i))
+  expect(getByText(/remove from sweep/i)).toBeInTheDocument() // the sheet did open...
+  expect(queryByText(/delete permanently/i)).toBeNull()       // ...and carries no delete
+  expect(queryByText(/cannot be undone/i)).toBeNull()
   expect(deletePerson).not.toHaveBeenCalled()
-  expect(getByText(/cannot be undone/i)).toBeInTheDocument()
-  fireEvent.click(getByText(/tap again to delete permanently/i))
-  await waitFor(() => expect(deletePerson).toHaveBeenCalledWith('p1'))
 })
 
 test('PeopleAdmin counts who has joined and can filter to who has not', () => {
@@ -1272,16 +1270,13 @@ test('PeopleScreen hides the "Hide eliminated" toggle in the Placement view', ()
   expect(queryByText('Hide eliminated')).not.toBeInTheDocument() // meaningless here → hidden
 })
 
-// The two ways out used to be a bin beside the name and a button lower down, with
-// nothing saying one is reversible and the other is not.
-test('AllocateSheet keeps removing and deleting apart, and explains both', () => {
+// Removing is the only way out, and the sheet has to say it is reversible.
+test('AllocateSheet offers removal only, and explains what it keeps', () => {
   seedPeople()
   const { getByText, container } = render(<PeopleAdmin onToast={noop} />)
   fireEvent.click(getByText('Ann'))
   expect(getByText(/remove from sweep/i)).toBeInTheDocument()
-  expect(getByText(/^delete permanently$/i)).toBeInTheDocument()
   expect(getByText(/leaderboard keeps its shape/i)).toBeInTheDocument()
-  expect(getByText(/cannot be undone/i)).toBeInTheDocument()
   // and the bin is gone from the name row, where it read as a third, unlabelled option
   expect(container.querySelector('.alloc-remove')).toBeNull()
 })
@@ -1306,7 +1301,7 @@ test('the fan photo sheet never asks for a name and never sends one', async () =
     <UploadSheet presetFixture={f.id} onClose={noop} onToast={noop} />,
   )
   expect(queryByText(/your name/i)).toBeNull()
-  expect([...container.querySelectorAll('label')].map(l => l.textContent)).toEqual(['Tag a game'])
+  expect([...container.querySelectorAll('label')].map(l => l.textContent)).toEqual(['Tag a game — optional'])
 
   const file = new File(['x'], 'pic.jpg', { type: 'image/jpeg' })
   const picker = container.querySelector('input[type="file"]')
@@ -1327,4 +1322,46 @@ test('the fan photo sheet previews the file you picked', async () => {
   const file = new File(['x'], 'pic.jpg', { type: 'image/jpeg' })
   await act(async () => { fireEvent.change(container.querySelector('input[type="file"]'), { target: { files: [file] } }) })
   expect(container.querySelector('.dropzone img').getAttribute('src')).toBe('blob:pic')
+})
+
+test('PersonDetail: a person with no teams drawn shows neither section heading', () => {
+  setSweepData(assembleSweep({
+    bootstrap: {
+      teams: [{ code: 'hr', name: 'Croatia', group: 'L', pool: 'A', color: '#c00', strength: 82 }],
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann' }],
+      ownership: {}, scoring: null,
+    },
+    fixtures: [], standings: {}, photos: [], syncStatus: { stale: false },
+  }))
+  const noop = () => {}
+  const { container } = render(
+    <PersonDetail person={S.people[0]} onBack={noop} openMatch={noop} openTeam={noop} openProfileUpload={noop} />
+  )
+  const headings = [...container.querySelectorAll('.sec-h h2')].map(h => h.textContent)
+  expect(headings).not.toContain('Teams drawn')
+  expect(headings).not.toContain('All their matches')
+})
+
+// A photo of the group watching is still a photo of the sweep, so the tag is optional.
+test('the fan photo sheet uploads with no game tagged', async () => {
+  sheetFixture(null)
+  const { container, queryByText } = render(<UploadSheet onClose={noop} onToast={noop} />)
+  const file = new File(['x'], 'pic.jpg', { type: 'image/jpeg' })
+  const picker = container.querySelector('input[type="file"]')
+  await act(async () => { fireEvent.change(picker, { target: { files: [file] } }) })
+  await act(async () => { fireEvent.click(queryByText('Upload')) })
+  const fd = uploadPhoto.mock.calls[0][0]
+  expect(fd.get('fixtureId')).toBeNull()
+  expect(fd.get('kind')).toBe('fan')
+})
+
+// Tapping the tagged game again clears it — otherwise "optional" is unreachable
+// once a game has been picked, and presetFixture can never be undone.
+test('the fan photo sheet lets a tapped game be untagged', async () => {
+  const f = sheetFixture(null)
+  const { container } = render(<UploadSheet presetFixture={f.id} onClose={noop} onToast={noop} />)
+  const picked = () => container.querySelector('.gpk.on')
+  expect(picked()).toBeTruthy()
+  await act(async () => { fireEvent.click(picked()) })
+  expect(container.querySelector('.gpk.on')).toBeNull()
 })
