@@ -60,6 +60,19 @@ test('a fan photo is live the moment it is uploaded', async () => {
   expect(listed.map((x) => x.id)).toContain(body.id)
 })
 
+// A photo of the group watching is still a photo of the sweep — the tag is optional,
+// and an untagged fan photo lands on the wall with a null fixture.
+test('a fan photo uploads with no game tagged', async () => {
+  const res = await upload({ kind: 'fan' }, await png(), seat)
+  expect(res.statusCode).toBe(201)
+  expect(res.json()).toMatchObject({ kind: 'fan', status: 'approved', fixtureId: null })
+  const rows = await db.select().from(photo)
+  expect(rows).toHaveLength(1)
+  expect(rows[0].fixtureId).toBeNull()
+  const listed = (await client.inject({ method: 'GET', url: '/api/photos' })).json()
+  expect(listed.map((x) => x.id)).toContain(res.json().id)
+})
+
 test('rejects a fan photo with an unknown fixture', async () => {
   const res = await upload({ kind: 'fan', fixtureId: 'nope-999' }, await png(), seat)
   expect(res.statusCode).toBe(400)

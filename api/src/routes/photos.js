@@ -39,8 +39,9 @@ export async function photoRoutes(app) {
     const verr = validateUpload(data.mimetype, buf.length)
     if (verr) return reply.code(400).send({ error: verr })
 
-    if (kind === 'fan') {
-      if (!fixtureId) return reply.code(400).send({ error: 'missing_fixture' })
+    // Tagging a game is optional — a photo of the group watching is still a photo of
+    // the sweep. A tag that IS supplied still has to be a game in this competition.
+    if (kind === 'fan' && fixtureId) {
       const fx = await eventInCompetition(app.db, req.sweep.competitionId, fixtureId)
       if (!fx) return reply.code(400).send({ error: 'unknown_fixture' })
     }
@@ -67,13 +68,13 @@ export async function photoRoutes(app) {
     await app.db.insert(photo).values({
       id, sweepId, kind, uploaderName,
       personId: kind === 'profile' ? personId : null,
-      fixtureId: kind === 'fan' ? fixtureId : null,
+      fixtureId: kind === 'fan' ? (fixtureId ?? null) : null,
       filePath: fileName, thumbPath: thumbName, caption, status: 'approved', moderatedAt: new Date(),
     })
     if (kind === 'profile') {
       await app.db.update(person).set({ avatarPath: `/photos/${fileName}` }).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
     }
-    await app.publish({ type: 'photo-approved', sweepId, id, kind, ...(kind === 'fan' ? { fixtureId } : { person: personId }) })
+    await app.publish({ type: 'photo-approved', sweepId, id, kind, ...(kind === 'fan' ? { fixtureId: fixtureId ?? null } : { person: personId }) })
     return reply.code(201).send({ id, kind, status: 'approved', fixtureId: fixtureId ?? null, personId: personId ?? null })
   })
 }
