@@ -1,4 +1,4 @@
-import { expect, test, afterAll, beforeEach, afterEach } from 'vitest'
+import { expect, test, afterAll, beforeAll, beforeEach, afterEach } from 'vitest'
 import { and, eq } from 'drizzle-orm'
 import { openTestDb } from './helpers/db.js'
 import { event, person, sweep, coinLedger, support, ownership } from '../src/db/schema.js'
@@ -8,7 +8,27 @@ const COMPETITION_ID = 'apifootball:1:2026' // matches seed.js's default competi
 const cpId = (code) => `cp_${COMPETITION_ID}_${code}`
 
 const { pool, db } = openTestDb()
-afterAll(async () => { await pool.end() })
+
+// This suite needs a clean slate on the SEEDED sweep — it grants rewards off the seed's
+// own people and fixtures — so its beforeEach wipes ownership/support/ledger table-wide.
+// The test DB is shared, and it never put them back: every suite scheduled after this one
+// then saw a roster with no teams (bootstrap.test.js's ownership assertion, for one).
+// Snapshot once, restore at the end — the same contract releaseSeat() already imposes.
+let seeded = null
+beforeAll(async () => {
+  seeded = {
+    ownership: await db.select().from(ownership),
+    support: await db.select().from(support),
+    coinLedger: await db.select().from(coinLedger),
+  }
+})
+afterAll(async () => {
+  await db.delete(coinLedger); await db.delete(support); await db.delete(ownership)
+  for (const [table, rows] of [[ownership, seeded.ownership], [support, seeded.support], [coinLedger, seeded.coinLedger]]) {
+    if (rows.length) await db.insert(table).values(rows)
+  }
+  await pool.end()
+})
 beforeEach(async () => { await db.delete(coinLedger); await db.delete(support); await db.delete(ownership) })
 // Robust teardown: runs even if an assertion throws mid-test. Undo any minor flip and
 // remove the parallel 'other' sweep so neither can leak into sibling tests.
