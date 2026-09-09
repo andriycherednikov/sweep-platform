@@ -225,9 +225,8 @@ export async function sweepsRoutes(app) {
     // and photo rows were not, which is what made this route 500.
     const shots = await app.db.select().from(photo).where(eq(photo.personId, p.id))
     for (const ph of shots) {
-      const drop = ph.status === 'approved' ? app.photos.removeApproved : app.photos.removePending
-      await drop(ph.filePath.split('/').pop()).catch(() => {})
-      if (ph.thumbPath) await drop(ph.thumbPath.split('/').pop()).catch(() => {})
+      await app.photos.removeApproved(ph.filePath.split('/').pop()).catch(() => {})
+      if (ph.thumbPath) await app.photos.removeApproved(ph.thumbPath.split('/').pop()).catch(() => {})
     }
     await app.db.delete(person).where(where)
     return { id: p.id, deleted: true }

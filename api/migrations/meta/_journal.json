@@ -78,6 +78,13 @@
       "when": 1788872968923,
       "tag": "0010_ambitious_maximus",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788918052581,
+      "tag": "0011_tiny_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

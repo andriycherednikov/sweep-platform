@@ -149,16 +149,6 @@ const adminHeaders = () => {
   return token ? { 'x-account-token': token } : {}
 }
 
-/** Admin-only image bytes as an object URL. A browser subresource — <img src>, CSS
- *  `url()` — carries cookies but never x-account-token, and admin is derived from the
- *  account now, so a pending photo rendered that way 403s. Fetch it with the header
- *  instead. Caller owns the URL and must revoke it. */
-export async function fetchAdminFile(path) {
-  const res = await fetch(path, { credentials: 'include', headers: { ...sweepHeaders(), ...adminHeaders() } })
-  if (!res.ok) throw Object.assign(new Error(`GET ${path} failed: HTTP ${res.status}`), { status: res.status })
-  return URL.createObjectURL(await res.blob())
-}
-
 export async function uploadPhoto(formData) {
   const res = await fetch('/api/photos', { method: 'POST', credentials: 'include', ...sweepInit(), body: formData })
   if (!res.ok) {
@@ -173,7 +163,7 @@ export async function uploadPhoto(formData) {
 // per request from x-account-token) — there is no separate admin login any more.
 export const fetchAdminMe = () => getCreds('/api/admin/me', adminHeaders())
 export const fetchAdminPhotos = () => getCreds('/api/admin/photos', adminHeaders())
-export const moderatePhoto = (id, action) => postCreds(`/api/admin/photos/${id}`, { action }, adminHeaders())
+export const removePhoto = (id) => deleteCreds(`/api/admin/photos/${id}`, undefined, adminHeaders())
 export const settleStaleBets = () => postCreds('/api/admin/settle-stale', {}, adminHeaders())
 export const fetchOpenBets = () => getCreds('/api/admin/open-bets', adminHeaders())
 

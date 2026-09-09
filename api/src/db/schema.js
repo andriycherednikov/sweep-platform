@@ -149,7 +149,7 @@ export const photo = pgTable('photo', {
   filePath: text('file_path').notNull(),
   thumbPath: text('thumb_path'),
   caption: text('caption'),
-  status: text('status').notNull().default('pending'),
+  status: text('status').notNull().default('approved'), // 'approved' | 'removed'
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   moderatedAt: timestamp('moderated_at', { withTimezone: true }),
 }, (t) => ({

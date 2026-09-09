@@ -2,13 +2,21 @@ import { expect, test, afterAll, beforeAll } from 'vitest'
 import { eq, ne, and, inArray } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { person, ownership, account, accountSession, sweep, competition, operatorAction, support, event } from '../src/db/schema.js'
+import { person, ownership, account, accountSession, sweep, competition, operatorAction, support, event, photo } from '../src/db/schema.js'
 import { newToken } from '../src/sweeps/tokens.js'
 import { ownerHeaders, adminHeaders, memberCookie, seatFor, releaseSeat } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
+import { mkdtemp } from 'node:fs/promises'
+import { access } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { mkdtempSync } from 'node:fs'
+
+const photosDir = mkdtempSync(join(tmpdir(), 'sweep-admphotos-'))
 const mails = []
 const app = buildApp(db, {
+  photosDir,
   sessionSecret: 'test-secret',
   sendMail: async (to, subject, body, html) => mails.push({ to, subject, body, html }),
 })
@@ -413,4 +421,26 @@ test('the account console can say how many of a sweep have actually joined', asy
     expect(row.members.registered).toBeGreaterThanOrEqual(1)
     expect(row.members.registered).toBeLessThanOrEqual(row.members.total)
   } finally { await releaseSeat(db, 'p4') }
+})
+
+// This route reached for a storage function that no longer exists after the approval
+// queue was removed, and nothing caught it: deleting a person who had uploaded anything
+// would have thrown. It is the same shape as the 23503 this route used to raise.
+test('deleting a person takes their photo files with them', async () => {
+  const auth = await adminHeaders(app, db, 'default', 'ac_seed')
+  const created = (await app.inject({
+    method: 'POST', url: '/api/admin/people', headers: auth,
+    payload: { name: 'Snapper', short: 'Snap', initials: 'SN', av: '#123456' },
+  })).json()
+  await app.photos.writeApproved('del1.jpg', Buffer.from('img'))
+  await app.photos.writeApproved('del1_t.jpg', Buffer.from('thumb'))
+  await db.insert(photo).values({
+    id: 'ph_del1', sweepId: 'default', kind: 'profile', uploaderName: 'Snapper',
+    personId: created.id, filePath: 'del1.jpg', thumbPath: 'del1_t.jpg', status: 'approved',
+  })
+
+  const res = await app.inject({ method: 'DELETE', url: `/api/admin/people/${created.id}`, headers: auth })
+  expect(res.statusCode).toBe(200)
+  expect(await db.select().from(photo).where(eq(photo.id, 'ph_del1'))).toHaveLength(0)
+  await expect(access(join(photosDir, 'approved', 'del1.jpg'))).rejects.toThrow()
 })

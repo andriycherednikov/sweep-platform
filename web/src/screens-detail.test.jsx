@@ -6,11 +6,10 @@ vi.mock('./api/client.js', () => ({
   postSupport: vi.fn(async () => ({})),
   uploadPhoto: vi.fn(async () => ({})),
   fetchAdminMe: vi.fn(async () => ({ admin: true })),
-  fetchAdminPhotos: vi.fn(async () => ({ pending: [], approved: [] })),
-  fetchAdminFile: vi.fn(async () => 'blob:queue-photo'),
+  fetchAdminPhotos: vi.fn(async () => []),
   settleStaleBets: vi.fn(async () => ({ swept: 0 })),
   fetchOpenBets: vi.fn(async () => ({ people: [], totalOpen: 0, totalStale: 0 })),
-  moderatePhoto: vi.fn(async () => ({})),
+  removePhoto: vi.fn(async () => ({})),
   createPerson: vi.fn(async () => ({})),
   deletePerson: vi.fn(async () => ({})),
   patchPerson: vi.fn(async () => ({})),
@@ -718,7 +717,7 @@ test('PeopleAdmin allocation sheet: unallocate an owned team → bulk delete', a
 })
 
 import { AdminConsole, AdminQueue } from './screens-detail.jsx'
-import { fetchOpenBets, fetchAdminPhotos, fetchAdminFile } from './api/client.js'
+import { fetchOpenBets, fetchAdminPhotos, removePhoto } from './api/client.js'
 
 test('AdminConsole offers People + Photos tabs but no Draw tab', () => {
   seedPeople()
@@ -727,7 +726,7 @@ test('AdminConsole offers People + Photos tabs but no Draw tab', () => {
   expect(queryByText('Draw')).toBeNull()
 })
 
-test('Moderation › Open bets lists a person\'s open bets and flags stale ones', async () => {
+test('Photos › Open bets lists a person\'s open bets and flags stale ones', async () => {
   // a finished match so a still-open bet on it reads as "stale / needs settling"
   setSweepData(assembleSweep({
     bootstrap: {
@@ -763,7 +762,7 @@ test('Moderation › Open bets lists a person\'s open bets and flags stale ones'
   expect(getByText('Match Winner')).toBeInTheDocument()
 })
 
-test('Moderation › Open bets collapses non-stale people and the header toggles them', async () => {
+test('Photos › Open bets collapses non-stale people and the header toggles them', async () => {
   setSweepData(assembleSweep({
     bootstrap: {
       teams: [
@@ -796,7 +795,7 @@ test('Moderation › Open bets collapses non-stale people and the header toggles
   expect(await findByText('Belgium')).toBeInTheDocument() // AWAY selection → away team name
 })
 
-test('Moderation › Open bets surfaces an error (not "all settled") when the audit fails to load', async () => {
+test('Photos › Open bets surfaces an error (not "all settled") when the audit fails to load', async () => {
   seedPeople()
   fetchOpenBets.mockRejectedValueOnce(new Error('HTTP 500'))
   const { getByText, findByText, queryByText } = render(<AdminQueue embedded onToast={noop} />)
@@ -810,22 +809,18 @@ test('Moderation › Open bets surfaces an error (not "all settled") when the au
 // The bytes behind a PENDING photo are admin-only, and admin is derived from the
 // account token — which a background-image subresource never sends. Rendering the URL
 // straight into CSS 403s, so the queue must fetch it and show the blob instead.
-// Uploads go live now, so the queue only fills where a deployment has turned moderation
-// back on — and then its tab has to appear and be selectable.
-test('a waiting photo is fetched with the admin header, not as a bare subresource', async () => {
-  URL.revokeObjectURL ??= () => {}   // jsdom has no object-URL support
+// The files are public — the same bytes the team pages render — so the console points
+// straight at them instead of streaming them behind a credential.
+test('the photo list renders the public file and can take one down', async () => {
   seedPeople()
-  fetchAdminPhotos.mockResolvedValueOnce({
-    pending: [{ id: 'ph1', kind: 'profile', uploader: 'Ann', person: 'p1', caption: 'Hi',
-      status: 'pending', fileUrl: '/api/admin/photos/ph1/file' }],
-    approved: [],
-  })
+  fetchAdminPhotos.mockResolvedValueOnce([
+    { id: 'ph1', kind: 'profile', uploader: 'Ann', person: 'p1', caption: 'Hi', src: '/photos/ph1.jpg' },
+  ])
   const { container, findByText, getByText } = render(<AdminQueue embedded onToast={noop} />)
-  fireEvent.click(await findByText('Waiting'))
   await findByText('Hi')
-  expect(fetchAdminFile).toHaveBeenCalledWith('/api/admin/photos/ph1/file')
-  await waitFor(() =>
-    expect(container.querySelector('.qimg').style.backgroundImage).toContain('blob:queue-photo'))
+  expect(container.querySelector('.qimg').style.backgroundImage).toContain('/photos/ph1.jpg')
+  fireEvent.click(getByText(/remove from site/i))
+  await waitFor(() => expect(removePhoto).toHaveBeenCalledWith('ph1'))
 })
 
 test('MatchSheet shows per-team match statistics side by side', () => {

@@ -404,7 +404,7 @@ export function MatchCard({ f, onOpen, onToast }) {
                       chip, NO date, NO scroll-shrink — keeps every non-home tab
                       compact and consistent; the selector lives only on Home. */
 export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweeps, scrolled, progress, scrollRef, onBack, headRef, replaceSpoiler }) {
-  const { isAdmin, pending } = useAdminBadge();
+  const { isAdmin } = useAdminBadge();
   const sweeps = useSweeps();
   useSocial();
   const me = getMe();
@@ -450,9 +450,8 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
             </button>
           )}
           {isAdmin && onAdmin && (
-            <button onClick={onAdmin} aria-label={isAdmin && pending>0 ? `Manage — ${pending} pending` : "Manage"} style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
+            <button onClick={onAdmin} aria-label="Manage" style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
               <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
-              {isAdmin && pending>0 && <span className="hdr-badge">{pending}</span>}
             </button>
           )}
         </div>
@@ -606,7 +605,7 @@ export function useIsDesktop() {
 }
 
 export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
-  const { isAdmin, pending } = useAdminBadge();
+  const { isAdmin } = useAdminBadge();
   const sweeps = useSweeps();
   useSocial(); // re-render on identity change so the Wagers item appears/hides
   useOptOut(); // ...and on opt-out
@@ -628,7 +627,7 @@ export function Sidebar({ current, go, onKnock, onAdmin, onSweeps }) {
         <div className="sb-sec">Admin</div>
         <nav className="sb-nav">
           <button className={"sb-item"+(current==="admin"?" on":"")} onClick={onAdmin}>
-            <Icon.lock/><span>Manage</span>{isAdmin && pending>0 && <span className="badge">{pending}</span>}
+            <Icon.lock/><span>Manage</span>
           </button>
         </nav>
       </>}

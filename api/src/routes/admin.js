@@ -1,4 +1,3 @@
-import { createReadStream } from 'node:fs'
 import { and, eq, desc } from 'drizzle-orm'
 import { photo, person, sweep } from '../db/schema.js'
 import { settleStaleBets } from '../wagering/settle.js'
@@ -31,73 +30,32 @@ export async function adminRoutes(app) {
     return openBetsBySweep(app.db, req.sweep.id)
   })
 
+  // Every photo in the sweep, newest first. There is no queue to divide them into, and
+  // they are already public at /photos/<file> — the same bytes the team pages render —
+  // so there is nothing here to serve behind a credential either.
   app.get('/api/admin/photos', { preHandler: admin }, async (req) => {
-    const rows = await app.db.select().from(photo).where(eq(photo.sweepId, req.sweep.id)).orderBy(desc(photo.createdAt))
-    const shape = (p) => ({
+    const rows = await app.db.select().from(photo)
+      .where(and(eq(photo.sweepId, req.sweep.id), eq(photo.status, 'approved')))
+      .orderBy(desc(photo.createdAt))
+    return rows.map((p) => ({
       id: p.id, kind: p.kind, uploader: p.uploaderName, person: p.personId, fixtureId: p.fixtureId,
-      caption: p.caption, status: p.status, createdAt: p.createdAt,
-      fileUrl: `/api/admin/photos/${p.id}/file`,
-    })
-    return {
-      pending: rows.filter((p) => p.status === 'pending').map(shape),
-      approved: rows.filter((p) => p.status === 'approved').map(shape),
-    }
+      caption: p.caption, createdAt: p.createdAt, src: `/photos/${p.filePath}`,
+    }))
   })
 
-  app.get('/api/admin/photos/:id/file', { preHandler: admin }, async (req, reply) => {
-    const [p] = await app.db.select().from(photo).where(and(eq(photo.id, req.params.id), eq(photo.sweepId, req.sweep.id)))
-    if (!p) return reply.code(404).send({ error: 'not_found' })
-    const path = p.status === 'approved' ? app.photos.approvedPath(p.filePath) : app.photos.pendingPath(p.filePath)
-    reply.type('image/jpeg')
-    return reply.send(createReadStream(path))
-  })
-
-  const moderateBody = {
-    type: 'object', required: ['action'], additionalProperties: false,
-    properties: { action: { type: 'string', enum: ['approve', 'reject', 'remove'] } },
-  }
-
-  app.post('/api/admin/photos/:id', { preHandler: admin, schema: { body: moderateBody } }, async (req, reply) => {
+  /** Take a photo down. The only thing that ever happens to one after it is uploaded. */
+  app.delete('/api/admin/photos/:id', { preHandler: admin }, async (req, reply) => {
     const { id } = req.params
-    const { action } = req.body
     const [p] = await app.db.select().from(photo).where(and(eq(photo.id, id), eq(photo.sweepId, req.sweep.id)))
     if (!p) return reply.code(404).send({ error: 'not_found' })
 
-    if (action === 'approve') {
-      // supersede a prior approved profile photo for this person
-      if (p.kind === 'profile') {
-        const prior = await app.db.select().from(photo)
-          .where(and(eq(photo.kind, 'profile'), eq(photo.personId, p.personId), eq(photo.status, 'approved'), eq(photo.sweepId, req.sweep.id)))
-        for (const old of prior) {
-          await app.photos.removeApproved(old.filePath)
-          await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, old.id))
-        }
-      }
-      await app.photos.moveToApproved(p.filePath)
-      if (p.thumbPath) await app.photos.moveToApproved(p.thumbPath).catch(() => {})
-      await app.db.update(photo).set({ status: 'approved', moderatedAt: new Date() }).where(eq(photo.id, id))
-      if (p.kind === 'profile') {
-        await app.db.update(person).set({ avatarPath: `/photos/${p.filePath}` }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
-      }
-      await app.publish({ type: 'photo-approved', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
-      return { id, status: 'approved' }
-    }
-
-    if (action === 'reject') {
-      await app.photos.removePending(p.filePath)
-      if (p.thumbPath) await app.photos.removePending(p.thumbPath).catch(() => {})
-      await app.db.update(photo).set({ status: 'rejected', moderatedAt: new Date() }).where(eq(photo.id, id))
-      return { id, status: 'rejected' }
-    }
-
-    // remove (an approved photo)
-    await app.photos.removeApproved(p.filePath)
+    await app.photos.removeApproved(p.filePath).catch(() => {})
     if (p.thumbPath) await app.photos.removeApproved(p.thumbPath).catch(() => {})
     await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, id))
     if (p.kind === 'profile' && p.personId) {
       await app.db.update(person).set({ avatarPath: null }).where(and(eq(person.id, p.personId), eq(person.sweepId, req.sweep.id)))
     }
     await app.publish({ type: 'photo-removed', sweepId: req.sweep.id, id, kind: p.kind, ...(p.kind === 'fan' ? { fixtureId: p.fixtureId } : { person: p.personId }) })
-    return { id, status: 'removed' }
+    return { id, removed: true }
   })
 }

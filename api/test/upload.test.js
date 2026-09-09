@@ -18,8 +18,7 @@ let me, seat
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-up-'))
   store = await createStorage(dir)
-  // moderation is opt-in now, and this file is the suite that covers it
-  app = buildApp(db, { photosDir: dir, autoApprovePhotos: false })
+  app = buildApp(db, { photosDir: dir })
   await app.ready()
   client = await memberClient(app)
   me = (await db.select().from(person).limit(1))[0]
@@ -45,16 +44,20 @@ async function upload(fields, file, headers = {}) {
 async function aFixture() { const [f] = await db.select().from(event).limit(1); return f }
 async function aPerson() { return me }
 
-test('uploads a fan photo → pending row + file written to pending dir', async () => {
+test('a fan photo is live the moment it is uploaded', async () => {
   const f = await aFixture()
   const res = await upload({ kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, caption: 'colours!' }, await png())
   expect(res.statusCode).toBe(201)
   const body = res.json()
-  expect(body).toMatchObject({ kind: 'fan', status: 'pending', fixtureId: f.id })
+  expect(body).toMatchObject({ kind: 'fan', status: 'approved', fixtureId: f.id })
   const rows = await db.select().from(photo)
   expect(rows).toHaveLength(1)
   expect(rows[0].fixtureId).toBe(f.id)
-  await access(store.pendingPath(rows[0].filePath)) // exists in pending, no throw
+  await access(store.approvedPath(rows[0].filePath)) // served straight away, no throw
+
+  // and the sweep can see it without anybody letting it through
+  const listed = (await client.inject({ method: 'GET', url: '/api/photos' })).json()
+  expect(listed.map((x) => x.id)).toContain(body.id)
 })
 
 test('rejects a fan photo with an unknown fixture', async () => {
@@ -72,12 +75,20 @@ test('rejects a non-image file type', async () => {
   expect(res.statusCode).toBe(400)
 })
 
-test('enforces one pending per person per kind (profile)', async () => {
+// A person has one face. Uploading a new one replaces the old, rather than being
+// refused because the first is still sitting in a queue that no longer exists.
+test('a second profile photo supersedes the first, it is not refused', async () => {
   const p = await aPerson()
   const first = await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)
   expect(first.statusCode).toBe(201)
   const second = await upload({ kind: 'profile', uploaderName: p.name }, await png(), seat)
-  expect(second.statusCode).toBe(409) // already has a pending profile
+  expect(second.statusCode).toBe(201)
+
+  const [row] = await db.select().from(person).where(eq(person.id, me.id))
+  expect(row.avatarPath).toBe(`/photos/${second.json().id}.jpg`)
+  const [old] = await db.select().from(photo).where(eq(photo.id, first.json().id))
+  expect(old.status).toBe('removed')
+  await expect(access(join(dir, 'approved', `${first.json().id}.jpg`))).rejects.toThrow()
 })
 
 test('missing file → 400', async () => {

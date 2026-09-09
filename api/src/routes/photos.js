@@ -48,57 +48,35 @@ export async function photoRoutes(app) {
       return reply.code(403).send({ error: 'no_seat' })
     }
 
-    // one pending per person per kind (moderation mode only — auto-approve never queues)
-    if (!app.autoApprovePhotos) {
-      const dupConds = [eq(photo.status, 'pending'), eq(photo.kind, kind), eq(photo.sweepId, sweepId)]
-      // Fan uploads key on the seat when there is one: keying on a free-text name let
-      // one member 409 another's uploads just by typing it.
-      dupConds.push(kind === 'profile' || personId ? eq(photo.personId, personId) : eq(photo.uploaderName, uploaderName))
-      const dup = await app.db.select().from(photo).where(and(...dupConds))
-      if (dup.length) return reply.code(409).send({ error: 'pending_exists' })
-    }
-
     const { buffer, thumb, ext } = await processImage(buf, kind)
     const id = randomUUID()
     const fileName = `${id}.${ext}`
     const thumbName = `${id}_t.${ext}`
-    await app.photos.writePending(fileName, buffer)
-    await app.photos.writePending(thumbName, thumb)
 
-    if (app.autoApprovePhotos) {
-      // skip the moderation queue: move straight to approved and go live immediately
-      if (kind === 'profile') {
-        // supersede the person's prior approved profile photo
-        const prior = await app.db.select().from(photo)
-          .where(and(eq(photo.kind, 'profile'), eq(photo.personId, personId), eq(photo.status, 'approved'), eq(photo.sweepId, sweepId)))
-        for (const old of prior) {
-          await app.photos.removeApproved(old.filePath).catch(() => {})
-          await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, old.id))
-        }
+    // A profile photo replaces the one it supersedes — a person has one face, and the
+    // old file should not outlive it on disk.
+    if (kind === 'profile') {
+      const prior = await app.db.select().from(photo)
+        .where(and(eq(photo.kind, 'profile'), eq(photo.personId, personId), eq(photo.status, 'approved'), eq(photo.sweepId, sweepId)))
+      for (const old of prior) {
+        await app.photos.removeApproved(old.filePath).catch(() => {})
+        if (old.thumbPath) await app.photos.removeApproved(old.thumbPath).catch(() => {})
+        await app.db.update(photo).set({ status: 'removed', moderatedAt: new Date() }).where(eq(photo.id, old.id))
       }
-      await app.photos.moveToApproved(fileName)
-      await app.photos.moveToApproved(thumbName).catch(() => {})
-      await app.db.insert(photo).values({
-        id, sweepId, kind, uploaderName,
-        personId: kind === 'profile' ? personId : null,
-        fixtureId: kind === 'fan' ? fixtureId : null,
-        filePath: fileName, thumbPath: thumbName, caption, status: 'approved', moderatedAt: new Date(),
-      })
-      if (kind === 'profile') {
-        await app.db.update(person).set({ avatarPath: `/photos/${fileName}` }).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
-      }
-      await app.publish({ type: 'photo-approved', sweepId, id, kind, ...(kind === 'fan' ? { fixtureId } : { person: personId }) })
-      return reply.code(201).send({ id, kind, status: 'approved', fixtureId: fixtureId ?? null, personId: personId ?? null })
     }
 
+    await app.photos.writeApproved(fileName, buffer)
+    await app.photos.writeApproved(thumbName, thumb)
     await app.db.insert(photo).values({
       id, sweepId, kind, uploaderName,
       personId: kind === 'profile' ? personId : null,
       fixtureId: kind === 'fan' ? fixtureId : null,
-      filePath: fileName, thumbPath: thumbName, caption, status: 'pending',
+      filePath: fileName, thumbPath: thumbName, caption, status: 'approved', moderatedAt: new Date(),
     })
-    // signal admins' moderation badge to refresh (no payload — count is fetched with creds)
-    await app.publish({ type: 'photo-pending', sweepId: req.sweep.id })
-    return reply.code(201).send({ id, kind, status: 'pending', fixtureId: fixtureId ?? null, personId: personId ?? null })
+    if (kind === 'profile') {
+      await app.db.update(person).set({ avatarPath: `/photos/${fileName}` }).where(and(eq(person.id, personId), eq(person.sweepId, sweepId)))
+    }
+    await app.publish({ type: 'photo-approved', sweepId, id, kind, ...(kind === 'fan' ? { fixtureId } : { person: personId }) })
+    return reply.code(201).send({ id, kind, status: 'approved', fixtureId: fixtureId ?? null, personId: personId ?? null })
   })
 }

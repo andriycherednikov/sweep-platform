@@ -3,7 +3,6 @@ import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { SWEEP as S } from '../data.js'
 import { pushNotification } from '../notifications.js'
-import { getAdminBadge, refreshAdminBadge } from '../admin.js'
 import { streamUrl } from '../api/client.js'
 
 /**
@@ -36,9 +35,6 @@ export function useEventStream() {
         if (ev.supporting) {
           pushNotification({ personId: ev.personId, teamCode: ev.supporting, fixtureId: ev.fixtureId, action: ev.action })
         }
-      } else if (ev.type === 'photo-pending') {
-        // a new upload landed in the queue — bump the admin badge (admins only)
-        if (getAdminBadge().isAdmin) refreshAdminBadge()
       } else if (ev.type === 'score') {
         // derive only kick-off / full-time by diffing against the fixture we still hold
         // (goals now arrive as their own `goal` event, with the real scorer)
@@ -71,7 +67,6 @@ export function useEventStream() {
         }
       } else if (ev.type === 'sync' || ev.type === 'photo-approved' || ev.type === 'photo-removed') {
         qc.invalidateQueries({ queryKey: ['sweep'] })
-        if ((ev.type === 'photo-approved' || ev.type === 'photo-removed') && getAdminBadge().isAdmin) refreshAdminBadge()
       }
     }
     return () => es.close()

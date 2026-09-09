@@ -18,7 +18,7 @@ import {
 import { useSpoiler, spoilerHidden } from "./spoiler.js";
 import { balanceByPerson, useCoins, canWager } from "./coins.js";
 import { InstallButton } from "./InstallPrompt.jsx";
-import { uploadPhoto, fetchAdminPhotos, fetchAdminFile, moderatePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
+import { uploadPhoto, fetchAdminPhotos, removePhoto, settleStaleBets, fetchOpenBets, createPerson, deletePerson, patchPerson, bulkPostOwnership, bulkDeleteOwnership } from "./api/client.js";
 import { SingleBetRow, ParlayCard } from "./screens-coins.jsx";
 import { refreshAdminBadge } from "./admin.js";
 import { allocateRandomForPerson } from "./lib/allocate.js";
@@ -1574,34 +1574,17 @@ function OpenBetsPerson({ g, expanded, onToggle, onMatch }) {
  *  subresource: it sends the sweep cookie but never the x-account-token the route
  *  checks, so a pending photo would 403. Fetch it with the header and show the blob;
  *  revoke on unmount so the queue doesn't leak object URLs as it reloads. */
-function QueueImage({ src, children }) {
-  const [url, setUrl] = useState(null);
-  useEffect(()=>{
-    let live = true, made = null;
-    fetchAdminFile(src).then(u=>{
-      if (!live) { URL.revokeObjectURL(u); return; }
-      made = u; setUrl(u);
-    }).catch(()=>{});
-    return ()=>{ live = false; if (made) URL.revokeObjectURL(made); };
-  },[src]);
-  return (
-    <div className="qimg" style={{backgroundImage:url?`url(${url})`:undefined,backgroundSize:"cover",backgroundPosition:"center"}}>
-      {children}
-    </div>
-  );
-}
-
 export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
-  const [data, setData] = useState({ pending: [], approved: [] });
+  const [photos, setPhotos] = useState([]);
+  const [tab, setTab] = useState("photos");
   const [open, setOpen] = useState({ people: [], totalOpen: 0, totalStale: 0 });
   const [openErr, setOpenErr] = useState(false);
   const [expanded, setExpanded] = useState({}); // personId → open in the accordion
-  const [tab, setTab] = useState("approved");
   const [busy, setBusy] = useState(null);
 
   const [staleBusy, setStaleBusy] = useState(false);
 
-  async function load(){ try { setData(await fetchAdminPhotos()); } catch { onToast("Couldn't load the queue"); } }
+  async function load(){ try { setPhotos(await fetchAdminPhotos()); } catch { onToast("Couldn't load the photos"); } }
   // A failed audit fetch must NOT look like "all settled" — surface an error so the admin
   // never gets false reassurance from a reconciliation tool that simply didn't load.
   async function loadOpen(){
@@ -1628,16 +1611,15 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
     finally { setStaleBusy(false); }
   }
 
-  const list = tab==="pending" ? data.pending : data.approved;
 
-  async function act(id, action){
+
+  async function takeDown(id){
     setBusy(id);
     try {
-      await moderatePhoto(id, action);
-      onToast(action==="approve"?"Photo approved":action==="reject"?"Photo rejected":"Photo removed");
+      await removePhoto(id);
+      onToast("Photo removed");
       await load();
-      refreshAdminBadge();
-    } catch { onToast("Action failed — try again"); }
+    } catch { onToast("Couldn't remove that — try again"); }
     finally { setBusy(null); }
   }
 
@@ -1645,13 +1627,7 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
     <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,height:embedded?"auto":"100%"}}>
       {!embedded && <PageHeader title="Photos" sub="Everything in this sweep" onBack={onBack} right={<div className="iconbtn"><Icon.shield/></div>} />}
       <div className="admintabs">
-        {/* Uploads go live now, so the queue is only ever populated where a deployment
-            has turned moderation back on — offering an always-empty tab as the front
-            door made this screen look broken. */}
-        {data.pending.length > 0 && (
-          <button className={"admintab"+(tab==="pending"?" on":"")} onClick={()=>setTab("pending")}>Waiting <span className="ct">{data.pending.length}</span></button>
-        )}
-        <button className={"admintab"+(tab==="approved"?" on":"")} onClick={()=>setTab("approved")}>In the sweep · {data.approved.length}</button>
+        <button className={"admintab"+(tab==="photos"?" on":"")} onClick={()=>setTab("photos")}>Photos · {photos.length}</button>
         <button className={"admintab"+(tab==="open"?" on":"")} onClick={()=>setTab("open")}>Open bets {open.totalStale>0 ? <span className="ct ct-warn">{open.totalStale}</span> : (open.totalOpen>0 && <span className="ct">{open.totalOpen}</span>)}</button>
       </div>
       <div className="scroll pad screen-anim" style={{paddingTop:10}}>
@@ -1679,27 +1655,19 @@ export function AdminQueue({ onBack, onToast, embedded, openMatch }) {
                   </>}
             </>
           ) : (<>
-          {list.length===0 && (tab==="pending"
-            ? <div className="empty"><div className="ic">✅</div><h3>Nothing waiting</h3><p>Every upload has been dealt with.</p></div>
-            : <div className="empty"><div className="ic">📷</div><h3>No photos yet</h3><p>Whatever the group uploads shows up here, and you can take any of it down.</p></div>)}
-          {list.map(p=>(
+          {photos.length===0 && <div className="empty"><div className="ic">📷</div><h3>No photos yet</h3><p>Whatever the group uploads shows up here, and you can take any of it down.</p></div>}
+          {photos.map(p=>(
             <div className="queueitem" key={p.id}>
-              <QueueImage src={p.fileUrl}>
+              {/* the file is public — the same bytes the team pages render */}
+              <div className="qimg" style={{backgroundImage:`url(${p.src})`,backgroundSize:"cover",backgroundPosition:"center"}}>
                 <div className="lbl">{p.kind==="profile"?"PROFILE":"FAN PHOTO"}</div>
                 {p.kind==="fan" && (()=>{ const fx=S.fixture(p.fixtureId); return fx ? <div className="tag"><Flag code={fx.t1} w={18} h={13} /><Flag code={fx.t2} w={18} h={13} /><span>{S.team(fx.t1)?.name} v {S.team(fx.t2)?.name}</span></div> : null; })()}
                 {p.kind==="profile" && <div className="tag"><span>{S.peopleById[p.person]?.short || p.uploader}</span></div>}
-              </QueueImage>
+              </div>
               <div className="qmeta"><b>{p.caption||"(no caption)"}</b><small>{p.uploader}</small></div>
-              {tab==="pending" ? (
-                <div className="qacts">
-                  <button className="qbtn rej" disabled={busy===p.id} onClick={()=>act(p.id,"reject")}><Icon.x/> Reject</button>
-                  <button className="qbtn app" disabled={busy===p.id} onClick={()=>act(p.id,"approve")}><Icon.check/> Approve</button>
-                </div>
-              ) : (
-                <div className="qacts">
-                  <button className="qbtn rej" disabled={busy===p.id} onClick={()=>act(p.id,"remove")} style={{flex:1}}><Icon.trash/> Remove from site</button>
-                </div>
-              )}
+              <div className="qacts">
+                <button className="qbtn rej" disabled={busy===p.id} onClick={()=>takeDown(p.id)} style={{flex:1}}><Icon.trash/> Remove from site</button>
+              </div>
             </div>
           ))}
           </>)}

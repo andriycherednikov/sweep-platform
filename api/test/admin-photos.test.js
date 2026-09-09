@@ -1,105 +1,86 @@
-// api/test/admin-photos.test.js
+// api/test/admin-photos.test.js — the owner's photo list, and taking one down.
+// There is no approval: an upload is live when it is written, so the only verb here
+// is remove.
 import { expect, test, afterAll, beforeAll, beforeEach } from 'vitest'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, access } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { photo, person, event } from '../src/db/schema.js'
-import { person as personT } from '../src/db/schema.js'
 import { memberCookie, ownerHeaders } from './helpers/session.js'
 
 const { pool, db } = openTestDb()
+const published = []
 let dir, app, auth
 beforeAll(async () => {
   dir = await mkdtemp(join(tmpdir(), 'sweep-adm-'))
-  app = buildApp(db, { photosDir: dir, sessionSecret: 's' })
+  app = buildApp(db, { photosDir: dir, sessionSecret: 's', publish: (e) => published.push(e) })
   await app.ready()
   auth = { cookie: await memberCookie(app), ...(await ownerHeaders(db)) }
 })
 afterAll(async () => { await app.close(); await pool.end(); await rm(dir, { recursive: true, force: true }) })
-beforeEach(async () => { await db.delete(photo) })
+beforeEach(async () => { await db.delete(photo); published.length = 0 })
 
-async function seedPending() {
+async function live({ id = 'ph1', kind = 'fan', personId = null } = {}) {
   const [f] = await db.select().from(event).limit(1)
-  await app.photos.writePending('z.jpg', Buffer.from('img'))
-  await db.insert(photo).values({ id: 'ph1', sweepId: 'default', kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, filePath: 'z.jpg', thumbPath: 'z.jpg', caption: 'hi', status: 'pending' })
+  await app.photos.writeApproved(`${id}.jpg`, Buffer.from('img'))
+  await app.photos.writeApproved(`${id}_t.jpg`, Buffer.from('thumb'))
+  await db.insert(photo).values({
+    id, sweepId: 'default', kind, uploaderName: 'Priya',
+    fixtureId: kind === 'fan' ? f.id : null, personId,
+    filePath: `${id}.jpg`, thumbPath: `${id}_t.jpg`, caption: 'hi', status: 'approved',
+  })
   return f
 }
 
-test('GET /api/admin/photos requires admin (member is forbidden)', async () => {
-  // A member of this sweep is signed in and still refused: 403 forbidden, not 401.
-  expect((await app.inject({ method: 'GET', url: '/api/admin/photos', headers: { cookie: await memberCookie(app) } })).statusCode).toBe(403)
+test('the photo list requires admin (a member is forbidden)', async () => {
+  const res = await app.inject({ method: 'GET', url: '/api/admin/photos', headers: { cookie: auth.cookie } })
+  expect(res.statusCode).toBe(403)
 })
 
-test('GET /api/admin/photos lists pending + approved with kind/subject tags', async () => {
-  const f = await seedPending()
-  const res = await app.inject({ method: 'GET', url: '/api/admin/photos', headers: auth })
-  expect(res.statusCode).toBe(200)
-  const body = res.json()
-  expect(body.pending).toHaveLength(1)
-  expect(body.pending[0]).toMatchObject({ id: 'ph1', kind: 'fan', fixtureId: f.id, status: 'pending' })
-  expect(body.pending[0].fileUrl).toBe('/api/admin/photos/ph1/file')
+// The bytes are already public at /photos/<file> — the same ones the team pages render —
+// so the list points at them rather than at a credentialed streaming route.
+test('it lists what is in the sweep, pointing at the public file', async () => {
+  await live()
+  const rows = (await app.inject({ method: 'GET', url: '/api/admin/photos', headers: auth })).json()
+  expect(rows).toHaveLength(1)
+  expect(rows[0]).toMatchObject({ id: 'ph1', kind: 'fan', uploader: 'Priya', src: '/photos/ph1.jpg' })
 })
 
-test('GET /api/admin/photos/:id/file streams the pending image to the admin', async () => {
-  await seedPending()
-  const res = await app.inject({ method: 'GET', url: '/api/admin/photos/ph1/file', headers: auth })
+test('removing takes the files off disk, marks the row, and tells the sweep', async () => {
+  await live()
+  const res = await app.inject({ method: 'DELETE', url: '/api/admin/photos/ph1', headers: auth })
   expect(res.statusCode).toBe(200)
-  expect(res.headers['content-type']).toMatch(/image\//)
-  expect(res.rawPayload.toString()).toBe('img')
-})
+  expect(res.json()).toEqual({ id: 'ph1', removed: true })
 
-test('approve a fan photo → moves file, status approved, emits photo-approved', async () => {
-  const published = []
-  const app2 = buildApp(db, { photosDir: dir, sessionSecret: 's', publish: (e) => published.push(e) })
-  await app2.ready()
-  const auth2 = { cookie: await memberCookie(app2), ...(await ownerHeaders(db)) }
-  const [f] = await db.select().from(event).limit(1)
-  await app2.photos.writePending('appr.jpg', Buffer.from('img'))
-  await db.insert(photo).values({ id: 'ph2', sweepId: 'default', kind: 'fan', uploaderName: 'Priya', fixtureId: f.id, filePath: 'appr.jpg', thumbPath: 'appr.jpg', status: 'pending' })
-
-  const res = await app2.inject({ method: 'POST', url: '/api/admin/photos/ph2', headers: auth2, payload: { action: 'approve' } })
-  expect(res.statusCode).toBe(200)
-  const [row] = await db.select().from(photo).where(eq(photo.id, 'ph2'))
-  expect(row.status).toBe('approved')
-  expect(published).toContainEqual({ type: 'photo-approved', sweepId: 'default', id: 'ph2', kind: 'fan', fixtureId: f.id })
-  await app2.close()
-})
-
-test('approve a profile photo sets person.avatar_path and supersedes prior', async () => {
-  const [p] = await db.select().from(personT).limit(1)
-  await app.photos.writePending('prof.jpg', Buffer.from('img'))
-  await db.insert(photo).values({ id: 'ph3', sweepId: 'default', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'prof.jpg', thumbPath: 'prof.jpg', status: 'pending' })
-  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph3', headers: auth, payload: { action: 'approve' } })
-  expect(res.statusCode).toBe(200)
-  const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
-  expect(pp.avatarPath).toBe('/photos/prof.jpg')
-})
-
-test('reject leaves no served file and marks rejected', async () => {
-  await seedPending()
-  const res = await app.inject({ method: 'POST', url: '/api/admin/photos/ph1', headers: auth, payload: { action: 'reject' } })
-  expect(res.statusCode).toBe(200)
   const [row] = await db.select().from(photo).where(eq(photo.id, 'ph1'))
-  expect(row.status).toBe('rejected')
+  expect(row.status).toBe('removed')
+  await expect(access(join(dir, 'approved', 'ph1.jpg'))).rejects.toThrow()
+  await expect(access(join(dir, 'approved', 'ph1_t.jpg'))).rejects.toThrow()
+  expect(published.some((e) => e.type === 'photo-removed')).toBe(true)
+  // and it drops out of the list
+  expect((await app.inject({ method: 'GET', url: '/api/admin/photos', headers: auth })).json()).toEqual([])
 })
 
-test('remove an approved profile reverts the person to initials and emits photo-removed', async () => {
-  const published = []
-  const app3 = buildApp(db, { photosDir: dir, sessionSecret: 's', publish: (e) => published.push(e) })
-  await app3.ready()
-  const auth3 = { cookie: await memberCookie(app3), ...(await ownerHeaders(db)) }
-  const [p] = await db.select().from(personT).limit(1)
-  await app3.photos.writePending('rm.jpg', Buffer.from('img')); await app3.photos.moveToApproved('rm.jpg')
-  await db.update(personT).set({ avatarPath: '/photos/rm.jpg' }).where(eq(personT.id, p.id))
-  await db.insert(photo).values({ id: 'ph4', sweepId: 'default', kind: 'profile', uploaderName: p.name, personId: p.id, filePath: 'rm.jpg', thumbPath: 'rm.jpg', status: 'approved' })
+test('removing a profile photo puts the person back to their initials', async () => {
+  const [p] = await db.select().from(person).where(eq(person.sweepId, 'default')).limit(1)
+  await live({ id: 'ph2', kind: 'profile', personId: p.id })
+  await db.update(person).set({ avatarPath: '/photos/ph2.jpg' }).where(eq(person.id, p.id))
 
-  const res = await app3.inject({ method: 'POST', url: '/api/admin/photos/ph4', headers: auth3, payload: { action: 'remove' } })
-  expect(res.statusCode).toBe(200)
-  const [pp] = await db.select().from(personT).where(eq(personT.id, p.id))
-  expect(pp.avatarPath).toBe(null)
-  expect(published).toContainEqual({ type: 'photo-removed', sweepId: 'default', id: 'ph4', kind: 'profile', person: p.id })
-  await app3.close()
+  await app.inject({ method: 'DELETE', url: '/api/admin/photos/ph2', headers: auth })
+  const [after] = await db.select().from(person).where(eq(person.id, p.id))
+  expect(after.avatarPath).toBeNull()
+})
+
+test('a member cannot take a photo down', async () => {
+  await live()
+  const res = await app.inject({ method: 'DELETE', url: '/api/admin/photos/ph1', headers: { cookie: auth.cookie } })
+  expect(res.statusCode).toBe(403)
+})
+
+test('an unknown photo is 404, not a silent success', async () => {
+  const res = await app.inject({ method: 'DELETE', url: '/api/admin/photos/nope', headers: auth })
+  expect(res.statusCode).toBe(404)
 })

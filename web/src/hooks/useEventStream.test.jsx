@@ -63,13 +63,14 @@ test('a support pick/switch pushes a floating reaction; a remove does not', () =
   expect(pushNotification).toHaveBeenCalledTimes(1) // remove did not push
 })
 
-test('photo-pending refreshes the admin badge only when admin', () => {
-  const { es } = setup()
-  es.emit({ type: 'photo-pending' })
-  expect(admin.refresh).not.toHaveBeenCalled() // not admin → ignored
-  admin.state = { isAdmin: true }
-  es.emit({ type: 'photo-pending' })
-  expect(admin.refresh).toHaveBeenCalledTimes(1)
+// There is no queue to be told about: a photo is live when it is uploaded, so the only
+// photo events left are the ones that change what the sweep can see.
+test('a photo event refreshes the sweep, and never a moderation badge', () => {
+  const { spy, es } = setup()
+  es.emit({ type: 'photo-approved' })
+  es.emit({ type: 'photo-removed' })
+  expect(spy.mock.calls.filter((c) => c[0]?.queryKey?.[0] === 'sweep')).toHaveLength(2)
+  expect(admin.refresh).not.toHaveBeenCalled()
 })
 
 test('score/sync events invalidate the sweep query', () => {

@@ -11,21 +11,20 @@ let dir, store
 beforeAll(async () => { dir = await mkdtemp(join(tmpdir(), 'sweep-photos-')); store = await createStorage(dir) })
 afterAll(async () => { await rm(dir, { recursive: true, force: true }) })
 
-test('writePending stores a file in pending/ and not in approved/', async () => {
-  await store.writePending('a.jpg', Buffer.from('hello'))
-  expect(await readFile(store.pendingPath('a.jpg'), 'utf8')).toBe('hello')
-  await expect(access(join(dir, 'approved', 'a.jpg'))).rejects.toThrow()
+test('writeApproved puts the file where it is served from', async () => {
+  await store.writeApproved('a.jpg', Buffer.from('hello'))
+  expect(await readFile(store.approvedPath('a.jpg'), 'utf8')).toBe('hello')
 })
 
-test('moveToApproved relocates pending → approved', async () => {
-  await store.writePending('b.jpg', Buffer.from('img'))
-  await store.moveToApproved('b.jpg')
-  expect(await readFile(join(dir, 'approved', 'b.jpg'), 'utf8')).toBe('img')
-  await expect(access(store.pendingPath('b.jpg'))).rejects.toThrow()
+// There is no pending shelf: an upload is live when it is written.
+test('the store has no pending half at all', () => {
+  expect(store.writePending).toBeUndefined()
+  expect(store.moveToApproved).toBeUndefined()
+  expect(store.pendingPath).toBeUndefined()
 })
 
 test('removeApproved deletes the served file', async () => {
-  await store.writePending('c.jpg', Buffer.from('x')); await store.moveToApproved('c.jpg')
+  await store.writeApproved('c.jpg', Buffer.from('x'))
   await store.removeApproved('c.jpg')
   await expect(access(join(dir, 'approved', 'c.jpg'))).rejects.toThrow()
 })

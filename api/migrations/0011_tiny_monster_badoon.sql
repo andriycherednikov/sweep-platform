@@ -1,0 +1,1 @@
+ALTER TABLE "photo" ALTER COLUMN "status" SET DEFAULT 'approved';
