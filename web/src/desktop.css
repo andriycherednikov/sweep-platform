@@ -4,7 +4,7 @@
    ============================================================ */
 @media (min-width:900px){
 
-  body{ background:#dde0e4; display:block; align-items:stretch; justify-content:flex-start; }
+  body{ background:var(--line); display:block; align-items:stretch; justify-content:flex-start; }
   #root{ display:block; width:100%; min-height:100vh; }
 
   /* Admin Sweep: full-width board. Controls on one line — label/summary left,
@@ -31,9 +31,9 @@
   .sb-brand .mark{ width:34px; height:62px; border-radius:0; background:transparent; box-shadow:none; display:flex; align-items:center; justify-content:center; }
   .sb-brand b{ font-weight:700; font-size:25px; letter-spacing:.2px; line-height:1.05; white-space:nowrap; }
   .sb-brand small{ display:block; font-size:12px; letter-spacing:1.6px; color:var(--accent); font-weight:800; margin-top:5px; white-space:nowrap; }
-  .sb-sec{ font-family:'Barlow Semi Condensed'; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:#6b7a8b; padding:14px 11px 7px; position:relative; z-index:1; }
+  .sb-sec{ font-family:'Barlow Semi Condensed'; font-size:10px; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; color:var(--on-ink3); padding:14px 11px 7px; position:relative; z-index:1; }
   .sb-nav{ display:flex; flex-direction:column; gap:2px; position:relative; z-index:1; }
-  .sb-item{ display:flex; align-items:center; gap:12px; padding:9px 11px; border-radius:9px; color:#93a1b0; font-family:'Archivo',system-ui,sans-serif; font-weight:600; font-size:14px; transition:background .15s,color .15s; cursor:pointer; border:0; background:none; width:100%; text-align:left; }
+  .sb-item{ display:flex; align-items:center; gap:12px; padding:9px 11px; border-radius:9px; color:var(--on-ink2); font-family:'Archivo',system-ui,sans-serif; font-weight:600; font-size:14px; transition:background .15s,color .15s; cursor:pointer; border:0; background:none; width:100%; text-align:left; }
   .sb-item svg{ width:19px; height:19px; flex-shrink:0; }
   .sb-item:hover{ background:rgba(242,244,246,.045); color:#f2f4f6; }
   /* The account rail has one nav item, so its active state can be pure glass. Six items
@@ -44,11 +44,11 @@
   .sb-item .badge{ margin-left:auto; min-width:20px; height:20px; padding:0 6px; border-radius:10px; background:rgba(242,244,246,.12); color:#fff; font-size:11px; font-weight:800; display:grid; place-items:center; }
   .sb-item.on .badge{ background:var(--accent); }
   .sb-foot{ margin-top:auto; position:relative; z-index:1; padding:14px 4px 4px; border-top:1px solid rgba(242,244,246,.13); display:flex; flex-direction:column; align-items:stretch; }
-  .sb-foot .dt{ font-size:11px; color:#6b7a8b; font-weight:600; line-height:1.3; white-space:nowrap; }
+  .sb-foot .dt{ font-size:11px; color:var(--on-ink3); font-weight:600; line-height:1.3; white-space:nowrap; }
   .sb-foot .dt b{ color:#f2f4f6; font-size:13px; display:block; white-space:nowrap; }
 
   /* ---- main ---- */
-  .deskmain{ flex:1; min-width:0; position:relative; background:#dde0e4; }
+  .deskmain{ flex:1; min-width:0; position:relative; background:var(--line); }
   .deskmain-rel{ position:relative; height:100vh; overflow:hidden; display:flex; flex-direction:column; }
   /* the stage the absolute screens stack in — starts below the read-only banner
      instead of behind it, so the banner takes space rather than covering a row */
@@ -92,9 +92,9 @@
   .deskscreen .page-top::after{ display:none; }
   .deskscreen .page-top .phead h1{ color:var(--ink); }
   .deskscreen .page-top .phead .sub{ color:var(--muted); }
-  .deskscreen .page-top .backbtn{ background:#eef1f5; }
+  .deskscreen .page-top .backbtn{ background:var(--line2); }
   .deskscreen .page-top .backbtn svg{ stroke:var(--ink); }
-  .deskscreen .page-top .iconbtn{ background:#eef1f5; }
+  .deskscreen .page-top .iconbtn{ background:var(--line2); }
   .deskscreen .page-top .iconbtn svg{ stroke:var(--ink); }
   .deskscreen .spoiler-tog{ display:none; }
 
@@ -112,7 +112,7 @@
   .deskscreen .detail-hero .dh-person h2{ color:var(--ink); }
   .deskscreen .detail-hero .dh-person .meta{ color:var(--muted); }
   .deskscreen .detail-hero .dh-person .meta b{ color:var(--ink) !important; }
-  .deskscreen .detail-hero .backbtn{ background:#eef1f5; }
+  .deskscreen .detail-hero .backbtn{ background:var(--line2); }
   .deskscreen .detail-hero .backbtn svg{ stroke:var(--ink); }
   .deskscreen .detail-hero .dh-stat{ background:var(--bg); border:1px solid var(--line); }
   .deskscreen .detail-hero .dh-stat b{ color:var(--navy); }
@@ -122,9 +122,9 @@
   .deskscreen .team-banner .ov{ background:linear-gradient(180deg, rgba(255,255,255,.84), rgba(255,255,255,.95)); }
   .deskscreen .team-banner .tb-top h2{ color:var(--ink); }
   .deskscreen .team-banner .tb-top .meta{ color:var(--muted); }
-  .deskscreen .team-banner .tb-top .meta .b{ background:#eef1f5; color:var(--ink); }
+  .deskscreen .team-banner .tb-top .meta .b{ background:var(--line2); color:var(--ink); }
   .deskscreen .team-banner .backbtn,
-  .deskscreen .team-banner .iconbtn{ background:#eef1f5; }
+  .deskscreen .team-banner .iconbtn{ background:var(--line2); }
   .deskscreen .team-banner .backbtn svg,
   .deskscreen .team-banner .iconbtn svg{ stroke:var(--ink); }
   .deskscreen .hero::before, .deskscreen .hero::after{ display:none; }

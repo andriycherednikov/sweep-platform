@@ -262,7 +262,7 @@ export function HomeScreen({ go, openMatch, openTeam, openPerson, openPhoto, onA
       {next && (
       <section className="hero" onClick={()=>openMatch(next)} style={{cursor:"pointer"}}>
         <div className="hero-top">
-          <span className="derby-tag" style={{background: live ? "var(--live)" : "#5b6f8e"}}>{live ? "● Live now" : `NEXT ${S.vocab.noun.toUpperCase()}`}</span>
+          <span className="derby-tag" style={{background: live ? "var(--live)" : "var(--on-ink3)"}}>{live ? "● Live now" : `NEXT ${S.vocab.noun.toUpperCase()}`}</span>
           <span className="hero-when">{live ? "In play" : cd.s < 0 ? S.vocab.kickoffLabel : S.vocab.startsInLabel}</span>
         </div>
         <div className="match-line">

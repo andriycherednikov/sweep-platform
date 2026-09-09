@@ -30,6 +30,7 @@ export const Icon = {
   back:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M15 5l-7 7 7 7"/></svg>,
   chev:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M9 5l7 7-7 7"/></svg>,
   swap:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M7 4 3 8l4 4"/><path d="M3 8h14"/><path d="M17 20l4-4-4-4"/><path d="M21 16H7"/></svg>,
+  pencil:  (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>,
   exit:    (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>,
   x:       (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" {...p}><path d="M6 6l12 12M18 6L6 18"/></svg>,
   check:   (p)=> <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="M4 12l5 5L20 6"/></svg>,
@@ -105,7 +106,7 @@ export function SpoilerToggle({ compact }) {
       <button type="button" className={"spoiler-tog compact" + (on ? " on" : "")} onClick={()=>setSpoiler(!on)}
         aria-pressed={on} aria-label={label} title={label}
         style={{width:30,height:30,borderRadius:9,background: on ? "var(--accent)" : "rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-        <Ic style={{width:15,height:15,stroke: on ? "#fff" : "#9fb6d6"}}/>
+        <Ic style={{width:15,height:15,stroke: on ? "#fff" : "var(--on-ink2)"}}/>
       </button>
     );
   }
@@ -127,7 +128,7 @@ export function OptOutButton({ onClick }) {
     <button type="button" onClick={onClick}
       aria-label="Step away from Wagers" title="Step away from Wagers"
       style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-      <Icon.shield style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+      <Icon.shield style={{width:15,height:15,stroke:"var(--on-ink2)"}}/>
     </button>
   );
 }
@@ -140,7 +141,7 @@ export function Flag({ code, w, h, cls, res }) {
     return <img className={(t?.logo ? "emblem " : "flag ") + (cls||"")} src={src} alt={alt} style={{ width:w, height:h }} />;
   }
   const mono = (t?.name || code || "?").replace(/[^A-Za-z]/g, "").slice(0, 2).toUpperCase();
-  return <span className={"emblem-mono " + (cls||"")} style={{ width:w, height:h, background: t?.color || "#5b6f8e" }}>{mono}</span>;
+  return <span className={"emblem-mono " + (cls||"")} style={{ width:w, height:h, background: t?.color || "var(--on-ink3)" }}>{mono}</span>;
 }
 
 /* avatar */
@@ -166,7 +167,7 @@ export function AvStack({ people, size, light, max }) {
   return (
     <span className="chips" style={{display:"inline-flex"}}>
       {shown.map((p,i)=> <Av key={i} p={p} size={size} light={light} />)}
-      {people.length > m && <span className="av" style={{ background:"#5b6f8e", width:size, height:size, fontSize:(size||24)*0.4, borderColor: light?"#fff":undefined }}>+{people.length-m}</span>}
+      {people.length > m && <span className="av" style={{ background:"var(--on-ink3)", width:size, height:size, fontSize:(size||24)*0.4, borderColor: light?"#fff":undefined }}>+{people.length-m}</span>}
     </span>
   );
 }
@@ -446,12 +447,12 @@ export function AppHeader({ home, title, sub, coins, right, onAdmin, go, onSweep
           {right}
           {onSweeps && sweeps.length > 0 && (
             <button onClick={onSweeps} aria-label="My sweeps" style={{width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-              <Icon.swap style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+              <Icon.swap style={{width:15,height:15,stroke:"var(--on-ink2)"}}/>
             </button>
           )}
           {isAdmin && onAdmin && (
             <button onClick={onAdmin} aria-label="Manage" style={{position:"relative",width:30,height:30,borderRadius:9,background:"rgba(255,255,255,.08)",display:"grid",placeItems:"center"}}>
-              <Icon.lock style={{width:15,height:15,stroke:"#9fb6d6"}}/>
+              <Icon.lock style={{width:15,height:15,stroke:"var(--on-ink2)"}}/>
             </button>
           )}
         </div>

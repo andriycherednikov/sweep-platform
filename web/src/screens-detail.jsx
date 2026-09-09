@@ -189,7 +189,7 @@ export function PersonDetail({ person, onBack, openMatch, openTeam, openProfileE
             <button className="backbtn" onClick={onBack}><Icon.back/></button>
             <div className="dh-av">
               <PersonAvatar p={person} cls="pav"/>
-              {isMe && <button className="av-cam" onClick={()=>openProfileEdit && openProfileEdit()} aria-label="Edit your details" title="Edit your details"><Icon.swap/></button>}
+              {isMe && <button className="av-cam" onClick={()=>openProfileEdit && openProfileEdit()} aria-label="Edit your details" title="Edit your details"><Icon.pencil/></button>}
             </div>
             <div className="dh-id" style={{minWidth:0}}>
               <h2>{person.name}</h2>
@@ -618,7 +618,7 @@ export function UploadSheet({ presetFixture, onClose, onToast }) {
             <div className="sheet-body">
               <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" style={{display:"none"}} onChange={e=>setFile(e.target.files?.[0]||null)} />
               <div className="dropzone" onClick={()=>inputRef.current&&inputRef.current.click()} style={{cursor:"pointer",borderColor:file?"var(--live)":"var(--line)",background:file?"#f1faf4":"var(--card)"}}>
-                <div className="ic" style={{background:file?"#e7f6ee":"#eef1f5"}}>{file?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
+                <div className="ic" style={{background:file?"#e7f6ee":"var(--line2)"}}>{file?<Icon.check style={{stroke:"var(--live)"}}/>:<Icon.camera/>}</div>
                 <b>{file?file.name:"Tap to add a photo"}</b>
                 <small>{file?"Looks good — ready to send":"JPG, PNG or WebP · up to 8 MB"}</small>
               </div>
@@ -977,7 +977,7 @@ export function MatchSheet({ f, onClose, onToast, openTeam, openPerson, openPhot
               <div className="blocktitle" style={{border:0,padding:"2px 2px 10px"}}>Official prediction</div>
               <div className="block" style={{padding:"15px 16px",marginBottom:16}}>
                 {/* elimination matches (or no-draw sports): two-way "to progress" odds, no draw */}
-                <div className="prob-bar" style={{background:"#eef1f5",height:12,borderRadius:7}}>
+                <div className="prob-bar" style={{background:"var(--line2)",height:12,borderRadius:7}}>
                   {!S.competition.hasDraws || f.stage==="knockout"
                     ? <><i className="a" style={{width:f.prob2.pa+"%"}}></i><i className="b" style={{width:f.prob2.pb+"%"}}></i></>
                     : <><i className="a" style={{width:f.prob3.pa+"%"}}></i><i className="d" style={{width:f.prob3.pd+"%"}}></i><i className="b" style={{width:f.prob3.pb+"%"}}></i></>}
