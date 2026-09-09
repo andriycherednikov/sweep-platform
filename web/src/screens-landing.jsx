@@ -12,6 +12,7 @@
    ============================================================ */
 import { useEffect, useRef, useState } from "react"
 import { listSweeps } from "./sweeps.js"
+import { getAccountToken } from "./lib/accountClient.js"
 
 /** The app shell is a fixed-viewport frame (#appmount is 100vh on desktop, body is
  *  flex-centred). A marketing page has to scroll the document instead — otherwise
@@ -170,7 +171,9 @@ export function LandingNav() {
   const cls = (key) => (active === key ? "is-here" : undefined)
   // A member has no account to sign into — the only proof they are in a sweep is the
   // link token this browser kept. Without this the front door is a dead end for them.
-  const joined = listSweeps().length > 0
+  // Signed out, "Your sweeps" is a dead end — /switch sends you to sign in. The nav
+  // says the true next step instead.
+  const joined = !!getAccountToken() && listSweeps().length > 0
   return (
     <header className="lp-nav">
       <div className="lp-nav-in">

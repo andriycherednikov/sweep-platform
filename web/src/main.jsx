@@ -31,8 +31,8 @@ if (MarketingPage) {
   root.render(<MarketingPage />);
   registerServiceWorker();
 } else if (path === "/switch") {
-  // The device's joined sweeps. Reads localStorage only — a member has no account,
-  // so there is nothing to authenticate and nothing to wait for.
+  // The sweeps you are in. It checks the account first and sends a signed-out
+  // visitor to /account: the list belongs to a person, not to a browser.
   root.render(<SweepSwitcher />);
   registerServiceWorker();
 } else if (under("/account")) {
