@@ -1231,6 +1231,15 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 }
 @media (max-width:600px){
   .lp-nav-in, .lp-hero, .lp-sec, .lp-strip, .lp-foot-in, .lp-plan, .lp-final{ padding-left:18px; padding-right:18px; }
+  /* At 390 the row measured 397px — brand 98 + "Your sweeps" 105 + "Start free" 120,
+     plus 38 of gap and 36 of padding. Seven pixels over is all it takes: both labels
+     broke mid-phrase onto a second line. Tighten the gaps and the type, and let
+     neither label wrap whatever the width. */
+  .lp-nav-in{ gap:12px; }
+  .lp-brand span{ font-size:23px; }
+  .lp-nav-cta{ gap:6px; }
+  .lp-ghost{ font-size:13.5px; padding:8px 4px; white-space:nowrap; }
+  .lp-nav-cta .lp-btn{ font-size:19px; padding:6px 14px 8px; white-space:nowrap; }
   .lp-ticker{ padding-left:18px; }
     .lp-tile-copy{ padding:22px 20px 0; }
   .lp-tile img{ margin-left:20px; width:calc(100% - 20px); }
