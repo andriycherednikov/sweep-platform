@@ -351,7 +351,6 @@ export function MatchCard({ f, onOpen, onToast }) {
 
   return (
     <article className={"card" + (mine ? " mine":"")} onClick={()=>onOpen && onOpen(f)}>
-      <div className="tcbar" style={{ background:`linear-gradient(${t1.color},${t2.color})` }}></div>
       <div className="mc-top">
         <div className="mc-status">
           <StatusPill f={f} />

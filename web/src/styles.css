@@ -348,11 +348,9 @@ img.flag.cz-flag{object-fit:cover; box-shadow:0 0 0 1.5px rgba(11,31,58,.14);}
 /* ===== match card ===== */
 .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 13px; margin-bottom:10px; position:relative; overflow:hidden; transition:transform .12s, box-shadow .12s;}
 .card:active{transform:scale(.985);}
-.card .tcbar{position:absolute; left:0; top:0; bottom:0; width:4px;}
 .card.derby{border-color:#f6c9bf; box-shadow:0 0 0 1px #f6c9bf inset;}
 /* your game (your team plays) — clear blue edge + glow */
 .card.mine{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 6px 18px -8px rgba(236,48,19,.45);}
-.card.mine .tcbar{background:var(--accent) !important; width:5px;}
 .mc-status{display:flex; align-items:center; gap:7px; min-width:0;}
 .mine-tag{display:inline-flex; align-items:center; gap:3px; flex-shrink:0; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:9.5px; letter-spacing:.5px; text-transform:uppercase; color:#fff; background:var(--accent); border-radius:999px; padding:3px 8px 3px 6px; white-space:nowrap;}
 .mine-tag svg{width:11px; height:11px; fill:#ffd24a;}
