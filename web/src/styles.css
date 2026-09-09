@@ -316,7 +316,11 @@ a{color:inherit; text-decoration:none;}
 .cz{position:relative; flex-grow:0; flex-shrink:1; flex-basis:0; min-width:54px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:0 4px; cursor:pointer; overflow:hidden; transition:background .14s, color .14s;}
 .cz:hover{filter:brightness(.98);}
 .cz-nm{max-width:100%; font-family:'Barlow Semi Condensed'; font-weight:800; font-size:11px; letter-spacing:.1px; text-transform:uppercase; line-height:1.05; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-.cz-flag{width:27px; height:18px; border-radius:3px; object-fit:cover; box-shadow:0 0 0 1.5px rgba(11,31,58,.14);}
+/* Size only — the ring and the crop belong to a country flag, which is an opaque
+   rectangle that needs an edge. On a transparent crest the ring drew a box around
+   nothing and `cover` cropped a square logo into a 3:2 slot. */
+.cz-flag{width:27px; height:18px; border-radius:3px;}
+img.flag.cz-flag{object-fit:cover; box-shadow:0 0 0 1.5px rgba(11,31,58,.14);}
 .cz-ct{font-family:'Barlow Semi Condensed'; font-weight:800; font-size:13px; line-height:1;}
 .cz-a{background:#e7a094; color:#6f2516;}
 .cz-d{background:#cdd3dd; color:#414b59;}
@@ -325,7 +329,7 @@ a{color:inherit; text-decoration:none;}
 .cz-a.on{background:#df4f38;}
 .cz-d.on{background:#5b6573;}
 .cz-b.on{background:#2f74b8;}
-.cz.on .cz-flag{box-shadow:0 0 0 1.5px rgba(255,255,255,.75);}
+.cz.on img.flag.cz-flag{box-shadow:0 0 0 1.5px rgba(255,255,255,.75);}
 .crowd-note{display:flex; align-items:center; gap:5px; margin-top:8px; font-size:11px; font-weight:700; color:var(--muted2);}
 .crowd-note svg{width:13px; height:13px; stroke:currentColor; flex-shrink:0;}
 .crowd-note.picked{color:var(--live);}
