@@ -24,20 +24,24 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => (
 ))
 
 /* --- the shell -------------------------------------------------------------
-   Mail clients are not browsers. Every structural style is inline because
-   Outlook's Word engine drops <style> entirely; the <style> block carries only
-   what cannot be inlined. No images at all -- an image wordmark is a broken box
-   in an image-blocking inbox -- and no webfont request, so every stack ends in a
-   generic family and this has to read correctly with zero fonts loaded. That is
-   also why the wordmark is NOT set in a script face: Caveat never loads in mail,
-   so it always fell through to whatever handwriting font the machine had, which
-   is what made it look amateur. Condensed caps degrade to Arial and still look
-   deliberate. Foreground AND background are set on every element so Gmail's
-   forced dark inversion cannot eat half of it.
-   ponytail: one shell, two callers, interpolated -- a render({...}) engine with
+   Mail clients are not browsers, and designing for them means designing for the
+   FALLBACK. No webfont loads here, so Barlow/Barlow Condensed do nothing and
+   every heading lands in Helvetica — which is why leaning on the app's
+   typography made this look like an unstyled document. What survives everywhere
+   is colour, weight, case, spacing and a rule, so the brand is carried by a navy
+   masthead and an accent hairline rather than by a typeface.
+
+   Everything structural is inline: Outlook's Word engine drops <style> entirely,
+   so the block below only holds what cannot be inlined (dark mode, one media
+   query). No images at all — an image wordmark is a broken box in an
+   image-blocking inbox. Foreground AND background are set on every element so
+   Gmail's forced inversion cannot eat half of it.
+   ponytail: one shell, two callers, interpolated — a render({...}) engine with
    six knobs would be more machinery than the two mails it serves. */
-const SANS = "'Barlow','Helvetica Neue',Helvetica,Arial,sans-serif"
-const COND = "'Barlow Condensed','Helvetica Neue',Helvetica,Arial,sans-serif"
+const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif"
+const MONO = "ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace"
+const INK = '#0f1620'
+const ACCENT = '#ec3013'
 
 function shell({ preheader, eyebrow, heading, lede, block, foot }) {
   return `<!doctype html>
@@ -49,46 +53,55 @@ function shell({ preheader, eyebrow, heading, lede, block, foot }) {
 <title>The Sweep</title>
 <style>
 @media (prefers-color-scheme: dark) {
-  .page{background:#0b1119 !important;} .card{background:#141d28 !important; border-color:#243040 !important;}
-  .ink{color:#f4f6f8 !important;} .muted{color:#9aa8b6 !important;} .foot{color:#6b7a8b !important;}
-  .rule{border-color:#243040 !important;}
+  .page{background:#0a0f16 !important;}
+  .card{background:#131c26 !important;}
+  .ink{color:#f4f6f8 !important;} .muted{color:#9aa8b6 !important;} .foot{color:#75828f !important;}
+  .rule{border-color:#26313d !important;}
+  .codebox{background:#000000 !important;}
 }
 @media screen and (max-width:600px) {
-  .shell{width:100% !important;} .pad{padding-left:26px !important; padding-right:26px !important;}
-  .code{font-size:34px !important; letter-spacing:10px !important;}
+  .shell{width:100% !important;}
+  .pad{padding-left:26px !important; padding-right:26px !important;}
+  .code{font-size:32px !important; letter-spacing:8px !important;}
+  .h1{font-size:26px !important;}
 }
 </style>
 </head>
-<body style="margin:0;padding:0;background:#f4f2ee;">
+<body style="margin:0;padding:0;background:#eeebe5;">
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">${preheader}</div>
-<table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f2ee;">
-<tr><td align="center" style="padding:40px 12px 48px;">
+<table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eeebe5;">
+<tr><td align="center" style="padding:36px 12px 44px;">
 <table role="presentation" class="shell" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px;">
 
-  <tr><td class="pad" align="center" style="padding:0 0 22px;">
-    <span class="ink" style="font-family:${COND};font-size:15px;font-weight:800;letter-spacing:5px;text-transform:uppercase;color:#0f1620;">The&nbsp;Sweep</span>
+  <!-- masthead: the brand is a navy band, because a typeface cannot be relied on -->
+  <tr><td style="background:${INK};border-radius:14px 14px 0 0;padding:22px 34px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+      <td align="left" style="font-family:${SANS};font-size:16px;font-weight:700;letter-spacing:3.5px;text-transform:uppercase;color:#ffffff;">The&nbsp;Sweep</td>
+      <td align="right" style="font-family:${SANS};font-size:10px;font-weight:600;letter-spacing:1.6px;text-transform:uppercase;color:#7d8b9a;">${eyebrow}</td>
+    </tr></table>
   </td></tr>
+  <!-- the accent lives here: one hairline, and it survives every client -->
+  <tr><td style="background:${ACCENT};font-size:0;line-height:0;height:3px;">&nbsp;</td></tr>
 
-  <tr><td class="card" style="background:#ffffff;border:1px solid #e6e1d9;border-radius:14px;">
+  <tr><td class="card" style="background:#ffffff;border-radius:0 0 14px 14px;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
 
-      <tr><td class="pad" style="padding:38px 40px 0;">
-        <p class="muted" style="margin:0;font-family:${SANS};font-size:12px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:#8a8481;">${eyebrow}</p>
-        <h1 class="ink" style="margin:12px 0 0;font-family:${COND};font-size:30px;font-weight:700;letter-spacing:0;line-height:1.2;color:#0f1620;">${heading}</h1>
-        <p class="muted" style="margin:12px 0 0;font-family:${SANS};font-size:15px;line-height:1.65;color:#5f5b58;">${lede}</p>
+      <tr><td class="pad" style="padding:34px 34px 0;">
+        <h1 class="ink h1" style="margin:0;font-family:${SANS};font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1.15;color:${INK};">${heading}</h1>
+        <p class="muted" style="margin:12px 0 0;font-family:${SANS};font-size:15px;line-height:1.6;color:#5f6b76;">${lede}</p>
       </td></tr>
 
-      <tr><td class="pad" style="padding:26px 40px 0;">${block}</td></tr>
+      <tr><td class="pad" style="padding:24px 34px 0;">${block}</td></tr>
 
-      <tr><td class="pad" style="padding:28px 40px 0;">
-        <div class="rule" style="border-top:1px solid #eeeae3;font-size:0;line-height:0;">&nbsp;</div>
+      <tr><td class="pad" style="padding:26px 34px 0;">
+        <div class="rule" style="border-top:1px solid #ebe7e0;font-size:0;line-height:0;">&nbsp;</div>
       </td></tr>
-      <tr><td class="pad muted" style="padding:16px 40px 34px;font-family:${SANS};font-size:13px;line-height:1.6;color:#8a8481;">${foot}</td></tr>
+      <tr><td class="pad muted" style="padding:14px 34px 30px;font-family:${SANS};font-size:12.5px;line-height:1.6;color:#8b949d;">${foot}</td></tr>
 
     </table>
   </td></tr>
 
-  <tr><td class="foot pad" align="center" style="padding:20px 8px 0;font-family:${SANS};font-size:12px;line-height:1.6;color:#a09a95;">The Sweep &middot; we will never ask you for your password.</td></tr>
+  <tr><td class="foot" align="center" style="padding:18px 8px 0;font-family:${SANS};font-size:11.5px;line-height:1.6;color:#9b968f;">The Sweep &middot; we will never ask you for your password.</td></tr>
 
 </table>
 </td></tr>
@@ -113,12 +126,15 @@ export function codeMail(code, sweepName) {
       + 'Ignore this email and nothing happens.\n',
     html: shell({
       preheader: `Your code is ${esc(code)} - it expires in 15 minutes.`,
-      eyebrow: `Joining ${sweep}`,
+      eyebrow: sweep,
       heading: 'Your code',
       lede: 'Type this into the page you left open. It works once, and it expires in 15 minutes.',
-      block: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#0f1620;border-radius:12px;">
-          <tr><td align="center" style="padding:26px 12px;">
-            <span class="code" style="font-family:ui-monospace,'SFMono-Regular',Menlo,Consolas,'Courier New',monospace;font-size:38px;font-weight:600;letter-spacing:12px;line-height:1;color:#ffffff;-webkit-user-select:all;user-select:all;">${esc(code)}</span>
+      // The code is the payload, so it gets the strongest thing on the page. On paper it
+      // was quieter than the masthead, which is the wrong way round for a mail whose
+      // entire job is six digits.
+      block: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="codebox" style="background:${INK};border-radius:12px;">
+          <tr><td align="center" style="padding:26px 12px 28px;">
+            <span class="code" style="font-family:${MONO};font-size:42px;font-weight:600;letter-spacing:11px;line-height:1;color:#ffffff;-webkit-user-select:all;user-select:all;">${esc(code)}</span>
           </td></tr>
         </table>`,
       foot: 'Never share this code &mdash; nobody from The Sweep will ask you for it. '
@@ -146,8 +162,8 @@ export function inviteMail(sweepName, link) {
       heading: 'You have a seat',
       lede: 'Open this and you are in — signed in as yourself, with whatever teams have already been drawn to your name. Nothing to type.',
       block: `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
-          <td align="center" style="background:#ec3013;border-radius:10px;">
-            <a href="${esc(link)}" style="display:inline-block;padding:14px 30px;font-family:${COND};font-size:16px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;text-decoration:none;color:#ffffff;">Take your seat</a>
+          <td align="center" style="background:${ACCENT};border-radius:10px;">
+            <a href="${esc(link)}" style="display:inline-block;padding:15px 32px;font-family:${SANS};font-size:15px;font-weight:700;letter-spacing:.4px;text-decoration:none;color:#ffffff;">Take your seat</a>
           </td>
         </tr></table>
         <p class="muted" style="margin:16px 0 0;font-family:${SANS};font-size:12px;line-height:1.55;word-break:break-all;color:#a09a95;">Button not working? Paste this into your browser:<br>${esc(link)}</p>`,
