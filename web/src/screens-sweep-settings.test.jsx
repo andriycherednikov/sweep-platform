@@ -230,6 +230,21 @@ test("the sweep's own page carries the sweep's own charts", async () => {
   expect(pane().getByText(/3 of 5/)).toBeTruthy()
 })
 
+// The route ships a bucket for the days somebody was added or joined and nothing at all
+// for the rest, so a chart drawn straight off those buckets spaces a fortnight of silence
+// like one quiet day. The dashboard filled the gaps at the call site, which left the same
+// card drawing two different axes depending which page it was on.
+test("the joins chart puts a column on every day, not just the busy ones", async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    joins: [{ date: '2026-05-01', created: 2, claimed: 0 }, { date: '2026-05-04', created: 0, claimed: 2 }],
+  }])
+  render(<SweepSettings id="sw1" />)
+  const svg = await pane().findByRole('img', { name: /seats invited/i })
+  // Four days from the first bucket to the last, so four points on the line.
+  expect(svg.querySelector('path').getAttribute('d').split(' ')).toHaveLength(4)
+})
+
 // The charts are the decorative half of this page and the settings are the half
 // somebody came here to change. Losing one must not cost the other.
 test('a failed stats load leaves the settings working', async () => {

@@ -90,6 +90,16 @@ export function raceSeries(s) {
     .map((line, i) => ({ ...line, dim: i > 0 }));
 }
 
+/** The joins buckets with the quiet days put back. The route ships one row per day
+ *  somebody was added or claimed a seat and nothing at all for the rest, and this card is
+ *  two lines over an even spread — so without this a fortnight of silence draws the same
+ *  width as a busy afternoon. Filled inside the card rather than by whoever renders it:
+ *  the sweep's own page renders the same card and was handing it the buckets raw. */
+export const fillJoins = (joins) => {
+  const byDate = new Map(joins.map((j) => [j.date, j]));
+  return daySpan(joins.map((j) => j.date)).map((d) => byDate.get(d) ?? { date: d, created: 0, claimed: 0 });
+};
+
 /** Seats invited and seats claimed, added up across every sweep, day by day — every
  *  day, so the week nobody joined in is drawn as the flat week it was. This is the one
  *  number on the page that means something rolled up: people joining is people joining,
@@ -242,7 +252,8 @@ function RaceCard({ s }) {
  *  claimedAt is the honest join moment — somebody opened the link and took the seat.
  *  createdAt is only when the owner typed their name in, so the upper line is a list of
  *  intentions and the lower one is a list of people. */
-function JoinsCard({ joins, href }) {
+function JoinsCard({ joins: buckets, href }) {
+  const joins = fillJoins(buckets);
   const made = cumulate(joins.map((j) => j.created));
   const claimed = cumulate(joins.map((j) => j.claimed));
   const invited = last(made);
