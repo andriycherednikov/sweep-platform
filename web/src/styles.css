@@ -459,6 +459,7 @@ img.flag.cz-flag{object-fit:cover; box-shadow:0 0 0 1.5px rgba(11,31,58,.14);}
 .stand .gh b{font-family:'Barlow Condensed'; font-weight:800; font-size:14px; letter-spacing:.5px; text-transform:uppercase; white-space:nowrap;}
 .stand .gh .leg{font-size:9px; color:var(--muted2); font-weight:700; letter-spacing:.5px; display:flex; align-items:center; gap:5px;}
 .stand .gh .leg i{width:7px; height:7px; border-radius:2px; background:var(--live);}
+.stand .gh-n{font-family:'Barlow Semi Condensed'; font-weight:700; font-size:10.5px; color:var(--muted2);}
 .strow{display:grid; grid-template-columns:16px 1fr 22px 22px 22px 22px 26px 28px; align-items:center; gap:4px; padding:7px 9px; font-size:13px;}
 .strow.compact{grid-template-columns:18px 1fr 26px 26px 30px;}
 .strow + .strow{border-top:1px solid var(--line2);}

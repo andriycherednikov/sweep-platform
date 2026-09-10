@@ -509,9 +509,17 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
   function GroupTable({ grp }) {
     const table = S.standings[grp];
     if (!table) return null; // ponytail: key-space mismatch guard — a bad/missing group key renders nothing, never crashes
+    // A league keys its one table on '', and groupHeading('') rendered a bare "Group".
+    // There is no group to name — the competition is the thing this table is of.
+    const head = grp ? S.vocab.groupHeading(grp) : S.competition.label;
     return (
       <div className="stand">
-        <div className="gh"><b>{S.vocab.groupHeading(grp)}</b>{groupStage && <span className="leg"><i></i> Top 2 advance</span>}</div>
+        <div className="gh">
+          <b>{head}</b>
+          {groupStage
+            ? <span className="leg"><i></i> Top 2 advance</span>
+            : <span className="gh-n">{table.length} teams</span>}
+        </div>
         <div className="strow">
           <span className="hd">#</span><span className="hd l">Team</span>
           {cols.map(([key,label])=> <span className="hd" key={key}>{label}</span>)}
@@ -536,7 +544,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
         <AppHeader title="Standings" go={go} scrolled={scrolled} right={koLink} />
         <div className="scroll pad screen-anim" style={{paddingTop:16}} ref={scrollRef} onScroll={onScroll}>
           <div className="wrap">
-            <div className="stand-desk-head">
+            <div className={"stand-desk-head" + (Object.keys(S.standings).length === 1 ? " is-one" : "")}>
               <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
                 Tables update automatically as results come in — tap any team to open it.
               </div>
@@ -547,7 +555,7 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
               </div>
               )}
             </div>
-            <div className="standings-grid">
+            <div className={"standings-grid" + (Object.keys(S.standings).length === 1 ? " is-one" : "")}>
               {Object.keys(S.standings).sort().map(x=> <GroupTable key={x} grp={x}/>)}
             </div>
           </div>

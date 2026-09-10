@@ -175,7 +175,28 @@
   /* ---- standings: all groups at once ---- */
   .standings-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(316px,1fr)); gap:16px; align-items:start; }
   .standings-grid .stand{ margin-bottom:0; }
+
+  /* Twelve World Cup groups want narrow cards side by side. ONE league table wants the
+     opposite: auto-fill gave it a quarter of the page and left the rest blank. It gets a
+     reading width of its own, centred, with the room spent on the rows rather than on
+     the gap beside them. */
+  .standings-grid.is-one{ grid-template-columns:minmax(0,780px); justify-content:center; }
+  .standings-grid.is-one .stand{ padding:2px 6px 10px; border-radius:16px; }
+  .standings-grid.is-one .gh{ padding:15px 16px 14px; }
+  .standings-grid.is-one .gh b{ font-size:19px; letter-spacing:.4px; }
+  .standings-grid.is-one .gh-n{ font-family:'Barlow Semi Condensed'; font-weight:700; font-size:12.5px; color:var(--muted2); }
+  /* wider name column, numbers given room to breathe and stay in their own tracks */
+  .standings-grid.is-one .strow{ grid-template-columns:34px 1fr 46px 46px 46px 46px 54px 60px; padding:11px 16px; gap:6px; }
+  .standings-grid.is-one .strow .pos{ font-size:15px; }
+  .standings-grid.is-one .strow .tm{ gap:11px; }
+  .standings-grid.is-one .strow .tm img{ width:26px; height:19px; }
+  .standings-grid.is-one .strow .tm span{ font-size:15.5px; }
+  .standings-grid.is-one .strow .num{ font-size:14px; }
+  .standings-grid.is-one .strow .pts{ font-size:16px; }
+  .standings-grid.is-one .strow .hd{ font-size:10.5px; padding-bottom:2px; }
   .stand-desk-head{ display:flex; align-items:flex-end; justify-content:space-between; flex-wrap:wrap; gap:10px; margin:4px 2px 16px; }
+  /* the note belongs to the table, so it sits over it rather than off in the corner */
+  .stand-desk-head.is-one{ max-width:780px; margin:4px auto 14px; }
   .stand-desk-head .legend{ display:flex; gap:16px; font-size:12px; color:var(--muted); font-weight:600; }
   .stand-desk-head .legend span{ display:flex; align-items:center; gap:6px; }
   .stand-desk-head .legend i{ width:9px; height:9px; border-radius:3px; }
