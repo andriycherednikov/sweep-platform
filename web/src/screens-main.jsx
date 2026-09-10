@@ -544,17 +544,17 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
         <AppHeader title="Standings" go={go} scrolled={scrolled} right={koLink} />
         <div className="scroll pad screen-anim" style={{paddingTop:16}} ref={scrollRef} onScroll={onScroll}>
           <div className="wrap">
-            <div className={"stand-desk-head" + (Object.keys(S.standings).length === 1 ? " is-one" : "")}>
-              <div style={{fontSize:13,color:"var(--muted)",fontWeight:600,maxWidth:540,lineHeight:1.5}}>
-                Tables update automatically as results come in — tap any team to open it.
+            {/* The head carried a line explaining that a table updates itself and that a
+                row opens — both of which the table demonstrates on its own. Only the
+                group-stage legend says something the rows do not. */}
+            {groupStage && (
+              <div className={"stand-desk-head" + (Object.keys(S.standings).length === 1 ? " is-one" : "")}>
+                <div className="legend">
+                  <span><i style={{background:"var(--live)"}}></i> Advance</span>
+                  <span><i style={{background:"var(--gold)"}}></i> Play-off (3rd)</span>
+                </div>
               </div>
-              {groupStage && (
-              <div className="legend">
-                <span><i style={{background:"var(--live)"}}></i> Advance</span>
-                <span><i style={{background:"var(--gold)"}}></i> Play-off (3rd)</span>
-              </div>
-              )}
-            </div>
+            )}
             <div className={"standings-grid" + (Object.keys(S.standings).length === 1 ? " is-one" : "")}>
               {Object.keys(S.standings).sort().map(x=> <GroupTable key={x} grp={x}/>)}
             </div>
@@ -570,9 +570,6 @@ export function StandingsScreen({ go, openTeam, openKnockouts }) {
       <div className="scroll pad screen-anim" style={{paddingTop:12}} ref={scrollRef} onScroll={onScroll}>
         <div className="wrap">
           {Object.keys(S.standings).sort().map(x=> <GroupTable key={x} grp={x}/>)}
-          <p style={{fontSize:11,color:"var(--muted)",lineHeight:1.5,padding:"2px 4px 0"}}>
-            Tables update automatically as results come in.
-          </p>
         </div>
       </div>
     </div>
