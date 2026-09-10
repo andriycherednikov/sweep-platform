@@ -62,6 +62,8 @@ beforeAll(async () => {
     { sweepId: SW, personId: 'pn_ann', fixtureId: 'ev_s1', teamCode: 'AAA' }, // right (on the score)
     { sweepId: SW, personId: 'pn_ann', fixtureId: 'ev_s2', teamCode: 'BBB' }, // wrong
     { sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s4', teamCode: 'DRAW' }, // right
+    // Called an upcoming fixture: taking part, but not yet right or wrong about anything.
+    { sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s3', teamCode: 'AAA' },
     { sweepId: SW, personId: 'pn_eve', fixtureId: 'ev_s1', teamCode: 'AAA' }, // ejected — nowhere
   ]).onConflictDoNothing()
   await db.insert(bet).values([
@@ -168,8 +170,10 @@ test('the loud-and-quiet list keeps the quiet ones, at zero', async () => {
   expect(Object.keys(s.activity[0])).toEqual(['personId', 'picks', 'bets'])
   expect(s.activity).toEqual([
     { personId: 'pn_ann', picks: 2, bets: 1 },
-    // Two, not three: Bob placed one single and one two-leg parlay.
-    { personId: 'pn_bob', picks: 1, bets: 2 },
+    // Two, not three: Bob placed one single and one two-leg parlay. And picks:2 — one
+    // finished fixture and one still to play — where `calls` scores him over 1, because
+    // taking part and being right are different questions.
+    { personId: 'pn_bob', picks: 2, bets: 2 },
   ])
 })
 

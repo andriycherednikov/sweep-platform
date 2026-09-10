@@ -639,7 +639,7 @@ export async function accountRoutes(app) {
     const anyone = (q) => (pids.length ? q() : nothing)
     const punters = (q) => (pids.length && wids.length ? q() : nothing)
 
-    const [made, claimed, race, seasons, calls, betCounts, wagerDaily, wagerBest, wagerLead] =
+    const [made, claimed, race, seasons, calls, pickCounts, betCounts, wagerDaily, wagerBest, wagerLead] =
       await Promise.all([
         app.db.select({ sweepId: person.sweepId, date: day(person.createdAt), n: sql`count(*)::int` })
           .from(person)
@@ -684,6 +684,16 @@ export async function accountRoutes(app) {
           .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids), eq(event.status, 'final')))
           .groupBy(support.sweepId, support.personId)),
 
+        // Participation, and NOT a duplicate of the query above: `calls` asks how often
+        // somebody was RIGHT, which only a finished fixture can answer, while this asks
+        // how much they take part at all. Filtering this one to finals too would read
+        // somebody who called every fixture of the coming week as silent.
+        anyone(() => app.db.select({
+          sweepId: support.sweepId, personId: support.personId, n: sql`count(*)::int`,
+        }).from(support)
+          .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids)))
+          .groupBy(support.sweepId, support.personId)),
+
         // `ids`, not `wids`: a sweep that has had wagering turned off since keeps the bets
         // that were placed while it was on, and the people who placed them were not quiet.
         anyone(() => rowsOf(sql`
@@ -715,14 +725,15 @@ export async function accountRoutes(app) {
       for (const r of rows) { const a = m.get(r.sweepId); a ? a.push(r) : m.set(r.sweepId, [r]) }
       return m
     }
-    const [gRoster, gMade, gClaimed, gRace, gCalls, gBets, gDaily, gBest, gLead] =
-      [roster, made, claimed, race, calls, betCounts, wagerDaily, wagerBest, wagerLead].map(bySweep)
+    const [gRoster, gMade, gClaimed, gRace, gCalls, gPicks, gBets, gDaily, gBest, gLead] =
+      [roster, made, claimed, race, calls, pickCounts, betCounts, wagerDaily, wagerBest, wagerLead].map(bySweep)
     const bySeason = new Map(seasons.map((s) => [s.competitionId, s]))
 
     return mine.map((s) => {
       const people = gRoster.get(s.id) ?? []
       const num = (rows) => new Map((rows ?? []).map((r) => [r.personId, r]))
       const calledBy = num(gCalls.get(s.id))
+      const pickedBy = num(gPicks.get(s.id))
       const betBy = num(gBets.get(s.id))
       const leadBy = num(gLead.get(s.id))
 
@@ -753,7 +764,7 @@ export async function accountRoutes(app) {
         // and they only show up as zeros if somebody puts them there.
         activity: people.map((p) => ({
           personId: p.id,
-          picks: calledBy.get(p.id)?.picks ?? 0,
+          picks: pickedBy.get(p.id)?.n ?? 0, // every pick, not just the settled ones
           bets: betBy.get(p.id)?.n ?? 0,
           // No photo count here. A fan photo — the upload people actually make — is
           // written with a NULL person_id (routes/photos.js:70), so all a per-person
