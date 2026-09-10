@@ -1987,6 +1987,24 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
   border:1px solid var(--edge); background:transparent; color:var(--ink2); cursor:pointer; }
 .ac-me-out svg{ width:16px; height:16px; }
 .ac-me-out:hover{ color:var(--lp-accent); border-color:rgba(236,48,19,.45); }
+/* settings fields sit on the light console pane, not the dark auth panel, so they
+   borrow the auth field's shape and not its colours */
+.ac-label{ display:block; margin-top:14px; font-size:12.5px; font-weight:600; color:var(--ink2); }
+.ac-input{ width:100%; margin-top:7px; padding:12px 14px; border-radius:10px; box-sizing:border-box;
+  border:1px solid var(--edge); background:#fff; font-family:inherit; font-size:15px; color:var(--paper-ink); }
+.ac-input::placeholder{ color:var(--ink3); }
+.ac-input:focus{ outline:none; border-color:var(--lp-accent); }
+
+/* the gear in the console rail, and what it opens */
+.ac-menu{ position:relative; flex-shrink:0; }
+.ac-menu-pop{ position:absolute; right:0; bottom:calc(100% + 8px); z-index:40; min-width:186px;
+  padding:5px; border-radius:12px; background:#1b2434; border:1px solid rgba(255,255,255,.14);
+  box-shadow:0 18px 44px -16px rgba(0,0,0,.75); display:flex; flex-direction:column; }
+.ac-menu-i{ display:block; width:100%; text-align:left; padding:9px 11px; border-radius:8px;
+  font-family:'Archivo',system-ui,sans-serif; font-weight:600; font-size:13.5px; color:var(--ink2); }
+.ac-menu-i:hover{ background:rgba(255,255,255,.08); color:#fff; }
+.ac-menu-i.is-danger{ color:var(--lp-accent); }
+
 .ac-group{ margin:6px 0 -4px; font-family:'Archivo',system-ui,sans-serif; font-weight:800; font-size:13px;
   letter-spacing:.4px; text-transform:uppercase; color:var(--paper-ink); opacity:.55; }
 /* the sweep's name and what it follows, as one block, so the action on the right

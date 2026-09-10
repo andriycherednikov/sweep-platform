@@ -7,6 +7,9 @@ vi.mock('./lib/accountClient.js', () => ({
   getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'you@x.test', name: 'Ada Lovelace' })),
   getBilling: vi.fn(),
   getAccountSweeps: vi.fn(),
+  patchAccount: vi.fn(),
+  requestEmailChange: vi.fn(),
+  confirmEmailChange: vi.fn(),
   archiveSweep: vi.fn(async () => ({})),
   rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
   startCheckout: vi.fn(),
@@ -16,9 +19,10 @@ vi.mock('./lib/accountClient.js', () => ({
   revokeAllSessions: vi.fn(async () => ({})),
 }))
 
-import { AccountHome } from './screens-account.jsx'
+import { AccountHome, AccountSettings } from './screens-account.jsx'
 import {
-  getBilling, getAccountSweeps, archiveSweep, rotateSweep, startCheckout, openPortal, clearAccountToken,
+  getAccount, getBilling, getAccountSweeps, archiveSweep, rotateSweep, startCheckout, openPortal, clearAccountToken,
+  patchAccount, requestEmailChange,
   revokeSession, revokeAllSessions,
 } from './lib/accountClient.js'
 
@@ -141,7 +145,8 @@ test('subscribed + past_due shows a soft payment warning', async () => {
 
 test('sign out (this device) revokes the session, clears the token and reloads', async () => {
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^log out$/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /^log out$/i }))
   await waitFor(() => expect(revokeSession).toHaveBeenCalled())
   expect(revokeAllSessions).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
@@ -150,7 +155,8 @@ test('sign out (this device) revokes the session, clears the token and reloads',
 
 test('sign out everywhere revokes every session, clears the token and reloads', async () => {
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /sign out everywhere/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /log out everywhere/i }))
   await waitFor(() => expect(revokeAllSessions).toHaveBeenCalled())
   expect(revokeSession).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
@@ -160,7 +166,8 @@ test('sign out everywhere revokes every session, clears the token and reloads', 
 test('sign out still clears locally and reloads even when the server revoke fails', async () => {
   revokeSession.mockRejectedValueOnce(new Error('network'))
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^log out$/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /^log out$/i }))
   await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.reload).toHaveBeenCalled()
 })
@@ -172,7 +179,8 @@ test('sign out still clears locally and reloads even when the server revoke fail
 test('a failed sign-out-everywhere still clears locally, but surfaces the failure instead of reloading silently', async () => {
   revokeAllSessions.mockRejectedValueOnce(new Error('network'))
   render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /sign out everywhere/i }))
+  fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
+  fireEvent.click(screen.getByRole('menuitem', { name: /log out everywhere/i }))
   await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.assign).toHaveBeenCalledWith('/account?signout=partial')
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -338,4 +346,47 @@ test('a sweep you run can be opened from its card', async () => {
   const name = (await screen.findByText('Office Pool')).closest('a')
   expect(name.getAttribute('href')).toBe('/s/sw1')
   expect(screen.getByLabelText('Open Office Pool').getAttribute('href')).toBe('/s/sw1')
+})
+
+/* ---- account settings ---------------------------------------------------- */
+// The name is not a credential, so it just changes.
+test('the name can be edited and saved', async () => {
+  getAccount.mockResolvedValue({ id: 'ac1', email: 'me@x.test', name: 'Old', hasPassword: false })
+  patchAccount.mockResolvedValue({ id: 'ac1', email: 'me@x.test', name: 'New' })
+  render(<AccountSettings />)
+  const field = await screen.findByLabelText('Name')
+  expect(screen.getByRole('button', { name: /save name/i }).disabled).toBe(true) // nothing changed yet
+  fireEvent.change(field, { target: { value: 'New' } })
+  fireEvent.click(screen.getByRole('button', { name: /save name/i }))
+  await waitFor(() => expect(patchAccount).toHaveBeenCalledWith({ name: 'New' }))
+})
+
+// The address IS the credential: asking mails the NEW one and changes nothing yet.
+test('changing the email sends a link and says so, without changing anything', async () => {
+  getAccount.mockResolvedValue({ id: 'ac1', email: 'me@x.test', name: 'Me', hasPassword: false })
+  requestEmailChange.mockResolvedValue({ ok: true })
+  render(<AccountSettings />)
+  const field = await screen.findByLabelText('New email')
+  fireEvent.change(field, { target: { value: 'new@x.test' } })
+  fireEvent.click(screen.getByRole('button', { name: /send the link/i }))
+  await waitFor(() => expect(requestEmailChange).toHaveBeenCalledWith('new@x.test'))
+  expect(await screen.findByText(/link sent to/i)).toBeTruthy()
+  expect(screen.getByText('me@x.test')).toBeTruthy() // still the one you sign in with
+})
+
+test('the address you already use cannot be re-sent to yourself', async () => {
+  getAccount.mockResolvedValue({ id: 'ac1', email: 'me@x.test', name: 'Me', hasPassword: false })
+  render(<AccountSettings />)
+  const field = await screen.findByLabelText('New email')
+  fireEvent.change(field, { target: { value: 'me@x.test' } })
+  expect(screen.getByRole('button', { name: /send the link/i }).disabled).toBe(true)
+})
+
+test('an address another account holds is reported as such', async () => {
+  getAccount.mockResolvedValue({ id: 'ac1', email: 'me@x.test', name: 'Me', hasPassword: false })
+  requestEmailChange.mockRejectedValue(Object.assign(new Error('email_taken'), { code: 'email_taken' }))
+  render(<AccountSettings />)
+  fireEvent.change(await screen.findByLabelText('New email'), { target: { value: 'taken@x.test' } })
+  fireEvent.click(screen.getByRole('button', { name: /send the link/i }))
+  expect(await screen.findByText(/already belongs to another account/i)).toBeTruthy()
 })

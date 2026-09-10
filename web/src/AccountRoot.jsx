@@ -11,7 +11,7 @@ import {
   confirmCheckout, getBilling,
 } from "./lib/accountClient.js";
 import { fmtDay } from "./screens-account.jsx";
-import { AccountHome } from "./screens-account.jsx";
+import { AccountHome, AccountSettings, ConfirmEmailChange } from "./screens-account.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
 import { useMarketingShell } from "./screens-landing.jsx";
 
@@ -395,6 +395,12 @@ export function AccountRoot() {
   if (path === "/account/billing/updated") return <BillingUpdated />;
   if (path === "/account/billing/cancelled")
     return <Landing title="No *charge*" msg="Checkout cancelled. Nothing was charged." />;
+  if (path.startsWith("/account/email/")) {
+    return <RequireAccount><ConfirmEmailChange token={path.split("/")[3]} /></RequireAccount>;
+  }
+  if (path === "/account/settings") {
+    return <RequireAccount><AccountSettings /></RequireAccount>;
+  }
   if (path === "/account/new") {
     return (
       <RequireAccount>

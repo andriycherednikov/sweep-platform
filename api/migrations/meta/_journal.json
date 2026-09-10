@@ -85,6 +85,13 @@
       "when": 1788918052581,
       "tag": "0011_tiny_monster_badoon",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789003368979,
+      "tag": "0012_account_email_change",
+      "breakpoints": true
     }
   ]
 }

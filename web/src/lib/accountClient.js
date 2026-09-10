@@ -40,6 +40,11 @@ export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/arch
 // Mints the sweep cookie from the 90-day account session, for a sweep this account
 // owns or has a seat in — the way into a sweep on a browser that never held its link.
 export const openSweepSession = (id) => call('POST', `/api/account/sweeps/${id}/session`)
+export const patchAccount = (fields) => call('PATCH', '/api/account', fields)
+// The address is the credential, so changing it is a two-step: this mails the NEW
+// address a link, and nothing moves until that link comes back.
+export const requestEmailChange = (email) => call('POST', '/api/account/email', { email })
+export const confirmEmailChange = (token) => call('POST', '/api/account/email/confirm', { token })
 // Replaces the member token, which is the ONLY credential POST /api/session accepts:
 // the leaked link dies, and so does everyone else's. Returns the fresh { memberLink }.
 export const rotateSweep = (id) => call('POST', `/api/account/sweeps/${id}/rotate`)
