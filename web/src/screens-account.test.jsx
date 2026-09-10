@@ -127,7 +127,7 @@ test('subscribed + past_due shows a soft payment warning', async () => {
 test('sign out (this device) revokes the session, clears the token and reloads', async () => {
   render(<AccountHome />)
   fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
-  fireEvent.click(screen.getByRole('menuitem', { name: /^log out$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^log out$/i }))
   await waitFor(() => expect(revokeSession).toHaveBeenCalled())
   expect(revokeAllSessions).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
@@ -137,7 +137,7 @@ test('sign out (this device) revokes the session, clears the token and reloads',
 test('sign out everywhere revokes every session, clears the token and reloads', async () => {
   render(<AccountHome />)
   fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
-  fireEvent.click(screen.getByRole('menuitem', { name: /log out everywhere/i }))
+  fireEvent.click(screen.getByRole('button', { name: /log out everywhere/i }))
   await waitFor(() => expect(revokeAllSessions).toHaveBeenCalled())
   expect(revokeSession).not.toHaveBeenCalled()
   expect(clearAccountToken).toHaveBeenCalled()
@@ -148,7 +148,7 @@ test('sign out still clears locally and reloads even when the server revoke fail
   revokeSession.mockRejectedValueOnce(new Error('network'))
   render(<AccountHome />)
   fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
-  fireEvent.click(screen.getByRole('menuitem', { name: /^log out$/i }))
+  fireEvent.click(screen.getByRole('button', { name: /^log out$/i }))
   await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.reload).toHaveBeenCalled()
 })
@@ -161,7 +161,7 @@ test('a failed sign-out-everywhere still clears locally, but surfaces the failur
   revokeAllSessions.mockRejectedValueOnce(new Error('network'))
   render(<AccountHome />)
   fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
-  fireEvent.click(screen.getByRole('menuitem', { name: /log out everywhere/i }))
+  fireEvent.click(screen.getByRole('button', { name: /log out everywhere/i }))
   await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
   expect(window.location.assign).toHaveBeenCalledWith('/account?signout=partial')
   expect(window.location.reload).not.toHaveBeenCalled()
@@ -278,6 +278,18 @@ test('the rail says who you are signed in as', async () => {
   render(<AccountHome />)
   expect(await screen.findByText('Ada Lovelace')).toBeTruthy()
   expect(screen.getByText(/signed in as/i)).toBeTruthy()
+})
+
+// The gear is the app's only sign-out and its only route to /account/settings. It hung
+// off `who &&`, so a failed GET /api/account — swallowed, by design, because the page
+// beside the rail reports its own errors — took the way out with it.
+test('the way out of the app does not hang on the request that says who you are', async () => {
+  getAccount.mockRejectedValue(new Error('boom'))
+  render(<AccountHome here="sweeps" />)
+  fireEvent.click(await screen.findByRole('button', { name: /^settings$/i }))
+  expect(screen.getByRole('button', { name: /account settings/i })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /^log out$/i }))
+  await waitFor(() => expect(clearAccountToken).toHaveBeenCalled())
 })
 
 // A sweep's name is whatever the owner typed. "Office Pool" says nothing about what it
@@ -513,6 +525,11 @@ test('the rail doubles as a native picker for the phone, and it navigates', asyn
   const pick = await screen.findByRole('combobox', { name: /go to/i })
   expect(within(pick).getByRole('option', { name: 'Office Pool' })).toBeTruthy()
   expect(within(pick).getByRole('option', { name: "Dave's pool" })).toBeTruthy()
+  // Picking is not going: a <select> that navigates on change is a change of context on
+  // input, and in a browser where the arrow keys move a closed select it puts every
+  // option past the adjacent one out of the keyboard's reach.
   fireEvent.change(pick, { target: { value: '/account/s/sw1' } })
+  expect(window.location.assign).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: /^go$/i }))
   expect(window.location.assign).toHaveBeenCalledWith('/account/s/sw1')
 })

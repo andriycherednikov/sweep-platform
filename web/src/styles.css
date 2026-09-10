@@ -1328,7 +1328,7 @@ span.ac-nav-logo{ display:grid; place-items:center; font-size:9px; font-weight:8
   background:var(--glass2); color:var(--ink3); }
 .ac-nav-i.is-more{ font-size:12.5px; color:var(--ink3); }
 /* the picker IS the rail below 820px, where the rail itself lies down — never both */
-.ac-pick{ display:none; }
+.ac-pick, .ac-pick-go{ display:none; }
 /* the rail's one action; on the page it leads to, it reads as where you are */
 .ac-side-foot .ac-btn.is-here{ box-shadow:0 0 0 3px rgba(236,48,19,.28); }
 .ac-side-foot{ margin-top:auto; display:flex; flex-direction:column; gap:9px; }
@@ -1482,6 +1482,8 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
   .ac-pick{ display:block; min-width:0; max-width:180px; padding:7px 10px; border-radius:9px;
     font-family:inherit; font-size:13.5px; font-weight:600; color:var(--ink2);
     background:var(--glass); border:1px solid var(--edge); }
+  /* picking is not going — see the comment on the button */
+  .ac-pick-go{ display:block; }
   .ac-side-foot{ margin-top:0; margin-left:auto; flex-direction:row; align-items:center; }
   .ac-side-foot .ac-btn{ font-size:19px; padding:5px 15px 7px; }
   .ac-main{ padding:24px 18px 48px; }

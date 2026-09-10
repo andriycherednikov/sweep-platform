@@ -29,7 +29,14 @@ function initialsOf(name, email) {
 
 /** The gear beside your name in the console rail. Deliberately its own small component
  *  rather than the sweep app's: the console mounts standalone, and importing
- *  components.jsx would drag the whole sweep bundle in behind it. */
+ *  components.jsx would drag the whole sweep bundle in behind it.
+ *
+ *  No role="menu"/role="menuitem" here, on purpose. That pair is a contract — focus into
+ *  the menu on open, arrow keys between the items, Escape back to the trigger — and this
+ *  implements none of it, so claiming it told a screen reader to expect keys that do
+ *  nothing. What the markup actually is, is a disclosure button and three buttons, and
+ *  that is what it now says it is: Tab reaches them, Enter presses them, and
+ *  aria-expanded reports the state. The roles come back the day the key handling does. */
 function AccountMenu({ onSettings, onSignOut, onSignOutAll }) {
   const [open, setOpen] = useState(false);
   const boxRef = useRef(null);
@@ -51,13 +58,13 @@ function AccountMenu({ onSettings, onSignOut, onSignOutAll }) {
   return (
     <div className="ac-menu" ref={boxRef}>
       <button className="ac-me-out" aria-label="Settings" title="Settings"
-        aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+        aria-expanded={open} onClick={() => setOpen((v) => !v)}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 0 1-4 0v-.09A1.7 1.7 0 0 0 8.9 19.3a1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.03H3a2 2 0 0 1 0-4h.09A1.7 1.7 0 0 0 4.7 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1.03-1.56V3a2 2 0 0 1 4 0v.09A1.7 1.7 0 0 0 15.1 4.7a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9v.09a1.7 1.7 0 0 0 1.56 1.03H21a2 2 0 0 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1.03z"/></svg>
       </button>
       {open && (
-        <div className="ac-menu-pop" role="menu">
+        <div className="ac-menu-pop">
           {items.map((it) => (
-            <button key={it.key} role="menuitem"
+            <button key={it.key}
               className={"ac-menu-i" + (it.danger ? " is-danger" : "")}
               onClick={() => { setOpen(false); it.onClick(); }}>{it.label}</button>
           ))}
@@ -77,6 +84,8 @@ export function Console({ here, wide, children }) {
   // account and greeted you with two unlabelled sign-out buttons.
   const [who, setWho] = useState(null);
   const [sweeps, setSweeps] = useState([]);
+  // What the phone picker is pointing at, which is not where you are until you say Go.
+  const [pick, setPick] = useState("");
   useEffect(() => {
     let alive = true;
     getAccount().then((a) => { if (alive) setWho(a); }).catch(() => {});
@@ -164,8 +173,8 @@ export function Console({ here, wide, children }) {
               carries every sweep rather than the first six — a native list scrolls, so
               there is nothing for an overflow item to solve. CSS shows exactly one of
               the two, so the rail is never both. */}
-          <select className="ac-pick" aria-label="Go to" value={hereHref}
-                  onChange={(e) => goTo(e.target.value)}>
+          <select className="ac-pick" aria-label="Go to" value={pick || hereHref}
+                  onChange={(e) => setPick(e.target.value)}>
             {!hereHref && <option value="">Go to…</option>}
             <option value="/account">Home</option>
             {owned.length > 0 && (
@@ -179,26 +188,36 @@ export function Console({ here, wide, children }) {
               </optgroup>
             )}
           </select>
+          {/* Picking is not going. Navigating on change is a change of context on input,
+              and where the arrow keys move a closed select it walks you off the page
+              before you reach the option you wanted — every choice past the adjacent one
+              out of the keyboard's reach. One more tap on a phone, and the only way to
+              use this at all with a keyboard. */}
+          <button className="ac-ghost ac-pick-go" disabled={!(pick || hereHref)}
+                  onClick={() => goTo(pick || hereHref)}>Go</button>
         </nav>
         <div className="ac-side-foot">
           <button className={"lp-btn ac-btn" + (here === "new" ? " is-here" : "")}
                   onClick={() => goTo("/account/new")}>New sweep</button>
-          {who && (
-            <div className="ac-me">
-              <span className="ac-me-av">{initialsOf(who.name, who.email)}</span>
-              <span className="ac-me-tx">
-                <small>Signed in as</small>
-                <b>{who.name || who.email}</b>
-              </span>
-              {/* Same gear as the sweep's rail: everything you can DO about being signed
-                  in lives behind it, said out loud, rather than as loose icons. */}
-              <AccountMenu
-                onSettings={() => goTo("/account/settings")}
-                onSignOut={signOutHere}
-                onSignOutAll={signOutEverywhere}
-              />
-            </div>
-          )}
+          {/* Not behind `who`. Knowing your name is a nice-to-have from a request that
+              is allowed to fail quietly here; the gear below it is the app's only
+              sign-out and its only route to /account/settings, and a swallowed GET
+              /api/account used to take both off the screen. initialsOf already answers
+              "?" when it has nothing to go on. */}
+          <div className="ac-me">
+            <span className="ac-me-av">{initialsOf(who?.name, who?.email)}</span>
+            <span className="ac-me-tx">
+              <small>Signed in as</small>
+              <b>{who?.name || who?.email || "your account"}</b>
+            </span>
+            {/* Same gear as the sweep's rail: everything you can DO about being signed
+                in lives behind it, said out loud, rather than as loose icons. */}
+            <AccountMenu
+              onSettings={() => goTo("/account/settings")}
+              onSignOut={signOutHere}
+              onSignOutAll={signOutEverywhere}
+            />
+          </div>
         </div>
       </aside>
       <main className="ac-main">
