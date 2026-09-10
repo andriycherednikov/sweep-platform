@@ -30,6 +30,7 @@ const SWEEP = {
 
 const STATS = {
   sweepId: 'sw1',
+  competitionId: 'cp_nba',
   people: [
     { id: 'pn_a', name: 'Ann Smith', initials: 'AS', avColor: '#e11', claimedAt: '2026-05-01T12:00:00.000Z' },
     { id: 'pn_b', name: 'Bo Tran', initials: 'BT', avColor: '#07a', claimedAt: null },
@@ -113,10 +114,22 @@ test('several sweeps roll their join buckets into one series, by date', () => {
 
 test('several seasons roll up to the totals and the soonest kickoff of any of them', () => {
   expect(mergeSeason([
-    { season: { final: 3, total: 5, next: '2026-09-17T00:00:00.000Z' } },
-    { season: { final: 1, total: 9, next: '2026-09-12T00:00:00.000Z' } },
-    { season: { final: 0, total: 0, next: null } },
+    { competitionId: 'cp_1', season: { final: 3, total: 5, next: '2026-09-17T00:00:00.000Z' } },
+    { competitionId: 'cp_2', season: { final: 1, total: 9, next: '2026-09-12T00:00:00.000Z' } },
+    { competitionId: 'cp_3', season: { final: 0, total: 0, next: null } },
   ])).toEqual({ final: 4, total: 14, next: '2026-09-12T00:00:00.000Z' })
+})
+
+// The route hands the SAME season block to every sweep following one competition — it
+// is one group query keyed by competition, not by sweep — so adding them up per sweep
+// counted that competition's fixtures twice and printed "6 of 10" for a 5-game season.
+test('two sweeps on one competition count its games once', () => {
+  const season = { final: 3, total: 5, next: '2026-09-17T00:00:00.000Z' }
+  expect(mergeSeason([
+    { competitionId: 'cp_1', season },
+    { competitionId: 'cp_1', season },
+    { competitionId: 'cp_2', season: { final: 1, total: 2, next: null } },
+  ])).toEqual({ final: 4, total: 7, next: '2026-09-17T00:00:00.000Z' })
 })
 
 /* ---------------- the page ---------------- */
@@ -192,7 +205,7 @@ test('several sweeps roll up in the header and offer a way to switch the race', 
   getAccountSweeps.mockResolvedValue([SWEEP, { ...SWEEP, id: 'sw2', name: 'Family League' }])
   getAccountStats.mockResolvedValue([
     STATS,
-    { ...STATS, sweepId: 'sw2', race: [], season: { final: 2, total: 5, next: null } },
+    { ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl', race: [], season: { final: 2, total: 5, next: null } },
   ])
   render(<Dashboard />)
   const picker = await pane().findByRole('combobox', { name: /showing/i })

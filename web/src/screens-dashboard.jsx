@@ -87,13 +87,20 @@ export function mergeJoins(stats) {
 const sooner = (a, b) => (!a ? b : !b ? a : Date.parse(a) <= Date.parse(b) ? a : b);
 
 /** Games played and games left, across every competition being followed, and the very
- *  next kickoff among them — which is the question "is anything happening tonight". */
+ *  next kickoff among them — which is the question "is anything happening tonight".
+ *
+ *  Per COMPETITION, not per sweep: the route groups the fixtures by competition and
+ *  hands two sweeps following the same season the identical block, so adding the rows up
+ *  as they arrive counts that season's games once per sweep. Two office pools on the
+ *  same league is the obvious way to end up with two sweeps, so this is the common case
+ *  rather than the exotic one. */
 export function mergeSeason(stats) {
-  return stats.reduce(
-    (acc, s) => ({
-      final: acc.final + s.season.final,
-      total: acc.total + s.season.total,
-      next: sooner(acc.next, s.season.next),
+  const perCompetition = new Map(stats.map((s) => [s.competitionId, s.season]));
+  return [...perCompetition.values()].reduce(
+    (acc, season) => ({
+      final: acc.final + season.final,
+      total: acc.total + season.total,
+      next: sooner(acc.next, season.next),
     }),
     { final: 0, total: 0, next: null },
   );
