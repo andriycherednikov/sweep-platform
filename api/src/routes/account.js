@@ -1,7 +1,7 @@
 import { eq, and, ne, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
 import {
   account, accountSession, loginToken, catalogLeague, competition, competitor,
-  event, ownership, person, photo, support, sweep,
+  event, ownership, person, support, sweep,
 } from '../db/schema.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep } from '../sweeps/auth.js'
 import { randomInt } from 'node:crypto'
@@ -639,7 +639,7 @@ export async function accountRoutes(app) {
     const anyone = (q) => (pids.length ? q() : nothing)
     const punters = (q) => (pids.length && wids.length ? q() : nothing)
 
-    const [made, claimed, race, seasons, calls, betCounts, photoCounts, wagerDaily, wagerBest, wagerLead] =
+    const [made, claimed, race, seasons, calls, betCounts, wagerDaily, wagerBest, wagerLead] =
       await Promise.all([
         app.db.select({ sweepId: person.sweepId, date: day(person.createdAt), n: sql`count(*)::int` })
           .from(person)
@@ -684,18 +684,11 @@ export async function accountRoutes(app) {
           .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids), eq(event.status, 'final')))
           .groupBy(support.sweepId, support.personId)),
 
-        // Two counts rather than one query: three left joins off a single person row
-        // multiply each other, and a wrong number is worse than a second round trip.
         // `ids`, not `wids`: a sweep that has had wagering turned off since keeps the bets
         // that were placed while it was on, and the people who placed them were not quiet.
         anyone(() => rowsOf(sql`
           select sweep_id as "sweepId", person_id as "personId", count(*)::int as n
             from ${wagers(ids)} group by 1, 2`)),
-
-        anyone(() => app.db.select({ sweepId: photo.sweepId, personId: photo.personId, n: sql`count(*)::int` })
-          .from(photo)
-          .where(and(inArray(photo.sweepId, ids), inArray(photo.personId, pids), eq(photo.status, 'approved')))
-          .groupBy(photo.sweepId, photo.personId)),
 
         punters(() => rowsOf(sql`
           select sweep_id as "sweepId", ${day(sql`placed_at`)} as date,
@@ -722,8 +715,8 @@ export async function accountRoutes(app) {
       for (const r of rows) { const a = m.get(r.sweepId); a ? a.push(r) : m.set(r.sweepId, [r]) }
       return m
     }
-    const [gRoster, gMade, gClaimed, gRace, gCalls, gBets, gPhotos, gDaily, gBest, gLead] =
-      [roster, made, claimed, race, calls, betCounts, photoCounts, wagerDaily, wagerBest, wagerLead].map(bySweep)
+    const [gRoster, gMade, gClaimed, gRace, gCalls, gBets, gDaily, gBest, gLead] =
+      [roster, made, claimed, race, calls, betCounts, wagerDaily, wagerBest, wagerLead].map(bySweep)
     const bySeason = new Map(seasons.map((s) => [s.competitionId, s]))
 
     return mine.map((s) => {
@@ -731,7 +724,6 @@ export async function accountRoutes(app) {
       const num = (rows) => new Map((rows ?? []).map((r) => [r.personId, r]))
       const calledBy = num(gCalls.get(s.id))
       const betBy = num(gBets.get(s.id))
-      const photoBy = num(gPhotos.get(s.id))
       const leadBy = num(gLead.get(s.id))
 
       // One row per day carrying both series. The gap between them IS the "not joined yet"
@@ -763,7 +755,11 @@ export async function accountRoutes(app) {
           personId: p.id,
           picks: calledBy.get(p.id)?.picks ?? 0,
           bets: betBy.get(p.id)?.n ?? 0,
-          photos: photoBy.get(p.id)?.n ?? 0,
+          // No photo count here. A fan photo — the upload people actually make — is
+          // written with a NULL person_id (routes/photos.js:70), so all a per-person
+          // tally could ever count is avatars, of which everybody has at most one. On a
+          // fun dashboard a number that means something other than its label is worse
+          // than a missing one.
         })),
         ...(s.wageringEnabled ? {
           wagering: {

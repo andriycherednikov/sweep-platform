@@ -79,9 +79,12 @@ beforeAll(async () => {
     { id: 'bt_s4', sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s1', parlayId: 'par_s1', selection: 'HOME', stake: 0, oddsDecimal: '2.5', potentialPayout: 0, status: 'won', placedAt: DAY },
     { id: 'bt_s5', sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s2', parlayId: 'par_s1', selection: 'HOME', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'won', placedAt: DAY },
   ]).onConflictDoNothing()
+  // Both shapes the photos route writes: a fan photo (the upload people actually make)
+  // carries NO person, and an avatar carries one. Counting per person could only ever
+  // see the avatar, which is why the dashboard no longer claims a photo count at all.
   await db.insert(photo).values([
-    { id: 'ph_s1', sweepId: SW, kind: 'person', uploaderName: 'Bob', personId: 'pn_bob', filePath: 'a.jpg' },
-    { id: 'ph_s2', sweepId: SW, kind: 'person', uploaderName: 'Eve', personId: 'pn_eve', filePath: 'b.jpg' },
+    { id: 'ph_s1', sweepId: SW, kind: 'fan', uploaderName: 'Bob', personId: null, fixtureId: 'ev_s1', filePath: 'a.jpg' },
+    { id: 'ph_s2', sweepId: SW, kind: 'profile', uploaderName: 'Bob', personId: 'pn_bob', filePath: 'b.jpg' },
   ]).onConflictDoNothing()
 })
 
@@ -160,10 +163,13 @@ test('calls score a pick against the same winner the race uses, draws included',
 
 test('the loud-and-quiet list keeps the quiet ones, at zero', async () => {
   const s = await forSweep(SW)
+  // Bob has both a fan photo and an avatar in this sweep, and neither is a number here:
+  // a per-person photo count cannot be sourced, so nothing pretends to be one.
+  expect(Object.keys(s.activity[0])).toEqual(['personId', 'picks', 'bets'])
   expect(s.activity).toEqual([
-    { personId: 'pn_ann', picks: 2, bets: 1, photos: 0 },
+    { personId: 'pn_ann', picks: 2, bets: 1 },
     // Two, not three: Bob placed one single and one two-leg parlay.
-    { personId: 'pn_bob', picks: 1, bets: 2, photos: 1 },
+    { personId: 'pn_bob', picks: 1, bets: 2 },
   ])
 })
 
