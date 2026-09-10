@@ -96,6 +96,19 @@ test('a lapsed owner is told why the rename did not take, not just that it faile
   expect(pane().queryByText(/something went wrong/i)).toBeNull()
 })
 
+// The wagering toggle beside it already does this. A heading left showing a name the
+// sweep does not have is worse than a toggle left in the wrong position: it is the name
+// the owner will go on calling it, and every other screen disagrees.
+test('a rename the server refuses springs back to the saved name', async () => {
+  patchSweep.mockRejectedValueOnce(Object.assign(new Error('403'), { status: 403, code: 'sweep_readonly' }))
+  render(<SweepSettings id="sw1" />)
+  const field = await screen.findByLabelText(/sweep name/i)
+  fireEvent.change(field, { target: { value: 'The Lads' } })
+  fireEvent.blur(field)
+  await waitFor(() => expect(field.value).toBe('Office Pool'))
+  expect(pane().getByText(/read-only/i)).toBeTruthy()
+})
+
 // The first UI anywhere for turning wagering on after the sweep was created: it was a
 // provision-time decision, and POST /api/admin/wagering needs a sweep cookie to reach.
 test('wagering can be switched on from here, and the switch follows the sweep', async () => {

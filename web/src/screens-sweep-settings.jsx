@@ -56,7 +56,11 @@ function Identity({ s }) {
     if (!next || next === saved) { setName(saved); return; }
     setErr(null);
     try { await patchSweep(s.id, { name: next }); setSaved(next); }
-    catch (e) { setErr(e.code || "failed"); }
+    // Optimistic, then honest — the same as the wagering toggle below. A refused rename
+    // used to leave the typed name in the heading, which is the one place on the app
+    // that claims to say what this sweep is called: a lapsed owner would go on calling
+    // it that while every other screen, and everyone else's, disagreed.
+    catch (e) { setName(saved); setErr(e.code || "failed"); }
   }
 
   return (
