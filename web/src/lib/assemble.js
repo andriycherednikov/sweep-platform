@@ -241,7 +241,14 @@ export function assembleSweep(api) {
 
   // 1. Group stage: once a group's games are all final, everyone from position 3 down who
   //    did NOT reach the knockout is out (top 2 always advance; best 3rd-placed teams may).
-  for (const g of Object.keys(standings)) {
+  //
+  //    Only a competition that HAS a group stage. A flat league has no cut, and the two
+  //    key spaces collapse onto each other: its single standings table is keyed '' and
+  //    every "Regular Season - N" fixture also carries group '', so this filter matched
+  //    all 380 fixtures instead of none. The season's last match going final then marked
+  //    18 of 20 clubs out — at the exact moment the sweep is meant to pay out.
+  const hasGroupStage = (bootstrap.competition?.format ?? 'groups_then_ko') === 'groups_then_ko'
+  for (const g of hasGroupStage ? Object.keys(standings) : []) {
     const groupTeams = standings[g]
     const groupFixtures = fixtures.filter(f => f.group === g)
     const allDone = groupFixtures.length > 0 && groupFixtures.every(f => f.status === 'final')

@@ -549,3 +549,51 @@ test('the competition label carries the season the sweep is actually on', () => 
   expect(withCompetitionLabel({ name: 'NBA', season: '' }).label).toBe('NBA')
   expect(withCompetitionLabel({ name: '', season: '' }).label).toBe('')
 })
+
+// The World Cup's "top 2 advance, the rest are out" cut, applied to a league table.
+// A league's single standings table is keyed '' and its fixtures carry group '' too
+// (mapping.js turns "Regular Season - N" into group ''), so the group filter matched
+// every fixture in the season. The last match going final eliminated 18 of 20 clubs —
+// at the exact moment the sweep is meant to pay out.
+test('a finished league season eliminates nobody', () => {
+  const codes = Array.from({ length: 20 }, (_, i) => `c${i + 1}`)
+  const s = assembleSweep({
+    bootstrap: {
+      competition: { sport: 'football', format: 'league', hasDraws: true, name: 'PL', season: '2026' },
+      teams: codes.map((c, i) => ({ code: c, name: `Club ${i + 1}`, group: null, pool: null, color: '#c00', strength: null })),
+      people: [{ id: 'p1', name: 'Ann', short: 'Ann', initials: 'AN' }],
+      ownership: { p1: ['c5'] }, scoring: null,
+    },
+    fixtures: codes.map((c, i) => ({
+      id: `f${i}`, group: '', matchday: 1, t1: c, t2: codes[(i + 1) % 20],
+      ko: '2026-05-01T12:00:00Z', venue: 'V', city: 'C', status: 'final',
+      score: [1, 0], winnerCode: c, stage: 'group', minute: null, prob: null,
+    })),
+    standings: { '': codes.map((c, i) => ({ code: c, name: `Club ${i + 1}`, played: 3, win: 3, draw: 0, loss: 0, gf: 5, ga: i, pts: 20 - i })) },
+    photos: [], syncStatus: { stale: false },
+  })
+  expect(codes.filter((c) => s.isTeamEliminated(c))).toHaveLength(0)
+  expect(s.isPersonEliminated('p1')).toBe(false)
+})
+
+// ...but a real group stage still cuts, or the World Cup sweep loses its whole point.
+test('a finished World Cup group still puts everyone below the top two out', () => {
+  const codes = ['a1', 'a2', 'a3', 'a4']
+  const s = assembleSweep({
+    bootstrap: {
+      competition: { sport: 'football', format: 'groups_then_ko', hasDraws: true, name: 'WC', season: '2026' },
+      teams: codes.map((c, i) => ({ code: c, name: `Nation ${i + 1}`, group: 'A', pool: 'A', color: '#c00', strength: 80 })),
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [{
+      id: 'f1', group: 'A', matchday: 1, t1: 'a1', t2: 'a2', ko: '2026-06-13T12:00:00Z',
+      venue: 'V', city: 'C', status: 'final', score: [1, 0], winnerCode: 'a1', stage: 'group', minute: null, prob: null,
+    }],
+    standings: { A: codes.map((c, i) => ({ code: c, name: `Nation ${i + 1}`, played: 3, win: 3 - i, draw: 0, loss: i, gf: 5, ga: i, pts: 9 - i * 3 })) },
+    photos: [], syncStatus: { stale: false },
+  })
+  expect(s.isTeamEliminated('a1')).toBe(false)
+  expect(s.isTeamEliminated('a2')).toBe(false)
+  expect(s.isTeamEliminated('a3')).toBe(true)
+  expect(s.isTeamEliminated('a4')).toBe(true)
+})
