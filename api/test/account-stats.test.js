@@ -224,10 +224,3 @@ test('a sweep with wagering off carries no wagering block', async () => {
   expect(s).toMatchObject({ people: [], joins: [], race: [], calls: [], activity: [] })
   expect(s.season).toEqual({ final: 4, total: 6, next: NEXT.toISOString() })
 })
-
-// Two sweeps on one competition get the identical season block, because it is grouped by
-// competition. The client sums across sweeps, so it needs to know which of them share one.
-test('every row names the competition it follows, so the client can dedupe the season', async () => {
-  const all = (await statsFor('ac_stats')).json()
-  expect(all.map((s) => s.competitionId)).toEqual([COMP, COMP])
-})

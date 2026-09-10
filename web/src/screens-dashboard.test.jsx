@@ -30,7 +30,6 @@ const SWEEP = {
 
 const STATS = {
   sweepId: 'sw1',
-  competitionId: 'cp_nba',
   people: [
     { id: 'pn_a', name: 'Ann Smith', initials: 'AS', avColor: '#e11', claimedAt: '2026-05-01T12:00:00.000Z' },
     { id: 'pn_b', name: 'Bo Tran', initials: 'BT', avColor: '#07a', claimedAt: null },
@@ -286,7 +285,7 @@ test('the right-hand edge is somebody the chart actually draws', async () => {
 // this is the path where every sweep falls back to the same place in the order.
 test('the charts still draw when the sweep list is the half that fell over', async () => {
   getAccountSweeps.mockRejectedValue(new Error('boom'))
-  getAccountStats.mockResolvedValue([STATS, { ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl' }])
+  getAccountStats.mockResolvedValue([STATS, { ...STATS, sweepId: 'sw2' }])
   render(<Dashboard />)
   expect(await pane().findByRole('img', { name: /wins/i })).toBeTruthy()
   const picker = pane().getByRole('combobox', { name: /showing/i })
@@ -379,7 +378,7 @@ test('several sweeps offer a way to switch, and every card follows the picker', 
   getAccountStats.mockResolvedValue([
     STATS,
     {
-      ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl', race: [],
+      ...STATS, sweepId: 'sw2', race: [],
       joins: [{ date: '2026-05-01', created: 9, claimed: 0 }],
       season: { final: 2, total: 5, next: null },
     },
