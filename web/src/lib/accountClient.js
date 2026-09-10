@@ -44,12 +44,15 @@ export const getCatalog = (params = {}) => {
 // endpoint is more machinery than a promise. Do not delete this for a QueryClient that
 // is not there.
 //
-// `fresh` is not an optimisation knob — anything that CHANGES the list (archive, rotate,
-// rename, provision) must pass it or the console keeps showing what used to be true.
+// No way to invalidate it, and none needed: every move in the console is a real
+// navigation (goTo is location.assign, and the rail is plain <a href>), so the module
+// dies with the page and the next one asks again. The two writes that change this list —
+// archive and provision — both navigate immediately afterwards for exactly that reason.
+// The day the console routes client-side, this needs a way to be told.
 // A rejection is never kept: a cached one would make the console's own retry a no-op.
 let sweepsPromise
-export const getAccountSweeps = (fresh) => {
-  if (fresh || !sweepsPromise) {
+export const getAccountSweeps = () => {
+  if (!sweepsPromise) {
     sweepsPromise = call('GET', '/api/account/sweeps')
       .catch((e) => { sweepsPromise = undefined; throw e })
   }

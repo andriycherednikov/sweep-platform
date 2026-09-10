@@ -14,9 +14,9 @@
    daySpan() puts the empty days back, because every chart here is an even spread and an
    even spread over "the days with rows in them" is not a calendar.
 
-   The cards are grouped into StoryGrid, which the sweep's own page reuses wholesale as
-   SweepStory — the widgets are the same six either way, and the only difference is
-   whether the joins and the season are one sweep's or every sweep's added together.
+   The cards are grouped into StoryGrid, which the sweep's own page reuses wholesale —
+   the widgets are the same six either way, and the only difference is whether the joins
+   and the season are one sweep's or every sweep's added together.
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
 import { Console, NoSweepsYet, fmtDay, BillingNotice } from "./screens-account.jsx";
@@ -142,8 +142,15 @@ const daysSince = (date) => Math.max(0, Math.round((Date.now() - Date.parse(`${d
 
 /** Is the rail lying down? Below 820px it does, and so does this grid — the race has to
  *  drop lines rather than shrink them.
- *  Deliberately not components.jsx's useIsDesktop, for the same reason the console has
- *  its own gear menu: that file is the sweep app, and the console does not import it. */
+ *
+ *  Not components.jsx's useIsDesktop, which is the same eight lines: that one asks
+ *  (min-width:900px), the sweep app's desktop frame, and the number that matters here is
+ *  the 820px .ac-grid drops to one column at — between the two the race would shed lines
+ *  while its card was still full width. And importing it would pull components.jsx into
+ *  a console that has never touched it: that module reaches App.jsx, the sweep stores and
+ *  api/client.js, all of which the console deliberately mounts without (screens-account.jsx
+ *  says the same about its own gear menu). The 820 is repeated from styles.css because
+ *  matchMedia cannot read a breakpoint out of a stylesheet; the two live one grep apart. */
 function useNarrow() {
   const query = "(max-width:820px)";
   const [narrow, setNarrow] = useState(() => !!window.matchMedia?.(query).matches);
@@ -419,9 +426,11 @@ function LoudCard({ s, href }) {
 }
 
 /** The six cards, in the order that makes the page read top to bottom: the race is the
- *  story, the last one is a footnote. `joins` and `season` come in separately because
- *  the dashboard rolls them up across every sweep while the rest stays about one. */
-function StoryGrid({ s, joins, season, joinsHref }) {
+ *  story, the last one is a footnote. `joins` and `season` default to this sweep's own,
+ *  which is the whole of what the sweep's page needs; the dashboard passes its rolled-up
+ *  versions instead, because those two are the only numbers here that mean anything
+ *  added together. */
+export function StoryGrid({ s, joins = s.joins, season = s.season, joinsHref }) {
   const admin = `/s/${s.sweepId}/admin`;
   return (
     <div className="ac-grid">
@@ -433,11 +442,6 @@ function StoryGrid({ s, joins, season, joinsHref }) {
       <LoudCard s={s} href={admin} />
     </div>
   );
-}
-
-/** One sweep's own story, for its own page. Same six cards, no roll-up to do. */
-export function SweepStory({ s }) {
-  return <StoryGrid s={s} joins={s.joins} season={s.season} />;
 }
 
 /** The console's front page. */
@@ -467,7 +471,10 @@ export function Dashboard() {
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         .map((s, i) => [s.id, i]),
     );
-    return [...stats].sort((a, b) => (rank.get(a.sweepId) ?? 99) - (rank.get(b.sweepId) ?? 99));
+    // Infinity, not a number the list could reach: the two requests are answered
+    // separately, so a sweep created between them has a stats row and no rank yet, and
+    // it belongs at the end rather than at whatever position the fallback happens to be.
+    return [...stats].sort((a, b) => (rank.get(a.sweepId) ?? Infinity) - (rank.get(b.sweepId) ?? Infinity));
   }, [stats, sweeps]);
 
   if (failed)
@@ -502,7 +509,7 @@ export function Dashboard() {
   // Which sweep the race is about. The most interesting one by default — the one with
   // the most results in it — and after that, whichever one you asked for. Deliberately
   // a native <select> and not a filter UI: it is one question with one answer.
-  const nameOf = (id) => (sweeps ?? []).find((s) => s.id === id)?.name ?? "Your sweep";
+  const nameOf = (id) => sweeps.find((s) => s.id === id)?.name ?? "Your sweep";
   const liveliest = [...ordered].sort((a, b) => b.race.length - a.race.length || b.people.length - a.people.length)[0];
   const focus = ordered.find((s) => s.sweepId === focusId) ?? liveliest;
   const people = ordered.reduce((n, s) => n + s.people.length, 0);
@@ -522,7 +529,9 @@ export function Dashboard() {
         s={focus}
         joins={mergeJoins(ordered)}
         season={mergeSeason(ordered)}
-        joinsHref={ordered.length > 1 ? "/account/sweeps" : `/s/${focus.sweepId}/admin`}
+        // Only when there is more than one sweep, and then the list: with one sweep the
+        // card's own default — that sweep's admin — is already the right door.
+        joinsHref={ordered.length > 1 ? "/account/sweeps" : null}
       />
     </Console>
   );

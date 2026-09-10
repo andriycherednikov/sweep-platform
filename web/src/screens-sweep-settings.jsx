@@ -20,7 +20,7 @@
 import { useState, useEffect } from "react";
 import { Console, LinkField, CompetitionLine, fmtDay, goTo } from "./screens-account.jsx";
 import { getAccountSweeps, getAccountStats, patchSweep, archiveSweep, rotateSweep } from "./lib/accountClient.js";
-import { SweepStory } from "./screens-dashboard.jsx";
+import { StoryGrid } from "./screens-dashboard.jsx";
 
 /** A refused save has exactly two meanings and they need different answers: a lapsed
  *  owner is not having a bad day, they are behind the read-only gate and retrying will
@@ -274,7 +274,7 @@ export function SweepSettings({ id }) {
         <>
           <Identity s={sweep} />
           {/* How it is going, before what you can change about it. */}
-          {story && <div style={{ marginTop: 22 }}><SweepStory s={story} /></div>}
+          {story && <div style={{ marginTop: 22 }}><StoryGrid s={story} /></div>}
           <h2 className="ac-group" style={{ marginTop: 26 }}>What you can change</h2>
           <div className="ac-stack" style={{ marginTop: 14 }}>
             <Share s={sweep} />

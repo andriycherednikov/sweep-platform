@@ -186,30 +186,29 @@ test('openSweepSession POSTs the account sweep-session route with the token', as
 // rail renders {children} so it cannot hand the list down. These tests pin the one
 // promise both of them share — and, just as important, that a failure is not what gets
 // shared forever after.
-test('the sweep list is fetched once and shared by everyone who asks for it', async () => {
-  fetch.mockResolvedValue(jsonResponse(200, [{ id: 'sw1' }]))
-  await getAccountSweeps(true) // drop whatever an earlier test left in the cache
-  fetch.mockClear()
-  const [a, b] = await Promise.all([getAccountSweeps(), getAccountSweeps()])
-  expect(fetch).not.toHaveBeenCalled()
-  expect(a).toBe(b)
-})
+//
+// The cache is module state and there is no longer a way to ask for a fresh copy —
+// nothing in the app needs one, because every navigation in the console is a real page
+// load. A fresh module IS the page load, which is why these two reach for one rather
+// than for a parameter that would exist only for them.
+const freshClient = async () => { vi.resetModules(); return import('./accountClient.js') }
 
-test('fresh=true really refetches — this is what every mutation has to pass', async () => {
-  fetch.mockResolvedValue(jsonResponse(200, []))
-  await getAccountSweeps(true)
-  fetch.mockClear()
-  await getAccountSweeps(true)
+test('the sweep list is fetched once and shared by everyone who asks for it', async () => {
+  const { getAccountSweeps: get } = await freshClient()
+  fetch.mockResolvedValue(jsonResponse(200, [{ id: 'sw1' }]))
+  const [a, b] = await Promise.all([get(), get(), get()])
   expect(fetch).toHaveBeenCalledTimes(1)
+  expect(a).toBe(b)
 })
 
 // A cached rejection would be permanent: the console's own retry would hand back the
 // same failure without ever touching the network again.
 test('a failed list is evicted, so the next caller genuinely retries', async () => {
+  const { getAccountSweeps: get } = await freshClient()
   fetch.mockResolvedValueOnce(jsonResponse(500, { error: 'boom' }))
-  await expect(getAccountSweeps(true)).rejects.toMatchObject({ status: 500 })
+  await expect(get()).rejects.toMatchObject({ status: 500 })
   fetch.mockResolvedValueOnce(jsonResponse(200, [{ id: 'sw1' }]))
-  await expect(getAccountSweeps()).resolves.toEqual([{ id: 'sw1' }])
+  await expect(get()).resolves.toEqual([{ id: 'sw1' }])
 })
 
 // The owner's own sweep. This endpoint has existed since it was written with no client

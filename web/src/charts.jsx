@@ -43,7 +43,7 @@ const num = (n) => Math.round(n * 10) / 10;
 /** The values, spread evenly across `width` and flipped so up means more.
  *  Exported because it is the only real arithmetic in the file: the tests check the
  *  path string directly rather than trying to read geometry back out of the DOM. */
-export function linePath(values, height, max, width = W) {
+export function linePath(values, height, max, width) {
   if (!values.length) return "";
   const top = max > 0 ? max : 1;
   // One reading has nowhere to travel, so it sits at the left edge as a single point.
@@ -57,7 +57,7 @@ export function linePath(values, height, max, width = W) {
  *  `dim` is the caller's call, not the chart's: the dashboard knows who is leading and
  *  who is context, and a chart that decided that for itself would be wrong the moment
  *  two lines meant something other than a race. */
-export function Lines({ series, height = 160, title }) {
+export function Lines({ series, height, title }) {
   const labelled = series.some((s) => s.label);
   const w = labelled ? W - LABEL_W : W;
   const plotH = height - PAD * 2;
@@ -95,10 +95,10 @@ export function Lines({ series, height = 160, title }) {
  *  ships a bucket for the days something happened and nothing at all for the rest, so
  *  the dashboard fills the gaps (daySpan) before the numbers get here. A day with a zero
  *  in it draws as an empty slot, which is the point — a quiet week is information. */
-export function Bars({ values, height = 130, color = "var(--lp-accent)", title }) {
+export function Bars({ values, height = 130, title }) {
   const plotH = height - PAD * 2;
   const max = Math.max(1, ...values);
-  const slot = values.length ? W / values.length : W;
+  const slot = W / values.length;
   const bw = num(Math.min(slot * 0.68, 26));
 
   return (
@@ -109,7 +109,7 @@ export function Bars({ values, height = 130, color = "var(--lp-accent)", title }
           const h = num((v / max) * plotH);
           return (
             <rect key={i} x={num(i * slot + (slot - bw) / 2)} y={num(plotH - h)}
-              width={bw} height={h} rx="3" fill={color} />
+              width={bw} height={h} rx="3" fill="var(--lp-accent)" />
           );
         })}
       </g>

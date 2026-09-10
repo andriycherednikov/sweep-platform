@@ -23,6 +23,7 @@ test('Lines draws one path per series, in the series colour', () => {
   const { container } = render(
     <Lines
       title="Race"
+      height={160}
       series={[
         { id: 'a', color: '#e11', points: [1, 2, 3], label: 'AS' },
         { id: 'b', color: '#00f', points: [0, 1, 1], label: 'BT', dim: true },
@@ -38,7 +39,7 @@ test('Lines draws one path per series, in the series colour', () => {
 })
 
 test('Lines with no series renders an empty chart rather than throwing', () => {
-  const { container } = render(<Lines title="Race" series={[]} />)
+  const { container } = render(<Lines title="Race" height={160} series={[]} />)
   expect(container.querySelector('svg')).toBeTruthy()
   expect(container.querySelectorAll('path')).toHaveLength(0)
 })
