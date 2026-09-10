@@ -174,7 +174,7 @@ test('the quiet ones are the rows you can go and poke', async () => {
   render(<Dashboard />)
   await pane().findByRole('img', { name: /wins/i })
   expect(pane().getByRole('link', { name: /Bo Tran/ })).toHaveAttribute('href', '/s/sw1/admin')
-  expect(pane().getByText('4 picks · 1 bet')).toBeTruthy()
+  expect(pane().getByText('4 picks · 1 wager')).toBeTruthy()
 })
 
 // The sweep app ranks people by their best club's table position for a league sweep
@@ -299,7 +299,7 @@ test('wagering off means no pulse card at all', async () => {
   expect(pane().queryByText(/wagering/i)).toBeNull()
 })
 
-test('wagering on draws the bets, the biggest win and who leaves it latest', async () => {
+test('wagering on draws the wagers, the biggest win and who leaves it latest', async () => {
   getAccountStats.mockResolvedValue([{
     ...STATS,
     wagering: {
@@ -309,7 +309,7 @@ test('wagering on draws the bets, the biggest win and who leaves it latest', asy
     },
   }])
   render(<Dashboard />)
-  expect(await pane().findByRole('img', { name: /bets/i })).toBeTruthy()
+  expect(await pane().findByRole('img', { name: /wagers/i })).toBeTruthy()
   expect(pane().getByText(/40/)).toBeTruthy()
   expect(pane().getByText(/41 minutes/)).toBeTruthy()
 })
@@ -348,12 +348,12 @@ test('the biggest win is on one wager, which a parlay also is', async () => {
   expect(await pane().findByText(/40 coins up on one wager/)).toBeTruthy()
   // And the commonest single-item case reads as English. The count itself is the big
   // number beside this span, which is why the match starts mid-sentence.
-  expect(pane().getByText(/bet · 1 coin staked/)).toBeTruthy()
+  expect(pane().getByText(/wager · 1 coin staked/)).toBeTruthy()
 })
 
 // Same lie, drawn as bars: two busy days a week apart are two bars side by side unless
 // the quiet days in between are in the array.
-test('the bets-per-day bars keep a slot for the days nobody had a bet on', async () => {
+test('the wagers-per-day bars keep a slot for the days nobody had one on', async () => {
   getAccountStats.mockResolvedValue([{
     ...STATS,
     wagering: {
@@ -363,9 +363,9 @@ test('the bets-per-day bars keep a slot for the days nobody had a bet on', async
     },
   }])
   const { container } = render(<Dashboard />)
-  await pane().findByRole('img', { name: /bets/i })
+  await pane().findByRole('img', { name: /wagers/i })
   expect(container.querySelectorAll('.ac-grid rect')).toHaveLength(4)
-  expect(pane().getByText(/3 bets · 20 coins staked/)).toBeTruthy()
+  expect(pane().getByText(/3 wagers · 20 coins staked/)).toBeTruthy()
 })
 
 // The payload is per sweep, so with more than one there has to be a way to say which one
@@ -492,7 +492,7 @@ test('one day of betting is a number, not a single bar at full height', async ()
   }])
   render(<Dashboard />)
   expect(await pane().findByText(/30 coins staked/)).toBeTruthy()
-  expect(pane().queryByRole('img', { name: /bets/i })).toBeNull()
+  expect(pane().queryByRole('img', { name: /wagers/i })).toBeNull()
 })
 
 /* ---------------- the charts take the room a desktop gives them ---------------- */

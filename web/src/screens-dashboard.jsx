@@ -380,14 +380,20 @@ function LuckCard({ s }) {
   );
 }
 
-/** Only for sweeps running wagering — the key is simply absent otherwise. The bets per
- *  day are the pulse; the two lines under it are the bragging rights. */
+/** Only for sweeps running wagering — the key is simply absent otherwise. The wagers per
+ *  day are the pulse; the two lines under it are the bragging rights.
+ *
+ *  "Wager" is the word this card uses, everywhere. Every number on it is a count of the
+ *  api's `wagers` union (api/src/routes/account.js:631), which folds a four-leg
+ *  accumulator into the single row it is rather than four bets that staked nothing — so
+ *  "3 bets" was already the wrong noun for the rows being counted, and the biggest-win
+ *  line beside it said "wager" about the identical rows. One card, one word. */
 function PulseCard({ s }) {
   const { daily, biggest, lead } = s.wagering;
   const byId = new Map(s.people.map((p) => [p.id, p]));
-  const bets = daily.reduce((n, d) => n + d.bets, 0);
+  const wagers = daily.reduce((n, d) => n + d.bets, 0);
   const staked = daily.reduce((n, d) => n + d.staked, 0);
-  // A bar per day between the first bet and the last, not a bar per day that had one:
+  // A bar per day between the first wager and the last, not a bar per day that had one:
   // the quiet Tuesday is as much of the pulse as the busy Saturday.
   const byDate = new Map(daily.map((d) => [d.date, d.bets]));
   const perDay = daySpan([...byDate.keys()]).map((d) => byDate.get(d) ?? 0);
@@ -408,7 +414,7 @@ function PulseCard({ s }) {
     <section className="ac-card is-double">
       <h2 className="ac-card-h">Wagering</h2>
       {daily.length === 0 ? (
-        <p className="ac-b">Wagering is on, but nobody has had a bet on yet.</p>
+        <p className="ac-b">Wagering is on, but nobody has placed a wager yet.</p>
       ) : (
         <>
           {/* One day of betting is one bar, and one bar is always full height because it
@@ -416,19 +422,19 @@ function PulseCard({ s }) {
               is. The number does not have that problem. */}
           {perDay.length < 2 ? (
             <p className="ch-big">
-              {bets}
-              <span>{`${bets === 1 ? "bet" : "bets"} · ${plural(staked, "coin")} staked, all on the one day`}</span>
+              {wagers}
+              <span>{`${wagers === 1 ? "wager" : "wagers"} · ${plural(staked, "coin")} staked, all on the one day`}</span>
             </p>
           ) : (
             <>
-              <Bars title="Bets placed per day" values={perDay} />
-              <p className="ch-cap">{`${plural(bets, "bet")} · ${plural(staked, "coin")} staked`}</p>
+              <Bars title="Wagers placed per day" values={perDay} />
+              <p className="ch-cap">{`${plural(wagers, "wager")} · ${plural(staked, "coin")} staked`}</p>
             </>
           )}
           {winner && (
-            // One wager, not one bet: the api's `wagers` union counts a four-leg
-            // accumulator as the single row it is, so the fattest win on the board can be
-            // a parlay. The payload does not say which, so neither does this.
+            // The fattest win on the board can be a parlay, and the payload does not say
+            // which — so neither does this. "One wager" covers both, which is why it is
+            // the word the rest of the card uses too.
             <p className="ac-b">
               {`Biggest win: ${winner.name}, ${plural(biggest.profit, "coin")} up on one wager.`}
             </p>
@@ -457,14 +463,16 @@ function LoudCard({ s, href }) {
   // quietest, which is the whole joke.
   const shown = rows.length <= 5 ? rows : [...rows.slice(0, 3), ...rows.slice(-2)];
 
-  // Picks and bets, and no photos: a fan photo — the upload people actually make — is
+  // Picks and wagers, and no photos. "Wager" for the same reason the card above uses it:
+  // this count is the same `wagers` union, so a person's four-leg accumulator is one row
+  // here as well. A fan photo — the upload people actually make — is
   // stored with no person on it, so the count this used to print was of profile avatars,
   // which is one each. The route dropped the field rather than ship a number that meant
   // something other than its label, and adding an absent one in made every total NaN.
   const tally = (r) => {
     const parts = [
       r.picks ? plural(r.picks, "pick") : null,
-      r.bets ? plural(r.bets, "bet") : null,
+      r.bets ? plural(r.bets, "wager") : null,
     ].filter(Boolean);
     return parts.length ? parts.join(" · ") : "nothing yet";
   };
