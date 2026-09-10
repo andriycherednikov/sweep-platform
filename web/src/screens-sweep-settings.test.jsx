@@ -255,4 +255,17 @@ test('a failed stats load leaves the settings working', async () => {
   expect(await pane().findByDisplayValue('Office Pool')).toBeTruthy()
   expect(pane().getByRole('button', { name: /replace link/i })).toBeTruthy()
   expect(pane().queryByRole('img', { name: /wins/i })).toBeNull()
+  // And the missing half leaves no hole behind it. The page emitted the story column
+  // either way, so on a wide screen the settings ended up crammed into 380px against
+  // the right-hand edge with two thirds of the pane blank: one child, not two.
+  expect(document.querySelector('.ac-sweep').children).toHaveLength(1)
+})
+
+// Same again with nothing to blame: the request lands, and simply has no row for this
+// sweep. There is no story either way, so there is no column either way.
+test('a sweep the stats have no row for is one column too', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, sweepId: 'sw_other' }])
+  render(<SweepSettings id="sw1" />)
+  expect(await pane().findByDisplayValue('Office Pool')).toBeTruthy()
+  await waitFor(() => expect(document.querySelector('.ac-sweep').children).toHaveLength(1))
 })

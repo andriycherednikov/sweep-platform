@@ -1427,21 +1427,36 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
    that order. From 1200 the pane can hold both, and then scrolling past six cards to
    reach the member link is a waste of a monitor: the story takes the room it needs and
    the controls sit still beside it.
-   The controls scroll inside themselves when they are taller than the window, which is
-   the price of sticky — pinned at the top with the bottom card unreachable is worse. */
+   The card grid's own breakpoints are NOT repeated in here any more. They are container
+   queries now (see .ac-story), asked of the column the cards are actually in — so the
+   story column lays itself out the same whether it is 464px wide because the settings
+   are parked beside it or because the window is small. Measuring the window instead is
+   what made widening from 1199 to 1200 turn two columns of cards into one. */
 @media (min-width:1200px){
-  .ac-sweep{ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start; }
-  .ac-sweep-set{ position:sticky; top:24px; max-height:calc(100dvh - 48px); overflow-y:auto;
-    overscroll-behavior:contain; }
-  /* The card grid inside is laid out by container query against this column, not by the
-     window — so it needs nothing said about it here. */
+  .ac-sweep:not(.is-solo){ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px;
+    align-items:start; max-width:none; }
+  /* The heading is as wide as the column beneath it, rather than stopping at 720 with a
+     third of a 1440px pane of nothing to its right. 404px is the settings column plus the
+     gap. :has() because the head is the split's older sibling and there is nothing else to
+     ask — same browser baseline as the container queries below. */
+  .ac-col:has(.ac-sweep:not(.is-solo)) .ac-sweep-head{ max-width:calc(100% - 404px); margin-inline:0; }
+}
+/* Sticky, but only where the whole column fits on the screen. It stands about 900px tall,
+   so on a laptop it never did: it became a 380px box with a scrollbar of its own, and
+   because a contained overscroll does not chain, the wheel over the right third of the
+   page moved that box 52px and then stopped dead — no way out of the gutter but the
+   keyboard. Pinning the controls is a nicety; reaching the rest of the page is not, so
+   the nicety is the half that gives way. Above 980px of window there is room for both. */
+@media (min-width:1200px) and (min-height:980px){
+  .ac-sweep:not(.is-solo) .ac-sweep-set{ position:sticky; top:24px; }
 }
 /* The name, what it follows and how long it has run are prose and a text field, so they
    keep the 720px measure on a page whose cards do not — and below 1200, where there is
    no second column to justify the room, so does the rest of the page: the controls are a
-   settings form, and a link field 900px wide is not a better link field. */
-.ac-sweep-head, .ac-sweep{ max-width:720px; }
-@media (min-width:1200px){ .ac-sweep{ max-width:none; } }
+   settings form, and a link field 900px wide is not a better link field. Centred in the
+   pane, because .ac-col's own auto margins stop at its 720/1440 cap and a 720px page
+   pinned to the left of a 1440px one just looks dropped. */
+.ac-sweep-head, .ac-sweep{ max-width:720px; margin-inline:auto; }
 
 /* The charts ------------------------------------------------------------------ */
 /* How tall a chart is, is a decision, and this is where it is made. It used to be a side

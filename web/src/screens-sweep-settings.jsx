@@ -230,13 +230,20 @@ export function SweepSettings({ id }) {
   // request, and its own failure: the charts are the half of this page you came to look
   // at, and the settings are the half you came to change — losing one must not cost the
   // other, so a rejected stats load simply leaves the story out.
+  //
+  // null means "still asking", false means "there is nothing to draw" — the request was
+  // refused, or the stats route has no row for this sweep. The two are different to the
+  // layout below: on false the page gives up the split and goes back to one centred
+  // column, because a 380px strip of settings against the right-hand edge of an empty
+  // 1440px pane is not a page. On null it keeps the room, so the settings do not jump
+  // across the pane a moment after they land.
   const [story, setStory] = useState(null);
 
   useEffect(() => {
     let alive = true;
     getAccountStats().then(
-      (all) => { if (alive) setStory(all.find((x) => x.sweepId === id) ?? null); },
-      () => {},
+      (all) => { if (alive) setStory(all.find((x) => x.sweepId === id) ?? false); },
+      () => { if (alive) setStory(false); },
     );
     return () => { alive = false; };
   }, [id]);
@@ -279,8 +286,8 @@ export function SweepSettings({ id }) {
           {/* One column on a laptop, two side by side from 1200px — the stylesheet's
               call, not this file's. Reading order is the same either way: how it is
               going, then what you can change about it. */}
-          <div className="ac-sweep" style={{ marginTop: 22 }}>
-            <div>{story && <StoryGrid s={story} />}</div>
+          <div className={`ac-sweep${story === false ? " is-solo" : ""}`} style={{ marginTop: 22 }}>
+            {story !== false && <div>{story && <StoryGrid s={story} />}</div>}
             <div className="ac-sweep-set">
               <h2 className="ac-group">What you can change</h2>
               <div className="ac-stack" style={{ marginTop: 14 }}>
