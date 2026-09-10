@@ -258,7 +258,10 @@ export function SweepSettings({ id }) {
   }, [id]);
 
   return (
-    <Console here={id}>
+    // Wide only when there is something wide to draw: the ready state is six cards and a
+    // panel of controls, while "one moment…" and "nothing here" are a sentence each, and
+    // a sentence set across 1440px is not readable.
+    <Console here={id} wide={state === "ready"}>
       {state === "loading" && <p className="ac-sub">One moment…</p>}
       {state === "error" && <p className="ac-warn">Couldn't load that sweep. Reload the page.</p>}
       {/* The API 404s a sweep you do not own rather than 403ing it, so an id cannot be
@@ -272,24 +275,30 @@ export function SweepSettings({ id }) {
       )}
       {state === "ready" && (
         <>
-          <Identity s={sweep} />
-          {/* How it is going, before what you can change about it. */}
-          {story && <div style={{ marginTop: 22 }}><StoryGrid s={story} /></div>}
-          <h2 className="ac-group" style={{ marginTop: 26 }}>What you can change</h2>
-          <div className="ac-stack" style={{ marginTop: 14 }}>
-            <Share s={sweep} />
-            <Settings s={sweep} />
-            <Operations s={sweep} />
-            <Archive s={sweep} />
+          <div className="ac-sweep-head"><Identity s={sweep} /></div>
+          {/* One column on a laptop, two side by side from 1200px — the stylesheet's
+              call, not this file's. Reading order is the same either way: how it is
+              going, then what you can change about it. */}
+          <div className="ac-sweep" style={{ marginTop: 22 }}>
+            <div>{story && <StoryGrid s={story} />}</div>
+            <div className="ac-sweep-set">
+              <h2 className="ac-group">What you can change</h2>
+              <div className="ac-stack" style={{ marginTop: 14 }}>
+                <Share s={sweep} />
+                <Settings s={sweep} />
+                <Operations s={sweep} />
+                <Archive s={sweep} />
+              </div>
+              {/* Billing is ONE account-level subscription whose quantity is the number
+                  of sweeps you run. A Cancel button on each of twelve sweep pages would
+                  teach the owner that sweeps are billed one by one, and pressing it would
+                  stop all twelve — so the pill and the real controls stay on the account. */}
+              <p className="ac-b">
+                <a className="ac-inline" href="/account/sweeps">Billed with your account</a> — one
+                subscription, priced by how many sweeps you run.
+              </p>
+            </div>
           </div>
-          {/* Billing is ONE account-level subscription whose quantity is the number of
-              sweeps you run. A Cancel button on each of twelve sweep pages would teach
-              the owner that sweeps are billed one by one, and pressing it would stop all
-              twelve — so the pill and the real controls stay on the account. */}
-          <p className="ac-b">
-            <a className="ac-inline" href="/account/sweeps">Billed with your account</a> — one
-            subscription, priced by how many sweeps you run.
-          </p>
         </>
       )}
     </Console>

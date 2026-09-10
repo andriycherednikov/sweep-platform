@@ -194,7 +194,10 @@ function RaceCard({ s }) {
   const flat = series.length > 0 && oneDay(shown);
 
   return (
-    <section className="ac-card is-full">
+    // is-full up to two columns, two of the three above that: the race is drawn into a
+    // viewBox, so full width on a 1440px pane is a 590px-tall chart rather than a better
+    // one. Both classes, and the stylesheet picks per breakpoint.
+    <section className="ac-card is-full is-double">
       <h2 className="ac-card-h">The race</h2>
       {series.length === 0 ? (
         // A sweep whose season has not started is the likeliest sweep to be looked at —
@@ -252,7 +255,8 @@ function JoinsCard({ joins, href }) {
   const flat = joins.length < 2;
 
   return (
-    <section className="ac-card">
+    // is-double: a fortnight of joins across a third of a 1440px pane is a scribble.
+    <section className="ac-card is-double">
       <h2 className="ac-card-h">Getting in</h2>
       {invited === 0 ? (
         <p className="ac-b">Nobody has been added yet — that is where a sweep starts.</p>
@@ -386,7 +390,7 @@ function PulseCard({ s }) {
   const tall = useTall();
 
   return (
-    <section className="ac-card">
+    <section className="ac-card is-double">
       <h2 className="ac-card-h">Wagering</h2>
       {daily.length === 0 ? (
         <p className="ac-b">Wagering is on, but nobody has had a bet on yet.</p>

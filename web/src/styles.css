@@ -1334,7 +1334,10 @@ span.ac-nav-logo{ display:grid; place-items:center; font-size:9px; font-weight:8
 .ac-side-foot{ margin-top:auto; display:flex; flex-direction:column; gap:9px; }
 
 /* the work happens on paper: the dark rail frames a light, readable pane */
-.ac-main{ min-height:100dvh; padding:38px 30px 60px; background:var(--paper); color:var(--paper-ink);
+/* The gutters grow with the window rather than staying at the 30px a 1280 laptop wants:
+   on a 2290px display a fixed gutter is invisible next to the empty pane beside the
+   content, and the same 30px on a 900px one is already as much as it can spare. */
+.ac-main{ min-height:100dvh; padding:38px clamp(30px, 4vw, 72px) 60px; background:var(--paper); color:var(--paper-ink);
   --edge:rgba(32,30,29,.13); --ink:#201e1d; --ink2:#5f5b58; --ink3:#8a8481;
   --glass:rgba(32,30,29,.035); --glass2:rgba(32,30,29,.07); }
 .ac-col{ max-width:720px; margin:0 auto; }
@@ -1419,19 +1422,71 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
 .ac-op b{ font-family:'Archivo',system-ui,sans-serif; font-weight:700; font-size:14.5px; }
 .ac-op span{ flex-shrink:0; font-size:12.5px; color:var(--ink3); text-align:right; }
 
+/* Its story and its settings, side by side once there is room for both. Under 1200 this
+   is the single column it has always been — the charts, then what you can change, in
+   that order. From 1200 the pane can hold both, and then scrolling past six cards to
+   reach the member link is a waste of a monitor: the story takes the room it needs and
+   the controls sit still beside it.
+   The controls scroll inside themselves when they are taller than the window, which is
+   the price of sticky — pinned at the top with the bottom card unreachable is worse. */
+@media (min-width:1200px){
+  .ac-sweep{ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px; align-items:start; }
+  .ac-sweep-set{ position:sticky; top:24px; max-height:calc(100dvh - 48px); overflow-y:auto;
+    overscroll-behavior:contain; }
+  /* The controls take 404px out of the pane and a media query measures the window rather
+     than what is left of it, so the grid's own breakpoints are all one column too
+     generous here: at 1200 the story column is 464px, which is one column of cards, not
+     the two the same window gives the dashboard. */
+  .ac-sweep .ac-grid{ grid-template-columns:minmax(0,1fr); }
+  .ac-sweep .ac-grid .is-double{ grid-column:auto; }
+}
+/* where the story column passes 700px — two cards of ~360, the width the dashboard's own
+   cards have on a laptop. The wide cards go back to spanning the pair. */
+@media (min-width:1500px){
+  .ac-sweep .ac-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ac-sweep .ac-grid .is-double{ grid-column:span 2; }
+}
+/* The name, what it follows and how long it has run are prose and a text field, so they
+   keep the 720px measure on a page whose cards do not — and below 1200, where there is
+   no second column to justify the room, so does the rest of the page: the controls are a
+   settings form, and a link field 900px wide is not a better link field. */
+.ac-sweep-head, .ac-sweep{ max-width:720px; }
+@media (min-width:1200px){ .ac-sweep{ max-width:none; } }
+
 /* charts.jsx draws at 640 units wide and lets the box decide the rest: width comes
    from the card, height from the viewBox's own ratio. The whole drawing scales with
    the card, which is the entire responsive story — there is nothing to measure. */
 .ch{ display:block; width:100%; height:auto; }
 
 /* the dashboard ------------------------------------------------------------- */
-/* Two columns of cards want more room than a settings form does, and only the
-   dashboard asks for it — .ac-col stays where it was for everything else. */
-.ac-col.is-wide{ max-width:980px; }
+/* Wide is for pages made of cards; narrow is for pages made of prose. A dashboard of
+   six charts and a list of sweeps are drawings, and a drawing gets better with room —
+   so they ask for this. .ac-col itself stays at 720 for everything else, because a name
+   field 1400px wide is worse than one that is not and a 1400px line of body text is
+   unreadable: the settings forms, the legal pages and the auth panels keep the measure. */
+.ac-col.is-wide{ max-width:1440px; }
+/* Two columns from 820 — where the rail lies down — and three from 1280. Three is the
+   cap: a fourth column puts a time-series chart in a 340px box, where it has nothing
+   left to say. Explicit breakpoints rather than auto-fit, because the spans below have
+   to know how many columns there are. */
 .ac-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
-/* the race is the screenshot, so it gets the whole width */
+/* the race is the screenshot, so up to two columns it gets the whole width */
 .ac-grid .is-full{ grid-column:1/-1; }
 @media (max-width:820px){ .ac-grid{ grid-template-columns:minmax(0,1fr); } }
+@media (min-width:1280px){
+  /* dense, because two of these cards are twice as wide as the others and a 2-wide card
+     cannot start in the last column: without it the row the race is on ends in a hole.
+     The only thing it reorders is which of the one-column cards fills that hole, and
+     they are independent of each other. */
+  .ac-grid{ grid-template-columns:repeat(3,minmax(0,1fr)); grid-auto-flow:dense; }
+  /* A chart with a time axis needs length or the days pile up on each other, so the
+     cards carrying one take two of the three columns — the race included, which is why
+     it stops being full width here. It is drawn into a viewBox, so its height is a
+     ratio: a full-width race on a 1440px pane is a 590px chart, and that is not a bigger
+     story, just a bigger drawing. The cards that are a number, a bar or a list of names
+     do not care, and stay one column. */
+  .ac-grid .is-double{ grid-column:span 2; }
+}
 /* what the chart above it means, in the smallest voice on the card */
 .ch-cap{ margin:10px 0 0; font-size:12.5px; line-height:1.55; color:var(--ink3); }
 /* two unlabelled lines are a riddle; this is the two words that solve it */
@@ -2139,6 +2194,17 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
 
 .ac-group{ margin:6px 0 -4px; font-family:'Archivo',system-ui,sans-serif; font-weight:800; font-size:13px;
   letter-spacing:.4px; text-transform:uppercase; color:var(--paper-ink); opacity:.55; }
+/* Your sweeps, two at a time once the pane is wide enough for two — the same argument as
+   the dashboard grid: these are cards, not prose. Two columns and no more; a sweep card
+   is a name, a competition and a count, and a third column only makes the name wrap.
+   The account's billing panel is NOT in here — it speaks for the account rather than for
+   one sweep, so it stays full width above the list. The headings that split "sweeps you
+   run" from "sweeps you're in" label a group, so they span it. */
+.ac-list{ display:flex; flex-direction:column; gap:16px; }
+@media (min-width:1100px){
+  .ac-list{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+  .ac-list > .ac-group, .ac-list > .ac-empty{ grid-column:1/-1; }
+}
 /* the sweep's name and what it follows, as one block, so the action on the right
    sits against the pair rather than crowding the title */
 .ac-card-id{ min-width:0; }

@@ -540,19 +540,21 @@ export function AccountHome({ here = "home" }) {
   useEffect(() => { reload(); }, [reload]);
 
   return (
-    <Console here={here}>
+    // A list of cards, so it takes the pane's width the way the dashboard does.
+    <Console here={here} wide>
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">Your sweeps</h1>
       <p className="ac-sub">Sign in on any device you own it from — admin follows your account, not a link.</p>
       {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
       <div className="ac-stack">
-        {/* First, and whether or not any sweep exists. This is the page every
+        {/* First, full width, and whether or not any sweep exists. This is the page every
             "subscribe" and "go to billing" link in the app lands on, and the one
             subscription it speaks for is what decides whether the sweeps under it are
             live or read-only — so it reads as the heading for the list, not a footnote
-            after it. */}
+            after it, and it is outside the list's own grid because it speaks for the
+            account rather than for any one sweep. */}
         {billing && <BillingPanel billing={billing} />}
-        {billing && <SweepList sweeps={sweeps} billing={billing} />}
+        {billing && <div className="ac-list"><SweepList sweeps={sweeps} billing={billing} /></div>}
       </div>
     </Console>
   );
