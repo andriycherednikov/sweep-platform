@@ -1,6 +1,6 @@
-import { eq, and, ne, desc, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
+import { eq, and, ne, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
 import {
-  account, accountSession, bet, loginToken, catalogLeague, competition, competitor,
+  account, accountSession, loginToken, catalogLeague, competition, competitor,
   event, ownership, person, photo, support, sweep,
 } from '../db/schema.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep } from '../sweeps/auth.js'
@@ -609,6 +609,31 @@ export async function accountRoutes(app) {
      *  'DRAW' still matches it, which is exactly right. */
     const winner = sql`coalesce(${event.winnerCode}, case when ${event.score1} > ${event.score2} then ${event.c1Code} when ${event.score2} > ${event.score1} then ${event.c2Code} else 'DRAW' end)`
 
+    /** Every wager in one shape: a single is a bet row, and a parlay is the parlay row.
+     *
+     *  A parlay's legs are bet rows carrying stake 0 and potential_payout 0 — the money is
+     *  on the parent (routes/coins.js:152) — so reading the bet table alone counts a
+     *  four-leg accumulator as four bets that staked nothing and never sees what it paid.
+     *  UNION rather than a filter plus a second query per figure: the median lead time is
+     *  what forces it (two medians do not average into one), and once it exists the daily
+     *  buckets, the fattest win and the per-person tally all read the same rows, so they
+     *  cannot disagree with each other. Raw SQL because drizzle has no union subquery.
+     *  A parlay's kickoff is its EARLIEST leg: the first one to start is what closes it. */
+    const wagers = (sweepIds) => sql`(
+      select b.sweep_id, b.person_id, b.placed_at, b.stake, b.potential_payout, b.status,
+             e.start_utc as kickoff
+        from bet b join event e on e.id = b.fixture_id
+       where b.parlay_id is null
+         and b.sweep_id in ${sweepIds} and b.person_id in ${pids}
+      union all
+      select p.sweep_id, p.person_id, p.placed_at, p.stake, p.potential_payout, p.status,
+             (select min(e.start_utc) from bet l join event e on e.id = l.fixture_id
+               where l.parlay_id = p.id) as kickoff
+        from parlay p
+       where p.sweep_id in ${sweepIds} and p.person_id in ${pids}
+    ) w`
+    const rowsOf = (q) => app.db.execute(q).then((r) => r.rows)
+
     // Nobody in any sweep, or wagering off everywhere, and the matching queries never run.
     const nothing = Promise.resolve([])
     const anyone = (q) => (pids.length ? q() : nothing)
@@ -661,41 +686,35 @@ export async function accountRoutes(app) {
 
         // Two counts rather than one query: three left joins off a single person row
         // multiply each other, and a wrong number is worse than a second round trip.
-        anyone(() => app.db.select({ sweepId: bet.sweepId, personId: bet.personId, n: sql`count(*)::int` })
-          .from(bet)
-          .where(and(inArray(bet.sweepId, ids), inArray(bet.personId, pids)))
-          .groupBy(bet.sweepId, bet.personId)),
+        // `ids`, not `wids`: a sweep that has had wagering turned off since keeps the bets
+        // that were placed while it was on, and the people who placed them were not quiet.
+        anyone(() => rowsOf(sql`
+          select sweep_id as "sweepId", person_id as "personId", count(*)::int as n
+            from ${wagers(ids)} group by 1, 2`)),
 
         anyone(() => app.db.select({ sweepId: photo.sweepId, personId: photo.personId, n: sql`count(*)::int` })
           .from(photo)
           .where(and(inArray(photo.sweepId, ids), inArray(photo.personId, pids), eq(photo.status, 'approved')))
           .groupBy(photo.sweepId, photo.personId)),
 
-        punters(() => app.db.select({
-          sweepId: bet.sweepId, date: day(bet.placedAt),
-          bets: sql`count(*)::int`, staked: sql`sum(${bet.stake})::int`,
-        }).from(bet)
-          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids)))
-          .groupBy(bet.sweepId, day(bet.placedAt))
-          .orderBy(day(bet.placedAt))),
+        punters(() => rowsOf(sql`
+          select sweep_id as "sweepId", ${day(sql`placed_at`)} as date,
+                 count(*)::int as bets, sum(stake)::int as staked
+            from ${wagers(wids)} group by 1, 2 order by 2`)),
 
         // DISTINCT ON is the whole "one biggest win per sweep" query: sort by profit
         // inside each sweep and keep the first row.
-        punters(() => app.db.selectDistinctOn([bet.sweepId], {
-          sweepId: bet.sweepId, personId: bet.personId,
-          profit: sql`(${bet.potentialPayout} - ${bet.stake})::int`,
-        }).from(bet)
-          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids), eq(bet.status, 'won')))
-          .orderBy(bet.sweepId, desc(sql`${bet.potentialPayout} - ${bet.stake}`))),
+        punters(() => rowsOf(sql`
+          select distinct on (sweep_id) sweep_id as "sweepId", person_id as "personId",
+                 (potential_payout - stake)::int as profit
+            from ${wagers(wids)} where status = 'won'
+           order by sweep_id, profit desc`)),
 
         // "bets a median 41 minutes before kickoff" — the kind of line this dashboard is for.
-        punters(() => app.db.select({
-          sweepId: bet.sweepId, personId: bet.personId,
-          medianSec: sql`(percentile_cont(0.5) within group (order by extract(epoch from ${event.startUtc} - ${bet.placedAt})))::int`,
-        }).from(bet)
-          .innerJoin(event, eq(event.id, bet.fixtureId))
-          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids)))
-          .groupBy(bet.sweepId, bet.personId)),
+        punters(() => rowsOf(sql`
+          select sweep_id as "sweepId", person_id as "personId",
+                 (percentile_cont(0.5) within group (order by extract(epoch from kickoff - placed_at)))::int as "medianSec"
+            from ${wagers(wids)} group by 1, 2`)),
       ])
 
     const bySweep = (rows) => {

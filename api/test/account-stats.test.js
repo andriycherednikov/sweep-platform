@@ -4,7 +4,7 @@ import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { ownerHeaders } from './helpers/session.js'
 import {
-  account, accountSession, bet, competition, competitor, event, ownership, person, photo, support, sweep,
+  account, accountSession, bet, competition, competitor, event, ownership, parlay, person, photo, support, sweep,
 } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
@@ -70,6 +70,15 @@ beforeAll(async () => {
     // The fattest win in the sweep belongs to somebody who is not in it any more.
     { id: 'bt_s3', sweepId: SW, personId: 'pn_eve', fixtureId: 'ev_s1', selection: 'HOME', stake: 100, oddsDecimal: '9', potentialPayout: 900, status: 'won', placedAt: DAY },
   ]).onConflictDoNothing()
+  // Bob's accumulator, written the way POST /api/parlay writes one: the stake and the
+  // payout are on the parlay row, and the legs below carry zeroes.
+  await db.insert(parlay).values({
+    id: 'par_s1', sweepId: SW, personId: 'pn_bob', stake: 20, combinedOdds: '5', potentialPayout: 100, status: 'won', placedAt: DAY,
+  }).onConflictDoNothing()
+  await db.insert(bet).values([
+    { id: 'bt_s4', sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s1', parlayId: 'par_s1', selection: 'HOME', stake: 0, oddsDecimal: '2.5', potentialPayout: 0, status: 'won', placedAt: DAY },
+    { id: 'bt_s5', sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s2', parlayId: 'par_s1', selection: 'HOME', stake: 0, oddsDecimal: '2', potentialPayout: 0, status: 'won', placedAt: DAY },
+  ]).onConflictDoNothing()
   await db.insert(photo).values([
     { id: 'ph_s1', sweepId: SW, kind: 'person', uploaderName: 'Bob', personId: 'pn_bob', filePath: 'a.jpg' },
     { id: 'ph_s2', sweepId: SW, kind: 'person', uploaderName: 'Eve', personId: 'pn_eve', filePath: 'b.jpg' },
@@ -80,6 +89,7 @@ afterAll(async () => {
   for (const id of [SW, PLAIN]) {
     await db.delete(photo).where(eq(photo.sweepId, id))
     await db.delete(bet).where(eq(bet.sweepId, id))
+    await db.delete(parlay).where(eq(parlay.sweepId, id))
     await db.delete(support).where(eq(support.sweepId, id))
     await db.delete(ownership).where(eq(ownership.sweepId, id))
     await db.delete(person).where(eq(person.sweepId, id))
@@ -152,18 +162,24 @@ test('the loud-and-quiet list keeps the quiet ones, at zero', async () => {
   const s = await forSweep(SW)
   expect(s.activity).toEqual([
     { personId: 'pn_ann', picks: 2, bets: 1, photos: 0 },
-    { personId: 'pn_bob', picks: 1, bets: 1, photos: 1 },
+    // Two, not three: Bob placed one single and one two-leg parlay.
+    { personId: 'pn_bob', picks: 1, bets: 2, photos: 1 },
   ])
 })
 
+// A parlay leg is a bet row with stake 0 and payout 0, so a route that reads the bet table
+// alone prints three bets that staked 15 and cannot see the 100 the accumulator paid.
 test('wagering counts what was staked, and whose win was fattest', async () => {
   const s = await forSweep(SW)
-  expect(s.wagering.daily).toEqual([{ date: '2024-05-01', bets: 2, staked: 15 }])
+  // Three wagers, not five: two singles and ONE parlay, staking 10 + 5 + 20.
+  expect(s.wagering.daily).toEqual([{ date: '2024-05-01', bets: 3, staked: 35 }])
   // Eve's 800 is the biggest number in the table and she is not in the sweep any more.
-  expect(s.wagering.biggest).toEqual({ personId: 'pn_ann', profit: 15 })
+  expect(s.wagering.biggest).toEqual({ personId: 'pn_bob', profit: 80 })
+  // A parlay's lead time runs to its EARLIEST leg (ev_s1, 30h out), so Bob's two wagers
+  // are 54h and 30h — and the median of a union is not the average of two medians.
   expect(s.wagering.lead).toEqual([
     { personId: 'pn_ann', medianSec: 30 * 3600 },
-    { personId: 'pn_bob', medianSec: 54 * 3600 },
+    { personId: 'pn_bob', medianSec: 42 * 3600 },
   ])
 })
 
