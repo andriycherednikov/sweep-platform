@@ -480,6 +480,27 @@ test('past six, the rail stops listing and offers the whole list instead', async
   expect(nav.getByRole('link', { name: /all 8 sweeps/i })).toBeTruthy()
 })
 
+// The cap was on the wrong list, or rather on only half of it: you run a handful of
+// sweeps and you join other people's, so the side that actually grows was the one
+// listed to the end with no overflow item to escape by.
+test("the sweeps you are in are capped and overflow the same way the ones you run do", async () => {
+  getAccountSweeps.mockResolvedValue(
+    [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ownedSweep(i, { role: 'member', name: `In ${i}` })),
+  )
+  render(<AccountHome here="sweeps" />)
+  const nav = await rail()
+  expect(nav.getAllByRole('link', { name: /^In \d$/ })).toHaveLength(6)
+  expect(nav.getByRole('link', { name: /all 8 sweeps you're in/i })).toHaveAttribute('href', '/account/sweeps')
+})
+
+test('a handful of sweeps you are in are all listed, with no overflow item', async () => {
+  getAccountSweeps.mockResolvedValue([1, 2].map((i) => ownedSweep(i, { role: 'member', name: `In ${i}` })))
+  render(<AccountHome here="sweeps" />)
+  const nav = await rail()
+  expect(nav.getAllByRole('link', { name: /^In \d$/ })).toHaveLength(2)
+  expect(nav.queryByRole('link', { name: /all \d+ sweeps/i })).toBeNull()
+})
+
 // At <=820px the rail turns into a horizontal strip, which survives two items and not
 // twelve. The same sweeps ride along as a native picker: no drawer to build, and the
 // keyboard and VoiceOver work without being asked.

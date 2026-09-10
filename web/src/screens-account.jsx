@@ -153,8 +153,11 @@ export function Console({ here, wide, children }) {
           {owned.length > 0 && <p className="ac-sec">Your sweeps</p>}
           {owned.slice(0, RAIL_MAX).map((s) => sweepItem(s, `/account/s/${s.id}`))}
           {owned.length > RAIL_MAX && item("sweeps", "/account/sweeps", `All ${owned.length} sweeps`, " is-more")}
+          {/* Same cap, and this is the half that needed it: you set up a handful of
+              sweeps of your own, and you join however many your friends set up. */}
           {joined.length > 0 && <p className="ac-sec">You're in</p>}
-          {joined.map((s) => sweepItem(s, `/s/${s.id}`))}
+          {joined.slice(0, RAIL_MAX).map((s) => sweepItem(s, `/s/${s.id}`))}
+          {joined.length > RAIL_MAX && item("sweeps-in", "/account/sweeps", `All ${joined.length} sweeps you're in`, " is-more")}
           {/* At 820px and under the rail lies down into a horizontal strip, which
               survives two items and not twelve. The same places as the platform's own
               picker: no drawer to build, and the keyboard and VoiceOver come free. It
