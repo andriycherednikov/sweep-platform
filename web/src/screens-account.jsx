@@ -76,7 +76,7 @@ export function Console({ here, children }) {
   }, []);
   const item = (key, label, badge) => (
     <button
-      className={"ac-nav-i" + (here === key ? " is-here" : "") + (key === "new" ? " is-go" : "")}
+      className={"ac-nav-i" + (here === key ? " is-here" : "")}
       onClick={() => goTo(key === "sweeps" ? "/account" : "/account/new")}
     >
       {label}{badge !== undefined && <span>{badge}</span>}

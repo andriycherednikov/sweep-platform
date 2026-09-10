@@ -1289,8 +1289,14 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .ac{ display:grid; grid-template-columns:236px minmax(0,1fr); align-items:start;
   min-height:100dvh; text-align:left; }
 /* the rail sits deeper than the page it frames — same ink, one step back */
+/* The rail lists every sweep you run, so its content is no longer a fixed two items:
+   a dozen of them overrun a 900px viewport, and without this the "New sweep" button
+   and the sign-out gear at the foot simply leave the screen with no way to reach them.
+   min-height:0 is the half that actually matters — a flex child defaults to
+   min-height:auto and refuses to shrink below its content, so overflow never triggers. */
 .ac-side{ position:sticky; top:0; display:flex; flex-direction:column; gap:26px;
-  height:100dvh; padding:26px 20px; background:#0a1017; border-right:1px solid var(--edge); }
+  height:100dvh; min-height:0; overflow-y:auto; padding:26px 20px; background:#0a1017;
+  border-right:1px solid var(--edge); }
 .ac-brand{ font-size:25px; }
 .ac-nav{ display:flex; flex-direction:column; gap:2px; }
 .ac-nav-i{ display:flex; align-items:center; justify-content:space-between; gap:8px;
@@ -1383,8 +1389,13 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 .ac-search:focus{ outline:none; border-color:var(--paper-ink); }
 
 .ac-rows{ display:flex; flex-direction:column; gap:8px; }
-.ac-row{ display:flex; align-items:center; gap:13px; padding:12px 14px; border-radius:12px;
-  background:#fff; border:1px solid var(--edge); }
+/* Scoped to its list on purpose: the console's own `.ac-row` (a sweep you are only in,
+   further down this file) is a different row that took the same name, and being declared
+   later it was silently winning here — the catalog's competition rows were rendering with
+   the member card's padding and justification, and the member card was picking up this
+   rule's 12px radius over its own card's 16px. */
+.ac-rows .ac-row{ display:flex; align-items:center; gap:13px; padding:12px 14px;
+  border-radius:12px; background:#fff; border:1px solid var(--edge); }
 .ac-row-logo{ flex-shrink:0; width:30px; height:30px; border-radius:6px; object-fit:contain; }
 .ac-row-id{ flex:1; min-width:0; }
 .ac-row-id b{ display:block; font-family:'Archivo',system-ui,sans-serif; font-weight:700;
