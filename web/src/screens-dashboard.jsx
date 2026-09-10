@@ -189,6 +189,12 @@ function RaceCard({ s }) {
             {`${leader.label} out in front on ${plural(last(leader.points), "win")}`}
             {series.length > 1 ? ` · one line per person, running total` : ""}
             {narrow && series.length > shown.length ? ` · showing the top ${RACE_MAX} on a screen this size` : ""}
+            {/* Said out loud because the chart cannot help it: `ownership` records who
+                owns a team, not since when, so every win a team has ever had is drawn
+                under whoever holds it today. The alternative is a timestamped ownership
+                history and a re-draw of the whole join — for a chart whose job is to be
+                fun in the group chat, the sentence is the honest price. */}
+            {` · a team that changes hands takes its old wins with it`}
           </p>
         </>
       )}
@@ -309,6 +315,11 @@ function LuckCard({ s }) {
           <p className="ch-cap">
             Across: how many games your teams have won. Up: how often you called one right.
             The draw was random, so anything you see along the diagonal is your imagination.
+            {/* `support` has no timestamp either, and the baseline sync deletes the picks
+                on any fixture the provider stops listing (worker/baseline-sync.js:173) —
+                so the denominator of that percentage can shrink after the fact. */}
+            {" "}Up counts the fixtures the feed still lists: drop a game, and it drops
+            the pick with it.
           </p>
         </>
       )}

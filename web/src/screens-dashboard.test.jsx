@@ -203,6 +203,21 @@ test('the quiet ones are the rows you can go and poke', async () => {
   expect(pane().getByText('4 picks · 1 bet')).toBeTruthy()
 })
 
+// Both charts are drawn from tables with no history in them, and on a page whose whole
+// job is entertainment a caption is cheaper than a schema change — but it has to be
+// there, or the chart quietly claims to remember something it cannot.
+test('the race admits it credits every win to whoever holds the team now', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /wins/i })
+  expect(pane().getByText(/changes hands/i)).toBeTruthy()
+})
+
+test('the luck card admits the feed can rewrite what it divides by', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /luck/i })
+  expect(pane().getByText(/drops the pick with it/i)).toBeTruthy()
+})
+
 test('wagering off means no pulse card at all', async () => {
   render(<Dashboard />)
   await pane().findByRole('img', { name: /wins/i })
