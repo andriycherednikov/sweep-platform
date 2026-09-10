@@ -240,7 +240,7 @@ test('wagering on draws the bets, the biggest win and who leaves it latest', asy
   getAccountStats.mockResolvedValue([{
     ...STATS,
     wagering: {
-      daily: [{ date: '2026-05-01', bets: 2, staked: 15 }],
+      daily: [{ date: '2026-05-01', bets: 2, staked: 15 }, { date: '2026-05-02', bets: 1, staked: 5 }],
       biggest: { personId: 'pn_a', profit: 40 },
       lead: [{ personId: 'pn_a', medianSec: 2460 }],
     },
@@ -303,4 +303,65 @@ test('the dashboard keeps a way through to the list and the billing on it', asyn
   render(<Dashboard />)
   await waitFor(() => expect(getAccountStats).toHaveBeenCalled())
   expect(pane().getByRole('link', { name: /sweeps and billing/i })).toHaveAttribute('href', '/account/sweeps')
+})
+
+/* ---------------- one day of data is not a chart ---------------- */
+// A sweep made this morning has every seat, every win and every bet stamped with the
+// same date, which is one column — and a line through one point draws literally
+// nothing. Every card here would rather say the number than hand back an empty box.
+test('seats all added on one day get the count, not a line through one point', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, joins: [{ date: '2026-05-01', created: 3, claimed: 1 }] }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/1 of 3/)).toBeTruthy()
+  expect(pane().queryByRole('img', { name: /seats/i })).toBeNull()
+})
+
+test('a race that has only had one day of results says the score instead of drawing it', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    race: [{ personId: 'pn_a', date: '2026-05-02', wins: 3 }, { personId: 'pn_b', date: '2026-05-02', wins: 1 }],
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/AS out in front on 3 wins/)).toBeTruthy()
+  expect(pane().queryByRole('img', { name: /wins/i })).toBeNull()
+  // The caption cannot promise a line per person when there is no line.
+  expect(pane().queryByText(/one line per person/)).toBeNull()
+})
+
+test('one day of betting is a number, not a single bar at full height', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    wagering: { daily: [{ date: '2026-05-01', bets: 4, staked: 30 }], biggest: null, lead: [] },
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/30 coins staked/)).toBeTruthy()
+  expect(pane().queryByRole('img', { name: /bets/i })).toBeNull()
+})
+
+/* ---------------- the charts take the room a desktop gives them ---------------- */
+// Height here is a viewBox ratio, not pixels: the drawing is stretched to whatever the
+// card is wide. A 220-unit race across a 1400px pane is a flat line by accident.
+const stubMedia = (matcher) => {
+  const real = window.matchMedia
+  window.matchMedia = (q) => ({
+    matches: matcher(q), media: q,
+    addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
+  })
+  return () => { window.matchMedia = real }
+}
+
+test('a wide pane draws the race taller than a narrow one does', async () => {
+  const restore = stubMedia((q) => q.includes('min-width:1280'))
+  try {
+    render(<Dashboard />)
+    expect((await pane().findByRole('img', { name: /wins/i })).getAttribute('viewBox')).toBe('0 0 640 280')
+  } finally { restore() }
+})
+
+test('a pane that is not wide keeps the race at the height it always was', async () => {
+  const restore = stubMedia(() => false)
+  try {
+    render(<Dashboard />)
+    expect((await pane().findByRole('img', { name: /wins/i })).getAttribute('viewBox')).toBe('0 0 640 220')
+  } finally { restore() }
 })

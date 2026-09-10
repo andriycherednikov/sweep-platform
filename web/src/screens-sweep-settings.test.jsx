@@ -28,8 +28,11 @@ const SWEEP = {
 const STATS = {
   sweepId: 'sw1',
   people: [{ id: 'pn_a', name: 'Ann Smith', initials: 'AS', avColor: '#e11', claimedAt: '2026-05-01T12:00:00.000Z' }],
-  joins: [{ date: '2026-05-01', created: 2, claimed: 1 }],
-  race: [{ personId: 'pn_a', date: '2026-05-02', wins: 2 }],
+  // Two days of everything: one day is one column, which the cards deliberately state
+  // as a number rather than draw (screens-dashboard.jsx), and this test is about the
+  // charts being here at all.
+  joins: [{ date: '2026-05-01', created: 2, claimed: 1 }, { date: '2026-05-02', created: 0, claimed: 1 }],
+  race: [{ personId: 'pn_a', date: '2026-05-02', wins: 2 }, { personId: 'pn_a', date: '2026-05-03', wins: 1 }],
   season: { final: 3, total: 5, next: null },
   calls: [{ personId: 'pn_a', picks: 4, right: 3 }],
   activity: [{ personId: 'pn_a', picks: 4, bets: 0, photos: 0 }],

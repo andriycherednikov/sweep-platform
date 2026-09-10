@@ -21,7 +21,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { Console, NoSweepsYet, fmtDay, BillingNotice } from "./screens-account.jsx";
 import { getAccountSweeps, getAccountStats } from "./lib/accountClient.js";
-import { Lines, Bars, Scatter } from "./charts.jsx";
+import { Lines, Bars, Scatter, oneDay } from "./charts.jsx";
 
 const DAY_MS = 86400000;
 // How many lines the race keeps on a phone. A 220px chart carrying a dozen labelled
@@ -141,8 +141,9 @@ function untilText(iso) {
 
 const daysSince = (date) => Math.max(0, Math.round((Date.now() - Date.parse(`${date}T00:00:00Z`)) / DAY_MS));
 
-/** Is the rail lying down? Below 820px it does, and so does this grid — the race has to
- *  drop lines rather than shrink them.
+/** Which of the stylesheet's two console breakpoints the window is on. Below 820px the
+ *  rail lies down and so does this grid, and the race has to drop lines rather than
+ *  shrink them; from 1280 the pane is wide enough for the charts to be drawn taller.
  *
  *  Not components.jsx's useIsDesktop, which is the same eight lines: that one asks
  *  (min-width:900px), the sweep app's desktop frame, and the number that matters here is
@@ -152,20 +153,30 @@ const daysSince = (date) => Math.max(0, Math.round((Date.now() - Date.parse(`${d
  *  api/client.js, all of which the console deliberately mounts without (screens-account.jsx
  *  says the same about its own gear menu). The 820 is repeated from styles.css because
  *  matchMedia cannot read a breakpoint out of a stylesheet; the two live one grep apart. */
-function useNarrow() {
-  const query = "(max-width:820px)";
-  const [narrow, setNarrow] = useState(() => !!window.matchMedia?.(query).matches);
+function useMedia(query) {
+  const [on, setOn] = useState(() => !!window.matchMedia?.(query).matches);
   useEffect(() => {
     const m = window.matchMedia?.(query);
     if (!m) return;
-    const onChange = () => setNarrow(m.matches);
+    const onChange = () => setOn(m.matches);
     m.addEventListener ? m.addEventListener("change", onChange) : m.addListener(onChange);
     return () => {
       m.removeEventListener ? m.removeEventListener("change", onChange) : m.removeListener(onChange);
     };
-  }, []);
-  return narrow;
+  }, [query]);
+  return on;
 }
+
+const useNarrow = () => useMedia("(max-width:820px)");
+
+/** The other end of the same stylesheet: from 1280px the grid runs three columns across
+ *  a pane that is now up to 1440 wide, so every card is bigger than the one this page was
+ *  drawn for. Height in charts.jsx is a viewBox ratio rather than pixels — the drawing is
+ *  stretched to whatever the card is wide — so a 220-unit race across 900px of card is a
+ *  flat line by accident. The taller numbers are the same charts at the same shape.
+ *  1280 is repeated from styles.css for the reason the 820 above is: matchMedia cannot
+ *  read a breakpoint out of a stylesheet, and the two live one grep apart. */
+const useTall = () => useMedia("(min-width:1280px)");
 
 /* ---------------- the cards ---------------- */
 
@@ -176,8 +187,11 @@ function useNarrow() {
 function RaceCard({ s }) {
   const series = raceSeries(s);
   const narrow = useNarrow();
+  const tall = useTall();
   const shown = narrow ? series.slice(0, RACE_MAX) : series;
   const leader = series[0];
+  // Every win on the same day is one column, and one column is not a line.
+  const flat = series.length > 0 && oneDay(shown);
 
   return (
     <section className="ac-card is-full">
@@ -192,11 +206,20 @@ function RaceCard({ s }) {
         </p>
       ) : (
         <>
-          <Lines title="Wins per person, running total" series={shown} height={220} />
+          {/* A sweep whose results all landed today draws every line as a single point,
+              which is an empty box. The score is the whole story on day one; say it. */}
+          {flat ? (
+            <p className="ch-big">
+              {last(leader.points)}
+              <span>{`${last(leader.points) === 1 ? "win" : "wins"} so far, all on the one day`}</span>
+            </p>
+          ) : (
+            <Lines title="Wins per person, running total" series={shown} height={tall ? 280 : 220} />
+          )}
           <p className="ch-cap">
             {`${leader.label} out in front on ${plural(last(leader.points), "win")}`}
-            {series.length > 1 ? ` · one line per person, running total` : ""}
-            {narrow && series.length > shown.length ? ` · showing the top ${RACE_MAX} on a screen this size` : ""}
+            {!flat && series.length > 1 ? ` · one line per person, running total` : ""}
+            {!flat && narrow && series.length > shown.length ? ` · showing the top ${RACE_MAX} on a screen this size` : ""}
             {/* Said out loud because the chart cannot help it: `ownership` records who
                 owns a team, not since when, so every win a team has ever had is drawn
                 under whoever holds it today. The alternative is a timestamped ownership
@@ -223,6 +246,10 @@ function JoinsCard({ joins, href }) {
   const joined = last(claimed);
   const waiting = invited - joined;
   const lastInvite = [...joins].reverse().find((j) => j.created > 0)?.date;
+  const tall = useTall();
+  // Every seat added the same afternoon — the usual shape of a sweep set up this
+  // morning — is one column, and two lines through one column each draw nothing.
+  const flat = joins.length < 2;
 
   return (
     <section className="ac-card">
@@ -231,18 +258,24 @@ function JoinsCard({ joins, href }) {
         <p className="ac-b">Nobody has been added yet — that is where a sweep starts.</p>
       ) : (
         <>
-          <Lines
-            title="Seats invited against seats joined"
-            height={150}
-            series={[
-              { id: "made", color: "var(--ink3)", label: String(invited), points: made },
-              { id: "in", color: "var(--lp-accent)", label: String(joined), points: claimed },
-            ]}
-          />
-          <p className="ch-key">
-            <span><i style={{ background: "var(--ink3)" }} />Invited</span>
-            <span><i style={{ background: "var(--lp-accent)" }} />Actually joined</span>
-          </p>
+          {flat ? (
+            <p className="ch-big">{`${joined} of ${invited}`}<span>seats claimed</span></p>
+          ) : (
+            <>
+              <Lines
+                title="Seats invited against seats joined"
+                height={tall ? 180 : 150}
+                series={[
+                  { id: "made", color: "var(--ink3)", label: String(invited), points: made },
+                  { id: "in", color: "var(--lp-accent)", label: String(joined), points: claimed },
+                ]}
+              />
+              <p className="ch-key">
+                <span><i style={{ background: "var(--ink3)" }} />Invited</span>
+                <span><i style={{ background: "var(--lp-accent)" }} />Actually joined</span>
+              </p>
+            </>
+          )}
           <p className="ch-cap">
             {waiting > 0 ? (
               <>
@@ -296,6 +329,7 @@ function LuckCard({ s }) {
   const wins = new Map();
   for (const r of s.race) wins.set(r.personId, (wins.get(r.personId) ?? 0) + r.wins);
   const mostWins = Math.max(1, ...wins.values());
+  const tall = useTall();
 
   const points = s.calls
     .filter((c) => byId.has(c.personId) && c.picks > 0)
@@ -317,7 +351,7 @@ function LuckCard({ s }) {
           <Scatter
             title="Luck against skill"
             points={points}
-            height={200}
+            height={tall ? 240 : 200}
             quadrants={["Cursed", "Sharp", "Hopeless", "Blessed"]}
           />
           <p className="ch-cap">
@@ -349,6 +383,7 @@ function PulseCard({ s }) {
   // Whoever leaves it latest is the funnier end of the list, so that is the end shown.
   const latest = lead.reduce((low, l) => (!low || l.medianSec < low.medianSec ? l : low), null);
   const winner = biggest && byId.get(biggest.personId);
+  const tall = useTall();
 
   return (
     <section className="ac-card">
@@ -357,8 +392,20 @@ function PulseCard({ s }) {
         <p className="ac-b">Wagering is on, but nobody has had a bet on yet.</p>
       ) : (
         <>
-          <Bars title="Bets placed per day" values={perDay} height={130} />
-          <p className="ch-cap">{`${plural(bets, "bet")} · ${staked} coins staked`}</p>
+          {/* One day of betting is one bar, and one bar is always full height because it
+              is its own maximum — a drawing that says the same thing whatever the number
+              is. The number does not have that problem. */}
+          {perDay.length < 2 ? (
+            <p className="ch-big">
+              {bets}
+              <span>{`${bets === 1 ? "bet" : "bets"} · ${staked} coins staked, all on the one day`}</span>
+            </p>
+          ) : (
+            <>
+              <Bars title="Bets placed per day" values={perDay} height={tall ? 160 : 130} />
+              <p className="ch-cap">{`${plural(bets, "bet")} · ${staked} coins staked`}</p>
+            </>
+          )}
           {winner && (
             <p className="ac-b">
               {`Biggest win: ${winner.name}, ${biggest.profit} coins up on one bet.`}

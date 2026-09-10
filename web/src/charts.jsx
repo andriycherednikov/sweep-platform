@@ -53,6 +53,13 @@ export function linePath(values, height, max, width) {
     .join(" ");
 }
 
+/** True when no series has anywhere to travel — every reading is stamped with the same
+ *  day. A line then draws a single moveto and nothing else, so the chart comes out as an
+ *  empty box wearing grid lines, which is how a sweep set up this morning looks.
+ *  Asked here rather than answered here: what to say instead is the card's copy, not the
+ *  drawing's, and both callers of Lines need the same question. */
+export const oneDay = (series) => series.every((s) => s.points.length < 2);
+
 /** One line per series over a shared x axis, each ending in a dot and its own label.
  *  `dim` is the caller's call, not the chart's: the dashboard knows who is leading and
  *  who is context, and a chart that decided that for itself would be wrong the moment
