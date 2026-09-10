@@ -108,3 +108,41 @@ test('switchTo keeps the token when the failure carries no status (offline)', as
   await expect(switchTo({ sweepId: 'sw_3', token: 'tok3' })).rejects.toThrow()
   expect(listSweeps()[0].token).toBe('tok3')
 })
+
+// A sweep entered through the account — the console's "Open", or the gate minting a
+// cookie — never hands the client a link token, and SweepProvider backfills the entry
+// with token:null. switchTo posted that null to /api/session, whose schema demands a
+// string of at least 8 characters: every switch into such a sweep was a 400.
+test('switchTo opens a token-less sweep through the account instead', async () => {
+  const postSession = vi.fn()
+  const openSweepSession = vi.fn(async () => ({ sweepId: 'sw_acct' }))
+  vi.doMock('./api/client.js', () => ({ postSession }))
+  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), openSweepSession }))
+  const assign = vi.fn()
+  const original = window.location
+  delete window.location
+  window.location = { ...original, assign }
+  const { switchTo } = await import('./sweeps.js')
+  await switchTo({ sweepId: 'sw_acct', name: 'From the console', role: 'admin', token: null })
+  expect(postSession).not.toHaveBeenCalled()          // nothing to post
+  expect(openSweepSession).toHaveBeenCalledWith('sw_acct')
+  expect(assign).toHaveBeenCalledWith('/s/sw_acct')
+  window.location = original
+})
+
+// ...and a link token still wins, so a member with no account keeps working.
+test('switchTo prefers the stored link token when there is one', async () => {
+  const postSession = vi.fn(async () => ({ sweepId: 'sw_tok' }))
+  const openSweepSession = vi.fn()
+  vi.doMock('./api/client.js', () => ({ postSession }))
+  vi.doMock('./lib/accountClient.js', async (orig) => ({ ...(await orig()), openSweepSession }))
+  const assign = vi.fn()
+  const original = window.location
+  delete window.location
+  window.location = { ...original, assign }
+  const { switchTo } = await import('./sweeps.js')
+  await switchTo({ sweepId: 'sw_tok', token: 'tok-abcdefgh' })
+  expect(postSession).toHaveBeenCalledWith('tok-abcdefgh')
+  expect(openSweepSession).not.toHaveBeenCalled()
+  window.location = original
+})

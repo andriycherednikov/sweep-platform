@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { postSession } from './api/client.js'
+import { openSweepSession } from './lib/accountClient.js'
 
 const KEY = 'sweep.sweeps.v1'
 
@@ -82,18 +83,25 @@ export function dropToken(sweepId) {
 }
 
 /**
- * Switch the active sweep: re-exchange its stored token (which refreshes the cookie
- * and moves this sweep to the front), then NAVIGATE to its address. A real navigation
- * rather than a cache invalidation, because the URL now names the sweep: Back works
- * across a switch, and no query cache carries one sweep's data into another's screen.
- * @param {{sweepId:string, token:string}} sweep
+ * Switch the active sweep: mint its cookie, then NAVIGATE to its address. A real
+ * navigation rather than a cache invalidation, because the URL now names the sweep:
+ * Back works across a switch, and no query cache carries one sweep's data into
+ * another's screen.
+ *
+ * Two ways to hold a sweep, and only one of them has a token. A /g/ link stores its
+ * token here; a sweep entered through the account — the console's Open, or the gate
+ * minting a cookie from the account session — never sees one, and SweepProvider
+ * backfills the entry with token:null. Posting that null to /api/session, whose schema
+ * wants a string of at least 8 characters, 400'd every such switch.
+ * @param {{sweepId:string, token:?string}} sweep
  * @param {{invalidateQueries: Function}} [queryClient] unused; kept for callers mid-refactor
  */
 export async function switchTo(sweep, queryClient) {
   try {
-    await postSession(sweep.token)
+    if (sweep.token) await postSession(sweep.token)
+    else await openSweepSession(sweep.sweepId)
   } catch (err) {
-    if (isDeadToken(err)) dropToken(sweep.sweepId)
+    if (sweep.token && isDeadToken(err)) dropToken(sweep.sweepId)
     throw err
   }
   window.location.assign(`/s/${sweep.sweepId}`)
