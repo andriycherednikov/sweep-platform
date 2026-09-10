@@ -464,29 +464,7 @@ test('one day of betting is a number, not a single bar at full height', async ()
 })
 
 /* ---------------- the charts take the room a desktop gives them ---------------- */
-// Height here is a viewBox ratio, not pixels: the drawing is stretched to whatever the
-// card is wide. A 220-unit race across a 1400px pane is a flat line by accident.
-const stubMedia = (matcher) => {
-  const real = window.matchMedia
-  window.matchMedia = (q) => ({
-    matches: matcher(q), media: q,
-    addEventListener() {}, removeEventListener() {}, addListener() {}, removeListener() {},
-  })
-  return () => { window.matchMedia = real }
-}
-
-test('a wide pane draws the race taller than a narrow one does', async () => {
-  const restore = stubMedia((q) => q.includes('min-width:1280'))
-  try {
-    render(<Dashboard />)
-    expect((await pane().findByRole('img', { name: /wins/i })).getAttribute('viewBox')).toBe('0 0 640 280')
-  } finally { restore() }
-})
-
-test('a pane that is not wide keeps the race at the height it always was', async () => {
-  const restore = stubMedia(() => false)
-  try {
-    render(<Dashboard />)
-    expect((await pane().findByRole('img', { name: /wins/i })).getAttribute('viewBox')).toBe('0 0 640 220')
-  } finally { restore() }
-})
+// Nothing left to assert here: how tall a chart is comes from the stylesheet (.ch-box)
+// and how many columns the grid runs comes from a container query, neither of which
+// jsdom computes and neither of which this file could check without asserting a class
+// name and calling it verification. Both are measured in a real browser instead.

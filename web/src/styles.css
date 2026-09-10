@@ -1453,10 +1453,36 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
 .ac-sweep-head, .ac-sweep{ max-width:720px; }
 @media (min-width:1200px){ .ac-sweep{ max-width:none; } }
 
-/* charts.jsx draws at 640 units wide and lets the box decide the rest: width comes
-   from the card, height from the viewBox's own ratio. The whole drawing scales with
-   the card, which is the entire responsive story — there is nothing to measure. */
-.ch{ display:block; width:100%; height:auto; }
+/* The charts ------------------------------------------------------------------ */
+/* How tall a chart is, is a decision, and this is where it is made. It used to be a side
+   effect: the drawing carried its own aspect ratio, so height came out of however wide
+   the card happened to land — a 400px race on a big monitor that was mostly empty paper,
+   and a squashed one in a narrow column. The box is given a height, the drawing is
+   stretched into it (preserveAspectRatio="none" in charts.jsx) and the strokes refuse to
+   scale with it, so the lines keep their weight. clamp so a big screen gets a little more
+   chart without any card turning into a slab. */
+.ch-box{ position:relative; height:clamp(148px, 13vw, 180px); }
+/* the race is the page's screenshot and the one chart worth reading across a room */
+.ch-box.is-tall{ height:clamp(190px, 17vw, 250px); }
+.ch{ display:block; width:100%; height:100%; }
+/* Whose line that is, in the gutter the plot leaves at its right-hand end. HTML rather
+   than SVG <text>, because text in a stretched box is stretched with it. */
+.ch-pin{ position:absolute; margin-left:8px; transform:translateY(-50%); pointer-events:none;
+  font-family:'Barlow Semi Condensed',system-ui,sans-serif; font-weight:700; font-size:12.5px;
+  font-variant-numeric:tabular-nums; }
+/* the scatter: two dashed rules and the initials hanging off them */
+.ch-box.is-plot{ height:clamp(180px, 15vw, 220px); }
+.ch-box.is-plot::before, .ch-box.is-plot::after{ content:""; position:absolute; }
+.ch-box.is-plot::before{ left:50%; top:0; bottom:0; border-left:1px dashed var(--edge); }
+.ch-box.is-plot::after{ top:50%; left:0; right:0; border-top:1px dashed var(--edge); }
+.ch-q{ position:absolute; font-size:10.5px; font-weight:700; letter-spacing:1px;
+  text-transform:uppercase; color:var(--ink3); }
+.ch-q.is-q0{ top:0; left:0; } .ch-q.is-q1{ top:0; right:0; }
+.ch-q.is-q2{ bottom:0; left:0; } .ch-q.is-q3{ bottom:0; right:0; }
+.ch-dot{ position:absolute; display:grid; place-items:center; width:26px; height:26px;
+  border-radius:50%; transform:translate(-50%,-50%); color:#fff;
+  font-family:'Barlow Semi Condensed',system-ui,sans-serif; font-weight:800; font-size:11px;
+  letter-spacing:.3px; }
 
 /* the dashboard ------------------------------------------------------------- */
 /* Wide is for pages made of cards; narrow is for pages made of prose. A dashboard of

@@ -119,18 +119,20 @@ function untilText(iso) {
 const daysSince = (date) => Math.max(0, Math.floor((Date.now() - Date.parse(`${date}T00:00:00Z`)) / DAY_MS));
 const ago = (date) => (daysSince(date) === 0 ? "today" : `${plural(daysSince(date), "day")} ago`);
 
-/** Which of the stylesheet's two console breakpoints the window is on. Below 820px the
- *  rail lies down and so does this grid, and the race has to drop lines rather than
- *  shrink them; from 1280 the pane is wide enough for the charts to be drawn taller.
+/** Whether this is a phone. The one thing on this page that is a real behaviour change
+ *  rather than a size: below 820px the rail lies down, the grid is one column and the
+ *  race sheds lines rather than drawing a dozen of them 30px apart. How BIG anything is
+ *  drawn is not asked here at all any more — the cards size themselves against the column
+ *  they are in (a container query) and the charts take their height from the stylesheet.
  *
  *  Not components.jsx's useIsDesktop, which is the same eight lines: that one asks
  *  (min-width:900px), the sweep app's desktop frame, and the number that matters here is
- *  the 820px .ac-grid drops to one column at — between the two the race would shed lines
- *  while its card was still full width. And importing it would pull components.jsx into
- *  a console that has never touched it: that module reaches App.jsx, the sweep stores and
- *  api/client.js, all of which the console deliberately mounts without (screens-account.jsx
- *  says the same about its own gear menu). The 820 is repeated from styles.css because
- *  matchMedia cannot read a breakpoint out of a stylesheet; the two live one grep apart. */
+ *  the 820px the console's rail lies down at. And importing it would pull components.jsx
+ *  into a console that has never touched it: that module reaches App.jsx, the sweep stores
+ *  and api/client.js, all of which the console deliberately mounts without
+ *  (screens-account.jsx says the same about its own gear menu). The 820 is repeated from
+ *  styles.css because matchMedia cannot read a breakpoint out of a stylesheet; the two
+ *  live one grep apart. */
 function useMedia(query) {
   const [on, setOn] = useState(() => !!window.matchMedia?.(query).matches);
   useEffect(() => {
@@ -147,15 +149,6 @@ function useMedia(query) {
 
 const useNarrow = () => useMedia("(max-width:820px)");
 
-/** The other end of the same stylesheet: from 1280px the grid runs three columns across
- *  a pane that is now up to 1440 wide, so every card is bigger than the one this page was
- *  drawn for. Height in charts.jsx is a viewBox ratio rather than pixels — the drawing is
- *  stretched to whatever the card is wide — so a 220-unit race across 900px of card is a
- *  flat line by accident. The taller numbers are the same charts at the same shape.
- *  1280 is repeated from styles.css for the reason the 820 above is: matchMedia cannot
- *  read a breakpoint out of a stylesheet, and the two live one grep apart. */
-const useTall = () => useMedia("(min-width:1280px)");
-
 /* ---------------- the cards ---------------- */
 
 /** The screenshot. One line per member, in the colour of the avatar they already wear
@@ -165,7 +158,6 @@ const useTall = () => useMedia("(min-width:1280px)");
 function RaceCard({ s }) {
   const series = raceSeries(s);
   const narrow = useNarrow();
-  const tall = useTall();
   const shown = narrow ? series.slice(0, RACE_MAX) : series;
   const leader = series[0];
   // Every win on the same day is one column, and one column is not a line.
@@ -208,7 +200,7 @@ function RaceCard({ s }) {
               <span>{`${last(leader.points) === 1 ? "win" : "wins"} so far, all on the one day`}</span>
             </p>
           ) : (
-            <Lines title="Wins per person, running total" series={shown} height={tall ? 280 : 220} />
+            <Lines title="Wins per person, running total" series={shown} tall />
           )}
           <p className="ch-cap">
             {headline}
@@ -244,7 +236,6 @@ function JoinsCard({ joins: buckets, href }) {
   // moment the owner typed a name into the roster, and nothing anywhere records when the
   // link actually went out. The card's own note above says the same about the two lines.
   const lastAdded = [...joins].reverse().find((j) => j.created > 0)?.date;
-  const tall = useTall();
   // Every seat added the same afternoon — the usual shape of a sweep set up this
   // morning — is one column, and two lines through one column each draw nothing.
   const flat = joins.length < 2;
@@ -263,7 +254,6 @@ function JoinsCard({ joins: buckets, href }) {
             <>
               <Lines
                 title="Seats invited against seats joined"
-                height={tall ? 180 : 150}
                 series={[
                   { id: "made", color: "var(--ink3)", label: String(invited), points: made },
                   { id: "in", color: "var(--lp-accent)", label: String(joined), points: claimed },
@@ -338,7 +328,6 @@ function LuckCard({ s }) {
   // hot streak drags everybody else to the left-hand wall, and read as a count that says
   // the rest of them have won nothing.
   const mostWins = Math.max(1, ...wins.values());
-  const tall = useTall();
   // `calls` only carries fixtures that have finished AND that the feed gave a result for
   // (api/src/routes/account.js), while this is every pick anybody has made. A group that
   // has called all of next week's games has an empty scatter and a full "loud and quiet"
@@ -369,7 +358,6 @@ function LuckCard({ s }) {
           <Scatter
             title="Luck against skill"
             points={points}
-            height={tall ? 240 : 200}
             quadrants={["Cursed", "Sharp", "Hopeless", "Blessed"]}
           />
           <p className="ch-cap">
@@ -411,7 +399,6 @@ function PulseCard({ s }) {
     : mins < 0 ? `a median ${plural(-mins, "minute")} past the kickoff time`
     : "a median of right on the whistle";
   const winner = biggest && byId.get(biggest.personId);
-  const tall = useTall();
 
   return (
     <section className="ac-card is-double">
@@ -430,7 +417,7 @@ function PulseCard({ s }) {
             </p>
           ) : (
             <>
-              <Bars title="Bets placed per day" values={perDay} height={tall ? 160 : 130} />
+              <Bars title="Bets placed per day" values={perDay} />
               <p className="ch-cap">{`${plural(bets, "bet")} · ${plural(staked, "coin")} staked`}</p>
             </>
           )}
