@@ -113,7 +113,11 @@ function untilText(iso) {
   return `in ${plural(Math.round(hours / 24), "day")}`;
 }
 
-const daysSince = (date) => Math.max(0, Math.round((Date.now() - Date.parse(`${date}T00:00:00Z`)) / DAY_MS));
+/** Whole days between a 'YYYY-MM-DD' bucket and now, and then how anybody would say it.
+ *  Floored rather than rounded, because these are calendar days: rounding made anything
+ *  after midday "1 day ago" while it was still today. */
+const daysSince = (date) => Math.max(0, Math.floor((Date.now() - Date.parse(`${date}T00:00:00Z`)) / DAY_MS));
+const ago = (date) => (daysSince(date) === 0 ? "today" : `${plural(daysSince(date), "day")} ago`);
 
 /** Which of the stylesheet's two console breakpoints the window is on. Below 820px the
  *  rail lies down and so does this grid, and the race has to drop lines rather than
@@ -236,7 +240,10 @@ function JoinsCard({ joins: buckets, href }) {
   const invited = last(made);
   const joined = last(claimed);
   const waiting = invited - joined;
-  const lastInvite = [...joins].reverse().find((j) => j.created > 0)?.date;
+  // The last seat ADDED, which is not the last invite sent: person.created_at is the
+  // moment the owner typed a name into the roster, and nothing anywhere records when the
+  // link actually went out. The card's own note above says the same about the two lines.
+  const lastAdded = [...joins].reverse().find((j) => j.created > 0)?.date;
   const tall = useTall();
   // Every seat added the same afternoon — the usual shape of a sweep set up this
   // morning — is one column, and two lines through one column each draw nothing.
@@ -271,8 +278,8 @@ function JoinsCard({ joins: buckets, href }) {
           <p className="ch-cap">
             {waiting > 0 ? (
               <>
-                {`${plural(waiting, "seat")} still haven't been claimed`}
-                {lastInvite ? ` · last invite went out ${plural(daysSince(lastInvite), "day")} ago` : ""}
+                {`${plural(waiting, "seat")} still ${waiting === 1 ? "hasn't" : "haven't"} been claimed`}
+                {lastAdded ? ` · last seat added ${ago(lastAdded)}` : ""}
                 {" · "}<a className="ac-inline" href={href}>go and chase them</a>
               </>
             ) : (
@@ -303,8 +310,14 @@ function SeasonCard({ season }) {
           <div className="prob-bar" style={{ background: "var(--line2)", height: 12, borderRadius: 7, marginTop: 14 }}>
             <i style={{ width: `${played}%`, background: "var(--lp-accent)" }} />
           </div>
+          {/* `next` is the soonest kickoff STILL AHEAD (the route filters on `> now()`),
+              so it is null on a stalled feed and on fixtures the provider has not dated
+              yet as well as on a finished season — and the card was announcing the season
+              over while the bar right above it showed a third of the games unplayed. */}
           <p className="ch-cap">
-            {next ? `Next game ${untilText(next)}` : "Nothing left on the calendar."}
+            {next ? `Next game ${untilText(next)}`
+              : final >= total ? "Nothing left on the calendar."
+              : `${plural(total - final, "game")} still to play, but nothing on the calendar ahead — the feed may be behind.`}
           </p>
         </>
       )}
@@ -613,7 +626,10 @@ function Header({ count, people }) {
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">How it's going</h1>
       <p className="ac-sub">
-        {count ? `${plural(count, "sweep")} running · ${people} ${people === 1 ? "person" : "people"} in them · ` : ""}
+        {/* Seats, not people: the roster rows this counts carry no account id — GET
+            /api/account/stats never selects one — so the same friend in three of your
+            sweeps is three rows here with nothing to de-duplicate them by. */}
+        {count ? `${plural(count, "sweep")} running · ${plural(people, "seat")} in them · ` : ""}
         <a className="ac-inline" href="/account/sweeps">Your sweeps and billing</a>
       </p>
       <BillingNotice />

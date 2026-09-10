@@ -385,6 +385,51 @@ test('the dashboard keeps a way through to the list and the billing on it', asyn
   expect(pane().getByRole('link', { name: /sweeps and billing/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
+// person.created_at is when the OWNER typed a name into the roster; nothing records
+// when a link was actually sent. And "1 seat still haven't been claimed" fired on the
+// commonest case there is.
+test('the joins caption says what it measured, in English', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /seats invited/i })
+  expect(pane().getByText(/1 seat still hasn't been claimed/)).toBeTruthy()
+  expect(pane().getByText(/last seat added \d+ days ago/)).toBeTruthy()
+  expect(pane().queryByText(/last invite went out/)).toBeNull()
+})
+
+test('a seat added today was not added 0 days ago', async () => {
+  const today = new Date().toISOString().slice(0, 10)
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    joins: [{ date: '2026-05-01', created: 1, claimed: 1 }, { date: today, created: 1, claimed: 0 }],
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/last seat added today/)).toBeTruthy()
+})
+
+// `next` is the soonest kickoff STILL AHEAD, so it goes null on a stalled feed and on
+// fixtures with no date on them too — and the card announced the season was over while
+// the bar above it said a third of the games were unplayed.
+test('no kickoff ahead is not the same as no games left', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, season: { final: 3, total: 5, next: null } }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/2 games still to play/)).toBeTruthy()
+  expect(pane().queryByText(/Nothing left on the calendar/)).toBeNull()
+})
+
+test('a season that really is over says so', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, season: { final: 5, total: 5, next: null } }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/Nothing left on the calendar/)).toBeTruthy()
+})
+
+// The roster rows carry no account id, so the same friend in three of your sweeps is
+// three rows here and there is nothing to de-duplicate them by. Count seats, say seats.
+test('the header counts seats, because seats are what the payload has', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /wins/i })
+  expect(pane().getByText(/1 sweep running · 2 seats in them/)).toBeTruthy()
+})
+
 /* ---------------- one day of data is not a chart ---------------- */
 // A sweep made this morning has every seat, every win and every bet stamped with the
 // same date, which is one column — and a line through one point draws literally
