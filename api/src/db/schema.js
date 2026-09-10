@@ -192,6 +192,11 @@ export const loginToken = pgTable('login_token', {
   // so the person arrives already themselves. Cascades, because a token pointing at a
   // deleted seat has nothing left to claim.
   personId: text('person_id').references(() => person.id, { onDelete: 'cascade' }),
+  // An address CHANGE for an existing account: `email` is the new address being proven,
+  // and this is whose it becomes. It also discriminates the two kinds of token — a
+  // sign-in link must never move somebody's address, and a change link must never mint a
+  // session for an address the account does not hold yet.
+  accountId: text('account_id').references(() => account.id, { onDelete: 'cascade' }),
 }, (t) => ({
   emailIdx: index('login_token_email_idx').on(t.email),
 }))

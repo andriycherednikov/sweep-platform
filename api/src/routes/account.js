@@ -4,7 +4,7 @@ import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { codeMail, loginMail } from '../mail.js'
+import { codeMail, loginMail, emailChangeMail } from '../mail.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount, sweepLiveNow } from '../accounts/billing.js'
@@ -107,7 +107,10 @@ export async function accountRoutes(app) {
     // atomic claim: only an unused token row can be marked used — the concurrent loser gets 0 rows
     const [lt] = await app.db.update(loginToken)
       .set({ usedAt: now })
-      .where(and(eq(loginToken.token, req.body.token), isNull(loginToken.usedAt), gt(loginToken.expiresAt, now)))
+      // isNull(accountId): an address-CHANGE token proves an address its account does not
+      // hold yet. Spending it here would mint a session for that address instead.
+      .where(and(eq(loginToken.token, req.body.token), isNull(loginToken.usedAt),
+                 isNull(loginToken.accountId), gt(loginToken.expiresAt, now)))
       .returning()
     if (!lt) return reply.code(401).send({ error: 'unauthorized' })
     return reply.code(201).send(await mintSession(lt.email, 'link'))
@@ -241,6 +244,77 @@ export async function accountRoutes(app) {
     id: req.account.id, email: req.account.email, name: req.account.name,
     hasPassword: !!req.account.passwordHash,
   }))
+
+  const nameBody = {
+    type: 'object', required: ['name'], additionalProperties: false,
+    properties: { name: { type: 'string', minLength: 1, maxLength: 80 } },
+  }
+
+  /** The name the product greets you by. Not a credential, so it just changes. */
+  app.patch('/api/account', {
+    preHandler: requireAccount(app), schema: { body: nameBody },
+  }, async (req) => {
+    const name = req.body.name.trim()
+    await app.db.update(account).set({ name }).where(eq(account.id, req.account.id))
+    return { id: req.account.id, email: req.account.email, name, hasPassword: !!req.account.passwordHash }
+  })
+
+  /** Changing the address you sign in with.
+   *
+   *  The address IS the credential, so it is not overwritten on request — the NEW one is
+   *  proven first, exactly the way signing in proves one. The link goes to the new
+   *  address, so somebody who cannot read that inbox cannot move the account into it.
+   *  202, not 200: nothing has changed yet.
+   */
+  app.post('/api/account/email', {
+    preHandler: requireAccount(app), schema: { body: loginBody },
+    // Keyed on the session, not the IP: this route is authenticated, so an IP budget
+    // would have one person in an office spend everybody else's — the same complaint
+    // POST /api/session already carries. The header is readable at onRequest, where the
+    // limiter runs; req.account is not resolved until the preHandler below.
+    config: {
+      rateLimit: {
+        max: 5, timeWindow: '15 minutes',
+        keyGenerator: (req) => req.headers['x-account-token'] || req.ip,
+      },
+    },
+  }, async (req, reply) => {
+    const email = req.body.email.trim().toLowerCase()
+    if (email === req.account.email) return reply.code(200).send({ ok: true, unchanged: true })
+    // Two accounts on one address makes signing in ambiguous — and claiming somebody
+    // else's address is how you take their sweeps. Checked again at confirm time,
+    // because it can be taken in between.
+    const [taken] = await app.db.select().from(account).where(eq(account.email, email))
+    if (taken) return reply.code(409).send({ error: 'email_taken' })
+
+    const token = newToken()
+    await app.db.insert(loginToken).values({
+      token, email, accountId: req.account.id, expiresAt: new Date(Date.now() + LOGIN_TOKEN_TTL_MS),
+    })
+    const m = emailChangeMail(`${app.publicOrigin}/account/email/${token}`, req.account.email)
+    await notify(req, email, m.subject, m.text, m.html)
+    return reply.code(202).send({ ok: true })
+  })
+
+  app.post('/api/account/email/confirm', {
+    preHandler: requireAccount(app), schema: { body: sessionBody },
+  }, async (req, reply) => {
+    const now = new Date()
+    // Atomic claim, scoped to THIS account: a change token is only ever spendable by the
+    // account it was minted for, and only once.
+    const [lt] = await app.db.update(loginToken)
+      .set({ usedAt: now })
+      .where(and(eq(loginToken.token, req.body.token), isNull(loginToken.usedAt),
+                 eq(loginToken.accountId, req.account.id), gt(loginToken.expiresAt, now)))
+      .returning()
+    if (!lt) return reply.code(401).send({ error: 'unauthorized' })
+
+    const [taken] = await app.db.select().from(account).where(eq(account.email, lt.email))
+    if (taken && taken.id !== req.account.id) return reply.code(409).send({ error: 'email_taken' })
+
+    await app.db.update(account).set({ email: lt.email }).where(eq(account.id, req.account.id))
+    return { id: req.account.id, email: lt.email, name: req.account.name }
+  })
 
   app.post('/api/account/password/session', {
     schema: { body: passwordSessionBody },

@@ -183,6 +183,36 @@ export function loginMail(link) {
   }
 }
 
+/** Moving the address an account signs in with. The link goes to the NEW address, which
+ *  is the whole security of it: whoever cannot read that inbox cannot move the account
+ *  into it. The old address is named in the body so a change nobody asked for is
+ *  recognisable as one. */
+export function emailChangeMail(link, currentEmail) {
+  const from = esc(currentEmail ?? 'your current address')
+  return {
+    subject: 'Confirm your new email for The Sweep',
+    text: `THE SWEEP\n\nConfirm this address:\n\n${link}\n\n`
+      + `Open it and your account moves from ${currentEmail} to this address.\n`
+      + 'It works once and expires in 15 minutes.\n\n'
+      + "Didn't ask for this? Ignore this email - nothing changes until the\n"
+      + 'link is opened, and your account stays where it is.\n',
+    html: shell({
+      preheader: 'Confirm this address \u2014 the link expires in 15 minutes.',
+      eyebrow: 'Email change',
+      heading: 'Confirm your new email',
+      lede: `Open this and your account moves from ${from} to this address. You will sign in with it from then on.`,
+      block: `<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" style="background:${ACCENT};border-radius:10px;">
+            <a href="${esc(link)}" style="display:inline-block;padding:15px 32px;font-family:${SANS};font-size:15px;font-weight:700;letter-spacing:.4px;text-decoration:none;color:#ffffff;">Confirm this address</a>
+          </td>
+        </tr></table>
+        <p class="muted" style="margin:16px 0 0;font-family:${SANS};font-size:12px;line-height:1.55;word-break:break-all;color:#a09a95;">Button not working? Paste this into your browser:<br>${esc(link)}</p>`,
+      foot: 'The link works once and expires in 15 minutes. If you did not ask to change your '
+        + 'address, ignore this &mdash; nothing moves until it is opened.',
+    }),
+  }
+}
+
 /** The organiser set a seat aside for someone. The link is addressed to THIS seat and
  *  THIS address: opening it signs them in and hands them the seat, teams and all, so
  *  they never retype the address the organiser just typed for them. Single-use and
