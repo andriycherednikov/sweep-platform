@@ -14,9 +14,11 @@
    daySpan() puts the empty days back, because every chart here is an even spread and an
    even spread over "the days with rows in them" is not a calendar.
 
-   The cards are grouped into StoryGrid, which the sweep's own page reuses wholesale —
-   the widgets are the same six either way, and the only difference is whether the joins
-   and the season are one sweep's or every sweep's added together.
+   The cards are grouped into StoryGrid, which the sweep's own page reuses wholesale: the
+   same six widgets about one sweep either way. Nothing here is rolled up across sweeps.
+   "Getting in" and "The season" used to be, which put two cards on a different scope from
+   the picker heading right above them — and made "The season", singular, the fixtures of
+   every unrelated competition the account follows added together.
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
 import { Console, NoSweepsYet, fmtDay, BillingNotice } from "./screens-account.jsx";
@@ -99,44 +101,6 @@ export const fillJoins = (joins) => {
   const byDate = new Map(joins.map((j) => [j.date, j]));
   return daySpan(joins.map((j) => j.date)).map((d) => byDate.get(d) ?? { date: d, created: 0, claimed: 0 });
 };
-
-/** Seats invited and seats claimed, added up across every sweep, day by day — every
- *  day, so the week nobody joined in is drawn as the flat week it was. This is the one
- *  number on the page that means something rolled up: people joining is people joining,
- *  whichever sweep it was. */
-export function mergeJoins(stats) {
-  const byDate = new Map();
-  for (const s of stats) {
-    for (const j of s.joins) {
-      const row = byDate.get(j.date) ?? byDate.set(j.date, { date: j.date, created: 0, claimed: 0 }).get(j.date);
-      row.created += j.created;
-      row.claimed += j.claimed;
-    }
-  }
-  return daySpan([...byDate.keys()]).map((d) => byDate.get(d) ?? { date: d, created: 0, claimed: 0 });
-}
-
-const sooner = (a, b) => (!a ? b : !b ? a : Date.parse(a) <= Date.parse(b) ? a : b);
-
-/** Games played and games left, across every competition being followed, and the very
- *  next kickoff among them — which is the question "is anything happening tonight".
- *
- *  Per COMPETITION, not per sweep: the route groups the fixtures by competition and
- *  hands two sweeps following the same season the identical block, so adding the rows up
- *  as they arrive counts that season's games once per sweep. Two office pools on the
- *  same league is the obvious way to end up with two sweeps, so this is the common case
- *  rather than the exotic one. */
-export function mergeSeason(stats) {
-  const perCompetition = new Map(stats.map((s) => [s.competitionId, s.season]));
-  return [...perCompetition.values()].reduce(
-    (acc, season) => ({
-      final: acc.final + season.final,
-      total: acc.total + season.total,
-      next: sooner(acc.next, season.next),
-    }),
-    { final: 0, total: 0, next: null },
-  );
-}
 
 /** "in 2 days" — how long until the next game, at the resolution anyone cares about. */
 function untilText(iso) {
@@ -246,9 +210,9 @@ function RaceCard({ s }) {
   );
 }
 
-/** Two lines and the gap between them. The gap IS the "not joined yet" number the sweep
- *  card prints as text, which is worth drawing because it is the one thing on this page
- *  the owner can actually go and fix.
+/** Two lines and the gap between them, for this sweep. The gap IS the "not joined yet"
+ *  number the sweep card prints as text, which is worth drawing because it is the one
+ *  thing on this page the owner can actually go and fix.
  *  claimedAt is the honest join moment — somebody opened the link and took the seat.
  *  createdAt is only when the owner typed their name in, so the upper line is a list of
  *  intentions and the lower one is a list of people. */
@@ -489,17 +453,16 @@ function LoudCard({ s, href }) {
 }
 
 /** The six cards, in the order that makes the page read top to bottom: the race is the
- *  story, the last one is a footnote. `joins` and `season` default to this sweep's own,
- *  which is the whole of what the sweep's page needs; the dashboard passes its rolled-up
- *  versions instead, because those two are the only numbers here that mean anything
- *  added together. */
-export function StoryGrid({ s, joins = s.joins, season = s.season, joinsHref }) {
+ *  story, the last one is a footnote. Every one of them is about the sweep it is handed,
+ *  which is what lets the dashboard put a picker above the lot and have the heading mean
+ *  something. */
+export function StoryGrid({ s }) {
   const admin = `/s/${s.sweepId}/admin`;
   return (
     <div className="ac-grid">
       <RaceCard s={s} />
-      <JoinsCard joins={joins} href={joinsHref ?? admin} />
-      <SeasonCard season={season} />
+      <JoinsCard joins={s.joins} href={admin} />
+      <SeasonCard season={s.season} />
       <LuckCard s={s} />
       {s.wagering && <PulseCard s={s} />}
       <LoudCard s={s} href={admin} />
@@ -572,9 +535,10 @@ export function Dashboard() {
       </Console>
     );
 
-  // Which sweep the race is about. The most interesting one by default — the one with
-  // the most results in it — and after that, whichever one you asked for. Deliberately
-  // a native <select> and not a filter UI: it is one question with one answer.
+  // Which sweep the PAGE is about — every card below follows it. The most interesting one
+  // by default — the one with the most results in it — and after that, whichever one you
+  // asked for. Deliberately a native <select> and not a filter UI: one question, one
+  // answer.
   const nameOf = (id) => sweeps.find((s) => s.id === id)?.name ?? "Your sweep";
   const liveliest = [...ordered].sort((a, b) => b.race.length - a.race.length || b.people.length - a.people.length)[0];
   const focus = ordered.find((s) => s.sweepId === focusId) ?? liveliest;
@@ -591,14 +555,7 @@ export function Dashboard() {
           </select>
         </label>
       )}
-      <StoryGrid
-        s={focus}
-        joins={mergeJoins(ordered)}
-        season={mergeSeason(ordered)}
-        // Only when there is more than one sweep, and then the list: with one sweep the
-        // card's own default — that sweep's admin — is already the right door.
-        joinsHref={ordered.length > 1 ? "/account/sweeps" : null}
-      />
+      <StoryGrid s={focus} />
     </Console>
   );
 }

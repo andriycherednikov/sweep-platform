@@ -18,7 +18,7 @@ vi.mock('./lib/accountClient.js', () => ({
   revokeAllSessions: vi.fn(async () => ({})),
 }))
 
-import { Dashboard, cumulate, raceSeries, mergeJoins, mergeSeason } from './screens-dashboard.jsx'
+import { Dashboard, cumulate, raceSeries, fillJoins } from './screens-dashboard.jsx'
 import { getAccountSweeps, getAccountStats, getBilling } from './lib/accountClient.js'
 
 const SWEEP = {
@@ -116,45 +116,19 @@ test('the race puts a column on every day between the first win and the last', (
   expect(series.map((x) => x.points)).toEqual([[1, 1, 1, 1, 3]])
 })
 
-test('several sweeps roll their join buckets into one series, by date', () => {
-  expect(mergeJoins([
-    { joins: [{ date: '2026-05-01', created: 2, claimed: 1 }] },
-    { joins: [{ date: '2026-05-01', created: 1, claimed: 0 }, { date: '2026-04-30', created: 5, claimed: 5 }] },
-  ])).toEqual([
-    { date: '2026-04-30', created: 5, claimed: 5 },
-    { date: '2026-05-01', created: 3, claimed: 1 },
-  ])
-})
-
+// The route ships only the days something happened on. Plotted straight off those
+// buckets the joins chart spaces them evenly, so a fortnight of silence reads as one
+// quiet day and the axis stops being a calendar at all.
 test('the days nobody joined on are in the series too, as the flat bit they were', () => {
-  expect(mergeJoins([
-    { joins: [{ date: '2026-05-01', created: 2, claimed: 0 }, { date: '2026-05-04', created: 0, claimed: 2 }] },
+  expect(fillJoins([
+    { date: '2026-05-01', created: 2, claimed: 0 },
+    { date: '2026-05-04', created: 0, claimed: 2 },
   ])).toEqual([
     { date: '2026-05-01', created: 2, claimed: 0 },
     { date: '2026-05-02', created: 0, claimed: 0 },
     { date: '2026-05-03', created: 0, claimed: 0 },
     { date: '2026-05-04', created: 0, claimed: 2 },
   ])
-})
-
-test('several seasons roll up to the totals and the soonest kickoff of any of them', () => {
-  expect(mergeSeason([
-    { competitionId: 'cp_1', season: { final: 3, total: 5, next: '2026-09-17T00:00:00.000Z' } },
-    { competitionId: 'cp_2', season: { final: 1, total: 9, next: '2026-09-12T00:00:00.000Z' } },
-    { competitionId: 'cp_3', season: { final: 0, total: 0, next: null } },
-  ])).toEqual({ final: 4, total: 14, next: '2026-09-12T00:00:00.000Z' })
-})
-
-// The route hands the SAME season block to every sweep following one competition — it
-// is one group query keyed by competition, not by sweep — so adding them up per sweep
-// counted that competition's fixtures twice and printed "6 of 10" for a 5-game season.
-test('two sweeps on one competition count its games once', () => {
-  const season = { final: 3, total: 5, next: '2026-09-17T00:00:00.000Z' }
-  expect(mergeSeason([
-    { competitionId: 'cp_1', season },
-    { competitionId: 'cp_1', season },
-    { competitionId: 'cp_2', season: { final: 1, total: 2, next: null } },
-  ])).toEqual({ final: 4, total: 7, next: '2026-09-17T00:00:00.000Z' })
 })
 
 /* ---------------- the page ---------------- */
@@ -268,19 +242,31 @@ test('the bets-per-day bars keep a slot for the days nobody had a bet on', async
   expect(pane().getByText(/3 bets · 20 coins staked/)).toBeTruthy()
 })
 
-// The payload is per sweep, so with more than one there has to be a way to say which
-// one the race is about — and the counts that do add up should add up.
-test('several sweeps roll up in the header and offer a way to switch the race', async () => {
+// The payload is per sweep, so with more than one there has to be a way to say which one
+// the page is about — and then every card on it has to mean that one. "Getting in" and
+// "The season" used to stay rolled up across every sweep the account runs, so the seat
+// count and the games-played bar described a different group from the heading directly
+// above them, and "The season" — singular — was the fixtures of every unrelated
+// competition the account follows added into one number.
+test('several sweeps offer a way to switch, and every card follows the picker', async () => {
   getAccountSweeps.mockResolvedValue([SWEEP, { ...SWEEP, id: 'sw2', name: 'Family League' }])
   getAccountStats.mockResolvedValue([
     STATS,
-    { ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl', race: [], season: { final: 2, total: 5, next: null } },
+    {
+      ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl', race: [],
+      joins: [{ date: '2026-05-01', created: 9, claimed: 0 }],
+      season: { final: 2, total: 5, next: null },
+    },
   ])
   render(<Dashboard />)
   const picker = await pane().findByRole('combobox', { name: /showing/i })
   expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual(['Office Pool', 'Family League'])
-  // 3 of 5 and 2 of 5, rolled up
-  expect(pane().getByText(/5 of 10/)).toBeTruthy()
+  // Office Pool's own 3 of 5, not the 5 of 10 the two seasons made together.
+  expect(pane().getByText(/3 of 5/)).toBeTruthy()
+  expect(pane().queryByText(/5 of 10/)).toBeNull()
+  // And its own one unclaimed seat, not the ten the two rosters made together.
+  expect(pane().getByText(/1 seat still/)).toBeTruthy()
+  expect(pane().queryByText(/10 seats still/)).toBeNull()
 })
 
 // /account is where the sweep page's read-only warning, the catalog's "Go to billing"
