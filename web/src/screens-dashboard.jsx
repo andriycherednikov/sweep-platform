@@ -8,9 +8,11 @@
    are somebody else's job and already have a page, /super. Nothing here is a KPI.
 
    Everything is drawn from ONE request, GET /api/account/stats, which answers with raw
-   daily buckets per sweep. The running totals are made here, in cumulate() and
-   raceSeries(), so the client can re-window them without another round trip and so the
-   payload does not carry the same numbers twice.
+   daily buckets per sweep — and only for the days something happened on. The running
+   totals are made here, in cumulate() and raceSeries(), so the client can re-window them
+   without another round trip and so the payload does not carry the same numbers twice;
+   daySpan() puts the empty days back, because every chart here is an even spread and an
+   even spread over "the days with rows in them" is not a calendar.
 
    The cards are grouped into StoryGrid, which the sweep's own page reuses wholesale as
    SweepStory — the widgets are the same six either way, and the only difference is
@@ -46,13 +48,31 @@ export const cumulate = (values) => {
   return values.map((v) => (total += v));
 };
 
+/** Every day from the first of these to the last, the empty ones included.
+ *
+ *  The route ships one bucket per day something HAPPENED and no bucket at all for the
+ *  rest, which is the right payload and the wrong axis: plotted straight, the buckets
+ *  are spaced evenly, so a fortnight of international break draws as one quiet day and
+ *  a busy weekend draws the same width as a month. Filling the gaps here rather than
+ *  teaching the charts about dates keeps them what they are — arrays of numbers, evenly
+ *  spread — and makes that even spread true. Nothing in, nothing out: the parse of an
+ *  absent date is NaN and the loop never starts. */
+function daySpan(dates) {
+  const sorted = [...new Set(dates)].sort();
+  const end = Date.parse(`${sorted[sorted.length - 1]}T00:00:00Z`);
+  const out = [];
+  for (let t = Date.parse(`${sorted[0]}T00:00:00Z`); t <= end; t += DAY_MS)
+    out.push(new Date(t).toISOString().slice(0, 10));
+  return out;
+}
+
 /** One line per person who has won something, as a running total over the days any of
- *  them did. People with nothing yet are left out rather than drawn as a flat zero:
+ *  them did — every day of them, including the ones nobody won on. People with nothing yet are left out rather than drawn as a flat zero:
  *  twelve lines pinned to the floor is not information, it is a fence.
  *  Sorted by where everyone ended up, so the leader is first and undimmed — the caller
  *  does not have to work out who the story is about. */
 export function raceSeries(s) {
-  const dates = [...new Set(s.race.map((r) => r.date))].sort();
+  const dates = daySpan(s.race.map((r) => r.date));
   const column = new Map(dates.map((d, i) => [d, i]));
   const daily = new Map();
   for (const r of s.race) {
@@ -69,9 +89,10 @@ export function raceSeries(s) {
     .map((line, i) => ({ ...line, dim: i > 0 }));
 }
 
-/** Seats invited and seats claimed, added up across every sweep, day by day. This is
- *  the one number on the page that means something rolled up: people joining is people
- *  joining, whichever sweep it was. */
+/** Seats invited and seats claimed, added up across every sweep, day by day — every
+ *  day, so the week nobody joined in is drawn as the flat week it was. This is the one
+ *  number on the page that means something rolled up: people joining is people joining,
+ *  whichever sweep it was. */
 export function mergeJoins(stats) {
   const byDate = new Map();
   for (const s of stats) {
@@ -81,7 +102,7 @@ export function mergeJoins(stats) {
       row.claimed += j.claimed;
     }
   }
-  return [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return daySpan([...byDate.keys()]).map((d) => byDate.get(d) ?? { date: d, created: 0, claimed: 0 });
 }
 
 const sooner = (a, b) => (!a ? b : !b ? a : Date.parse(a) <= Date.parse(b) ? a : b);
@@ -302,6 +323,10 @@ function PulseCard({ s }) {
   const byId = new Map(s.people.map((p) => [p.id, p]));
   const bets = daily.reduce((n, d) => n + d.bets, 0);
   const staked = daily.reduce((n, d) => n + d.staked, 0);
+  // A bar per day between the first bet and the last, not a bar per day that had one:
+  // the quiet Tuesday is as much of the pulse as the busy Saturday.
+  const byDate = new Map(daily.map((d) => [d.date, d.bets]));
+  const perDay = daySpan([...byDate.keys()]).map((d) => byDate.get(d) ?? 0);
   // Whoever leaves it latest is the funnier end of the list, so that is the end shown.
   const latest = lead.reduce((low, l) => (!low || l.medianSec < low.medianSec ? l : low), null);
   const winner = biggest && byId.get(biggest.personId);
@@ -313,7 +338,7 @@ function PulseCard({ s }) {
         <p className="ac-b">Wagering is on, but nobody has had a bet on yet.</p>
       ) : (
         <>
-          <Bars title="Bets placed per day" values={daily.map((d) => d.bets)} height={130} />
+          <Bars title="Bets placed per day" values={perDay} height={130} />
           <p className="ch-cap">{`${plural(bets, "bet")} · ${staked} coins staked`}</p>
           {winner && (
             <p className="ac-b">

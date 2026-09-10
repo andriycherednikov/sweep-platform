@@ -102,6 +102,20 @@ test('nobody with a win yet means no lines at all, not a row of flat zeros', () 
   expect(raceSeries({ ...STATS, race: [] })).toEqual([])
 })
 
+// The route ships only the days something happened on. Plotted straight off those
+// buckets every chart on the page spaces them evenly, so a fortnight of international
+// break reads as one quiet day and the axis stops being a calendar at all.
+test('the race puts a column on every day between the first win and the last', () => {
+  const series = raceSeries({
+    ...STATS,
+    race: [
+      { personId: 'pn_a', date: '2026-05-01', wins: 1 },
+      { personId: 'pn_a', date: '2026-05-05', wins: 2 },
+    ],
+  })
+  expect(series.map((x) => x.points)).toEqual([[1, 1, 1, 1, 3]])
+})
+
 test('several sweeps roll their join buckets into one series, by date', () => {
   expect(mergeJoins([
     { joins: [{ date: '2026-05-01', created: 2, claimed: 1 }] },
@@ -109,6 +123,17 @@ test('several sweeps roll their join buckets into one series, by date', () => {
   ])).toEqual([
     { date: '2026-04-30', created: 5, claimed: 5 },
     { date: '2026-05-01', created: 3, claimed: 1 },
+  ])
+})
+
+test('the days nobody joined on are in the series too, as the flat bit they were', () => {
+  expect(mergeJoins([
+    { joins: [{ date: '2026-05-01', created: 2, claimed: 0 }, { date: '2026-05-04', created: 0, claimed: 2 }] },
+  ])).toEqual([
+    { date: '2026-05-01', created: 2, claimed: 0 },
+    { date: '2026-05-02', created: 0, claimed: 0 },
+    { date: '2026-05-03', created: 0, claimed: 0 },
+    { date: '2026-05-04', created: 0, claimed: 2 },
   ])
 })
 
@@ -197,6 +222,23 @@ test('wagering on draws the bets, the biggest win and who leaves it latest', asy
   expect(await pane().findByRole('img', { name: /bets/i })).toBeTruthy()
   expect(pane().getByText(/40/)).toBeTruthy()
   expect(pane().getByText(/41 minutes/)).toBeTruthy()
+})
+
+// Same lie, drawn as bars: two busy days a week apart are two bars side by side unless
+// the quiet days in between are in the array.
+test('the bets-per-day bars keep a slot for the days nobody had a bet on', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    wagering: {
+      daily: [{ date: '2026-05-01', bets: 2, staked: 15 }, { date: '2026-05-04', bets: 1, staked: 5 }],
+      biggest: null,
+      lead: [],
+    },
+  }])
+  const { container } = render(<Dashboard />)
+  await pane().findByRole('img', { name: /bets/i })
+  expect(container.querySelectorAll('.ac-grid rect')).toHaveLength(4)
+  expect(pane().getByText(/3 bets · 20 coins staked/)).toBeTruthy()
 })
 
 // The payload is per sweep, so with more than one there has to be a way to say which

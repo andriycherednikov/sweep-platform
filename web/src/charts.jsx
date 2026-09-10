@@ -90,8 +90,11 @@ export function Lines({ series, height = 160, title }) {
   );
 }
 
-/** A bar per bucket, sitting on a baseline. Days with nothing in them still take up
- *  their slot — a gap in the middle of a week is the information. */
+/** A bar per bucket, sitting on a baseline, spaced evenly whatever the buckets are.
+ *  That is a calendar only if the caller hands over one row per day: GET /api/account/stats
+ *  ships a bucket for the days something happened and nothing at all for the rest, so
+ *  the dashboard fills the gaps (daySpan) before the numbers get here. A day with a zero
+ *  in it draws as an empty slot, which is the point — a quiet week is information. */
 export function Bars({ values, height = 130, color = "var(--lp-accent)", title }) {
   const plotH = height - PAD * 2;
   const max = Math.max(1, ...values);
