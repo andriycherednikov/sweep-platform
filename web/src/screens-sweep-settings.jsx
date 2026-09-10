@@ -31,7 +31,7 @@ function SaveError({ code }) {
     return (
       <p className="ac-warn">
         Your trial has ended, so this sweep is read-only — nothing about it can change
-        until you <a className="ac-inline" href="/account">subscribe</a>.
+        until you <a className="ac-inline" href="/account/sweeps">subscribe</a>.
       </p>
     );
   return <p className="ac-warn">Couldn't save that. Try again.</p>;
@@ -287,7 +287,7 @@ export function SweepSettings({ id }) {
               the owner that sweeps are billed one by one, and pressing it would stop all
               twelve — so the pill and the real controls stay on the account. */}
           <p className="ac-b">
-            <a className="ac-inline" href="/account">Billed with your account</a> — one
+            <a className="ac-inline" href="/account/sweeps">Billed with your account</a> — one
             subscription, priced by how many sweeps you run.
           </p>
         </>

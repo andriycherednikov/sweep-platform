@@ -94,6 +94,7 @@ test('a lapsed owner is told why the rename did not take, not just that it faile
   fireEvent.blur(field)
   expect(await pane().findByText(/read-only/i)).toBeTruthy()
   expect(pane().queryByText(/something went wrong/i)).toBeNull()
+  expect(pane().getByRole('link', { name: /subscribe/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
 // The sweep's name is an <input>, so the page had no heading at all: nothing for a
@@ -189,7 +190,9 @@ test('there are no billing controls here — one subscription, priced by the acc
   expect(pane().queryByRole('button', { name: /cancel subscription/i })).toBeNull()
   expect(pane().queryByRole('button', { name: /subscribe/i })).toBeNull()
   expect(pane().queryByRole('button', { name: /manage billing/i })).toBeNull()
-  expect(pane().getByRole('link', { name: /billed with your account/i })).toHaveAttribute('href', '/account')
+  // /account/sweeps, not /account: /account is the dashboard, which shows the bill only
+  // when there is something to do about it. The controls are on the list, always.
+  expect(pane().getByRole('link', { name: /billed with your account/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
 test('archiving takes two taps and lands back on the list', async () => {
