@@ -172,6 +172,7 @@ function RaceCard({ s }) {
   // by name.
   const top = series.length ? last(leader.points) : 0;
   const level = series.filter((l) => last(l.points) === top);
+  const allWins = series.reduce((n, l) => n + last(l.points), 0);
   const headline = level.length > 1
     ? `${level.map((l) => l.label).join(", ")} level on ${plural(top, "win")}`
     : `${leader?.label} has the most team wins — ${top}`;
@@ -194,9 +195,14 @@ function RaceCard({ s }) {
           {/* A sweep whose results all landed today draws every line as a single point,
               which is an empty box. The score is the whole story on day one; say it. */}
           {flat ? (
+            // The group's wins, not the leader's. This number stands where a chart of
+            // EVERY line would be, and the two cards that pull the same trick — seats
+            // claimed, wagers placed — both put the total in it, so a leader's count
+            // under a bare "wins so far" read as the sweep's and was short. Whose the
+            // biggest share is belongs to the caption below, which already says it.
             <p className="ch-big">
-              {last(leader.points)}
-              <span>{`${last(leader.points) === 1 ? "win" : "wins"} so far, all on the one day`}</span>
+              {allWins}
+              <span>{`${allWins === 1 ? "win" : "wins"} so far, all on the one day`}</span>
             </p>
           ) : (
             <Lines title="Wins per person, running total" series={shown} tall />

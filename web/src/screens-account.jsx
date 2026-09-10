@@ -223,8 +223,9 @@ export function Console({ here, wide, children }) {
         </div>
       </aside>
       <main className="ac-main">
-        {/* The dashboard's two columns of cards need more room than a settings form
-            does, and a form stretched to 980px is worse than one that isn't. */}
+        {/* `wide` takes the column from 720px to 1440px, for the pages made of cards
+            rather than of prose. The why is on .ac-col.is-wide in styles.css, next to
+            the numbers themselves. */}
         <div className={"ac-col" + (wide ? " is-wide" : "")}>{children}</div>
       </main>
     </div>

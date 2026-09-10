@@ -484,6 +484,21 @@ test('a race that has only had one day of results says the score instead of draw
   expect(pane().queryByText(/one line per person/)).toBeNull()
 })
 
+// The big number stands where a chart of EVERY line would be, and the two cards doing
+// the same trick beside it — seats claimed, wagers placed — both put the group's total in
+// it. This one put the leader's, so a sweep with four wins in it announced three.
+test("the one-day race number is the group's wins, not the leader's", async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    race: [{ personId: 'pn_a', date: '2026-05-02', wins: 3 }, { personId: 'pn_b', date: '2026-05-02', wins: 1 }],
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/AS has the most team wins — 3/)).toBeTruthy()
+  const big = screen.getByRole('main').querySelector('.ch-big')
+  expect(big.childNodes[0].textContent).toBe('4')
+  expect(big.querySelector('span').textContent).toBe('wins so far, all on the one day')
+})
+
 test('one day of betting is a number, not a single bar at full height', async () => {
   getAccountStats.mockResolvedValue([{
     ...STATS,
