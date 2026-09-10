@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 vi.mock('./lib/accountClient.js', () => ({
   getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'you@x.test', name: 'Ada Lovelace' })),
   getAccountSweeps: vi.fn(),
+  getAccountStats: vi.fn(),
   patchSweep: vi.fn(async () => ({ ok: true })),
   archiveSweep: vi.fn(async () => ({})),
   rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
@@ -15,7 +16,7 @@ vi.mock('./lib/accountClient.js', () => ({
 }))
 
 import { SweepSettings } from './screens-sweep-settings.jsx'
-import { getAccountSweeps, patchSweep, archiveSweep, rotateSweep } from './lib/accountClient.js'
+import { getAccountSweeps, getAccountStats, patchSweep, archiveSweep, rotateSweep } from './lib/accountClient.js'
 
 const SWEEP = {
   id: 'sw1', name: 'Office Pool', role: 'owner', archivedAt: null,
@@ -24,11 +25,22 @@ const SWEEP = {
   competition: { name: 'NBA 2025-26', sport: 'basketball', season: '2025-26', logo: null },
 }
 
+const STATS = {
+  sweepId: 'sw1',
+  people: [{ id: 'pn_a', name: 'Ann Smith', initials: 'AS', avColor: '#e11', claimedAt: '2026-05-01T12:00:00.000Z' }],
+  joins: [{ date: '2026-05-01', created: 2, claimed: 1 }],
+  race: [{ personId: 'pn_a', date: '2026-05-02', wins: 2 }],
+  season: { final: 3, total: 5, next: null },
+  calls: [{ personId: 'pn_a', picks: 4, right: 3 }],
+  activity: [{ personId: 'pn_a', picks: 4, bets: 0, photos: 0 }],
+}
+
 let originalLocation
 
 beforeEach(() => {
   vi.clearAllMocks()
   getAccountSweeps.mockResolvedValue([SWEEP])
+  getAccountStats.mockResolvedValue([STATS])
   patchSweep.mockResolvedValue({ ok: true })
   archiveSweep.mockResolvedValue({})
   rotateSweep.mockResolvedValue({ memberLink: 'https://h/g/new' })
@@ -169,4 +181,22 @@ test('the rail marks the sweep you are standing on', async () => {
   render(<SweepSettings id="sw1" />)
   const nav = within(await screen.findByRole('navigation'))
   expect(nav.getByRole('link', { name: /office pool/i }).className).toMatch(/is-here/)
+})
+
+// The console's front page tells the story of whichever sweep you picked; this page is
+// about ONE sweep, so it tells that sweep's — the same cards, no second implementation.
+test("the sweep's own page carries the sweep's own charts", async () => {
+  render(<SweepSettings id="sw1" />)
+  expect(await pane().findByRole('img', { name: /wins/i })).toBeTruthy()
+  expect(pane().getByText(/3 of 5/)).toBeTruthy()
+})
+
+// The charts are the decorative half of this page and the settings are the half
+// somebody came here to change. Losing one must not cost the other.
+test('a failed stats load leaves the settings working', async () => {
+  getAccountStats.mockRejectedValue(new Error('boom'))
+  render(<SweepSettings id="sw1" />)
+  expect(await pane().findByDisplayValue('Office Pool')).toBeTruthy()
+  expect(pane().getByRole('button', { name: /replace link/i })).toBeTruthy()
+  expect(pane().queryByRole('img', { name: /wins/i })).toBeNull()
 })

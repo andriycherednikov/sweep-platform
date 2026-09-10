@@ -19,7 +19,8 @@
    ============================================================ */
 import { useState, useEffect } from "react";
 import { Console, LinkField, CompetitionLine, fmtDay, goTo } from "./screens-account.jsx";
-import { getAccountSweeps, patchSweep, archiveSweep, rotateSweep } from "./lib/accountClient.js";
+import { getAccountSweeps, getAccountStats, patchSweep, archiveSweep, rotateSweep } from "./lib/accountClient.js";
+import { SweepStory } from "./screens-dashboard.jsx";
 
 /** A refused save has exactly two meanings and they need different answers: a lapsed
  *  owner is not having a bad day, they are behind the read-only gate and retrying will
@@ -60,7 +61,7 @@ function Identity({ s }) {
 
   return (
     <>
-      <p className="lp-eyebrow">Sweep settings</p>
+      <p className="lp-eyebrow">Your sweep</p>
       <input
         className="ac-h1 ac-rename"
         aria-label="Sweep name"
@@ -214,6 +215,20 @@ function Archive({ s }) {
 export function SweepSettings({ id }) {
   const [state, setState] = useState("loading"); // loading | ready | missing | error
   const [sweep, setSweep] = useState(null);
+  // The same six cards the console's front page draws, about this sweep only. Its own
+  // request, and its own failure: the charts are the half of this page you came to look
+  // at, and the settings are the half you came to change — losing one must not cost the
+  // other, so a rejected stats load simply leaves the story out.
+  const [story, setStory] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    getAccountStats().then(
+      (all) => { if (alive) setStory(all.find((x) => x.sweepId === id) ?? null); },
+      () => {},
+    );
+    return () => { alive = false; };
+  }, [id]);
 
   useEffect(() => {
     let alive = true;
@@ -247,7 +262,10 @@ export function SweepSettings({ id }) {
       {state === "ready" && (
         <>
           <Identity s={sweep} />
-          <div className="ac-stack" style={{ marginTop: 22 }}>
+          {/* How it is going, before what you can change about it. */}
+          {story && <div style={{ marginTop: 22 }}><SweepStory s={story} /></div>}
+          <h2 className="ac-group" style={{ marginTop: 26 }}>What you can change</h2>
+          <div className="ac-stack" style={{ marginTop: 14 }}>
             <Share s={sweep} />
             <Settings s={sweep} />
             <Operations s={sweep} />
