@@ -726,6 +726,10 @@ export async function accountRoutes(app) {
       const best = (gBest.get(s.id) ?? [])[0]
       return {
         sweepId: s.id,
+        // Two sweeps can follow the same competition, and then the season block below is
+        // the SAME fixtures handed to both — so a client adding "games played" up across
+        // its rows counts them twice unless it can tell which rows share a competition.
+        competitionId: s.competitionId,
         people: people.map(({ sweepId, ...p }) => p),
         joins: [...joins.values()].sort((a, b) => a.date.localeCompare(b.date)),
         race: (gRace.get(s.id) ?? []).map(({ sweepId, ...r }) => r),
