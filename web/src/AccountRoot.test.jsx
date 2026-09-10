@@ -20,6 +20,9 @@ vi.mock('./lib/accountClient.js', () => ({
   confirmCheckout: vi.fn(async () => ({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 1, quantity: 1 })),
   getAccountSweeps: vi.fn(async () => ([])),
   archiveSweep: vi.fn(async () => ({})),
+  rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
+  // SweepSettings (mounted at /account/s/:id) renames and toggles wagering through it.
+  patchSweep: vi.fn(async () => ({ ok: true })),
   startCheckout: vi.fn(),
   openPortal: vi.fn(),
   // CatalogScreen (mounted at /account/new) loads this on mount.
@@ -247,4 +250,32 @@ test('a bare /account opens on password sign-in, with the account-creating door 
   render(<AccountRoot />)
   expect(screen.getByLabelText(/password/i)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /start a new account/i })).toBeInTheDocument()
+})
+
+test('/account/s/:id with a valid token renders that sweep\'s own page', async () => {
+  accountClient.getAccountToken.mockReturnValue('good-tok')
+  accountClient.getAccountSweeps.mockResolvedValue([{
+    id: 'sw1', name: 'Office Pool', role: 'owner', archivedAt: null, createdAt: '2026-01-04T00:00:00Z',
+    memberLink: 'https://h/g/tok', wageringEnabled: false, members: { total: 4, registered: 4 }, competition: null,
+  }])
+  window.history.replaceState(null, '', '/account/s/sw1')
+  render(<AccountRoot />)
+  expect(await screen.findByLabelText(/sweep name/i)).toHaveValue('Office Pool')
+})
+
+test('/account/s/:id while signed out bounces back to /account', async () => {
+  window.history.replaceState(null, '', '/account/s/sw1')
+  const assign = vi.fn()
+  Object.defineProperty(window, 'location', { value: { ...window.location, assign }, configurable: true, writable: true })
+  render(<AccountRoot />)
+  await waitFor(() => expect(assign).toHaveBeenCalledWith('/account'))
+})
+
+// The rail sends you here once you run more sweeps than it will list. Same list as
+// /account, until the dashboard takes that address over.
+test('/account/sweeps renders the full list', async () => {
+  accountClient.getAccountToken.mockReturnValue('good-tok')
+  window.history.replaceState(null, '', '/account/sweeps')
+  render(<AccountRoot />)
+  expect(await screen.findByText(/your sweeps/i)).toBeInTheDocument()
 })

@@ -65,6 +65,10 @@ export const patchAccount = (fields) => call('PATCH', '/api/account', fields)
 // address a link, and nothing moves until that link comes back.
 export const requestEmailChange = (email) => call('POST', '/api/account/email', { email })
 export const confirmEmailChange = (token) => call('POST', '/api/account/email/confirm', { token })
+// The sweep's own settings — its name, and whether it runs wagering. Behind
+// ownedSweep(requireLive:true), so a lapsed owner gets a 403 `sweep_readonly` and the
+// caller has to say so rather than printing a generic failure.
+export const patchSweep = (id, fields) => call('PATCH', `/api/account/sweeps/${id}`, fields)
 // Replaces the member token, which is the ONLY credential POST /api/session accepts:
 // the leaked link dies, and so does everyone else's. Returns the fresh { memberLink }.
 export const rotateSweep = (id) => call('POST', `/api/account/sweeps/${id}/rotate`)

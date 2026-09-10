@@ -6,7 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useMarketingShell } from "./screens-landing.jsx";
 import {
-  getAccount, getBilling, getAccountSweeps, archiveSweep, rotateSweep,
+  getAccount, getBilling, getAccountSweeps,
   startCheckout, openPortal, clearAccountToken, revokeSession, revokeAllSessions,
   patchAccount, requestEmailChange, confirmEmailChange,
 } from "./lib/accountClient.js";
@@ -152,7 +152,7 @@ export function Console({ here, children }) {
               nothing here to configure, so it goes straight into the app. */}
           {owned.length > 0 && <p className="ac-sec">Your sweeps</p>}
           {owned.slice(0, RAIL_MAX).map((s) => sweepItem(s, `/account/s/${s.id}`))}
-          {owned.length > RAIL_MAX && item("sweeps", "/account", `All ${owned.length} sweeps`, " is-more")}
+          {owned.length > RAIL_MAX && item("sweeps", "/account/sweeps", `All ${owned.length} sweeps`, " is-more")}
           {joined.length > 0 && <p className="ac-sec">You're in</p>}
           {joined.map((s) => sweepItem(s, `/s/${s.id}`))}
           {/* At 820px and under the rail lies down into a horizontal strip, which
@@ -330,7 +330,7 @@ function BillingPanel({ billing }) {
 
 /** What the sweep follows. The name is whatever the owner typed — "Office Pool" says
  *  nothing — so this is the line that makes a list of sweeps readable at a glance. */
-function CompetitionLine({ s, note }) {
+export function CompetitionLine({ s, note }) {
   const c = s.competition;
   if (!c && !note) return null;
   return (
@@ -343,13 +343,14 @@ function CompetitionLine({ s, note }) {
   );
 }
 
-function SweepRow({ s, billing, reload }) {
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState(false);
-  const [rotConfirm, setRotConfirm] = useState(false);
-  const [rotated, setRotated] = useState(null);
-  const [rotErr, setRotErr] = useState(false);
+/** A sweep you run, as one row of a list. Every control it used to carry — the member
+ *  link, Replace link, Archive, the deep-link into the roster — now lives on the
+ *  sweep's own page, which is the point of that page: a list of twelve sweeps was
+ *  twelve copies of the same six buttons and nowhere to actually configure anything.
+ *  What is left is what a list is for: which sweep this is, how many people are in it,
+ *  what it costs, and the two ways onward. Billing stays because it is not per-sweep to
+ *  begin with — it is the account's one subscription, seen from here. */
+function SweepRow({ s, billing }) {
   const { trialing, lapsed, daysLeft, stopping, endsOn } = useBilling(billing);
   const acts = useBillingActions();
 
@@ -363,44 +364,18 @@ function SweepRow({ s, billing, reload }) {
         ? { label: "Read-only", tone: " is-warn" }
         : { label: "Free", tone: "" };
 
-  async function archive() {
-    if (!confirm) { setConfirm(true); return; }
-    setBusy(true); setErr(false);
-    try { await archiveSweep(s.id); await reload(true); }
-    catch { setErr(true); setConfirm(false); }
-    finally { setBusy(false); }
-  }
-
-  // The member link is the sweep's only credential, so a link pasted into the wrong
-  // chat can only be taken back by replacing it — which locks out everyone still
-  // using the old one. Hence the two-step confirm, same shape as Archive's, and the
-  // new link shown straight after so the owner can send it on. Never gated on
-  // billing: a lapsed owner needs this more than anyone (api rotate is requireLive:false).
-  async function rotate() {
-    if (!rotConfirm) { setRotConfirm(true); return; }
-    setBusy(true); setRotErr(false);
-    try {
-      const { memberLink } = await rotateSweep(s.id);
-      setRotated(memberLink);
-      setRotConfirm(false);
-      await reload(true);
-    } catch { setRotErr(true); setRotConfirm(false); }
-    finally { setBusy(false); }
-  }
-
   return (
     <section className="ac-card">
       <div className="ac-card-top">
-        {/* The card is full of controls, so it cannot be one big link the way a member
-            row is — the name carries it instead, with the same chevron beside Archive. */}
+        {/* The card still carries the billing controls, so it cannot be one big link the
+            way a member row is — the name opens the sweep, and Settings is the way to
+            everything the card used to hold. */}
         <div className="ac-card-id">
           <h3 className="ac-card-h"><a className="ac-open-name" href={`/s/${s.id}`}>{s.name}</a></h3>
           <CompetitionLine s={s} />
         </div>
         <div className="ac-card-acts">
-          <button className="ac-ghost is-danger" disabled={busy} onClick={archive}>
-            {confirm ? "Really archive?" : "Archive"}
-          </button>
+          <a className="ac-ghost" href={`/account/s/${s.id}`}>Settings</a>
           <a className="ac-open" href={`/s/${s.id}`} aria-label={`Open ${s.name}`} title="Open">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7"/></svg>
           </a>
@@ -413,21 +388,8 @@ function SweepRow({ s, billing, reload }) {
           {s.members.total > s.members.registered
             ? ` · ${s.members.total - s.members.registered} not joined yet`
             : ""}
-          {" · "}
-          <a className="ac-inline" href={`/s/${s.id}/admin`}>Manage members</a>
         </p>
       )}
-      <LinkField label="Member link — send this to the group" value={rotated || s.memberLink} />
-      {rotated && <p className="ac-b">New link ready — send it to the group. The old link stopped working.</p>}
-      {rotConfirm && (
-        <p className="ac-warn">
-          This replaces the link for everyone: anyone using the old one is locked out until you send them this new one.
-        </p>
-      )}
-      <button className="ac-ghost is-danger" style={{ marginTop: 10 }} disabled={busy} onClick={rotate}>
-        {rotConfirm ? "Yes, replace the link" : "Replace link"}
-      </button>
-      {rotErr && <p className="ac-warn">Couldn't replace the link — try again.</p>}
       <div className="ac-tier">
         <span className={"ac-pill" + tier.tone}>{tier.label}</span>
         {billing.subscribed ? (
@@ -446,7 +408,6 @@ function SweepRow({ s, billing, reload }) {
         )}
       </div>
       {acts.err && <p className="ac-warn">Something went wrong. Try again.</p>}
-      {err && <p className="ac-warn">Archive failed — try again</p>}
     </section>
   );
 }
@@ -472,7 +433,7 @@ function MemberRow({ s }) {
   );
 }
 
-function SweepList({ sweeps, billing, reload }) {
+function SweepList({ sweeps, billing }) {
   const active = sweeps.filter((s) => !s.archivedAt);
   const owned = active.filter((s) => s.role !== "member");
   const joined = active.filter((s) => s.role === "member");
@@ -492,7 +453,7 @@ function SweepList({ sweeps, billing, reload }) {
       {/* Only label the groups when there are two of them — a heading over a single
           list is noise, and most people will only ever have one kind. */}
       {owned.length > 0 && joined.length > 0 && <h2 className="ac-group">Sweeps you run</h2>}
-      {owned.map((s) => <SweepRow key={s.id} s={s} billing={billing} reload={reload} />)}
+      {owned.map((s) => <SweepRow key={s.id} s={s} billing={billing} />)}
       {joined.length > 0 && owned.length > 0 && <h2 className="ac-group">Sweeps you're in</h2>}
       {joined.map((s) => <MemberRow key={s.id} s={s} />)}
       {/* Last, not first: somebody who already plays in a sweep came here to find it,
@@ -510,18 +471,19 @@ function SweepList({ sweeps, billing, reload }) {
   );
 }
 
-export function AccountHome() {
+/** `here` because this same list answers on two addresses: /account, and /account/sweeps
+ *  which is where the rail sends you once you run more sweeps than it will list. */
+export function AccountHome({ here = "home" }) {
   const [billing, setBilling] = useState(null);
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
 
-  // `fresh` after anything that CHANGES the list — the rail beside this page reads the
-  // same cached promise, so a mutation that does not pass it leaves both showing what
-  // used to be true.
-  const reload = useCallback(async (fresh) => {
+  // No `fresh` here: nothing on this page changes the list any more — archiving and
+  // rotating moved to the sweep's own page, and both leave by a real navigation.
+  const reload = useCallback(async () => {
     setLoadErr(false);
     try {
-      const [b, s] = await Promise.all([getBilling(), getAccountSweeps(fresh)]);
+      const [b, s] = await Promise.all([getBilling(), getAccountSweeps()]);
       setBilling(b); setSweeps(s);
     } catch { setLoadErr(true); }
   }, []);
@@ -531,13 +493,13 @@ export function AccountHome() {
   const live = sweeps.filter((s) => !s.archivedAt).length;
 
   return (
-    <Console here="home">
+    <Console here={here}>
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">Your sweeps</h1>
       <p className="ac-sub">Sign in on any device you own it from — admin follows your account, not a link.</p>
       {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
       <div className="ac-stack">
-        {billing && <SweepList sweeps={sweeps} billing={billing} reload={reload} />}
+        {billing && <SweepList sweeps={sweeps} billing={billing} />}
         {/* nothing to bill against yet — the account speaks for itself */}
         {billing && live === 0 && <BillingPanel billing={billing} />}
       </div>

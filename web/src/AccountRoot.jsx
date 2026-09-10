@@ -12,6 +12,7 @@ import {
 } from "./lib/accountClient.js";
 import { fmtDay } from "./screens-account.jsx";
 import { AccountHome, AccountSettings, ConfirmEmailChange } from "./screens-account.jsx";
+import { SweepSettings } from "./screens-sweep-settings.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
 import { useMarketingShell } from "./screens-landing.jsx";
 
@@ -400,6 +401,16 @@ export function AccountRoot() {
   }
   if (path === "/account/settings") {
     return <RequireAccount><AccountSettings /></RequireAccount>;
+  }
+  // The whole list, for someone running more sweeps than the rail will list. /account
+  // still answers with it too, until the dashboard takes that address over.
+  if (path === "/account/sweeps") {
+    return <RequireAccount><AccountHome here="sweeps" /></RequireAccount>;
+  }
+  // One sweep you run. Not /account/settings — that prefix check runs first, and
+  // "/account/settings" does not start with "/account/s/" anyway.
+  if (path.startsWith("/account/s/")) {
+    return <RequireAccount><SweepSettings id={path.split("/")[3]} /></RequireAccount>;
   }
   if (path === "/account/new") {
     return (

@@ -10,8 +10,6 @@ vi.mock('./lib/accountClient.js', () => ({
   patchAccount: vi.fn(),
   requestEmailChange: vi.fn(),
   confirmEmailChange: vi.fn(),
-  archiveSweep: vi.fn(async () => ({})),
-  rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
   startCheckout: vi.fn(),
   openPortal: vi.fn(),
   clearAccountToken: vi.fn(),
@@ -21,7 +19,7 @@ vi.mock('./lib/accountClient.js', () => ({
 
 import { AccountHome, AccountSettings } from './screens-account.jsx'
 import {
-  getAccount, getBilling, getAccountSweeps, archiveSweep, rotateSweep, startCheckout, openPortal, clearAccountToken,
+  getAccount, getBilling, getAccountSweeps, startCheckout, openPortal, clearAccountToken,
   patchAccount, requestEmailChange,
   revokeSession, revokeAllSessions,
 } from './lib/accountClient.js'
@@ -83,28 +81,6 @@ test('lapsed: subscribe CTA + read-only warning', async () => {
   render(<AccountHome />)
   expect(await screen.findByText(/read-only/i)).toBeTruthy()
   expect(screen.getByRole('button', { name: /subscribe/i })).toBeTruthy()
-})
-
-test('sweep list renders its member link and archives with two-tap confirm', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
-  render(<AccountHome />)
-  expect(await pane().findByText('My NBA')).toBeTruthy()
-  expect(screen.getByDisplayValue('https://h/g/m1')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
-  const confirmBtn = await screen.findByRole('button', { name: /really archive\?/i })
-  fireEvent.click(confirmBtn)
-  await waitFor(() => expect(archiveSweep).toHaveBeenCalledWith('sw1'))
-})
-
-test('archive failure shows an inline error and resets the confirm state', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
-  archiveSweep.mockRejectedValue(new Error('boom'))
-  render(<AccountHome />)
-  expect(await pane().findByText('My NBA')).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
-  fireEvent.click(await screen.findByRole('button', { name: /really archive\?/i }))
-  expect(await screen.findByText(/archive failed/i)).toBeTruthy()
-  expect(screen.getByRole('button', { name: /^archive$/i })).toBeTruthy() // confirm state reset
 })
 
 test('account load failure shows an inline error instead of a silent empty list', async () => {
@@ -208,51 +184,20 @@ test('a non-empty sweep list shows a New sweep button to the catalog', async () 
   expect(window.location.assign).toHaveBeenCalledWith('/account/new')
 })
 
-// A member link pasted into the wrong chat is permanent otherwise: it is the only
-// credential POST /api/session accepts, and archiving (killing the sweep for everyone)
-// was the owner's only remedy.
-test('a leaked member link can be replaced, after a warning that it locks everyone out', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
-  render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^replace link$/i }))
-  expect(rotateSweep).not.toHaveBeenCalled() // one tap warns, it does not rotate
-  expect(screen.getByText(/locked out/i)).toBeTruthy()
-  fireEvent.click(screen.getByRole('button', { name: /yes, replace the link/i }))
-  await waitFor(() => expect(rotateSweep).toHaveBeenCalledWith('sw1'))
-  // the owner needs the new link in hand — it is what they send the group next
-  expect(await screen.findByDisplayValue('https://h/g/new')).toBeTruthy()
-})
-
-// Revoking a leaked link is damage control, not a paid feature — and a lapsed owner
-// is exactly who needs it (api/src/routes/account.js rotates with requireLive:false).
-test('a lapsed owner can still replace the link', async () => {
-  const past = new Date(Date.now() - 86400000).toISOString()
-  getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: past, liveSweeps: 1, quantity: 0 })
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
-  render(<AccountHome />)
-  const btn = await screen.findByRole('button', { name: /^replace link$/i })
-  expect(btn.disabled).toBe(false)
-})
-
-test('a failed rotate says so and leaves the old link showing', async () => {
-  getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/old' }])
-  rotateSweep.mockRejectedValueOnce(new Error('boom'))
-  render(<AccountHome />)
-  fireEvent.click(await screen.findByRole('button', { name: /^replace link$/i }))
-  fireEvent.click(screen.getByRole('button', { name: /yes, replace the link/i }))
-  expect(await screen.findByText(/couldn't replace the link/i)).toBeTruthy()
-  expect(screen.getByDisplayValue('https://h/g/old')).toBeTruthy()
-})
-
-test('a sweep card reports who has joined and links to managing them', async () => {
+// The row is a summary now, not a control panel: the member link, Replace link and
+// Archive all moved to the sweep's own page, and Settings is the way to them.
+test('a sweep card reports who has joined, and hands the controls to the sweep\'s own page', async () => {
   getAccountSweeps.mockResolvedValue([{
-    id: 'sw_1', name: 'Office', competitionId: 'c', archivedAt: null, createdAt: null,
+    id: 'sw_1', name: 'Office', competitionId: 'c', archivedAt: null, createdAt: null, role: 'owner',
     memberLink: 'https://x.test/g/tok', members: { total: 12, registered: 8 },
   }])
   render(<AccountHome />)
   expect(await screen.findByText(/12 in the sweep/)).toBeInTheDocument()
   expect(screen.getByText(/4 not joined yet/)).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: /manage members/i })).toHaveAttribute('href', '/s/sw_1/admin')
+  expect(pane().getByRole('link', { name: /^settings$/i })).toHaveAttribute('href', '/account/s/sw_1')
+  expect(pane().queryByDisplayValue('https://x.test/g/tok')).toBeNull()
+  expect(pane().queryByRole('button', { name: /^archive$/i })).toBeNull()
+  expect(pane().queryByRole('button', { name: /replace link/i })).toBeNull()
 })
 
 test('a fully-joined sweep says so without a nag', async () => {

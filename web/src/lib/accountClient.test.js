@@ -2,7 +2,7 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
-  revokeSession, revokeAllSessions, rotateSweep, openSweepSession, getAccountSweeps,
+  revokeSession, revokeAllSessions, rotateSweep, openSweepSession, getAccountSweeps, patchSweep,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -209,4 +209,17 @@ test('a failed list is evicted, so the next caller genuinely retries', async () 
   await expect(getAccountSweeps(true)).rejects.toMatchObject({ status: 500 })
   fetch.mockResolvedValueOnce(jsonResponse(200, [{ id: 'sw1' }]))
   await expect(getAccountSweeps()).resolves.toEqual([{ id: 'sw1' }])
+})
+
+// The owner's own sweep. This endpoint has existed since it was written with no client
+// wrapper and no UI behind it, so renaming your own sweep was an operator-only power.
+test('patchSweep PATCHes the owner sweep route with the token header', async () => {
+  setAccountToken('t9')
+  fetch.mockResolvedValueOnce(jsonResponse(200, { ok: true }))
+  await patchSweep('sw1', { name: 'The Lads' })
+  expect(fetch).toHaveBeenCalledWith('/api/account/sweeps/sw1', expect.objectContaining({
+    method: 'PATCH',
+    body: JSON.stringify({ name: 'The Lads' }),
+    headers: expect.objectContaining({ 'x-account-token': 't9' }),
+  }))
 })
