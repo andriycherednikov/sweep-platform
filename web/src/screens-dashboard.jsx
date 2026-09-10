@@ -166,6 +166,19 @@ function RaceCard({ s }) {
   const leader = series[0];
   // Every win on the same day is one column, and one column is not a line.
   const flat = series.length > 0 && oneDay(shown);
+  // What the caption may claim. "Out in front" was a claim about the sweep's own
+  // leaderboard, and this chart is not that one: a league sweep ranks people by where
+  // their best club sits in the table (lib/assemble.js:249), so whoever has the most team
+  // wins can be third on the group's People tab. The console cannot match that ranking —
+  // GET /api/account/stats ships wins per day and no table at all — so the caption says
+  // the thing the chart actually measures. And level is level: naming the first of two
+  // people on the same number was naming whatever order the roster came back in, which is
+  // by name.
+  const top = series.length ? last(leader.points) : 0;
+  const level = series.filter((l) => last(l.points) === top);
+  const headline = level.length > 1
+    ? `${level.map((l) => l.label).join(", ")} level on ${plural(top, "win")}`
+    : `${leader?.label} has the most team wins — ${top}`;
 
   return (
     // is-full up to two columns, two of the three above that: the race is drawn into a
@@ -194,7 +207,7 @@ function RaceCard({ s }) {
             <Lines title="Wins per person, running total" series={shown} height={tall ? 280 : 220} />
           )}
           <p className="ch-cap">
-            {`${leader.label} out in front on ${plural(last(leader.points), "win")}`}
+            {headline}
             {!flat && series.length > 1 ? ` · one line per person, running total` : ""}
             {!flat && narrow && series.length > shown.length ? ` · showing the top ${RACE_MAX} on a screen this size` : ""}
             {/* Said out loud because the chart cannot help it: `ownership` records who

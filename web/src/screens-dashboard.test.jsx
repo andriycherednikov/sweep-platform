@@ -177,6 +177,32 @@ test('the quiet ones are the rows you can go and poke', async () => {
   expect(pane().getByText('4 picks · 1 bet')).toBeTruthy()
 })
 
+// The sweep app ranks people by their best club's table position for a league sweep
+// (web/src/lib/assemble.js:249), so "out in front" here could name a different person
+// from the one the group's own People tab calls leader. This chart measures team wins;
+// the caption now says team wins.
+test('the race caption names what it measures, not who is winning', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /wins/i })
+  expect(pane().getByText(/AS has the most team wins — 3/)).toBeTruthy()
+  expect(pane().queryByText(/out in front/)).toBeNull()
+})
+
+// Whoever the roster's name order put first was crowned, on the same number of wins as
+// the person below them.
+test('a tie at the top is called level, not won by whoever sorts first', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    race: [
+      { personId: 'pn_a', date: '2026-05-01', wins: 1 },
+      { personId: 'pn_a', date: '2026-05-02', wins: 2 },
+      { personId: 'pn_b', date: '2026-05-01', wins: 3 },
+    ],
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/AS, BT level on 3 wins/)).toBeTruthy()
+})
+
 // Both charts are drawn from tables with no history in them, and on a page whose whole
 // job is entertainment a caption is cheaper than a schema change — but it has to be
 // there, or the chart quietly claims to remember something it cannot.
@@ -308,7 +334,7 @@ test('a race that has only had one day of results says the score instead of draw
     race: [{ personId: 'pn_a', date: '2026-05-02', wins: 3 }, { personId: 'pn_b', date: '2026-05-02', wins: 1 }],
   }])
   render(<Dashboard />)
-  expect(await pane().findByText(/AS out in front on 3 wins/)).toBeTruthy()
+  expect(await pane().findByText(/AS has the most team wins — 3/)).toBeTruthy()
   expect(pane().queryByRole('img', { name: /wins/i })).toBeNull()
   // The caption cannot promise a line per person when there is no line.
   expect(pane().queryByText(/one line per person/)).toBeNull()
