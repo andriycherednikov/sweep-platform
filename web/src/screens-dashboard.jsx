@@ -25,6 +25,14 @@ const DAY_MS = 86400000;
 // How many lines the race keeps on a phone. A 220px chart carrying a dozen labelled
 // lines is a scribble at that width, and reflowing it into something taller just moves
 // the problem down the page.
+//
+// ponytail: the top five, rather than the top four plus whoever is reading. The stats
+// payload carries no "this seat is you" flag — person.accountId exists in the schema
+// (POST /api/account/sweeps/:id/session reads it) but GET /api/account/stats does not
+// ship it, and matching the account's name against a seat name is a guess that would be
+// wrong for anyone who typed a nickname. The upgrade is one boolean on the people rows
+// of that route; until then the leader is always shown, which is the line most people
+// are looking for anyway.
 const RACE_MAX = 5;
 
 const last = (a) => (a.length ? a[a.length - 1] : 0);
