@@ -177,10 +177,9 @@ function RaceCard({ s }) {
     : `${leader?.label} has the most team wins — ${top}`;
 
   return (
-    // is-full up to two columns, two of the three above that: the race is drawn into a
-    // viewBox, so full width on a 1440px pane is a 590px-tall chart rather than a better
-    // one. Both classes, and the stylesheet picks per breakpoint.
-    <section className="ac-card is-full is-double">
+    // Two columns wherever there are two — which is the whole width until the grid runs
+    // three. Its height is the stylesheet's business, not this width's.
+    <section className="ac-card is-double">
       <h2 className="ac-card-h">The race</h2>
       {series.length === 0 ? (
         // A sweep whose season has not started is the likeliest sweep to be looked at —
@@ -498,14 +497,17 @@ function LoudCard({ s, href }) {
 export function StoryGrid({ s }) {
   const admin = `/s/${s.sweepId}/admin`;
   return (
-    <div className="ac-grid">
+    // The wrapper is what the cards are measured against — .ac-story is the container
+    // the grid's own breakpoints are asked of, so this grid lays out the same in a
+    // 464px column of the sweep page as it does in a 464px window.
+    <div className="ac-story"><div className="ac-grid">
       <RaceCard s={s} />
       <JoinsCard joins={s.joins} href={admin} />
       <SeasonCard season={s.season} />
       <LuckCard s={s} />
       {s.wagering && <PulseCard s={s} />}
       <LoudCard s={s} href={admin} />
-    </div>
+    </div></div>
   );
 }
 
@@ -558,11 +560,11 @@ export function Dashboard() {
       <Console here="home" wide>
         <Header count={null} people={null} />
         {/* One skeleton, not six: the shape of the page arrives before the numbers do. */}
-        <div className="ac-grid">
-          <div className="ac-card is-full ch-skel" style={{ height: 260 }} />
+        <div className="ac-story"><div className="ac-grid">
+          <div className="ac-card is-double ch-skel" style={{ height: 260 }} />
           <div className="ac-card ch-skel" style={{ height: 190 }} />
           <div className="ac-card ch-skel" style={{ height: 190 }} />
-        </div>
+        </div></div>
       </Console>
     );
 
