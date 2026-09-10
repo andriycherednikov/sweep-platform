@@ -19,7 +19,7 @@ vi.mock('./lib/accountClient.js', () => ({
 }))
 
 import { Dashboard, cumulate, raceSeries, mergeJoins, mergeSeason } from './screens-dashboard.jsx'
-import { getAccountSweeps, getAccountStats } from './lib/accountClient.js'
+import { getAccountSweeps, getAccountStats, getBilling } from './lib/accountClient.js'
 
 const SWEEP = {
   id: 'sw1', name: 'Office Pool', role: 'owner', archivedAt: null,
@@ -57,6 +57,9 @@ beforeEach(() => {
   vi.clearAllMocks()
   getAccountSweeps.mockResolvedValue([SWEEP])
   getAccountStats.mockResolvedValue([STATS])
+  // Paid up, so the billing panel the header carries says nothing — every test below
+  // that cares about billing overrides this.
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', liveSweeps: 1 })
   originalLocation = window.location
   Object.defineProperty(window, 'location', {
     value: { ...originalLocation, assign: vi.fn(), reload: vi.fn() },
@@ -184,6 +187,22 @@ test('several sweeps roll up in the header and offer a way to switch the race', 
   expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual(['Office Pool', 'Family League'])
   // 3 of 5 and 2 of 5, rolled up
   expect(pane().getByText(/5 of 10/)).toBeTruthy()
+})
+
+// /account is where the sweep page's read-only warning, the catalog's "Go to billing"
+// and every return out of Stripe land. A lapsed owner following one of those used to
+// arrive at a page of charts with nothing to pay with.
+test('a lapsed owner landing on the dashboard is handed the bill, not just charts', async () => {
+  getBilling.mockResolvedValue({ subscribed: false, trialEndsAt: '2026-01-01T00:00:00Z', liveSweeps: 1 })
+  render(<Dashboard />)
+  expect(await pane().findByText(/trial has ended/i)).toBeTruthy()
+  expect(pane().getByRole('button', { name: /subscribe/i })).toBeTruthy()
+})
+
+test('a paid-up account gets its charts and no invoice', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /wins/i })
+  expect(pane().queryByText(/subscription/i)).toBeNull()
 })
 
 test('the dashboard keeps a way through to the list and the billing on it', async () => {

@@ -17,7 +17,7 @@
    whether the joins and the season are one sweep's or every sweep's added together.
    ============================================================ */
 import { useState, useEffect, useMemo } from "react";
-import { Console, NoSweepsYet, fmtDay } from "./screens-account.jsx";
+import { Console, NoSweepsYet, fmtDay, BillingNotice } from "./screens-account.jsx";
 import { getAccountSweeps, getAccountStats } from "./lib/accountClient.js";
 import { Lines, Bars, Scatter } from "./charts.jsx";
 
@@ -484,7 +484,12 @@ export function Dashboard() {
 
 /** The same three lines above the page whatever state it is in, so a failure and a load
  *  do not each invent their own heading. The link is load-bearing: billing lives on the
- *  list, and the rail only offers the list once you run more sweeps than it will show. */
+ *  list, and the rail only offers the list once you run more sweeps than it will show.
+ *
+ *  BillingNotice sits here rather than in the branches below for the same reason: this
+ *  is the one thing all four states share, and a lapsed owner arrives on this page from
+ *  the sweep's read-only warning whether their charts loaded or not. It says nothing at
+ *  all unless there is a bill to settle. */
 function Header({ count, people }) {
   return (
     <>
@@ -494,6 +499,7 @@ function Header({ count, people }) {
         {count ? `${plural(count, "sweep")} running · ${people} ${people === 1 ? "person" : "people"} in them · ` : ""}
         <a className="ac-inline" href="/account/sweeps">Your sweeps and billing</a>
       </p>
+      <BillingNotice />
     </>
   );
 }
