@@ -218,6 +218,18 @@ test('the luck card admits the feed can rewrite what it divides by', async () =>
   expect(pane().getByText(/drops the pick with it/i)).toBeTruthy()
 })
 
+// The other way round from the test above: the charts are the half that landed. The
+// rail has nothing in it and no row can be ranked against a list that never arrived, so
+// this is the path where every sweep falls back to the same place in the order.
+test('the charts still draw when the sweep list is the half that fell over', async () => {
+  getAccountSweeps.mockRejectedValue(new Error('boom'))
+  getAccountStats.mockResolvedValue([STATS, { ...STATS, sweepId: 'sw2', competitionId: 'cp_nfl' }])
+  render(<Dashboard />)
+  expect(await pane().findByRole('img', { name: /wins/i })).toBeTruthy()
+  const picker = pane().getByRole('combobox', { name: /showing/i })
+  expect(within(picker).getAllByRole('option').map((o) => o.textContent)).toEqual(['Your sweep', 'Your sweep'])
+})
+
 test('wagering off means no pulse card at all', async () => {
   render(<Dashboard />)
   await pane().findByRole('img', { name: /wins/i })

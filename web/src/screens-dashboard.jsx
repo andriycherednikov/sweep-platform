@@ -66,8 +66,9 @@ function daySpan(dates) {
   return out;
 }
 
-/** One line per person who has won something, as a running total over the days any of
- *  them did — every day of them, including the ones nobody won on. People with nothing yet are left out rather than drawn as a flat zero:
+/** One line per person who has won something, as a running total over every day between
+ *  the first win in the sweep and the last — the quiet ones included, or the axis is not
+ *  a calendar. People with nothing yet are left out rather than drawn as a flat zero:
  *  twelve lines pinned to the floor is not information, it is a fence.
  *  Sorted by where everyone ended up, so the leader is first and undimmed — the caller
  *  does not have to work out who the story is about. */
@@ -471,10 +472,13 @@ export function Dashboard() {
         .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
         .map((s, i) => [s.id, i]),
     );
-    // Infinity, not a number the list could reach: the two requests are answered
-    // separately, so a sweep created between them has a stats row and no rank yet, and
-    // it belongs at the end rather than at whatever position the fallback happens to be.
-    return [...stats].sort((a, b) => (rank.get(a.sweepId) ?? Infinity) - (rank.get(b.sweepId) ?? Infinity));
+    // An unranked row goes after the ranked ones and level with the other unranked ones:
+    // rank.size is one past the last place, and two of them subtract to nothing. That is
+    // reachable rather than theoretical — the list request can fail while the stats
+    // request lands, and then NOTHING is ranked, which is the case where a fallback of
+    // Infinity would hand sort() a comparator returning NaN.
+    const rankOf = (r) => rank.get(r.sweepId) ?? rank.size;
+    return [...stats].sort((a, b) => rankOf(a) - rankOf(b));
   }, [stats, sweeps]);
 
   if (failed)
