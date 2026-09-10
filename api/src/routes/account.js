@@ -611,7 +611,11 @@ export async function accountRoutes(app) {
      *  web/src/screens-detail.jsx:184). Written once, here, so no chart in the console can
      *  ever disagree with the leaderboard the group is already looking at. 'DRAW' matches
      *  no competitor code, so draws fall out of every join that uses this — and a pick of
-     *  'DRAW' still matches it, which is exactly right. */
+     *  'DRAW' still matches it, which is exactly right. A final with no score at all is
+     *  the one case that resolves to NULL instead of to a draw: the card refuses to call
+     *  that game either way, and reading it as a draw here would hand a right answer to
+     *  everybody who called one on a result nobody knows. NULL matches nothing, picks
+     *  included. */
     const winner = sql`coalesce(${event.winnerCode}, case when ${event.score1} is null or ${event.score2} is null then null when ${event.score1} > ${event.score2} then ${event.c1Code} when ${event.score2} > ${event.score1} then ${event.c2Code} else 'DRAW' end)`
 
     /** Every wager in one shape: a single is a bet row, and a parlay is the parlay row.
