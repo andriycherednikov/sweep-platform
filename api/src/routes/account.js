@@ -1,5 +1,8 @@
-import { eq, and, ne, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
-import { account, accountSession, loginToken, catalogLeague, competition, event, person, sweep } from '../db/schema.js'
+import { eq, and, ne, desc, isNull, isNotNull, gt, inArray, sql } from 'drizzle-orm'
+import {
+  account, accountSession, bet, loginToken, catalogLeague, competition, competitor,
+  event, ownership, person, photo, support, sweep,
+} from '../db/schema.js'
 import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep } from '../sweeps/auth.js'
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
@@ -546,6 +549,209 @@ export async function accountRoutes(app) {
       // to hand out, and they already came in through one.
       ...joined.filter((j) => !ownedIds.has(j.sweep.id)).map((j) => ({ ...base(j), role: 'member' })),
     ]
+  })
+
+  /** Everything the console dashboard draws, for the caller's OWN live sweeps.
+   *
+   *  This is entertainment, not analytics. It belongs to the person running a sweep and
+   *  the group inside it — who joined when, whose teams keep winning, who calls a result
+   *  right, who places a bet ninety seconds before tip-off. Platform-wide numbers are
+   *  /super's job and stay there.
+   *
+   *  No billing gate, for the reason the rotate route below spells out: the read-only
+   *  gate exists to freeze sweep CONTENT, and reading your own numbers while lapsed
+   *  changes nothing about the sweep.
+   *
+   *  Every bucket goes out raw, one row per day. The cumulative pass these charts want is
+   *  three lines of client JS, while summing server-side would both grow the payload and
+   *  leave the client unable to re-window it.
+   */
+  app.get('/api/account/stats', { preHandler: accountGuard }, async (req, reply) => {
+    // A dashboard is a tab somebody leaves open, and this is a dozen grouped queries.
+    // `private`: one account's own sweeps must never sit in a shared cache.
+    reply.header('Cache-Control', 'private, max-age=60')
+
+    const mine = await app.db.select({
+      id: sweep.id, competitionId: sweep.competitionId, wageringEnabled: sweep.wageringEnabled,
+    }).from(sweep).where(and(eq(sweep.accountId, req.account.id), isNull(sweep.archivedAt)))
+    if (!mine.length) return [] // owns nothing — not one of the queries below is worth running
+
+    const ids = mine.map((s) => s.id)
+    // The roster is fetched FIRST and every person-keyed query below is scoped to the ids
+    // it hands back, which keeps "an ejected seat is not in the sweep any more" as one
+    // rule in one place instead of the same join written out six times. These rows are
+    // payload too: the charts label their lines and dots with the initials and avatar
+    // colour the person already wears inside the sweep, so shipping them here spares the
+    // client a second lookup. Ordered by name, which is the order every list of them
+    // wants and the only thing that makes the blocks below deterministic.
+    const roster = await app.db.select({
+      sweepId: person.sweepId, id: person.id, name: person.name, initials: person.initials,
+      avColor: person.avColor, claimedAt: person.claimedAt,
+    }).from(person)
+      .where(and(inArray(person.sweepId, ids), isNull(person.ejectedAt)))
+      .orderBy(person.name)
+    const pids = roster.map((p) => p.id)
+    const compIds = [...new Set(mine.map((s) => s.competitionId))]
+    const wids = mine.filter((s) => s.wageringEnabled).map((s) => s.id)
+
+    /** Bucketed in UTC and handed over as a plain 'YYYY-MM-DD'. date_trunc on its own
+     *  buckets in whatever timezone the session happens to carry, and a chart axis only
+     *  ever wants the day. */
+    const day = (col) => sql`to_char(${col} at time zone 'UTC', 'YYYY-MM-DD')`
+
+    /** Who won a final event — the SAME rule the group already reads on the Wins tab.
+     *  winner_code is genuinely null whenever the provider named no winning side
+     *  (worker/baseline-sync.js:137, worker/live-poller.js:91), and the sweep app falls
+     *  back to comparing the scores when it is (web/src/components.jsx:343,
+     *  web/src/screens-detail.jsx:184). Written once, here, so no chart in the console can
+     *  ever disagree with the leaderboard the group is already looking at. 'DRAW' matches
+     *  no competitor code, so draws fall out of every join that uses this — and a pick of
+     *  'DRAW' still matches it, which is exactly right. */
+    const winner = sql`coalesce(${event.winnerCode}, case when ${event.score1} > ${event.score2} then ${event.c1Code} when ${event.score2} > ${event.score1} then ${event.c2Code} else 'DRAW' end)`
+
+    // Nobody in any sweep, or wagering off everywhere, and the matching queries never run.
+    const nothing = Promise.resolve([])
+    const anyone = (q) => (pids.length ? q() : nothing)
+    const punters = (q) => (pids.length && wids.length ? q() : nothing)
+
+    const [made, claimed, race, seasons, calls, betCounts, photoCounts, wagerDaily, wagerBest, wagerLead] =
+      await Promise.all([
+        app.db.select({ sweepId: person.sweepId, date: day(person.createdAt), n: sql`count(*)::int` })
+          .from(person)
+          .where(and(inArray(person.sweepId, ids), isNull(person.ejectedAt)))
+          .groupBy(person.sweepId, day(person.createdAt)),
+
+        app.db.select({ sweepId: person.sweepId, date: day(person.claimedAt), n: sql`count(*)::int` })
+          .from(person)
+          .where(and(inArray(person.sweepId, ids), isNull(person.ejectedAt), isNotNull(person.claimedAt)))
+          .groupBy(person.sweepId, day(person.claimedAt)),
+
+        // The headline chart: how many of each member's teams have won, day by day.
+        anyone(() => app.db.select({
+          sweepId: ownership.sweepId, personId: ownership.personId,
+          date: day(event.startUtc), wins: sql`count(*)::int`,
+        }).from(ownership)
+          .innerJoin(competitor, eq(competitor.id, ownership.competitorId))
+          .innerJoin(event, and(eq(event.competitionId, competitor.competitionId), sql`${winner} = ${competitor.code}`))
+          .where(and(inArray(ownership.sweepId, ids), inArray(ownership.personId, pids), eq(event.status, 'final')))
+          .groupBy(ownership.sweepId, ownership.personId, day(event.startUtc))
+          .orderBy(day(event.startUtc), ownership.personId)),
+
+        // Grouped by competition, not by sweep: two sweeps can follow the same season, and
+        // then this is one group serving both. `> now()` is load-bearing — filtering on
+        // status alone offers a fixture postponed months ago as the next kickoff.
+        app.db.select({
+          competitionId: event.competitionId,
+          final: sql`(count(*) filter (where ${event.status} = 'final'))::int`,
+          total: sql`count(*)::int`,
+          // mapWith, or this comes back as the driver's raw timestamptz text: drizzle only
+          // parses timestamps it knows the column type of, and a bare sql`` fragment is not that.
+          next: sql`min(${event.startUtc}) filter (where ${event.status} <> 'final' and ${event.startUtc} > now())`.mapWith(event.startUtc),
+        }).from(event).where(inArray(event.competitionId, compIds)).groupBy(event.competitionId),
+
+        // Luck vs skill: fixtures they called a side on, and how many they got right.
+        anyone(() => app.db.select({
+          sweepId: support.sweepId, personId: support.personId,
+          picks: sql`count(*)::int`,
+          right: sql`(count(*) filter (where ${support.teamCode} = ${winner}))::int`,
+        }).from(support)
+          .innerJoin(event, eq(event.id, support.fixtureId))
+          .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids), eq(event.status, 'final')))
+          .groupBy(support.sweepId, support.personId)),
+
+        // Two counts rather than one query: three left joins off a single person row
+        // multiply each other, and a wrong number is worse than a second round trip.
+        anyone(() => app.db.select({ sweepId: bet.sweepId, personId: bet.personId, n: sql`count(*)::int` })
+          .from(bet)
+          .where(and(inArray(bet.sweepId, ids), inArray(bet.personId, pids)))
+          .groupBy(bet.sweepId, bet.personId)),
+
+        anyone(() => app.db.select({ sweepId: photo.sweepId, personId: photo.personId, n: sql`count(*)::int` })
+          .from(photo)
+          .where(and(inArray(photo.sweepId, ids), inArray(photo.personId, pids), eq(photo.status, 'approved')))
+          .groupBy(photo.sweepId, photo.personId)),
+
+        punters(() => app.db.select({
+          sweepId: bet.sweepId, date: day(bet.placedAt),
+          bets: sql`count(*)::int`, staked: sql`sum(${bet.stake})::int`,
+        }).from(bet)
+          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids)))
+          .groupBy(bet.sweepId, day(bet.placedAt))
+          .orderBy(day(bet.placedAt))),
+
+        // DISTINCT ON is the whole "one biggest win per sweep" query: sort by profit
+        // inside each sweep and keep the first row.
+        punters(() => app.db.selectDistinctOn([bet.sweepId], {
+          sweepId: bet.sweepId, personId: bet.personId,
+          profit: sql`(${bet.potentialPayout} - ${bet.stake})::int`,
+        }).from(bet)
+          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids), eq(bet.status, 'won')))
+          .orderBy(bet.sweepId, desc(sql`${bet.potentialPayout} - ${bet.stake}`))),
+
+        // "bets a median 41 minutes before kickoff" — the kind of line this dashboard is for.
+        punters(() => app.db.select({
+          sweepId: bet.sweepId, personId: bet.personId,
+          medianSec: sql`(percentile_cont(0.5) within group (order by extract(epoch from ${event.startUtc} - ${bet.placedAt})))::int`,
+        }).from(bet)
+          .innerJoin(event, eq(event.id, bet.fixtureId))
+          .where(and(inArray(bet.sweepId, wids), inArray(bet.personId, pids)))
+          .groupBy(bet.sweepId, bet.personId)),
+      ])
+
+    const bySweep = (rows) => {
+      const m = new Map()
+      for (const r of rows) { const a = m.get(r.sweepId); a ? a.push(r) : m.set(r.sweepId, [r]) }
+      return m
+    }
+    const [gRoster, gMade, gClaimed, gRace, gCalls, gBets, gPhotos, gDaily, gBest, gLead] =
+      [roster, made, claimed, race, calls, betCounts, photoCounts, wagerDaily, wagerBest, wagerLead].map(bySweep)
+    const bySeason = new Map(seasons.map((s) => [s.competitionId, s]))
+
+    return mine.map((s) => {
+      const people = gRoster.get(s.id) ?? []
+      const num = (rows) => new Map((rows ?? []).map((r) => [r.personId, r]))
+      const calledBy = num(gCalls.get(s.id))
+      const betBy = num(gBets.get(s.id))
+      const photoBy = num(gPhotos.get(s.id))
+      const leadBy = num(gLead.get(s.id))
+
+      // One row per day carrying both series. The gap between them IS the "not joined yet"
+      // number the sweep card prints today, drawn instead of stated.
+      const joins = new Map()
+      const on = (date) => joins.get(date) ?? joins.set(date, { date, created: 0, claimed: 0 }).get(date)
+      for (const r of gMade.get(s.id) ?? []) on(r.date).created = r.n
+      for (const r of gClaimed.get(s.id) ?? []) on(r.date).claimed = r.n
+
+      const season = bySeason.get(s.competitionId)
+      const best = (gBest.get(s.id) ?? [])[0]
+      return {
+        sweepId: s.id,
+        people: people.map(({ sweepId, ...p }) => p),
+        joins: [...joins.values()].sort((a, b) => a.date.localeCompare(b.date)),
+        race: (gRace.get(s.id) ?? []).map(({ sweepId, ...r }) => r),
+        season: season
+          ? { final: season.final, total: season.total, next: season.next }
+          : { final: 0, total: 0, next: null }, // provisioned seconds ago — the feed has not landed yet
+        calls: people.filter((p) => calledBy.has(p.id))
+          .map((p) => ({ personId: p.id, picks: calledBy.get(p.id).picks, right: calledBy.get(p.id).right })),
+        // Built from the roster, not from the counts: the quiet ones are half the joke,
+        // and they only show up as zeros if somebody puts them there.
+        activity: people.map((p) => ({
+          personId: p.id,
+          picks: calledBy.get(p.id)?.picks ?? 0,
+          bets: betBy.get(p.id)?.n ?? 0,
+          photos: photoBy.get(p.id)?.n ?? 0,
+        })),
+        ...(s.wageringEnabled ? {
+          wagering: {
+            daily: (gDaily.get(s.id) ?? []).map(({ sweepId, ...d }) => d),
+            biggest: best ? { personId: best.personId, profit: best.profit } : null,
+            lead: people.filter((p) => leadBy.has(p.id))
+              .map((p) => ({ personId: p.id, medianSec: leadBy.get(p.id).medianSec })),
+          },
+        } : {}),
+      }
+    })
   })
 
   /** Open a sweep the account belongs to, with no invite link in hand.
