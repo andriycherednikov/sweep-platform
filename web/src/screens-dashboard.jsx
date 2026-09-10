@@ -167,8 +167,10 @@ function RaceCard({ s }) {
  *  createdAt is only when the owner typed their name in, so the upper line is a list of
  *  intentions and the lower one is a list of people. */
 function JoinsCard({ joins, href }) {
-  const invited = last(cumulate(joins.map((j) => j.created)));
-  const joined = last(cumulate(joins.map((j) => j.claimed)));
+  const made = cumulate(joins.map((j) => j.created));
+  const claimed = cumulate(joins.map((j) => j.claimed));
+  const invited = last(made);
+  const joined = last(claimed);
   const waiting = invited - joined;
   const lastInvite = [...joins].reverse().find((j) => j.created > 0)?.date;
 
@@ -183,8 +185,8 @@ function JoinsCard({ joins, href }) {
             title="Seats invited against seats joined"
             height={150}
             series={[
-              { id: "made", color: "var(--ink3)", label: String(invited), points: cumulate(joins.map((j) => j.created)) },
-              { id: "in", color: "var(--lp-accent)", label: String(joined), points: cumulate(joins.map((j) => j.claimed)) },
+              { id: "made", color: "var(--ink3)", label: String(invited), points: made },
+              { id: "in", color: "var(--lp-accent)", label: String(joined), points: claimed },
             ]}
           />
           <p className="ch-key">
