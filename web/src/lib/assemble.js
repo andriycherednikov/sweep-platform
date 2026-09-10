@@ -99,6 +99,13 @@ export function threeWayProb(prob) {
  *  league name usually is not: api-basketball calls it "NBA" and api-football "La Liga",
  *  so the header read as the league in general rather than the season being played.
  *  Some names already carry it ("World Cup 2026") — don't say it twice. */
+/** 1st, 2nd, 3rd, 4th... — the sweep talks in finishing positions now, not survival. */
+export function ordinal(n) {
+  const rem100 = n % 100
+  if (rem100 >= 11 && rem100 <= 13) return `${n}th`
+  return `${n}${{ 1: 'st', 2: 'nd', 3: 'rd' }[n % 10] || 'th'}`
+}
+
 export function withCompetitionLabel(comp) {
   const name = comp.name || ''
   const season = comp.season ? String(comp.season) : ''
@@ -206,6 +213,30 @@ export function assembleSweep(api) {
   // people ranked by their wins across ALL their final fixtures (tiebreak: best-team
   // strength). Counted per-fixture via winnerCodeOf — NOT summed from group standings,
   // which only tally the group stage and so drop every knockout and penalty-shootout win.
+  // ---- a league ranks its competitors already ------------------------------
+  // Survival cannot rank a league: nobody is ever eliminated, so nobody ever settles and
+  // every placement stayed null for the whole season. But the table IS a ranking — so a
+  // person's placement is where their best-placed club sits in it, live from matchday one.
+  //
+  // Gated on the shape of the competition, not on a list of league ids: one table and a
+  // 'league' format. That excludes the NBA (a table per conference — "its position" has
+  // two answers) and leaves every knockout and group-stage sweep on survival, untouched.
+  const tableKeys = Object.keys(standings)
+  const byTable = bootstrap.competition?.format === 'league' && tableKeys.length === 1
+  // Rank each person by the sorted positions of their clubs, best first: the best club
+  // decides it, and the rest only separate people whose best clubs are level. Missing
+  // positions sort last, so a club the table has not listed never flatters anybody.
+  const posOf = {}
+  if (byTable) standings[tableKeys[0]].forEach((t, i) => { posOf[t.code] = i + 1 })
+  const tableKey = (p) => (p.teams || []).map((c) => posOf[c] ?? Infinity).sort((a, b) => a - b)
+  const cmpKeys = (a, b) => {
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      const x = a[i] ?? Infinity, y = b[i] ?? Infinity
+      if (x !== y) return x - y
+    }
+    return 0
+  }
+
   const money = people.map((p) => {
     const myTeams = p.teams.map((c) => teams[c]).filter(Boolean)
     const best = myTeams.slice().sort((a, b) => b.strength - a.strength)[0]
@@ -214,8 +245,17 @@ export function assembleSweep(api) {
       return n + (w && p.teams.indexOf(w) >= 0 ? 1 : 0)
     }, 0)
     return { person: p, team: best || null, odds: best ? best.titleOdds : 0, strength: best ? best.strength : 0, wins }
-  }).sort((a, b) => (b.wins - a.wins) || (b.strength - a.strength))
-  money.forEach((m, i) => { m.rank = i + 1; m.tag = i === 0 ? 'Title fav' : m.strength >= 70 ? 'Alive' : 'Outside' })
+  }).sort(byTable
+    ? (a, b) => cmpKeys(tableKey(a.person), tableKey(b.person))
+    : (a, b) => (b.wins - a.wins) || (b.strength - a.strength))
+  // 'Title fav' / 'Alive' / 'Outside' read off strength, which no league club carries —
+  // so every single person came back "Outside". A league says where you actually stand.
+  money.forEach((m, i) => {
+    m.rank = i + 1
+    m.tag = byTable
+      ? (i === 0 ? 'Leading' : `${ordinal(i + 1)}`)
+      : (i === 0 ? 'Title fav' : m.strength >= 70 ? 'Alive' : 'Outside')
+  })
 
   // photos (already approved-only from the API) — tagged to a game (fixtureId)
   const photos = (rawPhotos || []).map((ph) => ({
@@ -334,6 +374,22 @@ export function assembleSweep(api) {
   // Standard competition ranking, range display. start = 1 + (# who outlasted me);
   // a tie group of size k shows start..start+k-1. null = not settled (still in).
   const placements = {}
+  if (byTable) {
+    // The season is over when the feed says so — a leader is not a champion in March.
+    const seasonEnded = bootstrap.competition?.ended === true
+    const keys = Object.fromEntries(ranked.map((p) => [p.id, tableKey(p)]))
+    for (const p of people) {
+      if (!p.teams || p.teams.length === 0) { placements[p.id] = null; continue }
+      const me = keys[p.id]
+      let above = 0, tie = 0
+      for (const q of ranked) {
+        const c = cmpKeys(keys[q.id], me)
+        if (c < 0) above++
+        else if (c === 0) tie++
+      }
+      placements[p.id] = { start: above + 1, end: above + tie, champion: seasonEnded && above === 0 }
+    }
+  } else {
   for (const p of people) {
     const me = elimByPerson[p.id]
     if (!me.settled) { placements[p.id] = null; continue }
@@ -344,6 +400,7 @@ export function assembleSweep(api) {
       else if (t === me.time) tie++
     }
     placements[p.id] = { start: above + 1, end: above + tie, champion: me.champion }
+  }
   }
   const placementOf = (id) => placements[id] || null
 
@@ -356,6 +413,8 @@ export function assembleSweep(api) {
 
   return {
     teams, teamList, groups, people, peopleById, fixtures, fixturesById, standings, photos, derbies, money,
+    // how this sweep ranks: 'table' (a league's own order) or 'survival' (who lasts longest)
+    rankedBy: byTable ? 'table' : 'survival',
     nextMatch, liveMatch, scoring: bootstrap.scoring,
     sweep: bootstrap.sweep || { id: 'default', name: 'The Sweep' },
     account: bootstrap.account ?? null,

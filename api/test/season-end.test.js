@@ -153,3 +153,20 @@ test('with no Stripe configured the daily pass is a no-op rather than a crash', 
   const { reassertQuantities } = await import('../src/accounts/billing.js')
   expect(await reassertQuantities(db, null)).toEqual({ updated: 0, payingForNothing: [] })
 })
+
+// A league sweep crowns its winner off the final table, so the client has to know the
+// season is actually over — a leader in March is not a champion. endedCompetitionIds is
+// the same signal billing and the poller already trust.
+test('bootstrap tells the client whether the competition has ended', async () => {
+  const { buildApp } = await import('../src/app.js')
+  const { memberClient } = await import('./helpers/session.js')
+  const app = buildApp(db)
+  const client = await memberClient(app)
+  try {
+    const body = (await client.inject({ method: 'GET', url: '/api/bootstrap' })).json()
+    expect(body.competition).toHaveProperty('ended')
+    expect(typeof body.competition.ended).toBe('boolean')
+  } finally {
+    await app.close()
+  }
+})

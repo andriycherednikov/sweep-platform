@@ -98,7 +98,11 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
     : av === "coins"
     ? `${headCount} adult${headCount === 1 ? "" : "s"} · sorted by Yowie Dollars balance`
     : av === "placement"
-    ? `${placedCount} of ${totalCount} placed · by finishing position`
+    ? (S.rankedBy === "table"
+        ? `${totalCount} in the sweep · ${S.competition?.ended ? "final positions" : "provisional — the season is still running"}`
+        : `${placedCount} of ${totalCount} placed · by finishing position`)
+    : S.rankedBy === "table"
+    ? `${totalCount} in the sweep · sorted by their best team's position`
     : `${activeCount} out of ${totalCount} are still in the running · sorted by team wins`;
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
@@ -117,7 +121,7 @@ export function PeopleScreen({ go, openPerson, initialView = "wins" }) {
             </div>
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
               <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{subLabel}</p>
-              {av !== "placement" && <HideEliminatedToggle on={hideEliminated} onToggle={()=>setHideEliminated(!hideEliminated)} />}
+              {av !== "placement" && S.rankedBy !== "table" && <HideEliminatedToggle on={hideEliminated} onToggle={()=>setHideEliminated(!hideEliminated)} />}
             </div>
           </div>
           {list.length===0 && <p style={{fontSize:13,color:"var(--muted2)",padding:"8px 2px"}}>No one matches “{q}”.</p>}
@@ -349,8 +353,10 @@ export function TeamsScreen({ go, openTeam }) {
           <div style={{maxWidth:440,margin:"2px 0 12px"}}>
             <SearchInput value={q} onChange={setQ} placeholder="Search teams…" />
             <div style={{display:"flex", alignItems:"center", justifyContent:"space-between", marginTop:8}}>
-              <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>{aliveTeams} out of {totalTeams} teams still in the running</p>
-              <HideEliminatedToggle on={hideElim} onToggle={()=>setHideElim(v=>!v)} />
+              <p style={{fontSize:12,color:"var(--muted2)",fontWeight:600,margin:0}}>
+                {S.rankedBy === "table" ? `${totalTeams} teams` : `${aliveTeams} out of ${totalTeams} teams still in the running`}
+              </p>
+              {S.rankedBy !== "table" && <HideEliminatedToggle on={hideElim} onToggle={()=>setHideElim(v=>!v)} />}
             </div>
           </div>
           {matches ? (
@@ -431,11 +437,13 @@ export function TeamDetail({ code, onBack, openMatch, openPerson, openUpload }) 
               <div className="tb-id" style={{flex:1, minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   <h2 style={{margin:0}}>{t.name}</h2>
-                  {isTeamOut ? (
+                  {/* Nobody is knocked out of a league, so a permanent green ALIVE on
+                      all 20 clubs says nothing. The badge belongs to knockout formats. */}
+                  {S.rankedBy !== "table" && (isTeamOut ? (
                     <span className="elim-badge elim-badge-red" style={{fontSize:10,padding:"2px 7px",fontWeight:800,borderRadius:6,textTransform:"uppercase"}}>OUT</span>
                   ) : (
                     <span style={{background:"#dcfce7",color:"#15803d",border:"1px solid #bbf7d0",fontSize:10,padding:"2px 7px",fontWeight:800,borderRadius:6,textTransform:"uppercase"}}>ALIVE</span>
-                  )}
+                  ))}
                 </div>
                 <div className="meta">
                   {t.group && <span className="b">{S.vocab.groupHeading(t.group)}</span>}

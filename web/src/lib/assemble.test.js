@@ -597,3 +597,74 @@ test('a finished World Cup group still puts everyone below the top two out', () 
   expect(s.isTeamEliminated('a3')).toBe(true)
   expect(s.isTeamEliminated('a4')).toBe(true)
 })
+
+/* ---- league placement: your rank is your best club's rank ---------------- */
+// A league eliminates nobody, so the survival model that ranks people by WHEN their last
+// team went out never settles anyone: placement stayed null for the whole season and the
+// sweep could not name a winner. In a league the table already ranks the competitors —
+// a person's placement is simply where their best-placed club sits in it.
+const leagueSweep = ({ ownership, order = ['c1', 'c2', 'c3', 'c4', 'c5', 'c6'], ended = false } = {}) => assembleSweep({
+  bootstrap: {
+    competition: { sport: 'football', format: 'league', hasDraws: true, name: 'PL', season: '2026', ended },
+    teams: order.map((c) => ({ code: c, name: c.toUpperCase(), group: null, pool: null, color: '#c00', strength: null })),
+    people: Object.keys(ownership).map((id) => ({ id, name: id, short: id, initials: id.slice(0, 2).toUpperCase() })),
+    ownership, scoring: null,
+  },
+  fixtures: [],
+  standings: { '': order.map((c, i) => ({ code: c, name: c.toUpperCase(), played: 3, win: 3, draw: 0, loss: 0, gf: 9, ga: i, pts: 30 - i })) },
+  photos: [], syncStatus: { stale: false },
+})
+
+test('league placement ranks people by their best-placed club, from matchday one', () => {
+  const s = leagueSweep({ ownership: { a: ['c3'], b: ['c1'], c: ['c5'] } })
+  expect(s.placementOf('b')).toMatchObject({ start: 1, end: 1 })  // owns the leader
+  expect(s.placementOf('a')).toMatchObject({ start: 2, end: 2 })
+  expect(s.placementOf('c')).toMatchObject({ start: 3, end: 3 })
+})
+
+// The whole reason the survival model failed: nobody is ever settled, so nothing shows.
+test('league placement is never null — there is always a table', () => {
+  const s = leagueSweep({ ownership: { a: ['c2'], b: ['c4'] } })
+  expect(s.placementOf('a')).not.toBeNull()
+  expect(s.placementOf('b')).not.toBeNull()
+})
+
+// Only your best club decides your rank; the others break ties between equal bests.
+test('a second club counts only when the best clubs are level', () => {
+  const s = leagueSweep({ ownership: { a: ['c1', 'c6'], b: ['c1', 'c2'] } })
+  expect(s.placementOf('b')).toMatchObject({ start: 1, end: 1 }) // same best, better second
+  expect(s.placementOf('a')).toMatchObject({ start: 2, end: 2 })
+})
+
+// Co-owners of the same club genuinely tie, and the league itself says so: the Premier
+// League Handbook breaks a tie only for the title, relegation or Europe (C.7).
+test('co-owners of the same club share a placement range', () => {
+  const s = leagueSweep({ ownership: { a: ['c2'], b: ['c2'], c: ['c1'] } })
+  expect(s.placementOf('c')).toMatchObject({ start: 1, end: 1 })
+  expect(s.placementOf('a')).toMatchObject({ start: 2, end: 3 })
+  expect(s.placementOf('b')).toMatchObject({ start: 2, end: 3 })
+})
+
+// Before the last matchday there is a leader, not a champion.
+test('nobody is champion until the competition has actually ended', () => {
+  const running = leagueSweep({ ownership: { a: ['c1'], b: ['c2'] } })
+  expect(running.placementOf('a').champion).toBe(false)
+  const done = leagueSweep({ ownership: { a: ['c1'], b: ['c2'] }, ended: true })
+  expect(done.placementOf('a').champion).toBe(true)
+  expect(done.placementOf('b').champion).toBe(false)
+})
+
+// Somebody who drew nothing has no rank to hold.
+test('a person with no clubs takes no placement', () => {
+  const s = leagueSweep({ ownership: { a: ['c1'], b: [] } })
+  expect(s.placementOf('b')).toBeNull()
+})
+
+// The leaderboard sorts on its own comparator (wins, then strength). Strength is null for
+// every club in a league, so the board and the placement disagreed: the board is what
+// people look at, so it has to tell the same story.
+test('the leaderboard agrees with the placement in a league', () => {
+  const s = leagueSweep({ ownership: { a: ['c4'], b: ['c1'], c: ['c2'] } })
+  expect(s.money.map((m) => m.person.id)).toEqual(['b', 'c', 'a'])
+  expect(s.money.map((m) => m.rank)).toEqual([1, 2, 3])
+})

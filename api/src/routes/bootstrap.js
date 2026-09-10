@@ -5,16 +5,21 @@ import { requireSweep } from '../sweeps/auth.js'
 import { competitorCodeMap } from './competitors.js'
 import { sweepLiveNow } from '../accounts/billing.js'
 import { sportConfig } from '../sports.js'
+import { endedCompetitionIds } from '../season.js'
 
 export async function bootstrapRoutes(app) {
   app.get('/api/bootstrap', { preHandler: requireSweep(['member', 'admin']) }, async (req) => {
     const sweepId = req.sweep.id
-    const [teams, people, owns, codeById, comp] = await Promise.all([
+    const [teams, people, owns, codeById, comp, ended] = await Promise.all([
       app.db.select().from(competitor).where(eq(competitor.competitionId, req.sweep.competitionId)),
       app.db.select().from(person).where(eq(person.sweepId, sweepId)),
       app.db.select().from(ownership).where(eq(ownership.sweepId, sweepId)),
       competitorCodeMap(app.db, req.sweep.competitionId),
       app.db.select().from(competition).where(eq(competition.id, req.sweep.competitionId)).then((r) => r[0]),
+      // A league sweep crowns off the final table, so the client has to know the season
+      // is actually over — in March it has a leader, not a champion. Same signal billing
+      // and the poller already trust, so a sweep cannot be "over" for one and not another.
+      endedCompetitionIds(app.db).then((ids) => ids.includes(req.sweep.competitionId)),
     ])
     const ownership_ = {}
     for (const o of owns) {
@@ -45,7 +50,7 @@ export async function bootstrapRoutes(app) {
       wageringEnabled: req.sweep?.wageringEnabled ?? false,
       competition: comp ? {
         sport: comp.sport, hasDraws: sportConfig(comp.sport).hasDraws,
-        name: comp.name, season: comp.season, format: comp.format, logo: comp.logo ?? null,
+        name: comp.name, season: comp.season, format: comp.format, logo: comp.logo ?? null, ended,
       } : null,
     }
   })
