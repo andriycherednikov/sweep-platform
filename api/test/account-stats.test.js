@@ -158,12 +158,15 @@ test('a level final is a draw, and belongs to nobody', async () => {
 
 // A final the feed has given us no score for has no result yet — reading it as a draw
 // would credit everyone who called one, which is what the sweep's own match card refuses
-// to do (web/src/components.jsx:343).
+// to do (web/src/components.jsx:343). It is no wrong call either: the sweep's own accuracy
+// tile drops an unresolved final out of BOTH halves (web/src/social.js:105), so a game
+// nobody knows the result of cannot cost anybody their record.
 test('a final with no score is not a draw, it is no result at all', async () => {
   const s = await forSweep(SW)
   expect(s.race.some((r) => r.date === '2024-05-05')).toBe(false)
-  // Ann called a draw on it: it counts as a pick, and it is not a right one.
-  expect(s.calls.find((c) => c.personId === 'pn_ann').right).toBe(1)
+  // Ann called a draw on it: neither right nor wrong, so it is out of her accuracy
+  // altogether — two of her three picks, and `activity` below still counts all three.
+  expect(s.calls.find((c) => c.personId === 'pn_ann')).toEqual({ personId: 'pn_ann', picks: 2, right: 1 })
 })
 
 // Filtering on status alone renders a fixture that was postponed months ago as "Next".
@@ -174,7 +177,7 @@ test('the next kickoff is the upcoming one, not the postponed one', async () => 
 
 test('calls score a pick against the same winner the race uses, draws included', async () => {
   const s = await forSweep(SW)
-  expect(s.calls.find((c) => c.personId === 'pn_ann')).toEqual({ personId: 'pn_ann', picks: 3, right: 1 })
+  expect(s.calls.find((c) => c.personId === 'pn_ann')).toEqual({ personId: 'pn_ann', picks: 2, right: 1 })
   expect(s.calls.find((c) => c.personId === 'pn_bob')).toEqual({ personId: 'pn_bob', picks: 1, right: 1 })
 })
 

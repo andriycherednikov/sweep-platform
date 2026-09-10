@@ -684,13 +684,20 @@ export async function accountRoutes(app) {
         }).from(event).where(inArray(event.competitionId, compIds)).groupBy(event.competitionId),
 
         // Luck vs skill: fixtures they called a side on, and how many they got right.
+        // `winner is not null` is the denominator half of the rule above: a final the feed
+        // named no result for is nobody's right call, so counting the pick at all would
+        // charge everyone who made it with a wrong one on a game nobody knows. The sweep's
+        // own accuracy tile drops such a fixture from both halves (web/src/social.js:105),
+        // and this is that same set. Participation is a different question and `pickCounts`
+        // below answers it over every support row, unfinished fixtures included.
         anyone(() => app.db.select({
           sweepId: support.sweepId, personId: support.personId,
           picks: sql`count(*)::int`,
           right: sql`(count(*) filter (where ${support.teamCode} = ${winner}))::int`,
         }).from(support)
           .innerJoin(event, eq(event.id, support.fixtureId))
-          .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids), eq(event.status, 'final')))
+          .where(and(inArray(support.sweepId, ids), inArray(support.personId, pids),
+            eq(event.status, 'final'), sql`${winner} is not null`))
           .groupBy(support.sweepId, support.personId)),
 
         // Participation, and NOT a duplicate of the query above: `calls` asks how often
