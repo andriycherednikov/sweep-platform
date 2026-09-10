@@ -331,17 +331,20 @@ function LoudCard({ s, href }) {
   const byId = new Map(s.people.map((p) => [p.id, p]));
   const rows = s.activity
     .filter((a) => byId.has(a.personId))
-    .map((a) => ({ ...a, person: byId.get(a.personId), total: a.picks + a.bets + a.photos }))
+    .map((a) => ({ ...a, person: byId.get(a.personId), total: a.picks + a.bets }))
     .sort((a, b) => b.total - a.total);
   // Past five people the middle is the boring part: keep the three loudest and the two
   // quietest, which is the whole joke.
   const shown = rows.length <= 5 ? rows : [...rows.slice(0, 3), ...rows.slice(-2)];
 
+  // Picks and bets, and no photos: a fan photo — the upload people actually make — is
+  // stored with no person on it, so the count this used to print was of profile avatars,
+  // which is one each. The route dropped the field rather than ship a number that meant
+  // something other than its label, and adding an absent one in made every total NaN.
   const tally = (r) => {
     const parts = [
       r.picks ? plural(r.picks, "pick") : null,
       r.bets ? plural(r.bets, "bet") : null,
-      r.photos ? plural(r.photos, "photo") : null,
     ].filter(Boolean);
     return parts.length ? parts.join(" · ") : "nothing yet";
   };

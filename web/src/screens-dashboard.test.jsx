@@ -45,9 +45,11 @@ const STATS = {
   ],
   season: { final: 3, total: 5, next: '2026-09-17T02:12:44.756Z' },
   calls: [{ personId: 'pn_a', picks: 4, right: 3 }],
+  // No photo count: a fan photo is written with a null person_id, so the only thing a
+  // per-person tally could count was avatars, and the route stopped sending it.
   activity: [
-    { personId: 'pn_a', picks: 4, bets: 1, photos: 0 },
-    { personId: 'pn_b', picks: 0, bets: 0, photos: 0 },
+    { personId: 'pn_a', picks: 4, bets: 1 },
+    { personId: 'pn_b', picks: 0, bets: 0 },
   ],
 }
 
@@ -151,6 +153,16 @@ test('a failed stats load says so without taking the rail down with it', async (
   expect(await pane().findByText(/couldn't work out/i)).toBeTruthy()
   const rail = within(await screen.findByRole('navigation'))
   expect(rail.getByRole('link', { name: 'Office Pool' })).toHaveAttribute('href', '/account/s/sw1')
+})
+
+// Whoever has done nothing is the half of that card worth acting on, so their row is a
+// link into the sweep's admin. Adding an absent photo count into the total made it NaN,
+// which is not zero, and every quiet row quietly stopped being a link.
+test('the quiet ones are the rows you can go and poke', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /wins/i })
+  expect(pane().getByRole('link', { name: /Bo Tran/ })).toHaveAttribute('href', '/s/sw1/admin')
+  expect(pane().getByText('4 picks · 1 bet')).toBeTruthy()
 })
 
 test('wagering off means no pulse card at all', async () => {
