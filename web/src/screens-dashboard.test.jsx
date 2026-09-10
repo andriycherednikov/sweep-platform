@@ -212,6 +212,37 @@ test('the race admits it credits every win to whoever holds the team now', async
   expect(pane().getByText(/changes hands/i)).toBeTruthy()
 })
 
+// `calls` only carries the fixtures that have FINISHED with a result the feed named
+// (api/src/routes/account.js), while the card beside it lists every pick anybody has
+// made — so a group that has called all of next week's games was told nobody had called
+// anything, next to the list of who had.
+test('picks with nothing finished yet are not "nobody has called a game"', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, calls: [] }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/4 picks in, and no result on any of them yet/)).toBeTruthy()
+  expect(pane().queryByText(/Nobody has called a game/)).toBeNull()
+})
+
+test('a group that really has not picked anything still says so', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    calls: [],
+    activity: [{ personId: 'pn_a', picks: 0, bets: 0 }, { personId: 'pn_b', picks: 0, bets: 0 }],
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/Nobody has called a game yet/)).toBeTruthy()
+})
+
+// The across axis is wins as a fraction of the group's best — Scatter takes 0..1 — so
+// one hot person shoves everybody else to the left. Captioning it as an absolute count
+// made every other dot read as "has won almost nothing".
+test('the luck card captions the across axis as the relative thing it is', async () => {
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /luck/i })
+  expect(pane().getByText(/wins compare with the group's best/)).toBeTruthy()
+  expect(pane().queryByText(/Across: how many games your teams have won/)).toBeNull()
+})
+
 test('the luck card admits the feed can rewrite what it divides by', async () => {
   render(<Dashboard />)
   await pane().findByRole('img', { name: /luck/i })

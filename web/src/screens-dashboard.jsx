@@ -320,8 +320,17 @@ function LuckCard({ s }) {
   const byId = new Map(s.people.map((p) => [p.id, p]));
   const wins = new Map();
   for (const r of s.race) wins.set(r.personId, (wins.get(r.personId) ?? 0) + r.wins);
+  // Scatter plots 0..1 fractions of each axis, so across is wins measured against the
+  // best-off person in the group rather than an absolute count. The caption says so: one
+  // hot streak drags everybody else to the left-hand wall, and read as a count that says
+  // the rest of them have won nothing.
   const mostWins = Math.max(1, ...wins.values());
   const tall = useTall();
+  // `calls` only carries fixtures that have finished AND that the feed gave a result for
+  // (api/src/routes/account.js), while this is every pick anybody has made. A group that
+  // has called all of next week's games has an empty scatter and a full "loud and quiet"
+  // card beside it, which is a different sentence from nobody having picked.
+  const picked = s.activity.reduce((n, a) => n + a.picks, 0);
 
   const points = s.calls
     .filter((c) => byId.has(c.personId) && c.picks > 0)
@@ -337,7 +346,11 @@ function LuckCard({ s }) {
     <section className="ac-card">
       <h2 className="ac-card-h">Luck vs skill</h2>
       {points.length === 0 ? (
-        <p className="ac-b">Nobody has called a game yet. This fills up as the group picks sides.</p>
+        <p className="ac-b">
+          {picked > 0
+            ? `${plural(picked, "pick")} in, and no result on any of them yet — this fills up as those games finish.`
+            : "Nobody has called a game yet. This fills up as the group picks sides."}
+        </p>
       ) : (
         <>
           <Scatter
@@ -347,7 +360,8 @@ function LuckCard({ s }) {
             quadrants={["Cursed", "Sharp", "Hopeless", "Blessed"]}
           />
           <p className="ch-cap">
-            Across: how many games your teams have won. Up: how often you called one right.
+            Across: how your teams' wins compare with the group's best — the right-hand edge
+            is whoever has won the most. Up: how often you called one right.
             The draw was random, so anything you see along the diagonal is your imagination.
             {/* `support` has no timestamp either, and the baseline sync deletes the picks
                 on any fixture the provider stops listing (worker/baseline-sync.js:173) —
