@@ -19,6 +19,8 @@ vi.mock('./lib/accountClient.js', () => ({
   getBilling: vi.fn(async () => ({ subscribed: false, subscriptionStatus: null, trialEndsAt: null, liveSweeps: 0, quantity: 0 })),
   confirmCheckout: vi.fn(async () => ({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 1, quantity: 1 })),
   getAccountSweeps: vi.fn(async () => ([])),
+  // The dashboard at /account draws itself from this one.
+  getAccountStats: vi.fn(async () => ([])),
   archiveSweep: vi.fn(async () => ({})),
   rotateSweep: vi.fn(async () => ({ memberLink: 'https://h/g/new' })),
   // SweepSettings (mounted at /account/s/:id) renames and toggles wagering through it.
@@ -60,11 +62,14 @@ test('a stored token is verified via getAccount(); a stale (401) token is cleare
   expect(await screen.findByLabelText(/email/i)).toBeInTheDocument()
 })
 
-test('a valid stored token lands straight on the account home (billing + sweeps load)', async () => {
+test('a valid stored token lands straight on the console dashboard', async () => {
   accountClient.getAccountToken.mockReturnValue('good-tok')
   window.history.replaceState(null, '', '/account')
   render(<AccountRoot />)
-  expect(await screen.findByRole('heading', { name: /your sweeps/i })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: /how it's going/i })).toBeInTheDocument()
+  // The list /account used to be still has a home, and it is the only page carrying
+  // the billing controls — the dashboard must not be a dead end in front of them.
+  expect(screen.getByRole('link', { name: /sweeps and billing/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
 test('email + password signs in directly and reloads', async () => {

@@ -55,6 +55,11 @@ export const getAccountSweeps = (fresh) => {
   }
   return sweepsPromise
 }
+// Everything the console dashboard draws, one object per live sweep you own. Not behind
+// the promise cache above on purpose: this is the one thing on the page somebody might
+// reasonably want to see again without reloading, and the route already answers
+// `private, max-age=60`, which is the caching this needs.
+export const getAccountStats = () => call('GET', '/api/account/stats')
 export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
 // Mints the sweep cookie from the 90-day account session, for a sweep this account

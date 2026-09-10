@@ -1414,6 +1414,44 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
    the card, which is the entire responsive story — there is nothing to measure. */
 .ch{ display:block; width:100%; height:auto; }
 
+/* the dashboard ------------------------------------------------------------- */
+/* Two columns of cards want more room than a settings form does, and only the
+   dashboard asks for it — .ac-col stays where it was for everything else. */
+.ac-col.is-wide{ max-width:980px; }
+.ac-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; align-items:start; }
+/* the race is the screenshot, so it gets the whole width */
+.ac-grid .is-full{ grid-column:1/-1; }
+@media (max-width:820px){ .ac-grid{ grid-template-columns:minmax(0,1fr); } }
+/* what the chart above it means, in the smallest voice on the card */
+.ch-cap{ margin:10px 0 0; font-size:12.5px; line-height:1.55; color:var(--ink3); }
+/* two unlabelled lines are a riddle; this is the two words that solve it */
+.ch-key{ display:flex; flex-wrap:wrap; gap:14px; margin:10px 0 0; font-size:12px; color:var(--ink2); }
+.ch-key span{ display:flex; align-items:center; gap:6px; }
+.ch-key i{ width:12px; height:3px; border-radius:2px; }
+/* the one number on the card you could read from across the room */
+.ch-big{ margin:14px 0 0; font-family:'Archivo',system-ui,sans-serif; font-weight:800;
+  font-size:30px; letter-spacing:-.8px; color:var(--paper-ink); font-variant-numeric:tabular-nums; }
+.ch-big span{ margin-left:8px; font-size:13px; font-weight:500; letter-spacing:0; color:var(--ink2); }
+/* one person, their face and what they have been up to */
+.ch-row{ display:flex; align-items:center; gap:10px; margin-top:2px; padding:9px 0 8px;
+  border-top:1px solid var(--edge); text-decoration:none; color:inherit; }
+.ch-row:first-of-type{ margin-top:12px; }
+/* the quiet ones are the rows worth clicking — they lead into the sweep's own admin */
+.ch-row.is-quiet .ch-name{ color:var(--ink3); }
+.ch-row.is-quiet:hover .ch-name{ color:var(--lp-accent); }
+.ch-av{ flex-shrink:0; display:grid; place-items:center; width:27px; height:27px; border-radius:9px;
+  color:#fff; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:12px; letter-spacing:.4px; }
+.ch-name{ flex:1; min-width:0; font-size:13.5px; font-weight:600; color:var(--paper-ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ch-tally{ flex-shrink:0; font-family:'Barlow Semi Condensed',sans-serif; font-size:12.5px;
+  font-variant-numeric:tabular-nums; color:var(--ink3); }
+/* which sweep the race is about, once you run more than one */
+.ch-focus{ display:flex; align-items:center; gap:9px; margin:0 0 16px; font-size:12.5px; color:var(--ink2); }
+.ch-focus select{ padding:7px 10px; border-radius:9px; border:1px solid var(--edge);
+  background:#fff; font-family:inherit; font-size:13.5px; font-weight:600; color:var(--paper-ink); }
+/* the page's shape lands before its numbers do — same pulse as the landing page's */
+.ch-skel{ animation:lpPulse 1.6s ease-in-out infinite; background:var(--glass2); border-style:dashed; }
+
 @media (max-width:820px){
   .ac{ grid-template-columns:minmax(0,1fr); }
   .ac-side{ position:static; height:auto; flex-direction:row; align-items:center;

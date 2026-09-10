@@ -71,7 +71,7 @@ function AccountMenu({ onSettings, onSignOut, onSignOutAll }) {
  *  "home" for /account, "sweeps" for the full list, a SWEEP ID for that sweep's own
  *  page, "new" for the catalog. Anything else (settings, the email-change landing)
  *  simply matches nothing, and the rail shows no active item. */
-export function Console({ here, children }) {
+export function Console({ here, wide, children }) {
   useMarketingShell();
   // Who you are, in the rail, the same as inside a sweep — the console knew your
   // account and greeted you with two unlabelled sign-out buttons.
@@ -199,7 +199,9 @@ export function Console({ here, children }) {
         </div>
       </aside>
       <main className="ac-main">
-        <div className="ac-col">{children}</div>
+        {/* The dashboard's two columns of cards need more room than a settings form
+            does, and a form stretched to 980px is worse than one that isn't. */}
+        <div className={"ac-col" + (wide ? " is-wide" : "")}>{children}</div>
       </main>
     </div>
   );
@@ -433,20 +435,24 @@ function MemberRow({ s }) {
   );
 }
 
+/** The same dead end from two directions: an account with no sweeps has nothing to list
+ *  and nothing to chart, and in both places the answer is the one button. */
+export function NoSweepsYet() {
+  return (
+    <section className="ac-card ac-empty">
+      <h3 className="ac-card-h">No sweeps yet</h3>
+      <p className="ac-b">Pick a competition and spin one up — the fixtures come with it.</p>
+      <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
+    </section>
+  );
+}
+
 function SweepList({ sweeps, billing }) {
   const active = sweeps.filter((s) => !s.archivedAt);
   const owned = active.filter((s) => s.role !== "member");
   const joined = active.filter((s) => s.role === "member");
 
-  if (active.length === 0) {
-    return (
-      <section className="ac-card ac-empty">
-        <h3 className="ac-card-h">No sweeps yet</h3>
-        <p className="ac-b">Pick a competition and spin one up — the fixtures come with it.</p>
-        <button className="lp-btn ac-btn" onClick={() => goTo("/account/new")}>Set up your first sweep</button>
-      </section>
-    );
-  }
+  if (active.length === 0) return <NoSweepsYet />;
 
   return (
     <>

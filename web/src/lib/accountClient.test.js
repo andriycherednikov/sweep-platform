@@ -3,6 +3,7 @@ import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
   revokeSession, revokeAllSessions, rotateSweep, openSweepSession, getAccountSweeps, patchSweep,
+  getAccountStats,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -221,5 +222,19 @@ test('patchSweep PATCHes the owner sweep route with the token header', async () 
     method: 'PATCH',
     body: JSON.stringify({ name: 'The Lads' }),
     headers: expect.objectContaining({ 'x-account-token': 't9' }),
+  }))
+})
+
+// Deliberately NOT behind the sweep-list cache: a dashboard left open all afternoon
+// should be able to ask again, and the route already answers private/max-age=60.
+test('getAccountStats reads the dashboard numbers, once per call', async () => {
+  setAccountToken('t7')
+  fetch.mockResolvedValue(jsonResponse(200, [{ sweepId: 'sw1' }]))
+  await expect(getAccountStats()).resolves.toEqual([{ sweepId: 'sw1' }])
+  await getAccountStats()
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(fetch).toHaveBeenCalledWith('/api/account/stats', expect.objectContaining({
+    method: 'GET',
+    headers: expect.objectContaining({ 'x-account-token': 't7' }),
   }))
 })

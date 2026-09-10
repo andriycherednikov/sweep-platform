@@ -12,6 +12,7 @@ import {
 } from "./lib/accountClient.js";
 import { fmtDay } from "./screens-account.jsx";
 import { AccountHome, AccountSettings, ConfirmEmailChange } from "./screens-account.jsx";
+import { Dashboard } from "./screens-dashboard.jsx";
 import { SweepSettings } from "./screens-sweep-settings.jsx";
 import { CatalogScreen } from "./screens-catalog.jsx";
 import { useMarketingShell } from "./screens-landing.jsx";
@@ -219,7 +220,8 @@ function Entry() {
   const notice = usePartialSignOutNotice();
 
   if (status === "checking") return <div className="sweep-gate" />;
-  if (status === "in") return <AccountHome />;
+  // /account is the dashboard now; the list it used to be lives on /account/sweeps.
+  if (status === "in") return <Dashboard />;
 
   return mode === "magic"
     ? <MagicEntry onPassword={() => setMode("password")} notice={notice} />
@@ -402,8 +404,9 @@ export function AccountRoot() {
   if (path === "/account/settings") {
     return <RequireAccount><AccountSettings /></RequireAccount>;
   }
-  // The whole list, for someone running more sweeps than the rail will list. /account
-  // still answers with it too, until the dashboard takes that address over.
+  // The whole list, and the only page carrying the billing controls — /account is the
+  // dashboard now, and the rail only offers this once you run more sweeps than it shows,
+  // so the dashboard's own header keeps a link to it.
   if (path === "/account/sweeps") {
     return <RequireAccount><AccountHome here="sweeps" /></RequireAccount>;
   }
