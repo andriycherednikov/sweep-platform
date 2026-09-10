@@ -59,9 +59,17 @@ export const getAccountSweeps = () => {
   return sweepsPromise
 }
 // Everything the console dashboard draws, one object per live sweep you own. Not behind
-// the promise cache above on purpose: this is the one thing on the page somebody might
-// reasonably want to see again without reloading, and the route already answers
-// `private, max-age=60`, which is the caching this needs.
+// the promise cache above, and not behind an HTTP one either: the route answers
+// `no-store` on purpose (it is authorized by a header, and no cache keys on one), and
+// the two pages that read this — the dashboard and a sweep's own page — are never on
+// screen together, so a shared promise would have nobody to share with.
+//
+// ponytail: there is no way to ask for ONE sweep's numbers, so the sweep's own page
+// (screens-sweep-settings.jsx) downloads every sweep you run and keeps a single row.
+// The upgrade is `GET /api/account/stats?sweep=:id` — the route already has the id in
+// hand, it is one more predicate on `mine` — and the ceiling until then is however many
+// sweeps one person runs: a dozen sets of daily buckets on a page opened by hand is
+// cheap, and fifty is the day to add the parameter.
 export const getAccountStats = () => call('GET', '/api/account/stats')
 export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
