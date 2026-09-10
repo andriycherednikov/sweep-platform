@@ -17,7 +17,7 @@ vi.mock('./lib/accountClient.js', () => ({
   revokeAllSessions: vi.fn(async () => ({})),
 }))
 
-import { AccountHome, AccountSettings } from './screens-account.jsx'
+import { AccountHome, AccountSettings, BillingNotice } from './screens-account.jsx'
 import {
   getAccount, getBilling, getAccountSweeps, startCheckout, openPortal, clearAccountToken,
   patchAccount, requestEmailChange,
@@ -331,6 +331,42 @@ test('a sweep you run can be opened from its card', async () => {
   const name = (await pane().findByText('Office Pool')).closest('a')
   expect(name.getAttribute('href')).toBe('/s/sw1')
   expect(screen.getByLabelText('Open Office Pool').getAttribute('href')).toBe('/s/sw1')
+})
+
+/* ---- the bill, where the "subscribe" links land ---------------------------- */
+// /account is the dashboard now, and the dashboard never reads billing — but the
+// read-only warning on a sweep's page, the catalog's "Go to billing" and every "Back to
+// my account" out of Stripe still point at it. A lapsed owner following the warning
+// arrived at a page of charts with no way to pay. Mounted from the dashboard; the
+// behaviour is pinned here, where it is written.
+test('a lapsed account is handed the bill on the page its subscribe links land on', async () => {
+  const past = new Date(Date.now() - 86400000).toISOString()
+  getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: past, liveSweeps: 2, quantity: 0 })
+  render(<BillingNotice />)
+  expect(await screen.findByText(/trial has ended — sweeps are read-only/i)).toBeTruthy()
+  expect(screen.getByRole('button', { name: /^subscribe$/i })).toBeTruthy()
+})
+
+test('a trialing account is shown what it has left, and how to keep it', async () => {
+  const future = new Date(Date.now() + 4 * 86400000).toISOString()
+  getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: future, liveSweeps: 1, quantity: 0 })
+  render(<BillingNotice />)
+  expect(await screen.findByText(/days left in your free trial/i)).toBeTruthy()
+})
+
+test('a failed payment is worth interrupting a paid-up account for', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'past_due', trialEndsAt: null, liveSweeps: 1, quantity: 1 })
+  render(<BillingNotice />)
+  expect(await screen.findByText(/last payment failed/i)).toBeTruthy()
+})
+
+// Nothing to do about it — and this is the page that exists to be fun. The dashboard's
+// own header already carries a quiet link to the list, where the controls live.
+test('a paid-up account is not shown a bill on its dashboard', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 2, quantity: 2 })
+  const { container } = render(<BillingNotice />)
+  await waitFor(() => expect(getBilling).toHaveBeenCalled())
+  expect(container.textContent).toBe('')
 })
 
 /* ---- account settings ---------------------------------------------------- */

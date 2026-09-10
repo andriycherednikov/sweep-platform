@@ -567,9 +567,14 @@ export async function accountRoutes(app) {
    *  leave the client unable to re-window it.
    */
   app.get('/api/account/stats', { preHandler: accountGuard }, async (req, reply) => {
-    // A dashboard is a tab somebody leaves open, and this is a dozen grouped queries.
-    // `private`: one account's own sweeps must never sit in a shared cache.
-    reply.header('Cache-Control', 'private, max-age=60')
+    // Not cached, for a minute or at all. This route is authorized by a HEADER, and no
+    // cache keys on one: `private, max-age=60` would serve the second account to sign in
+    // on a browser whatever the first one saw — a family, or a support call, where being
+    // wrong is worst. `Vary: x-account-token` would work only as well as each browser's
+    // handling of a non-standard header, and this is a dozen cheap grouped queries on a
+    // page somebody opens by hand. The same reasoning applies to any account route that
+    // starts caching.
+    reply.header('Cache-Control', 'no-store')
 
     const mine = await app.db.select({
       id: sweep.id, competitionId: sweep.competitionId, wageringEnabled: sweep.wageringEnabled,

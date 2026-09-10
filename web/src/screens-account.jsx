@@ -330,6 +330,37 @@ function BillingPanel({ billing }) {
   );
 }
 
+/** The same panel, on the console's front page, and only when the account has something
+ *  to do about its bill.
+ *
+ *  /account used to BE the list, which is where billing lives. It is the dashboard now,
+ *  and the dashboard reads no billing at all — yet the read-only warning on a sweep's
+ *  page, the catalog's "Go to billing" and every "Back to my account" out of Stripe
+ *  still land here. A lapsed owner following the warning arrived at a page of charts
+ *  with no way to pay.
+ *
+ *  One panel for the account, not one per sweep, and quiet when the bill is healthy: a
+ *  paid-up subscriber does not need an invoice on the page that exists to be fun, and
+ *  the header beside this already carries a link to the list where the controls are. */
+export function BillingNotice() {
+  const [billing, setBilling] = useState(null);
+  // Its own request. The dashboard's two loads have their own fates and this is a third:
+  // a billing call that falls over must not cost anyone their charts, so it says nothing.
+  useEffect(() => {
+    let alive = true;
+    getBilling().then((b) => { if (alive) setBilling(b); }, () => {});
+    return () => { alive = false; };
+  }, []);
+
+  // Read unconditionally — an early return above this would make the call order depend
+  // on whether the request has landed.
+  const { trialing, lapsed } = useBilling(billing ?? {});
+  if (!billing) return null;
+  if (!trialing && !lapsed && billing.subscriptionStatus !== "past_due") return null;
+
+  return <div style={{ margin: "0 0 22px" }}><BillingPanel billing={billing} /></div>;
+}
+
 /** What the sweep follows. The name is whatever the owner typed — "Office Pool" says
  *  nothing — so this is the line that makes a list of sweeps readable at a glance. */
 export function CompetitionLine({ s, note }) {

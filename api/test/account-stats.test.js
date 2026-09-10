@@ -120,9 +120,11 @@ const statsFor = async (accountId) => {
 }
 const forSweep = async (id) => (await statsFor('ac_stats')).json().find((s) => s.sweepId === id)
 
-test('a dashboard left open is not eleven queries a minute', async () => {
+// Two accounts on one browser inside a minute is a family, or a support call — and the
+// token that tells them apart is a header no cache keys on.
+test('nobody is served the previous account\'s dashboard', async () => {
   const res = await statsFor('ac_stats')
-  expect(res.headers['cache-control']).toBe('private, max-age=60')
+  expect(res.headers['cache-control']).toBe('no-store')
 })
 
 test('an account that owns nothing gets an empty list', async () => {
