@@ -1,11 +1,13 @@
 import { expect, test, beforeEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 // Self-serve catalog: header-token auth via accountClient — mock it so these
 // tests never touch fetch. The server is the filter/search; the component
 // just re-queries it (no client-side filtering).
 vi.mock('./lib/accountClient.js', () => ({
   getAccount: vi.fn(async () => ({ id: 'ac_1', email: 'you@x.test', name: 'Ada Lovelace' })),
+  // The console rail this screen sits in lists your sweeps now, so it reads them too.
+  getAccountSweeps: vi.fn(async () => ([])),
   getCatalog: vi.fn(),
   createSweep: vi.fn(),
 }))
@@ -43,7 +45,9 @@ test('renders one card per provisionable season: logo null-guarded, name, countr
   expect(screen.getAllByText('USA')).toHaveLength(2)
   expect(container.querySelectorAll('img')).toHaveLength(2) // NBA's null logo renders no <img>
 
-  expect(screen.queryAllByRole('combobox')).toHaveLength(0) // seasons are stated, not chosen
+  // Seasons are stated, not chosen. Scoped to the pane: the console rail around this
+  // screen carries its own <select>, the picker that stands in for it on a phone.
+  expect(within(screen.getByRole('main')).queryAllByRole('combobox')).toHaveLength(0)
   expect(screen.getByText('2025-2026')).toBeTruthy()
   expect(screen.getAllByText(/starts .*2099/i)).toHaveLength(1)
   expect(screen.getAllByText('in progress').length).toBeGreaterThan(0)

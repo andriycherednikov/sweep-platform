@@ -12,6 +12,9 @@ import {
 } from "./lib/accountClient.js";
 
 const DAY_MS = 86400000;
+// Where the rail stops being an index and starts being a scroll. Past this it hands
+// over to the full list rather than growing without limit.
+const RAIL_MAX = 6;
 
 export function goTo(url) { window.location.assign(url); }
 
@@ -64,24 +67,60 @@ function AccountMenu({ onSettings, onSignOut, onSignOutAll }) {
   );
 }
 
+/** The console's rail is its index, so `here` names the nav item you are standing on:
+ *  "home" for /account, "sweeps" for the full list, a SWEEP ID for that sweep's own
+ *  page, "new" for the catalog. Anything else (settings, the email-change landing)
+ *  simply matches nothing, and the rail shows no active item. */
 export function Console({ here, children }) {
   useMarketingShell();
   // Who you are, in the rail, the same as inside a sweep — the console knew your
   // account and greeted you with two unlabelled sign-out buttons.
   const [who, setWho] = useState(null);
+  const [sweeps, setSweeps] = useState([]);
   useEffect(() => {
     let alive = true;
     getAccount().then((a) => { if (alive) setWho(a); }).catch(() => {});
+    // The same promise the page inside {children} reads — see getAccountSweeps. A rail
+    // that cannot load its list just has nothing in it: the page beside it is what
+    // reports a failure, and saying so twice on one screen helps nobody.
+    getAccountSweeps().then((s) => { if (alive) setSweeps(s); }).catch(() => {});
     return () => { alive = false; };
   }, []);
-  const item = (key, label, badge) => (
-    <button
-      className={"ac-nav-i" + (here === key ? " is-here" : "")}
-      onClick={() => goTo(key === "sweeps" ? "/account" : "/account/new")}
-    >
-      {label}{badge !== undefined && <span>{badge}</span>}
-    </button>
+
+  // Two filters the API does not do for us. The owned half of GET /api/account/sweeps
+  // carries no archived filter server-side, so a sweep you archived does come back here;
+  // and the route has no ORDER BY at all, so without a sort of our own Postgres is free
+  // to reshuffle the rail between two loads of the same page.
+  const live = sweeps.filter((s) => !s.archivedAt)
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  const owned = live.filter((s) => s.role !== "member");
+  const joined = live.filter((s) => s.role === "member");
+
+  // A real <a>, not a button with an onClick: cmd-click, middle-click, "copy link
+  // address" and the keyboard all work without being implemented. The nav key doubles
+  // as the React key, which is why sweeps use their own id for it.
+  const item = (key, href, label, extra = "") => (
+    <a key={key} className={"ac-nav-i" + extra + (here === key ? " is-here" : "")} href={href}>
+      {label}
+    </a>
   );
+
+  // The logo is decoration beside a name that already says it, so it is out of the
+  // accessible name either way — including the initial block that stands in when the
+  // feed gave us no logo.
+  const sweepItem = (s, href) => item(s.id, href, (
+    <>
+      {s.competition?.logo
+        ? <img className="ac-nav-logo" src={s.competition.logo} alt="" loading="lazy" />
+        : <span className="ac-nav-logo" aria-hidden="true">{(s.name || "?").trim().charAt(0).toUpperCase()}</span>}
+      <span className="ac-nav-name">{s.name}</span>
+    </>
+  ), " is-sweep");
+
+  // Which option the picker below is standing on. Pages with no nav item of their own
+  // (settings, the catalog) fall through to a placeholder rather than pointing at Home,
+  // which would say you were somewhere you are not.
+  const hereHref = here === "home" ? "/account" : owned.some((s) => s.id === here) ? `/account/s/${here}` : "";
 
   // Best-effort server-side revoke, then forget locally either way: a failed DELETE
   // (offline, already-expired session) must not strand this device signed in.
@@ -108,7 +147,35 @@ export function Console({ here, children }) {
       <aside className="ac-side">
         <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
         <nav className="ac-nav">
-          {item("sweeps", "Sweeps")}
+          {item("home", "/account", "Home")}
+          {/* A sweep you run is a place to configure; a sweep you are only in has
+              nothing here to configure, so it goes straight into the app. */}
+          {owned.length > 0 && <p className="ac-sec">Your sweeps</p>}
+          {owned.slice(0, RAIL_MAX).map((s) => sweepItem(s, `/account/s/${s.id}`))}
+          {owned.length > RAIL_MAX && item("sweeps", "/account", `All ${owned.length} sweeps`, " is-more")}
+          {joined.length > 0 && <p className="ac-sec">You're in</p>}
+          {joined.map((s) => sweepItem(s, `/s/${s.id}`))}
+          {/* At 820px and under the rail lies down into a horizontal strip, which
+              survives two items and not twelve. The same places as the platform's own
+              picker: no drawer to build, and the keyboard and VoiceOver come free. It
+              carries every sweep rather than the first six — a native list scrolls, so
+              there is nothing for an overflow item to solve. CSS shows exactly one of
+              the two, so the rail is never both. */}
+          <select className="ac-pick" aria-label="Go to" value={hereHref}
+                  onChange={(e) => goTo(e.target.value)}>
+            {!hereHref && <option value="">Go to…</option>}
+            <option value="/account">Home</option>
+            {owned.length > 0 && (
+              <optgroup label="Sweeps you run">
+                {owned.map((s) => <option key={s.id} value={`/account/s/${s.id}`}>{s.name}</option>)}
+              </optgroup>
+            )}
+            {joined.length > 0 && (
+              <optgroup label="Sweeps you're in">
+                {joined.map((s) => <option key={s.id} value={`/s/${s.id}`}>{s.name}</option>)}
+              </optgroup>
+            )}
+          </select>
         </nav>
         <div className="ac-side-foot">
           <button className={"lp-btn ac-btn" + (here === "new" ? " is-here" : "")}
@@ -299,7 +366,7 @@ function SweepRow({ s, billing, reload }) {
   async function archive() {
     if (!confirm) { setConfirm(true); return; }
     setBusy(true); setErr(false);
-    try { await archiveSweep(s.id); await reload(); }
+    try { await archiveSweep(s.id); await reload(true); }
     catch { setErr(true); setConfirm(false); }
     finally { setBusy(false); }
   }
@@ -316,7 +383,7 @@ function SweepRow({ s, billing, reload }) {
       const { memberLink } = await rotateSweep(s.id);
       setRotated(memberLink);
       setRotConfirm(false);
-      await reload();
+      await reload(true);
     } catch { setRotErr(true); setRotConfirm(false); }
     finally { setBusy(false); }
   }
@@ -448,10 +515,13 @@ export function AccountHome() {
   const [sweeps, setSweeps] = useState([]);
   const [loadErr, setLoadErr] = useState(false);
 
-  const reload = useCallback(async () => {
+  // `fresh` after anything that CHANGES the list — the rail beside this page reads the
+  // same cached promise, so a mutation that does not pass it leaves both showing what
+  // used to be true.
+  const reload = useCallback(async (fresh) => {
     setLoadErr(false);
     try {
-      const [b, s] = await Promise.all([getBilling(), getAccountSweeps()]);
+      const [b, s] = await Promise.all([getBilling(), getAccountSweeps(fresh)]);
       setBilling(b); setSweeps(s);
     } catch { setLoadErr(true); }
   }, []);
@@ -461,7 +531,7 @@ export function AccountHome() {
   const live = sweeps.filter((s) => !s.archivedAt).length;
 
   return (
-    <Console here="sweeps">
+    <Console here="home">
       <p className="lp-eyebrow">My account</p>
       <h1 className="ac-h1">Your sweeps</h1>
       <p className="ac-sub">Sign in on any device you own it from — admin follows your account, not a link.</p>

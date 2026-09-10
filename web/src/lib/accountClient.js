@@ -34,7 +34,27 @@ export const getCatalog = (params = {}) => {
   const qs = new URLSearchParams(Object.entries(params).filter(([, v]) => v)).toString()
   return call('GET', `/api/catalog${qs ? `?${qs}` : ''}`)
 }
-export const getAccountSweeps = () => call('GET', '/api/account/sweeps')
+// Read twice on every console page load: the rail lists your sweeps, and so does the
+// page the rail frames — and the rail renders {children}, so it cannot hand the list
+// down. One shared promise rather than two identical round trips.
+//
+// The workspace ships @tanstack/react-query, which is what this would normally be; the
+// console mounts standalone (AccountRoot.jsx, outside QueryClientProvider, exactly like
+// /super) so it has no query client to put this in, and standing one up for a single
+// endpoint is more machinery than a promise. Do not delete this for a QueryClient that
+// is not there.
+//
+// `fresh` is not an optimisation knob — anything that CHANGES the list (archive, rotate,
+// rename, provision) must pass it or the console keeps showing what used to be true.
+// A rejection is never kept: a cached one would make the console's own retry a no-op.
+let sweepsPromise
+export const getAccountSweeps = (fresh) => {
+  if (fresh || !sweepsPromise) {
+    sweepsPromise = call('GET', '/api/account/sweeps')
+      .catch((e) => { sweepsPromise = undefined; throw e })
+  }
+  return sweepsPromise
+}
 export const createSweep = (body) => call('POST', '/api/account/sweeps', body)
 export const archiveSweep = (id) => call('POST', `/api/account/sweeps/${id}/archive`)
 // Mints the sweep cookie from the 90-day account session, for a sweep this account

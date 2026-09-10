@@ -2,7 +2,7 @@ import { expect, test, beforeEach, vi } from 'vitest'
 import {
   getAccountToken, setAccountToken, clearAccountToken,
   requestLogin, redeemLogin, passwordLogin, setPassword, getBilling, startCheckout, getCatalog, createSweep,
-  revokeSession, revokeAllSessions, rotateSweep, openSweepSession,
+  revokeSession, revokeAllSessions, rotateSweep, openSweepSession, getAccountSweeps,
 } from './accountClient.js'
 
 function jsonResponse(status, body) {
@@ -178,4 +178,35 @@ test('openSweepSession POSTs the account sweep-session route with the token', as
     method: 'POST',
     headers: expect.objectContaining({ 'x-account-token': 't1' }),
   }))
+})
+
+/* ---- the sweep list is read twice per page load ---------------------------- */
+// The console rail lists your sweeps and the page it frames lists them again, and the
+// rail renders {children} so it cannot hand the list down. These tests pin the one
+// promise both of them share — and, just as important, that a failure is not what gets
+// shared forever after.
+test('the sweep list is fetched once and shared by everyone who asks for it', async () => {
+  fetch.mockResolvedValue(jsonResponse(200, [{ id: 'sw1' }]))
+  await getAccountSweeps(true) // drop whatever an earlier test left in the cache
+  fetch.mockClear()
+  const [a, b] = await Promise.all([getAccountSweeps(), getAccountSweeps()])
+  expect(fetch).not.toHaveBeenCalled()
+  expect(a).toBe(b)
+})
+
+test('fresh=true really refetches — this is what every mutation has to pass', async () => {
+  fetch.mockResolvedValue(jsonResponse(200, []))
+  await getAccountSweeps(true)
+  fetch.mockClear()
+  await getAccountSweeps(true)
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+// A cached rejection would be permanent: the console's own retry would hand back the
+// same failure without ever touching the network again.
+test('a failed list is evicted, so the next caller genuinely retries', async () => {
+  fetch.mockResolvedValueOnce(jsonResponse(500, { error: 'boom' }))
+  await expect(getAccountSweeps(true)).rejects.toMatchObject({ status: 500 })
+  fetch.mockResolvedValueOnce(jsonResponse(200, [{ id: 'sw1' }]))
+  await expect(getAccountSweeps()).resolves.toEqual([{ id: 'sw1' }])
 })

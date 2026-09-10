@@ -1,5 +1,5 @@
 import { expect, test, beforeEach, afterEach, vi } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 
 // The account shell is header-token auth, separate from the sweep session —
 // mock accountClient so these tests never touch fetch.
@@ -44,6 +44,11 @@ afterEach(() => {
   Object.defineProperty(window, 'location', { value: originalLocation, configurable: true, writable: true })
 })
 
+// The rail lists every sweep you run by name as well, so a bare getByText(name) matches
+// twice. Assertions about the page itself are scoped to the paper pane; the rail has its
+// own tests at the bottom of this file.
+const pane = () => within(screen.getByRole('main'))
+
 test('fresh account: explains the trial', async () => {
   getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: null, liveSweeps: 0, quantity: 0 })
   getAccountSweeps.mockResolvedValue([])
@@ -83,7 +88,7 @@ test('lapsed: subscribe CTA + read-only warning', async () => {
 test('sweep list renders its member link and archives with two-tap confirm', async () => {
   getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
   render(<AccountHome />)
-  expect(await screen.findByText('My NBA')).toBeTruthy()
+  expect(await pane().findByText('My NBA')).toBeTruthy()
   expect(screen.getByDisplayValue('https://h/g/m1')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
   const confirmBtn = await screen.findByRole('button', { name: /really archive\?/i })
@@ -95,7 +100,7 @@ test('archive failure shows an inline error and resets the confirm state', async
   getAccountSweeps.mockResolvedValue([{ id: 'sw1', name: 'My NBA', competitionId: 'c1', archivedAt: null, createdAt: 'x', memberLink: 'https://h/g/m1' }])
   archiveSweep.mockRejectedValue(new Error('boom'))
   render(<AccountHome />)
-  expect(await screen.findByText('My NBA')).toBeTruthy()
+  expect(await pane().findByText('My NBA')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: /^archive$/i }))
   fireEvent.click(await screen.findByRole('button', { name: /really archive\?/i }))
   expect(await screen.findByText(/archive failed/i)).toBeTruthy()
@@ -198,7 +203,7 @@ test('a non-empty sweep list shows a New sweep button to the catalog', async () 
     { id: 'sw1', name: 'My NBA', archivedAt: null, memberLink: 'https://h/g/m1' },
   ])
   render(<AccountHome />)
-  await screen.findByText('My NBA')
+  await pane().findByText('My NBA')
   fireEvent.click(screen.getByRole('button', { name: /new sweep/i }))
   expect(window.location.assign).toHaveBeenCalledWith('/account/new')
 })
@@ -268,11 +273,11 @@ test('sweeps you are in are listed, separately from the ones you run', async () 
     { id: 'sw2', name: 'Office Footy', competitionId: 'c2', archivedAt: null, createdAt: 'x', role: 'member' },
   ])
   render(<AccountHome />)
-  expect(await screen.findByText('My NBA')).toBeTruthy()
-  expect(screen.getByText('Office Footy')).toBeTruthy()
-  expect(screen.getByText(/sweeps you run/i)).toBeTruthy()
-  expect(screen.getByText(/sweeps you're in/i)).toBeTruthy()
-  expect(screen.getByRole('link', { name: /office footy/i })).toHaveAttribute('href', '/s/sw2')
+  expect(await pane().findByText('My NBA')).toBeTruthy()
+  expect(pane().getByText('Office Footy')).toBeTruthy()
+  expect(pane().getByText(/sweeps you run/i)).toBeTruthy()
+  expect(pane().getByText(/sweeps you're in/i)).toBeTruthy()
+  expect(pane().getByRole('link', { name: /office footy/i })).toHaveAttribute('href', '/s/sw2')
 })
 
 // A member has no billing, no link to hand out and nothing to archive — those belong
@@ -282,7 +287,7 @@ test('a sweep you only play in carries none of the owner controls', async () => 
     { id: 'sw2', name: 'Office Footy', competitionId: 'c2', archivedAt: null, createdAt: 'x', role: 'member' },
   ])
   render(<AccountHome />)
-  expect(await screen.findByText('Office Footy')).toBeTruthy()
+  expect(await pane().findByText('Office Footy')).toBeTruthy()
   expect(screen.queryByRole('button', { name: /^archive$/i })).toBeNull()
   expect(screen.queryByRole('button', { name: /replace link/i })).toBeNull()
   // and it still nudges them to run one of their own
@@ -316,9 +321,9 @@ test('the sweeps you are in come before the invitation to run one', async () => 
   getAccountSweeps.mockResolvedValue([
     { id: 'sw2', name: 'The Lads', role: 'member', archivedAt: null, competition: null },
   ])
-  const { container } = render(<AccountHome />)
-  await screen.findByText('The Lads')
-  const text = container.textContent
+  render(<AccountHome />)
+  await pane().findByText('The Lads')
+  const text = screen.getByRole('main').textContent
   expect(text.indexOf('The Lads')).toBeLessThan(text.indexOf("You don't run one yet"))
 })
 
@@ -329,7 +334,7 @@ test('a sweep you are in is clickable across the whole row', async () => {
     { id: 'sw2', name: 'The Lads', role: 'member', archivedAt: null, competition: null },
   ])
   render(<AccountHome />)
-  const row = (await screen.findByText('The Lads')).closest('a')
+  const row = (await pane().findByText('The Lads')).closest('a')
   expect(row).toBeTruthy()
   expect(row.getAttribute('href')).toBe('/s/sw2')
   expect(row.classList.contains('ac-card')).toBe(true) // the card itself, not a child link
@@ -343,7 +348,7 @@ test('a sweep you run can be opened from its card', async () => {
       competition: { name: 'Premier League 2026', sport: 'football', season: '2026', logo: null } },
   ])
   render(<AccountHome />)
-  const name = (await screen.findByText('Office Pool')).closest('a')
+  const name = (await pane().findByText('Office Pool')).closest('a')
   expect(name.getAttribute('href')).toBe('/s/sw1')
   expect(screen.getByLabelText('Open Office Pool').getAttribute('href')).toBe('/s/sw1')
 })
@@ -389,4 +394,88 @@ test('an address another account holds is reported as such', async () => {
   fireEvent.change(await screen.findByLabelText('New email'), { target: { value: 'taken@x.test' } })
   fireEvent.click(screen.getByRole('button', { name: /send the link/i }))
   expect(await screen.findByText(/already belongs to another account/i)).toBeTruthy()
+})
+
+/* ---- the console rail ------------------------------------------------------ */
+// One nav item called "Sweeps" made the rail a label for the page beside it. The rail
+// is the console's index: the sweeps you run are in it by name, and each one is the way
+// to its own settings.
+const rail = async () => within(await screen.findByRole('navigation'))
+
+const ownedSweep = (i, over = {}) => ({
+  id: `sw${i}`, name: `Sweep ${i}`, role: 'owner', archivedAt: null,
+  createdAt: `2026-01-0${i}T00:00:00Z`, memberLink: `https://h/g/${i}`,
+  members: { total: 2, registered: 2 }, competition: null, ...over,
+})
+
+test('the rail lists the sweeps you run, each linking to its own page', async () => {
+  getAccountSweeps.mockResolvedValue([
+    ownedSweep(1, { name: 'Office Pool', competition: { name: 'NBA 2025-26', sport: 'basketball', logo: '/nba.png' } }),
+  ])
+  render(<AccountHome />)
+  expect((await rail()).getByRole('link', { name: /office pool/i })).toHaveAttribute('href', '/account/s/sw1')
+})
+
+// Nothing on this side to configure — the roster, the link and the billing are the
+// owner's — so a sweep you are only in goes straight into the app.
+test('a sweep you are only in goes straight into the sweep, not to a settings page', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw9', name: "Dave's pool", role: 'member', archivedAt: null, createdAt: '2026-02-01T00:00:00Z', competition: null },
+  ])
+  render(<AccountHome />)
+  expect((await rail()).getByRole('link', { name: /dave's pool/i })).toHaveAttribute('href', '/s/sw9')
+})
+
+// The owned half of GET /api/account/sweeps has no archived filter server-side, so the
+// rail has to do it — an archived sweep is off the list page and must be off the rail.
+test('an archived sweep you own is not in the rail', async () => {
+  getAccountSweeps.mockResolvedValue([
+    ownedSweep(1, { name: 'Live One' }),
+    ownedSweep(2, { name: 'Old One', archivedAt: '2026-01-01T00:00:00Z' }),
+  ])
+  render(<AccountHome />)
+  const nav = await rail()
+  expect(nav.getByRole('link', { name: /live one/i })).toBeTruthy()
+  expect(nav.queryByRole('link', { name: /old one/i })).toBeNull()
+})
+
+// The route has no ORDER BY, so Postgres hands them back in whatever order it likes.
+// A rail that reshuffles itself between page loads is unusable.
+test('the rail is in a stable order, newest first', async () => {
+  getAccountSweeps.mockResolvedValue([ownedSweep(1), ownedSweep(3), ownedSweep(2)])
+  render(<AccountHome />)
+  const hrefs = (await rail()).getAllByRole('link', { name: /^Sweep \d$/ }).map((a) => a.getAttribute('href'))
+  expect(hrefs).toEqual(['/account/s/sw3', '/account/s/sw2', '/account/s/sw1'])
+})
+
+test('a handful of sweeps are all listed, with no overflow item', async () => {
+  getAccountSweeps.mockResolvedValue([1, 2, 3].map((i) => ownedSweep(i)))
+  render(<AccountHome />)
+  const nav = await rail()
+  expect(nav.getAllByRole('link', { name: /^Sweep \d$/ })).toHaveLength(3)
+  expect(nav.queryByRole('link', { name: /all \d+ sweeps/i })).toBeNull()
+})
+
+test('past six, the rail stops listing and offers the whole list instead', async () => {
+  getAccountSweeps.mockResolvedValue([1, 2, 3, 4, 5, 6, 7, 8].map((i) => ownedSweep(i)))
+  render(<AccountHome />)
+  const nav = await rail()
+  expect(nav.getAllByRole('link', { name: /^Sweep \d$/ })).toHaveLength(6)
+  expect(nav.getByRole('link', { name: /all 8 sweeps/i })).toBeTruthy()
+})
+
+// At <=820px the rail turns into a horizontal strip, which survives two items and not
+// twelve. The same sweeps ride along as a native picker: no drawer to build, and the
+// keyboard and VoiceOver work without being asked.
+test('the rail doubles as a native picker for the phone, and it navigates', async () => {
+  getAccountSweeps.mockResolvedValue([
+    ownedSweep(1, { name: 'Office Pool' }),
+    { id: 'sw9', name: "Dave's pool", role: 'member', archivedAt: null, createdAt: '2026-02-01T00:00:00Z', competition: null },
+  ])
+  render(<AccountHome />)
+  const pick = await screen.findByRole('combobox', { name: /go to/i })
+  expect(within(pick).getByRole('option', { name: 'Office Pool' })).toBeTruthy()
+  expect(within(pick).getByRole('option', { name: "Dave's pool" })).toBeTruthy()
+  fireEvent.change(pick, { target: { value: '/account/s/sw1' } })
+  expect(window.location.assign).toHaveBeenCalledWith('/account/s/sw1')
 })
