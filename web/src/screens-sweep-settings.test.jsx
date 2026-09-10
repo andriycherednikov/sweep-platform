@@ -96,6 +96,26 @@ test('a lapsed owner is told why the rename did not take, not just that it faile
   expect(pane().queryByText(/something went wrong/i)).toBeNull()
 })
 
+// The sweep's name is an <input>, so the page had no heading at all: nothing for a
+// screen-reader user navigating by headings to land on, and an outline starting at h2.
+test('the page has an h1, and it is the sweep', async () => {
+  render(<SweepSettings id="sw1" />)
+  expect(await screen.findByRole('heading', { level: 1, name: 'Office Pool' })).toBeTruthy()
+  // and renaming it is still one click on the name itself
+  expect(screen.getByLabelText(/sweep name/i)).toBeTruthy()
+})
+
+// The heading says what the sweep IS called, so it moves when the save lands — not
+// while the owner is still typing, and not at all if the server refuses.
+test('the heading follows the name that saved, not the one being typed', async () => {
+  render(<SweepSettings id="sw1" />)
+  const field = await screen.findByLabelText(/sweep name/i)
+  fireEvent.change(field, { target: { value: 'The Lads' } })
+  expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('Office Pool')
+  fireEvent.blur(field)
+  await waitFor(() => expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('The Lads'))
+})
+
 // The wagering toggle beside it already does this. A heading left showing a name the
 // sweep does not have is worse than a toggle left in the wrong position: it is the name
 // the owner will go on calling it, and every other screen disagrees.

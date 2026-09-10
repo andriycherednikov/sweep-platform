@@ -66,6 +66,13 @@ function Identity({ s }) {
   return (
     <>
       <p className="lp-eyebrow">Your sweep</p>
+      {/* The visible heading is the field that renames it, and a textbox is not a
+          heading — so the page had none: nothing to identify it by when navigating by
+          headings, and an outline that started at h2. The name is stated once as the
+          heading and once as the field's value. It follows `saved` rather than `name`,
+          because the heading is what the sweep IS called and the field is what somebody
+          is in the middle of typing. */}
+      <h1 className="ac-sr">{saved}</h1>
       <input
         className="ac-h1 ac-rename"
         aria-label="Sweep name"
