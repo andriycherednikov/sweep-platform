@@ -326,3 +326,16 @@ test('a sweep you are in is clickable across the whole row', async () => {
   expect(row.getAttribute('href')).toBe('/s/sw2')
   expect(row.classList.contains('ac-card')).toBe(true) // the card itself, not a child link
 })
+
+// A sweep you're in is one big link; a sweep you run is full of controls, so the name
+// and a chevron carry the same job. Either way the card gets you into the sweep.
+test('a sweep you run can be opened from its card', async () => {
+  getAccountSweeps.mockResolvedValue([
+    { id: 'sw1', name: 'Office Pool', role: 'owner', archivedAt: null, memberLink: 'https://h/g/m1',
+      competition: { name: 'Premier League 2026', sport: 'football', season: '2026', logo: null } },
+  ])
+  render(<AccountHome />)
+  const name = (await screen.findByText('Office Pool')).closest('a')
+  expect(name.getAttribute('href')).toBe('/s/sw1')
+  expect(screen.getByLabelText('Open Office Pool').getAttribute('href')).toBe('/s/sw1')
+})

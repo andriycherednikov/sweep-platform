@@ -2004,6 +2004,10 @@ body.marketing .device{ height:auto; max-height:none; overflow:visible; border-r
 /* a sweep you are only in: nothing to configure, so it is one line and a way in */
 .ac-row{ display:flex; align-items:center; justify-content:space-between; gap:14px;
   padding:14px 14px 14px 20px; }
+.ac-card-acts{ display:flex; align-items:center; gap:8px; flex-shrink:0; }
+/* the sweep's name opens it; it should look like the heading it is until you reach it */
+.ac-open-name{ color:inherit; text-decoration:none; }
+.ac-open-name:hover{ color:var(--lp-accent); }
 .ac-open{ flex-shrink:0; display:grid; place-items:center; width:36px; height:36px;
   border-radius:10px; border:1px solid var(--edge); color:var(--ink2); transition:.15s; }
 .ac-open svg{ width:17px; height:17px; }

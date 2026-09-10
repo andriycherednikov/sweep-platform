@@ -280,13 +280,20 @@ function SweepRow({ s, billing, reload }) {
   return (
     <section className="ac-card">
       <div className="ac-card-top">
+        {/* The card is full of controls, so it cannot be one big link the way a member
+            row is — the name carries it instead, with the same chevron beside Archive. */}
         <div className="ac-card-id">
-          <h3 className="ac-card-h">{s.name}</h3>
+          <h3 className="ac-card-h"><a className="ac-open-name" href={`/s/${s.id}`}>{s.name}</a></h3>
           <CompetitionLine s={s} />
         </div>
-        <button className="ac-ghost is-danger" disabled={busy} onClick={archive}>
-          {confirm ? "Really archive?" : "Archive"}
-        </button>
+        <div className="ac-card-acts">
+          <button className="ac-ghost is-danger" disabled={busy} onClick={archive}>
+            {confirm ? "Really archive?" : "Archive"}
+          </button>
+          <a className="ac-open" href={`/s/${s.id}`} aria-label={`Open ${s.name}`} title="Open">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </div>
       </div>
       {/* who is actually in there — the question this screen could not answer */}
       {s.members && (

@@ -6,7 +6,6 @@ import { SuperRoot } from "./SuperRoot.jsx";
 import { AccountRoot } from "./AccountRoot.jsx";
 import { Pricing } from "./screens-pricing.jsx";
 import { Terms, Privacy } from "./screens-legal.jsx";
-import { SweepSwitcher } from "./screens-switch.jsx";
 import { registerServiceWorker } from "./lib/registerSW.js";
 import { joinFromLocation, inviteFromLocation } from "./lib/bootstrapJoin.js";
 import { parseSuperRoute } from "./lib/superRoute.js";
@@ -31,10 +30,10 @@ if (MarketingPage) {
   root.render(<MarketingPage />);
   registerServiceWorker();
 } else if (path === "/switch") {
-  // The sweeps you are in. It checks the account first and sends a signed-out
-  // visitor to /account: the list belongs to a person, not to a browser.
-  root.render(<SweepSwitcher />);
-  registerServiceWorker();
+  // There is one list of your sweeps and it is the account console. /switch was a second
+  // one, device-local and shorter, that answered the same question differently. Kept as a
+  // redirect so an old bookmark or a link in somebody's chat still lands somewhere real.
+  window.location.replace("/account");
 } else if (under("/account")) {
   // The account shell is header-token auth (x-account-token), not the sweep
   // session cookie — mount it standalone like /super, otherwise the Gate's

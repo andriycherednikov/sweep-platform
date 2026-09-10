@@ -171,7 +171,7 @@ export function LandingNav() {
   const cls = (key) => (active === key ? "is-here" : undefined)
   // A member has no account to sign into — the only proof they are in a sweep is the
   // link token this browser kept. Without this the front door is a dead end for them.
-  // Signed out, "Your sweeps" is a dead end — /switch sends you to sign in. The nav
+  // Signed out, "Your sweeps" is a dead end — the account sends you to sign in. The nav
   // says the true next step instead.
   const joined = !!getAccountToken() && listSweeps().length > 0
   return (
@@ -187,7 +187,7 @@ export function LandingNav() {
         </nav>
         <div className="lp-nav-cta">
           {joined
-            ? <a className="lp-ghost" href="/switch">Your sweeps</a>
+            ? <a className="lp-ghost" href="/account">Your sweeps</a>
             : <a className="lp-ghost" href="/account">Sign in</a>}
           <a className="lp-btn" href="/account?signup">Start free</a>
         </div>
