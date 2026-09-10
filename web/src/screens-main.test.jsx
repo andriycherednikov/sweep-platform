@@ -1,5 +1,5 @@
-import { expect, test, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { expect, test, beforeEach, vi } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { setSweepData } from './data.js'
 import { assembleSweep } from './lib/assemble.js'
 import { StandingsScreen, HomeScreen, PickSheet } from './screens-main.jsx'
@@ -120,6 +120,36 @@ test('PickSheet team-filter group heading follows sport vocab: "Group A" for foo
   const ball = render(<PickSheet kind="team" onClose={noop} onPerson={noop} onTeam={noop} />)
   expect(ball.getByText('Eastern Conference')).toBeTruthy() // verbatim, no "Group" prefix
   ball.unmount()
+})
+
+// "By team" offered nothing at all on a flat league: the sheet mapped over S.groups —
+// built from t.group, which every club leaves null — and looked each one up in the
+// standings, which key their single table on ''. Twenty teams, none offered.
+test('PickSheet team filter lists a flat league\'s teams, under no heading', () => {
+  const noop = () => {}
+  setSweepData(assembleSweep({
+    bootstrap: {
+      competition: { sport: 'football', format: 'league', hasDraws: true },
+      teams: [
+        { code: 'bre', name: 'Brentford', group: null, pool: null, color: '#c00', strength: 90 },
+        { code: 'ful', name: 'Fulham', group: null, pool: null, color: '#fff', strength: 70 },
+      ],
+      people: [], ownership: {}, scoring: null,
+    },
+    fixtures: [],
+    standings: { '': [
+      { code: 'bre', name: 'Brentford', played: 3, win: 3, draw: 0, loss: 0, gf: 6, ga: 0, pts: 9 },
+      { code: 'ful', name: 'Fulham', played: 3, win: 0, draw: 0, loss: 3, gf: 0, ga: 6, pts: 0 },
+    ] },
+    photos: [], syncStatus: { stale: false },
+  }))
+  const onTeam = vi.fn()
+  const { getByText, container } = render(<PickSheet kind="team" onClose={noop} onPerson={noop} onTeam={onTeam} />)
+  expect(getByText('Brentford')).toBeTruthy()
+  expect(getByText('Fulham')).toBeTruthy()
+  expect(container.querySelector('.blocktitle')).toBeNull() // no group to name
+  fireEvent.click(getByText('Brentford'))
+  expect(onTeam).toHaveBeenCalledWith('bre')
 })
 
 // Day one of every sweep: the competition exists but the feed hasn't filled it yet, so

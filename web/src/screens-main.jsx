@@ -432,8 +432,13 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
   const people = ql
     ? S.people.filter(p => p.name.toLowerCase().includes(ql) || p.teams.some(tc => (S.team(tc)?.name || "").toLowerCase().includes(ql)))
     : S.people;
-  const groups = S.groups
-    .map(g => ({ g, teams: ql ? (S.standings[g] ?? []).filter(t => t.name.toLowerCase().includes(ql)) : (S.standings[g] ?? []) }))
+  // S.groups comes from t.group, which every team in a flat league leaves null — while
+  // the standings key their one table on ''. Looking one up by the other returned
+  // undefined for every group, so "By team" offered no teams at all. Take the sections
+  // the API already grouped, and fall back to the roster if there is no table yet.
+  const sections = Object.entries(S.standings);
+  const groups = (sections.length ? sections : [["", S.teamList]])
+    .map(([g, rows]) => ({ g, teams: ql ? rows.filter(t => t.name.toLowerCase().includes(ql)) : rows }))
     .filter(x => x.teams.length > 0);
   const empty = kind==="person" ? people.length===0 : groups.length===0;
   return (
@@ -460,8 +465,8 @@ export function PickSheet({ kind, onClose, onPerson, onTeam }) {
           ) : (
             <div>
               {groups.map(({g, teams})=>(
-                <div key={g} style={{marginBottom:14}}>
-                  <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>{S.vocab.groupHeading(g)}</div>
+                <div key={g || "all"} style={{marginBottom:14}}>
+                  {g && <div className="blocktitle" style={{border:0,padding:"4px 2px"}}>{S.vocab.groupHeading(g)}</div>}
                   {teams.map(t=>(
                     <div className="prow" key={t.code} onClick={()=>onTeam(t.code)} style={{padding:"8px 12px",marginBottom:7}}>
                       <Flag code={t.code} w={34} h={25} />
