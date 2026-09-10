@@ -282,6 +282,43 @@ test('wagering on draws the bets, the biggest win and who leaves it latest', asy
   expect(pane().getByText(/41 minutes/)).toBeTruthy()
 })
 
+// A bet needs its fixture to still be `upcoming` (api/src/routes/coins.js:70), so a
+// negative lead time is not an in-play punt — it is a kickoff that had already passed:
+// a fixture the feed had not moved on yet, or one rescheduled earlier after the bet. It
+// rendered as "a median -14 minutes before kickoff", and since the line picks the
+// smallest lead time a negative one always won it.
+test('a bet placed after the kickoff time is not "-14 minutes before kickoff"', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    wagering: {
+      daily: [{ date: '2026-05-01', bets: 2, staked: 15 }, { date: '2026-05-02', bets: 1, staked: 5 }],
+      biggest: null,
+      lead: [{ personId: 'pn_a', medianSec: -840 }],
+    },
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/14 minutes past the kickoff time/)).toBeTruthy()
+  expect(pane().queryByText(/-14/)).toBeNull()
+})
+
+// The api's `wagers` union exists precisely so a four-leg accumulator counts as the one
+// row it is, so the fattest win on the board can be a parlay.
+test('the biggest win is on one wager, which a parlay also is', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    wagering: {
+      daily: [{ date: '2026-05-01', bets: 1, staked: 1 }],
+      biggest: { personId: 'pn_a', profit: 40 },
+      lead: [],
+    },
+  }])
+  render(<Dashboard />)
+  expect(await pane().findByText(/40 coins up on one wager/)).toBeTruthy()
+  // And the commonest single-item case reads as English. The count itself is the big
+  // number beside this span, which is why the match starts mid-sentence.
+  expect(pane().getByText(/bet · 1 coin staked/)).toBeTruthy()
+})
+
 // Same lie, drawn as bars: two busy days a week apart are two bars side by side unless
 // the quiet days in between are in the array.
 test('the bets-per-day bars keep a slot for the days nobody had a bet on', async () => {

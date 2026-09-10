@@ -388,6 +388,15 @@ function PulseCard({ s }) {
   const perDay = daySpan([...byDate.keys()]).map((d) => byDate.get(d) ?? 0);
   // Whoever leaves it latest is the funnier end of the list, so that is the end shown.
   const latest = lead.reduce((low, l) => (!low || l.medianSec < low.medianSec ? l : low), null);
+  // A bet needs its fixture to still be `upcoming` (api/src/routes/coins.js:70), so this
+  // is never an in-play punt — a median that comes out negative is a kickoff that had
+  // already passed: a fixture the feed had not moved on yet, or one the feed rescheduled
+  // earlier after the bet was placed. Worth saying rather than hiding, because the line
+  // picks the SMALLEST lead time and a negative one always wins it.
+  const mins = latest ? Math.round(latest.medianSec / 60) : 0;
+  const when = mins > 0 ? `a median ${plural(mins, "minute")} before kickoff`
+    : mins < 0 ? `a median ${plural(-mins, "minute")} past the kickoff time`
+    : "a median of right on the whistle";
   const winner = biggest && byId.get(biggest.personId);
   const tall = useTall();
 
@@ -404,22 +413,25 @@ function PulseCard({ s }) {
           {perDay.length < 2 ? (
             <p className="ch-big">
               {bets}
-              <span>{`${bets === 1 ? "bet" : "bets"} · ${staked} coins staked, all on the one day`}</span>
+              <span>{`${bets === 1 ? "bet" : "bets"} · ${plural(staked, "coin")} staked, all on the one day`}</span>
             </p>
           ) : (
             <>
               <Bars title="Bets placed per day" values={perDay} height={tall ? 160 : 130} />
-              <p className="ch-cap">{`${plural(bets, "bet")} · ${staked} coins staked`}</p>
+              <p className="ch-cap">{`${plural(bets, "bet")} · ${plural(staked, "coin")} staked`}</p>
             </>
           )}
           {winner && (
+            // One wager, not one bet: the api's `wagers` union counts a four-leg
+            // accumulator as the single row it is, so the fattest win on the board can be
+            // a parlay. The payload does not say which, so neither does this.
             <p className="ac-b">
-              {`Biggest win: ${winner.name}, ${biggest.profit} coins up on one bet.`}
+              {`Biggest win: ${winner.name}, ${plural(biggest.profit, "coin")} up on one wager.`}
             </p>
           )}
           {latest && byId.has(latest.personId) && (
             <p className="ac-b">
-              {`${byId.get(latest.personId).name} leaves it latest — a median ${plural(Math.round(latest.medianSec / 60), "minute")} before kickoff.`}
+              {`${byId.get(latest.personId).name} leaves it latest — ${when}.`}
             </p>
           )}
         </>
