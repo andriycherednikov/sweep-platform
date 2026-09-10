@@ -200,6 +200,41 @@ test('a sweep card reports who has joined, and hands the controls to the sweep\'
   expect(pane().queryByRole('button', { name: /replace link/i })).toBeNull()
 })
 
+// Billing is ONE account-level subscription whose quantity is the number of running
+// sweeps. A Cancel on every card taught the owner that sweeps are billed one by one,
+// and pressing any of them stopped the subscription behind all of them.
+test('twelve sweeps do not offer twelve ways to cancel one subscription', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 3, quantity: 3 })
+  getAccountSweeps.mockResolvedValue([1, 2, 3].map((i) => ownedSweep(i)))
+  render(<AccountHome here="sweeps" />)
+  await pane().findByText('Sweep 1')
+  expect(pane().getAllByRole('button', { name: /manage billing/i })).toHaveLength(1)
+  expect(pane().queryByRole('button', { name: /cancel subscription/i })).toBeNull()
+  // and the state that IS per sweep stays on the card
+  expect(pane().getAllByText('Paid')).toHaveLength(3)
+})
+
+// It used to appear only on an account with no sweeps — which is the one account with
+// nothing to bill. Every "subscribe" link in the app lands on this page.
+test('the account subscription is on the list page whether or not there are sweeps', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 1, quantity: 1 })
+  getAccountSweeps.mockResolvedValue([ownedSweep(1)])
+  render(<AccountHome here="sweeps" />)
+  expect(await pane().findByText(/the sweep subscription/i)).toBeTruthy()
+})
+
+// The row's "Subscribe to reopen" was the only thing on the card saying why the sweep
+// had gone read-only. Taking the button off must not take the sentence with it.
+test('a lapsed account is told why its sweeps are read-only, and how to fix it, once', async () => {
+  const past = new Date(Date.now() - 86400000).toISOString()
+  getBilling.mockResolvedValue({ subscribed: false, subscriptionStatus: null, trialEndsAt: past, liveSweeps: 2, quantity: 0 })
+  getAccountSweeps.mockResolvedValue([ownedSweep(1), ownedSweep(2)])
+  render(<AccountHome here="sweeps" />)
+  expect(await pane().findByText(/trial has ended — sweeps are read-only/i)).toBeTruthy()
+  expect(pane().getAllByText('Read-only')).toHaveLength(2)
+  expect(pane().getAllByRole('button', { name: /^subscribe$/i })).toHaveLength(1)
+})
+
 test('a fully-joined sweep says so without a nag', async () => {
   getAccountSweeps.mockResolvedValue([{
     id: 'sw_1', name: 'Office', competitionId: 'c', archivedAt: null, createdAt: null,

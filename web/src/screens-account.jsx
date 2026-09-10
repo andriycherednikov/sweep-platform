@@ -350,11 +350,16 @@ export function CompetitionLine({ s, note }) {
  *  sweep's own page, which is the point of that page: a list of twelve sweeps was
  *  twelve copies of the same six buttons and nowhere to actually configure anything.
  *  What is left is what a list is for: which sweep this is, how many people are in it,
- *  what it costs, and the two ways onward. Billing stays because it is not per-sweep to
- *  begin with — it is the account's one subscription, seen from here. */
+ *  what it costs, and the two ways onward.
+ *
+ *  The pill and nothing else, on the billing side. The state it names is genuinely per
+ *  sweep — this one is paid, that one is read-only — but the SUBSCRIPTION behind it is
+ *  one per account, priced by how many sweeps you run, so the row's own Manage billing
+ *  and Cancel were twelve buttons all working the same one subscription: pressing
+ *  Cancel on any card stopped every sweep on the page. The controls live once, in the
+ *  panel above this list. */
 function SweepRow({ s, billing }) {
   const { trialing, lapsed, daysLeft, stopping, endsOn } = useBilling(billing);
-  const acts = useBillingActions();
 
   const tier = stopping
     ? { label: endsOn ? `Paid · stops ${endsOn}` : "Paid · stops at period end", tone: " is-warn" }
@@ -394,22 +399,7 @@ function SweepRow({ s, billing }) {
       )}
       <div className="ac-tier">
         <span className={"ac-pill" + tier.tone}>{tier.label}</span>
-        {billing.subscribed ? (
-          <span className="ac-tier-acts">
-            <button className="ac-ghost" disabled={acts.busy} onClick={() => acts.manage()}>Manage billing</button>
-            {!stopping && (
-              <button className="ac-ghost is-danger" disabled={acts.busy} onClick={() => acts.manage("cancel")}>
-                Cancel subscription
-              </button>
-            )}
-          </span>
-        ) : (
-          <button className="ac-ghost is-go" disabled={acts.busy} onClick={acts.subscribe}>
-            {lapsed ? "Subscribe to reopen" : "Subscribe · $5/mo"}
-          </button>
-        )}
       </div>
-      {acts.err && <p className="ac-warn">Something went wrong. Try again.</p>}
     </section>
   );
 }
@@ -496,8 +486,6 @@ export function AccountHome({ here = "home" }) {
 
   useEffect(() => { reload(); }, [reload]);
 
-  const live = sweeps.filter((s) => !s.archivedAt).length;
-
   return (
     <Console here={here}>
       <p className="lp-eyebrow">My account</p>
@@ -505,9 +493,13 @@ export function AccountHome({ here = "home" }) {
       <p className="ac-sub">Sign in on any device you own it from — admin follows your account, not a link.</p>
       {loadErr && <p className="ac-warn">Something went wrong. Try again.</p>}
       <div className="ac-stack">
+        {/* First, and whether or not any sweep exists. This is the page every
+            "subscribe" and "go to billing" link in the app lands on, and the one
+            subscription it speaks for is what decides whether the sweeps under it are
+            live or read-only — so it reads as the heading for the list, not a footnote
+            after it. */}
+        {billing && <BillingPanel billing={billing} />}
         {billing && <SweepList sweeps={sweeps} billing={billing} />}
-        {/* nothing to bill against yet — the account speaks for itself */}
-        {billing && live === 0 && <BillingPanel billing={billing} />}
       </div>
     </Console>
   );

@@ -1358,10 +1358,10 @@ span.ac-nav-logo{ display:grid; place-items:center; font-size:9px; font-weight:8
   background:var(--glass); border:1px solid var(--edge); color:var(--ink2); }
 .ac-pill.is-warn{ background:rgba(236,48,19,.09); border-color:rgba(236,48,19,.35);
   color:var(--lp-accent); }
-/* what this sweep costs, and the one control that changes it */
-.ac-tier{ display:flex; align-items:center; justify-content:space-between; gap:12px;
+/* what this sweep costs. The pill only: the controls that change it belong to the one
+   account subscription, and live once, in the panel above the list. */
+.ac-tier{ display:flex; align-items:center; gap:12px;
   margin-top:16px; padding-top:14px; border-top:1px solid var(--edge); }
-.ac-tier-acts{ display:flex; gap:8px; }
 .ac-ghost.is-go{ color:var(--lp-accent); border-color:rgba(236,48,19,.35); }
 .ac-ghost.is-go:hover{ background:rgba(236,48,19,.07); color:var(--lp-accent); }
 .ac-btn{ border:0; cursor:pointer; font-size:22px; }
