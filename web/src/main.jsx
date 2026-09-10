@@ -26,6 +26,14 @@ const under = (base) => path === base || path.startsWith(base + "/");
 const MARKETING = { "/pricing": Pricing, "/terms": Terms, "/privacy": Privacy };
 const MarketingPage = MARKETING[path];
 
+// index.html always ships the phone/desktop frame — it is the sweep app's shell, and
+// every other surface has to flatten it. Doing that here rather than only in a React
+// effect means the frame never paints its own rounded, darker slab first.
+if (MarketingPage || under("/account")) {
+  document.body.classList.add("marketing");
+  document.documentElement.classList.add("marketing-scroll");
+}
+
 if (MarketingPage) {
   root.render(<MarketingPage />);
   registerServiceWorker();

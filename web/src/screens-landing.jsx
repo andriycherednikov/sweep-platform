@@ -10,7 +10,7 @@
    demonstrates the promise (the season keeps its own score) instead
    of only claiming it. Everything else reveals once, on entry.
    ============================================================ */
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { listSweeps } from "./sweeps.js"
 import { getAccountToken } from "./lib/accountClient.js"
 
@@ -19,7 +19,11 @@ import { getAccountToken } from "./lib/accountClient.js"
  *  anchors, the mobile URL bar and browser find all behave oddly inside a nested
  *  scroller. Marketing surfaces flag themselves on <body> and the shell relaxes. */
 export function useMarketingShell() {
-  useEffect(() => {
+  // Layout, not passive: index.html always ships the phone/desktop frame, and this class
+  // is what flattens it. In a plain effect the class lands AFTER the first paint, so the
+  // frame gets one frame to draw itself — a rounded 892px slab in its own darker navy,
+  // centred on the gradient body — which reads as a band across the top of the page.
+  useLayoutEffect(() => {
     document.body.classList.add("marketing")
     document.documentElement.classList.add("marketing-scroll")
     return () => {
