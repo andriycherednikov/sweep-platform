@@ -500,6 +500,10 @@ export async function accountRoutes(app) {
 
     // "how many have actually joined" is the question the console could not answer.
     // count(col) skips NULLs, so `registered` is free once we are grouping anyway.
+    // Ejected seats are excluded, exactly as the `joined` half above excludes them: the
+    // row stays in the table so their picks and ledger keep their references, but they
+    // are not in the sweep, and counting them printed a headcount the People screen
+    // flatly contradicted.
     const counts = new Map()
     if (owned.length) {
       const tallies = await app.db.select({
@@ -507,7 +511,10 @@ export async function accountRoutes(app) {
         total: sql`count(*)::int`,
         registered: sql`count(${person.accountId})::int`,
       }).from(person)
-        .where(inArray(person.sweepId, owned.map((r) => r.sweep.id)))
+        .where(and(
+          inArray(person.sweepId, owned.map((r) => r.sweep.id)),
+          isNull(person.ejectedAt),
+        ))
         .groupBy(person.sweepId)
       for (const t of tallies) counts.set(t.sweepId, { total: t.total, registered: t.registered })
     }

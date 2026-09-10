@@ -410,3 +410,34 @@ test('an ejected member is not still in the sweep', async () => {
     await db.delete(account).where(eq(account.id, 'ac_gone'))
   }
 })
+
+// The list's joined half has always known that an ejected seat is not in the sweep any
+// more; the tally printed beside it did not, so the console said "14 in the sweep · 3 not
+// joined yet" over a People screen showing 12.
+test('the member tally leaves out ejected seats', async () => {
+  const id = `sw_tally_${Date.now()}`
+  await db.insert(account).values([
+    { id: 'ac_tally', email: 'tally@x.test' },
+    { id: 'ac_tally_gone', email: 'tallygone@x.test' },
+  ]).onConflictDoNothing()
+  await db.insert(sweep).values({
+    id, name: 'Tally', kind: 'token', memberToken: newToken(),
+    competitionId: 'apifootball:1:2026', accountId: 'ac_tally',
+  })
+  await db.insert(person).values([
+    { id: `${id}_a`, sweepId: id, name: 'Ann', short: 'Ann', initials: 'AN', avColor: '#111111', accountId: 'ac_tally', claimedAt: new Date() },
+    { id: `${id}_b`, sweepId: id, name: 'Bob', short: 'Bob', initials: 'BO', avColor: '#222222' },
+    { id: `${id}_c`, sweepId: id, name: 'Cal', short: 'Cal', initials: 'CA', avColor: '#333333', accountId: 'ac_tally_gone', claimedAt: new Date(), ejectedAt: new Date() },
+  ])
+  const auth = await ownerHeaders(db, 'ac_tally')
+  try {
+    const rows = (await app.inject({ method: 'GET', url: '/api/account/sweeps', headers: auth })).json()
+    expect(rows.find((r) => r.id === id).members).toEqual({ total: 2, registered: 1 })
+  } finally {
+    await db.delete(person).where(eq(person.sweepId, id))
+    await db.delete(sweep).where(eq(sweep.id, id))
+    await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_tally'))
+    await db.delete(account).where(eq(account.id, 'ac_tally'))
+    await db.delete(account).where(eq(account.id, 'ac_tally_gone'))
+  }
+})
