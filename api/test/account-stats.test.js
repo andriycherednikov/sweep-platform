@@ -18,6 +18,7 @@ const DAY = new Date('2024-05-01T12:00:00Z')
 const EV1 = new Date('2024-05-02T18:00:00Z') // final, NO winner_code — decided on score
 const EV2 = new Date('2024-05-03T18:00:00Z') // final, winner_code set
 const EV4 = new Date('2024-05-04T18:00:00Z') // final, level score → a draw
+const EV6 = new Date('2024-05-05T18:00:00Z') // final, no winner_code AND no score → nothing
 const POSTPONED = new Date('2024-04-01T18:00:00Z') // still 'upcoming', but long past
 const NEXT = new Date(Date.now() + 7 * 24 * 3600_000)
 
@@ -43,6 +44,7 @@ beforeAll(async () => {
     { id: 'ev_s3', competitionId: COMP, c1Code: 'AAA', c2Code: 'CCC', startUtc: NEXT, status: 'upcoming' },
     { id: 'ev_s4', competitionId: COMP, c1Code: 'BBB', c2Code: 'CCC', startUtc: EV4, status: 'final', score1: 1, score2: 1, winnerCode: null },
     { id: 'ev_s5', competitionId: COMP, c1Code: 'AAA', c2Code: 'BBB', startUtc: POSTPONED, status: 'upcoming' },
+    { id: 'ev_s6', competitionId: COMP, c1Code: 'AAA', c2Code: 'BBB', startUtc: EV6, status: 'final', score1: null, score2: null, winnerCode: null },
   ]).onConflictDoNothing()
   await db.insert(sweep).values([
     { id: SW, name: 'Stats', kind: 'token', memberToken: 'statsmembertoken00000', competitionId: COMP, accountId: 'ac_stats', wageringEnabled: true },
@@ -61,6 +63,7 @@ beforeAll(async () => {
   await db.insert(support).values([
     { sweepId: SW, personId: 'pn_ann', fixtureId: 'ev_s1', teamCode: 'AAA' }, // right (on the score)
     { sweepId: SW, personId: 'pn_ann', fixtureId: 'ev_s2', teamCode: 'BBB' }, // wrong
+    { sweepId: SW, personId: 'pn_ann', fixtureId: 'ev_s6', teamCode: 'DRAW' }, // neither: there is no result
     { sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s4', teamCode: 'DRAW' }, // right
     // Called an upcoming fixture: taking part, but not yet right or wrong about anything.
     { sweepId: SW, personId: 'pn_bob', fixtureId: 'ev_s3', teamCode: 'AAA' },
@@ -151,15 +154,25 @@ test('a level final is a draw, and belongs to nobody', async () => {
   expect(s.race.some((r) => r.date === '2024-05-04')).toBe(false)
 })
 
+// A final the feed has given us no score for has no result yet — reading it as a draw
+// would credit everyone who called one, which is what the sweep's own match card refuses
+// to do (web/src/components.jsx:343).
+test('a final with no score is not a draw, it is no result at all', async () => {
+  const s = await forSweep(SW)
+  expect(s.race.some((r) => r.date === '2024-05-05')).toBe(false)
+  // Ann called a draw on it: it counts as a pick, and it is not a right one.
+  expect(s.calls.find((c) => c.personId === 'pn_ann').right).toBe(1)
+})
+
 // Filtering on status alone renders a fixture that was postponed months ago as "Next".
 test('the next kickoff is the upcoming one, not the postponed one', async () => {
   const s = await forSweep(SW)
-  expect(s.season).toEqual({ final: 3, total: 5, next: NEXT.toISOString() })
+  expect(s.season).toEqual({ final: 4, total: 6, next: NEXT.toISOString() })
 })
 
 test('calls score a pick against the same winner the race uses, draws included', async () => {
   const s = await forSweep(SW)
-  expect(s.calls.find((c) => c.personId === 'pn_ann')).toEqual({ personId: 'pn_ann', picks: 2, right: 1 })
+  expect(s.calls.find((c) => c.personId === 'pn_ann')).toEqual({ personId: 'pn_ann', picks: 3, right: 1 })
   expect(s.calls.find((c) => c.personId === 'pn_bob')).toEqual({ personId: 'pn_bob', picks: 1, right: 1 })
 })
 
@@ -169,7 +182,7 @@ test('the loud-and-quiet list keeps the quiet ones, at zero', async () => {
   // a per-person photo count cannot be sourced, so nothing pretends to be one.
   expect(Object.keys(s.activity[0])).toEqual(['personId', 'picks', 'bets'])
   expect(s.activity).toEqual([
-    { personId: 'pn_ann', picks: 2, bets: 1 },
+    { personId: 'pn_ann', picks: 3, bets: 1 },
     // Two, not three: Bob placed one single and one two-leg parlay. And picks:2 — one
     // finished fixture and one still to play — where `calls` scores him over 1, because
     // taking part and being right are different questions.
@@ -204,7 +217,7 @@ test('a sweep with wagering off carries no wagering block', async () => {
   expect(s.wagering).toBeUndefined()
   // Empty, not missing: an empty sweep still renders, it just renders nothing.
   expect(s).toMatchObject({ people: [], joins: [], race: [], calls: [], activity: [] })
-  expect(s.season).toEqual({ final: 3, total: 5, next: NEXT.toISOString() })
+  expect(s.season).toEqual({ final: 4, total: 6, next: NEXT.toISOString() })
 })
 
 // Two sweeps on one competition get the identical season block, because it is grouped by

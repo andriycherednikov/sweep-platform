@@ -607,7 +607,7 @@ export async function accountRoutes(app) {
      *  ever disagree with the leaderboard the group is already looking at. 'DRAW' matches
      *  no competitor code, so draws fall out of every join that uses this — and a pick of
      *  'DRAW' still matches it, which is exactly right. */
-    const winner = sql`coalesce(${event.winnerCode}, case when ${event.score1} > ${event.score2} then ${event.c1Code} when ${event.score2} > ${event.score1} then ${event.c2Code} else 'DRAW' end)`
+    const winner = sql`coalesce(${event.winnerCode}, case when ${event.score1} is null or ${event.score2} is null then null when ${event.score1} > ${event.score2} then ${event.c1Code} when ${event.score2} > ${event.score1} then ${event.c2Code} else 'DRAW' end)`
 
     /** Every wager in one shape: a single is a bet row, and a parlay is the parlay row.
      *
