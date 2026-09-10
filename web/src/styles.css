@@ -1422,17 +1422,25 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
 .ac-op b{ font-family:'Archivo',system-ui,sans-serif; font-weight:700; font-size:14.5px; }
 .ac-op span{ flex-shrink:0; font-size:12.5px; color:var(--ink3); text-align:right; }
 
-/* Its story and its settings, side by side once there is room for both. Under 1200 this
+/* Its story and its settings, side by side once there is room for both. Under 1500 this
    is the single column it has always been — the charts, then what you can change, in
-   that order. From 1200 the pane can hold both, and then scrolling past six cards to
+   that order. From 1500 the pane can hold both, and then scrolling past six cards to
    reach the member link is a waste of a monitor: the story takes the room it needs and
    the controls sit still beside it.
+   1500, not 1200, because of what the settings column costs: it takes 380px plus a 24px
+   gap out of the pane, and the pane is the window less the 236px rail and its gutters. At
+   1200 that leaves the story 464px — under .ac-story's 620px two-column mark — so the
+   split fired and the cards collapsed to one column anyway, and the page got NARROWER as
+   the window got wider. 1500 is the width where the story column (740px) is finally wider
+   than the 720px single column it replaces, so crossing the breakpoint never costs the
+   charts a pixel — 1400 would have cleared the two-column mark but still stepped the
+   cards down from 352px to 316px, which is the same bug wearing a smaller coat.
    The card grid's own breakpoints are NOT repeated in here any more. They are container
    queries now (see .ac-story), asked of the column the cards are actually in — so the
-   story column lays itself out the same whether it is 464px wide because the settings
-   are parked beside it or because the window is small. Measuring the window instead is
-   what made widening from 1199 to 1200 turn two columns of cards into one. */
-@media (min-width:1200px){
+   story column lays itself out the same whether it is narrow because the settings are
+   parked beside it or because the window is small. Measuring the window instead is what
+   made widening by one pixel turn two columns of cards into one. */
+@media (min-width:1500px){
   .ac-sweep:not(.is-solo){ display:grid; grid-template-columns:minmax(0,1fr) 380px; gap:24px;
     align-items:start; max-width:none; }
   /* The heading is as wide as the column beneath it, rather than stopping at 720 with a
@@ -1447,11 +1455,11 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
    page moved that box 52px and then stopped dead — no way out of the gutter but the
    keyboard. Pinning the controls is a nicety; reaching the rest of the page is not, so
    the nicety is the half that gives way. Above 980px of window there is room for both. */
-@media (min-width:1200px) and (min-height:980px){
+@media (min-width:1500px) and (min-height:980px){
   .ac-sweep:not(.is-solo) .ac-sweep-set{ position:sticky; top:24px; }
 }
 /* The name, what it follows and how long it has run are prose and a text field, so they
-   keep the 720px measure on a page whose cards do not — and below 1200, where there is
+   keep the 720px measure on a page whose cards do not — and below 1500, where there is
    no second column to justify the room, so does the rest of the page: the controls are a
    settings form, and a link field 900px wide is not a better link field. Centred in the
    pane, because .ac-col's own auto margins stop at its 720/1440 cap and a 720px page
@@ -2197,7 +2205,7 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
 .ac-me-av{ width:36px; height:36px; flex-shrink:0; border-radius:11px; display:grid; place-items:center;
   background:var(--glass2); color:#fff; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:14px; letter-spacing:.5px; }
 .ac-me-tx{ flex:1; min-width:0; line-height:1.15; }
-.ac-me-tx small{ display:block; font-size:8.5px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; color:var(--ink3); }
+.ac-me-tx small{ display:block; font-size:9.5px; letter-spacing:.6px; text-transform:uppercase; font-weight:700; color:var(--ink3); }
 .ac-me-tx b{ display:block; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ac-me-out{ flex-shrink:0; display:grid; place-items:center; width:34px; height:34px; border-radius:10px;
   border:1px solid var(--edge); background:transparent; color:var(--ink2); cursor:pointer; }
