@@ -1030,7 +1030,12 @@ body.marketing{ display:block; background:#0f1620; }
 body.marketing #root{ display:block; min-height:0; }
 body.marketing #appmount{ height:auto; }
 /* the phone/desktop frame is what actually pins the shell to the viewport */
-body.marketing .device{ height:auto; max-height:none; overflow:visible; border-radius:0; padding:0; box-shadow:none; background:transparent; }
+/* width:100% is the half this rule was missing. .device is 412px — the phone mockup —
+   until desktop.css widens it at 900px or the coarse-pointer rule does on a real phone,
+   which leaves a mouse window between 480 and 899px rendering every marketing surface,
+   and the whole account console, inside a 412px column: a 236px rail beside 116px of
+   readable page. Nothing under body.marketing wants the mockup at any width. */
+body.marketing .device{ width:100%; height:auto; max-height:none; overflow:visible; border-radius:0; padding:0; box-shadow:none; background:transparent; }
 
 .lp{
   /* palette and type lifted from the reference design: warm-red accent on a cool
