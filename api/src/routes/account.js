@@ -62,6 +62,11 @@ const patchSweepBody = {
     name: { type: 'string', minLength: 1, maxLength: 80 },
     scoringRule: { type: 'string', minLength: 1, maxLength: 40 },
     coOwners: { type: 'string', minLength: 1, maxLength: 40 },
+    // The same one-column update POST /api/admin/wagering makes (routes/admin.js:23) —
+    // it just needs a sweep cookie to get there, which the account console never has.
+    // Wagering stopped being a provision-time decision the moment the console owned the
+    // sweep's settings, so it changes through the same PATCH as the name.
+    wageringEnabled: { type: 'boolean' },
   },
 }
 
@@ -524,6 +529,10 @@ export async function accountRoutes(app) {
       // Season included, and folded into the name the way the sweep header does it: a
       // sweep is bound to ONE season, and "NBA" is every NBA season there has been.
       competition: c ? { name: compLabel(c), sport: c.sport, season: c.season, logo: c.logo } : null,
+      // The one setting the console shows: it renders the wagering toggle off this list,
+      // and a second request per card just to read one boolean would be absurd. The rest
+      // of the sweep's settings stay out until something actually renders them.
+      wageringEnabled: r.wageringEnabled,
       archivedAt: r.archivedAt, createdAt: r.createdAt,
     })
     return [

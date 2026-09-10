@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
 import { ownerHeaders } from './helpers/session.js'
-import { account, sweep } from '../src/db/schema.js'
+import { account, accountSession, sweep } from '../src/db/schema.js'
 
 const { pool, db } = openTestDb()
 const app = buildApp(db, { sessionSecret: 'test-secret' })
@@ -16,12 +16,22 @@ beforeAll(async () => {
     id: 'sw_lapsed', name: 'Lapsed', kind: 'token', competitionId: 'apifootball:1:2026',
     accountId: 'ac_lapsed', memberToken: 'lapsedmembertoken0000',
   }).onConflictDoNothing()
+  await db.insert(account).values({
+    id: 'ac_wag', email: 'wag@example.test', subscriptionStatus: 'active',
+  }).onConflictDoNothing()
+  await db.insert(sweep).values({
+    id: 'sw_wag', name: 'Wagerless', kind: 'token', competitionId: 'apifootball:1:2026',
+    accountId: 'ac_wag', memberToken: 'wagmembertoken0000000', wageringEnabled: false,
+  }).onConflictDoNothing()
 })
 afterAll(async () => {
   // Restores both fields this file mutates on the shared seed sweep: the rename test
   // renames it, the rotate test replaces its member token — either left standing breaks
   // sibling test files (bootstrap's name assertion, memberCookie()'s memoized token).
   await db.update(sweep).set({ name: 'The Sweep', memberToken: 'seedmembertoken000000' }).where(eq(sweep.id, 'default'))
+  await db.delete(sweep).where(eq(sweep.id, 'sw_wag'))
+  await db.delete(accountSession).where(eq(accountSession.accountId, 'ac_wag'))
+  await db.delete(account).where(eq(account.id, 'ac_wag'))
   await app.close(); await pool.end()
 })
 
@@ -93,4 +103,36 @@ test('a lapsed owner can rotate the member link, but still cannot edit the sweep
   })
   expect(patch.statusCode).toBe(403)
   expect(patch.json().error).toBe('sweep_readonly')
+})
+
+// Wagering was a decision you made once, at provision time, and could only revisit from
+// inside the sweep's own admin. The console owns the sweep's settings now, so it goes
+// through the same PATCH as the name — POST /api/admin/wagering is the identical
+// update(sweep).set({wageringEnabled}), just reached with a sweep cookie instead.
+test('the owner can turn wagering on after the sweep exists', async () => {
+  const res = await app.inject({
+    method: 'PATCH', url: '/api/account/sweeps/sw_wag',
+    headers: await ownerHeaders(db, 'ac_wag'), payload: { wageringEnabled: true },
+  })
+  expect(res.statusCode).toBe(200)
+  const [row] = await db.select().from(sweep).where(eq(sweep.id, 'sw_wag'))
+  expect(row.wageringEnabled).toBe(true)
+
+  // The console renders the toggle straight off the list it already loads — without this
+  // the switch has no state to show until somebody flips it.
+  const rows = (await app.inject({
+    method: 'GET', url: '/api/account/sweeps', headers: await ownerHeaders(db, 'ac_wag'),
+  })).json()
+  expect(rows.find((r) => r.id === 'sw_wag').wageringEnabled).toBe(true)
+})
+
+// Turning wagering on is sweep CONTENT, so it lands behind the same in-handler gate the
+// rename does — a new field must not become a hole in it.
+test('a lapsed owner cannot turn wagering on', async () => {
+  const res = await app.inject({
+    method: 'PATCH', url: '/api/account/sweeps/sw_lapsed',
+    headers: await ownerHeaders(db, 'ac_lapsed'), payload: { wageringEnabled: true },
+  })
+  expect(res.statusCode).toBe(403)
+  expect(res.json().error).toBe('sweep_readonly')
 })
