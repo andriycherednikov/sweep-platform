@@ -249,6 +249,38 @@ test('the luck card admits the feed can rewrite what it divides by', async () =>
   expect(pane().getByText(/drops the pick with it/i)).toBeTruthy()
 })
 
+// The state this page is opened in most often is the one before anything has kicked off:
+// a sweep made this week, picks already in, not a win between them. Divided by the
+// floor of 1 that mostWins used to carry, every dot then sits on the left wall under a
+// caption promising somebody stood on the right-hand one.
+test('nobody has won anything yet, so nobody is promised on the right-hand edge', async () => {
+  getAccountStats.mockResolvedValue([{ ...STATS, race: [] }])
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /luck/i })
+  expect(pane().queryByText(/right-hand edge/)).toBeNull()
+  expect(pane().getByText(/left-hand wall/)).toBeTruthy()
+})
+
+// `wins` is every win in the sweep and the dots are only the people who have called a
+// game, so the two sets are not the same one. Measured against a leader who never picks,
+// the right-hand wall the caption points at has nobody on it at all.
+test('the right-hand edge is somebody the chart actually draws', async () => {
+  getAccountStats.mockResolvedValue([{
+    ...STATS,
+    // Bo has three times Ann's wins and has never called a game, so he is not a dot.
+    race: [
+      { personId: 'pn_a', date: '2026-05-02', wins: 3 },
+      { personId: 'pn_b', date: '2026-05-03', wins: 9 },
+    ],
+    calls: [{ personId: 'pn_a', picks: 4, right: 3 }],
+  }])
+  render(<Dashboard />)
+  await pane().findByRole('img', { name: /luck/i })
+  const dots = [...screen.getByRole('main').querySelectorAll('.ch-dot')]
+  expect(dots.map((d) => d.textContent)).toEqual(['AS'])
+  expect(dots[0].getAttribute('style')).toContain('calc(13px + 1 * (100% - 26px))')
+})
+
 // The other way round from the test above: the charts are the half that landed. The
 // rail has nothing in it and no row can be ranked against a list that never arrived, so
 // this is the path where every sweep falls back to the same place in the order.

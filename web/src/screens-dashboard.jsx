@@ -322,26 +322,29 @@ function LuckCard({ s }) {
   const byId = new Map(s.people.map((p) => [p.id, p]));
   const wins = new Map();
   for (const r of s.race) wins.set(r.personId, (wins.get(r.personId) ?? 0) + r.wins);
-  // Scatter plots 0..1 fractions of each axis, so across is wins measured against the
-  // best-off person in the group rather than an absolute count. The caption says so: one
-  // hot streak drags everybody else to the left-hand wall, and read as a count that says
-  // the rest of them have won nothing.
-  const mostWins = Math.max(1, ...wins.values());
   // `calls` only carries fixtures that have finished AND that the feed gave a result for
   // (api/src/routes/account.js), while this is every pick anybody has made. A group that
   // has called all of next week's games has an empty scatter and a full "loud and quiet"
   // card beside it, which is a different sentence from nobody having picked.
   const picked = s.activity.reduce((n, a) => n + a.picks, 0);
+  const called = s.calls.filter((c) => byId.has(c.personId) && c.picks > 0);
+  // Scatter plots 0..1 fractions of each axis, so across is wins measured against the
+  // best-off person rather than an absolute count: one hot streak drags everybody else to
+  // the left-hand wall, and read as a count that says the rest of them have won nothing.
+  // Measured against the best-off DOT, because `wins` counts the whole sweep and only the
+  // people who have called a game are drawn — divided by a leader who never picks, the
+  // right-hand wall the caption points at had nobody standing on it. And a group before
+  // its first result divides by nothing at all: everybody is on the left wall, which is
+  // true, so the caption below says that instead of promising a leader on the right.
+  const mostWins = Math.max(0, ...called.map((c) => wins.get(c.personId) ?? 0));
 
-  const points = s.calls
-    .filter((c) => byId.has(c.personId) && c.picks > 0)
-    .map((c) => ({
-      id: c.personId,
-      x: (wins.get(c.personId) ?? 0) / mostWins,
-      y: c.right / c.picks,
-      label: byId.get(c.personId).initials,
-      color: byId.get(c.personId).avColor,
-    }));
+  const points = called.map((c) => ({
+    id: c.personId,
+    x: mostWins ? (wins.get(c.personId) ?? 0) / mostWins : 0,
+    y: c.right / c.picks,
+    label: byId.get(c.personId).initials,
+    color: byId.get(c.personId).avColor,
+  }));
 
   return (
     <section className="ac-card">
@@ -360,8 +363,10 @@ function LuckCard({ s }) {
             quadrants={["Cursed", "Sharp", "Hopeless", "Blessed"]}
           />
           <p className="ch-cap">
-            Across: how your teams' wins compare with the group's best — the right-hand edge
-            is whoever has won the most. Up: how often you called one right.
+            {mostWins > 0
+              ? "Across: how your teams' wins compare with the group's best — the right-hand edge is whoever has won the most."
+              : "Across: not one of anybody's teams has won a game yet, so everybody is on the left-hand wall until one does."}
+            {" "}Up: how often you called one right.
             The draw was random, so anything you see along the diagonal is your imagination.
             {/* `support` has no timestamp either, and the baseline sync deletes the picks
                 on any fixture the provider stops listing (worker/baseline-sync.js:173) —
