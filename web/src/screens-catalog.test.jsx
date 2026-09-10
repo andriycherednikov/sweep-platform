@@ -154,7 +154,9 @@ test('402 subscription_required maps to a billing CTA', async () => {
   await openSheet()
   fireEvent.click(screen.getByRole('button', { name: /start sweep/i }))
   expect(await screen.findByText(/subscribe to start new sweeps/i)).toBeTruthy()
-  expect(screen.getByRole('link', { name: /go to billing/i })).toHaveAttribute('href', '/account')
+  // /account is the dashboard, which carries the bill only when there is something to
+  // do about it. The subscribe button lives on the list, always.
+  expect(screen.getByRole('link', { name: /go to billing/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
 test('403 sweep_cap renders the cap when the body carries it', async () => {

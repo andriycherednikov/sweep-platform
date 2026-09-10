@@ -35,7 +35,9 @@ const STATS = {
   race: [{ personId: 'pn_a', date: '2026-05-02', wins: 2 }, { personId: 'pn_a', date: '2026-05-03', wins: 1 }],
   season: { final: 3, total: 5, next: null },
   calls: [{ personId: 'pn_a', picks: 4, right: 3 }],
-  activity: [{ personId: 'pn_a', picks: 4, bets: 0, photos: 0 }],
+  // No photo count: a fan photo is written with a null person_id, so the only thing a
+  // per-person tally could count was avatars, and the route stopped sending it.
+  activity: [{ personId: 'pn_a', picks: 4, bets: 0 }],
 }
 
 let originalLocation

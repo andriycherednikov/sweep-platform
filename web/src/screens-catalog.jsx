@@ -69,7 +69,10 @@ function ProvisionSheet({ league, season, onClose }) {
                 {err.code === "sweep_cap"
                   ? `You've reached your sweep limit${err.cap ? ` (${err.cap})` : ""}. Archive one to make room.`
                   : PROVISION_ERRORS[err.code] || "Something went wrong — try again."}
-                {err.code === "subscription_required" && <> <a className="ac-link-a" href="/account">Go to billing</a></>}
+                {/* The list, not the dashboard: /account shows the bill only when there is
+                    something to settle, and the subscribe button lives on /account/sweeps
+                    the way the sweep page's two links say it does. */}
+                {err.code === "subscription_required" && <> <a className="ac-link-a" href="/account/sweeps">Go to billing</a></>}
               </p>
             )}
           </form>

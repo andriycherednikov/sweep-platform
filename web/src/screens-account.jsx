@@ -107,9 +107,11 @@ export function Console({ here, wide, children }) {
 
   // A real <a>, not a button with an onClick: cmd-click, middle-click, "copy link
   // address" and the keyboard all work without being implemented. The nav key doubles
-  // as the React key, which is why sweeps use their own id for it.
-  const item = (key, href, label, extra = "") => (
-    <a key={key} className={"ac-nav-i" + extra + (here === key ? " is-here" : "")} href={href}>
+  // as the React key, which is why sweeps use their own id for it — and why the two
+  // overflow items, which lead to the SAME page and so share a nav key, need a React key
+  // of their own to stay distinct children of the nav.
+  const item = (key, href, label, extra = "", reactKey = key) => (
+    <a key={reactKey} className={"ac-nav-i" + extra + (here === key ? " is-here" : "")} href={href}>
       {label}
     </a>
   );
@@ -166,7 +168,7 @@ export function Console({ here, wide, children }) {
               sweeps of your own, and you join however many your friends set up. */}
           {joined.length > 0 && <p className="ac-sec">You're in</p>}
           {joined.slice(0, RAIL_MAX).map((s) => sweepItem(s, `/s/${s.id}`))}
-          {joined.length > RAIL_MAX && item("sweeps-in", "/account/sweeps", `All ${joined.length} sweeps you're in`, " is-more")}
+          {joined.length > RAIL_MAX && item("sweeps", "/account/sweeps", `All ${joined.length} sweeps you're in`, " is-more", "sweeps-in")}
           {/* At 820px and under the rail lies down into a horizontal strip, which
               survives two items and not twelve. The same places as the platform's own
               picker: no drawer to build, and the keyboard and VoiceOver come free. It

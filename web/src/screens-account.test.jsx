@@ -505,6 +505,18 @@ test("the sweeps you are in are capped and overflow the same way the ones you ru
   expect(nav.getByRole('link', { name: /all 8 sweeps you're in/i })).toHaveAttribute('href', '/account/sweeps')
 })
 
+// /account/sweeps is served with here="sweeps" (AccountRoot.jsx), so the overflow item
+// that leads there has to answer to that key. This one called itself "sweeps-in", so the
+// rail highlighted nothing on the page it had just taken you to.
+test('the joined-sweeps overflow item lights up on the page it leads to', async () => {
+  getAccountSweeps.mockResolvedValue(
+    [1, 2, 3, 4, 5, 6, 7, 8].map((i) => ownedSweep(i, { role: 'member', name: `In ${i}` })),
+  )
+  render(<AccountHome here="sweeps" />)
+  const nav = await rail()
+  expect(nav.getByRole('link', { name: /all 8 sweeps you're in/i }).className).toMatch(/is-here/)
+})
+
 test('a handful of sweeps you are in are all listed, with no overflow item', async () => {
   getAccountSweeps.mockResolvedValue([1, 2].map((i) => ownedSweep(i, { role: 'member', name: `In ${i}` })))
   render(<AccountHome here="sweeps" />)
