@@ -92,7 +92,6 @@ function MagicEntry({ onPassword, notice }) {
         tag="Check your email"
         title="Link *sent*"
         lede={<>We sent a sign-in link to <b>{email}</b>. It works once, and it expires in 15 minutes.</>}
-        foot={<>(dev: the link is printed on the API console)</>}
       >
         {notice && <p className="au-err">{notice}</p>}
         <p className="au-note">Nothing in your inbox? Look in spam, or send it again.</p>

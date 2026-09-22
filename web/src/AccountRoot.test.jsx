@@ -105,7 +105,7 @@ test('"email me a link instead" switches to the magic-link form, which still wor
   fireEvent.click(screen.getByRole('button', { name: /send/i }))
   await waitFor(() => expect(accountClient.requestLogin).toHaveBeenCalledWith('me@example.com'))
   expect(await screen.findByText(/check your email/i)).toBeInTheDocument()
-  expect(screen.getByText(/dev: the link is printed on the api console/i)).toBeInTheDocument()
+  expect(screen.queryByText(/api console/i)).not.toBeInTheDocument()
 })
 
 test('the magic-link form can switch back to signing in with a password', async () => {
