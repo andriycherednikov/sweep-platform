@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { buildApp } from '../src/app.js'
 import { openTestDb } from './helpers/db.js'
-import { transportFromEnv, codeMail, inviteMail, loginMail } from '../src/mail.js'
+import { transportFromEnv, codeMail, inviteMail, loginMail, passwordChangedMail } from '../src/mail.js'
 
 const { db } = openTestDb()
 
@@ -84,4 +84,17 @@ test('the sign-in mail is a designed mail, not a naked URL', () => {
   expect(m.html).toContain('&quot;onerror=x')           // escaped into the href
   expect(m.html).not.toContain('"onerror=x"')
   expect(m.html).toMatch(/15 minutes/)                  // the TTL is stated
+})
+
+// It used to be one plain line ending "reply to this email" — from an address that
+// receives nothing. The one mail sent when an account may have been taken over has to
+// say how to take it back, and that way must not need the password that just changed.
+test('the password-changed mail is designed, never asks for a reply, and links to recovery', () => {
+  const m = passwordChangedMail('https://sweep.test/account?signup')
+  expect(m.subject).toMatch(/password/i)
+  expect(m.html).toContain('The Sweep')
+  expect(m.html).toContain('href="https://sweep.test/account?signup"')
+  expect(m.text).toContain('https://sweep.test/account?signup')
+  expect(m.text + m.html).not.toMatch(/reply/i)
+  expect(m.text).toMatch(/log out everywhere/i)
 })

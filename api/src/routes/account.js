@@ -7,7 +7,7 @@ import { SWEEP_COOKIE, COOKIE_MAX_AGE, signSweepCookie, readSweepList, withSweep
 import { randomInt } from 'node:crypto'
 import { newToken } from '../sweeps/tokens.js'
 import { requireSweep } from '../sweeps/auth.js'
-import { codeMail, loginMail, emailChangeMail } from '../mail.js'
+import { codeMail, loginMail, emailChangeMail, passwordChangedMail } from '../mail.js'
 import { requireAccount, LOGIN_TOKEN_TTL_MS, SESSION_TTL_MS } from '../accounts/auth.js'
 import { hashPassword, verifyPassword, DUMMY_HASH, MAX_PASSWORD_BYTES } from '../auth.js'
 import { TRIAL_MS, GOOD_STANDING, syncQuantity, liveSweepCount, sweepLiveNow } from '../accounts/billing.js'
@@ -385,8 +385,10 @@ export async function accountRoutes(app) {
       eq(accountSession.accountId, acc.id),
       ne(accountSession.token, req.headers['x-account-token']),
     ))
-    await notify(req, acc.email, 'Your password was changed',
-      'The password on your Sweep account was just changed. If that was not you, reply to this email.')
+    // ?signup opens the email-link form, not the password one: the way back must not
+    // need the password that just changed.
+    const m = passwordChangedMail(`${app.publicOrigin}/account?signup`)
+    await notify(req, acc.email, m.subject, m.text, m.html)
     return reply.code(204).send()
   })
 

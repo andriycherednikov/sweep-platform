@@ -241,3 +241,35 @@ export function inviteMail(sweepName, link) {
     }),
   }
 }
+
+/** The password on the account just changed. Sent to the account's own address, so if it
+ *  was not them, this is the one place they hear it — and "reply to this email" was no
+ *  help, from an address that receives nothing. The way back needs no password: a sign-in
+ *  link goes only to this inbox, a new password replaces the old one, and Log out
+ *  everywhere ends every other session. */
+export function passwordChangedMail(link) {
+  return {
+    subject: 'Your password for The Sweep was changed',
+    text: 'THE SWEEP\n\nThe password on your Sweep account was just changed, and every\n'
+      + 'other device was signed out. If that was you, there is nothing to do.\n\n'
+      + "Wasn't you? Take it back:\n"
+      + `1. Get a sign-in link sent to this address: ${link}\n`
+      + '2. Open it and set a new password.\n'
+      + '3. In your settings, choose Log out everywhere.\n',
+    html: shell({
+      preheader: 'If that was you, there is nothing to do.',
+      eyebrow: 'Security',
+      heading: 'Your password was changed',
+      lede: 'The password on your Sweep account was just changed, and every other device was signed out. If that was you, there is nothing to do.',
+      block: `<p class="ink" style="margin:0 0 14px;font-family:${SANS};font-size:15px;font-weight:700;line-height:1.5;color:${INK};">Wasn&rsquo;t you? Take it back.</p>
+        <p class="muted" style="margin:0 0 18px;font-family:${SANS};font-size:14px;line-height:1.6;color:#5f6b76;">Get a sign-in link sent to this address &mdash; only this inbox can open it. Set a new password, then choose <b>Log out everywhere</b> in your settings.</p>
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td align="center" style="background:${ACCENT};border-radius:10px;">
+            <a href="${esc(link)}" style="display:inline-block;padding:15px 32px;font-family:${SANS};font-size:15px;font-weight:700;letter-spacing:.4px;text-decoration:none;color:#ffffff;">Secure my account</a>
+          </td>
+        </tr></table>
+        <p class="muted" style="margin:16px 0 0;font-family:${SANS};font-size:12px;line-height:1.55;word-break:break-all;color:#a09a95;">Button not working? Paste this into your browser:<br>${esc(link)}</p>`,
+      foot: 'You get this mail every time the password on your account changes.',
+    }),
+  }
+}
