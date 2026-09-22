@@ -211,7 +211,24 @@ test('twelve sweeps do not offer twelve ways to cancel one subscription', async 
   expect(pane().getAllByRole('button', { name: /manage billing/i })).toHaveLength(1)
   expect(pane().queryByRole('button', { name: /cancel subscription/i })).toBeNull()
   // and the state that IS per sweep stays on the card
-  expect(pane().getAllByText('Paid')).toHaveLength(3)
+  expect(pane().getAllByText('Live')).toHaveLength(3)
+})
+
+// Billing counts only sweeps whose season still has something to play. A finished one
+// kept reading "Paid" beside a bill that did not include it.
+test('a sweep whose season is over says it is not billed; the rest say live', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 1, quantity: 1 })
+  getAccountSweeps.mockResolvedValue([ownedSweep(1), ownedSweep(2, { ended: true })])
+  render(<AccountHome here="sweeps" />)
+  await pane().findByText('Sweep 1')
+  expect(pane().getAllByText('Live')).toHaveLength(1)
+  expect(pane().getByText(/season over · not billed/i)).toBeTruthy()
+})
+
+test('the subscription says what it costs a month in total', async () => {
+  getBilling.mockResolvedValue({ subscribed: true, subscriptionStatus: 'active', trialEndsAt: null, liveSweeps: 2, quantity: 2 })
+  render(<AccountHome here="sweeps" />)
+  expect(await pane().findByText(/\$10\/month in total/i)).toBeTruthy()
 })
 
 // It used to appear only on an account with no sweeps — which is the one account with
@@ -434,6 +451,16 @@ const ownedSweep = (i, over = {}) => ({
   id: `sw${i}`, name: `Sweep ${i}`, role: 'owner', archivedAt: null,
   createdAt: `2026-01-0${i}T00:00:00Z`, memberLink: `https://h/g/${i}`,
   members: { total: 2, registered: 2 }, competition: null, ...over,
+})
+
+// The list is the only page with the billing controls, and the rail used to offer it
+// only past six sweeps — so most accounts had no way to reach it from the console.
+test('the rail always links to the sweeps and billing page', async () => {
+  getAccountSweeps.mockResolvedValue([ownedSweep(1)])
+  render(<AccountHome />)
+  const nav = await rail()
+  expect(nav.getByRole('link', { name: /sweeps & billing/i })).toHaveAttribute('href', '/account/sweeps')
+  expect(nav.getByRole('option', { name: /sweeps & billing/i })).toHaveAttribute('value', '/account/sweeps')
 })
 
 test('the rail lists the sweeps you run, each linking to its own page', async () => {

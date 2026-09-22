@@ -131,7 +131,7 @@ export function Console({ here, wide, children }) {
   // Which option the picker below is standing on. Pages with no nav item of their own
   // (settings, the catalog) fall through to a placeholder rather than pointing at Home,
   // which would say you were somewhere you are not.
-  const hereHref = here === "home" ? "/account" : owned.some((s) => s.id === here) ? `/account/s/${here}` : "";
+  const hereHref = here === "home" ? "/account" : here === "sweeps" ? "/account/sweeps" : owned.some((s) => s.id === here) ? `/account/s/${here}` : "";
 
   // Best-effort server-side revoke, then forget locally either way: a failed DELETE
   // (offline, already-expired session) must not strand this device signed in.
@@ -159,6 +159,9 @@ export function Console({ here, wide, children }) {
         <a className="lp-brand ac-brand" href="/"><span>The Sweep</span></a>
         <nav className="ac-nav">
           {item("home", "/account", "Home")}
+          {/* Always here: it is the only page with the billing controls, and the
+              overflow items below only appear past six sweeps. */}
+          {item("sweeps", "/account/sweeps", "Sweeps & billing", "", "sweeps-all")}
           {/* A sweep you run is a place to configure; a sweep you are only in has
               nothing here to configure, so it goes straight into the app. */}
           {owned.length > 0 && <p className="ac-sec">Your sweeps</p>}
@@ -179,6 +182,7 @@ export function Console({ here, wide, children }) {
                   onChange={(e) => setPick(e.target.value)}>
             {!hereHref && <option value="">Go to…</option>}
             <option value="/account">Home</option>
+            <option value="/account/sweeps">Sweeps &amp; billing</option>
             {owned.length > 0 && (
               <optgroup label="Sweeps you run">
                 {owned.map((s) => <option key={s.id} value={`/account/s/${s.id}`}>{s.name}</option>)}
@@ -342,7 +346,11 @@ function BillingPanel({ billing }) {
 
       {billing.subscribed && (
         <>
-          <p className="ac-b">{billing.liveSweeps} live sweep{billing.liveSweeps === 1 ? "" : "s"}</p>
+          {/* ponytail: the $5 is the same literal as the price line above; one Stripe
+              price, so no price field on the API until there is a second one. */}
+          <p className="ac-b">
+            <b>${billing.liveSweeps * 5}/month in total</b> · {billing.liveSweeps} live sweep{billing.liveSweeps === 1 ? "" : "s"}
+          </p>
           {billing.subscriptionStatus === "past_due" && (
             <p className="ac-warn">Your last payment failed — update your card to avoid losing access.</p>
           )}
@@ -417,10 +425,13 @@ export function CompetitionLine({ s, note }) {
 function SweepRow({ s, billing }) {
   const { trialing, lapsed, daysLeft, stopping, endsOn } = useBilling(billing);
 
-  const tier = stopping
-    ? { label: endsOn ? `Paid · stops ${endsOn}` : "Paid · stops at period end", tone: " is-warn" }
+  // A finished season is off the bill (liveSweepCount) whatever the subscription says.
+  const tier = s.ended
+    ? { label: "Season over · not billed", tone: " is-off" }
+    : stopping
+    ? { label: endsOn ? `Live · stops ${endsOn}` : "Live · stops at period end", tone: " is-warn" }
     : billing.subscribed
-    ? { label: "Paid", tone: "" }
+    ? { label: "Live", tone: " is-live" }
     : trialing
       ? { label: `Free trial · ${daysLeft} day${daysLeft === 1 ? "" : "s"} left`, tone: "" }
       : lapsed

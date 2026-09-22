@@ -16,6 +16,7 @@ import { syncCompetitors } from '../worker/sync-competitors.js'
 import { syncBaseline } from '../worker/baseline-sync.js'
 import { sportOf } from '../providers/registry.js'
 import { links } from './sweeps.js'
+import { endedCompetitionIds } from '../season.js'
 
 const loginBody = {
   type: 'object', required: ['email'], additionalProperties: false,
@@ -538,9 +539,12 @@ export async function accountRoutes(app) {
       wageringEnabled: r.wageringEnabled,
       archivedAt: r.archivedAt, createdAt: r.createdAt,
     })
+    // The same rule billing counts by (liveSweepCount): a season with nothing left to
+    // play is not billed, so the card has to say so rather than read "Paid".
+    const ended = new Set(owned.length ? await endedCompetitionIds(app.db) : [])
     return [
       ...owned.map((r) => ({
-        ...base(r), role: 'owner',
+        ...base(r), role: 'owner', ended: ended.has(r.sweep.competitionId),
         members: counts.get(r.sweep.id) ?? { total: 0, registered: 0 },
         ...links(app, r.sweep),
       })),

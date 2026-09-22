@@ -286,6 +286,32 @@ test('every row names the competition it follows', async () => {
   expect(mine.competition).toMatchObject({ name: 'World Cup 2026', sport: 'football', season: '2026' })
 })
 
+// Billing counts only sweeps whose season still has something to play, so the list has
+// to say which ones those are — otherwise every card read "Paid" while the bill said two.
+test('owned rows say whether their season is over (and so not billed)', async () => {
+  await db.insert(account).values({ id: 'ac_wager', email: 'wager@x.test' }).onConflictDoNothing()
+  await db.insert(accountSession).values({ token: 'wagersession', accountId: 'ac_wager', expiresAt: new Date(Date.now() + 3600_000) })
+    .onConflictDoNothing()
+  const W = { headers: { 'x-account-token': 'wagersession' } }
+  const res = await app.inject({ method: 'POST', url: '/api/account/sweeps', ...W,
+    payload: { name: 'Ended', provider: 'apibasketball', leagueId: '12', season: '2023-2024' } })
+  expect(res.statusCode).toBe(201)
+  await app.fillsIdle()
+  const endedNow = async () => (await app.inject({ method: 'GET', url: '/api/account/sweeps', ...W }))
+    .json().find((r) => r.id === res.json().id).ended
+
+  // the recorded 2023-2024 NBA feed is every game final, long past the grace window...
+  await db.delete(event).where(eq(event.id, 'acct_still_to_play'))
+  expect(await endedNow()).toBe(true)
+  // ...and one fixture still to play reopens it (and puts it back on the bill)
+  const [tA, tB] = await db.select().from(competitor).where(eq(competitor.competitionId, NBA_ID)).limit(2)
+  await db.insert(event).values({
+    id: 'acct_still_to_play', competitionId: NBA_ID, c1Code: tA.code, c2Code: tB.code,
+    startUtc: new Date(Date.now() + 30 * 86400_000), status: 'upcoming',
+  })
+  expect(await endedNow()).toBe(false)
+})
+
 // "Sign in on any device you own it from" is what the console promises, but the only
 // way to mint a sweep cookie was the group link — so a member with an account, on a
 // fresh browser, was told to go find an invite link for a sweep they are already in.
