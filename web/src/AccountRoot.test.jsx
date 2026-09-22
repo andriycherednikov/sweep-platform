@@ -161,7 +161,7 @@ test('dismissing the card ("Not now") continues to the account without setting a
   expect(accountClient.setPassword).not.toHaveBeenCalled()
 })
 
-test('saving a password from the card calls setPassword then continues to the account', async () => {
+test('saving a password from the card calls setPassword then says it worked, with a way on', async () => {
   window.history.replaceState(null, '', '/account/login/abc')
   const replace = vi.fn()
   Object.defineProperty(window, 'location', { value: { ...window.location, replace }, configurable: true, writable: true })
@@ -169,7 +169,27 @@ test('saving a password from the card calls setPassword then continues to the ac
   fireEvent.change(await screen.findByLabelText(/new password/i), { target: { value: 'longenoughpassword' } })
   fireEvent.click(screen.getByRole('button', { name: /^save password$/i }))
   await waitFor(() => expect(accountClient.setPassword).toHaveBeenCalledWith('longenoughpassword'))
-  await waitFor(() => expect(replace).toHaveBeenCalledWith('/account'))
+  expect(await screen.findByRole('heading', { name: /password saved/i })).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /continue to my account/i })).toHaveAttribute('href', '/account')
+  expect(replace).not.toHaveBeenCalled()
+})
+
+// A link is single-use, so the redeemed URL must not survive in the address bar: a
+// service-worker update reloads the page seconds after a deploy, and a reload that
+// re-sends the spent token lands a signed-in person on "Link expired".
+test('a redeemed link leaves the address bar, so a reload cannot re-spend it', async () => {
+  window.history.replaceState(null, '', '/account/login/abc')
+  render(<AccountRoot />)
+  await screen.findByRole('heading', { name: /password/i })
+  expect(window.location.pathname).toBe('/account/password')
+})
+
+test('/account/password (a reload after redeem) shows the card to a signed-in account', async () => {
+  accountClient.getAccountToken.mockReturnValue('tok')
+  window.history.replaceState(null, '', '/account/password')
+  render(<AccountRoot />)
+  expect(await screen.findByRole('heading', { name: /password/i })).toBeInTheDocument()
+  expect(accountClient.redeemLogin).not.toHaveBeenCalled()
 })
 
 test('a 401 (used/expired) redeem shows the link-expired message with a way back', async () => {

@@ -238,14 +238,27 @@ function SetPasswordCard({ onDone }) {
   const [password, setFieldPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     setError(false);
     setBusy(true);
-    try { await setPassword(password); onDone(); }
+    try { await setPassword(password); setSaved(true); }
     catch { setError(true); }
     finally { setBusy(false); }
+  }
+
+  if (saved) {
+    return (
+      <AuthPanel
+        tag="Signed in"
+        title="Password *saved*"
+        lede="Next time, sign in with your email and this password — or ask for a link, same as always."
+      >
+        <a className="lp-btn au-btn" href="/account">Continue to my account</a>
+      </AuthPanel>
+    );
   }
 
   return (
@@ -283,7 +296,14 @@ function Redeem({ token }) {
   useEffect(() => {
     let alive = true;
     redeemLogin(token)
-      .then(() => { if (alive) setRedeemed(true); })
+      .then(() => {
+        if (!alive) return;
+        // The token is spent: take it out of the address bar, so a reload (a service
+        // worker update does one seconds after a deploy) re-shows this card signed in
+        // instead of re-sending the token and landing on "Link expired".
+        window.history.replaceState(null, "", "/account/password");
+        setRedeemed(true);
+      })
       .catch(() => { if (alive) setError(true); });
     return () => { alive = false; };
   }, [token]);
@@ -394,6 +414,9 @@ function Landing({ title, msg }) {
 export function AccountRoot() {
   const path = window.location.pathname;
   if (path.startsWith("/account/login/")) return <Redeem token={path.split("/")[3]} />;
+  if (path === "/account/password") {
+    return <RequireAccount><SetPasswordCard onDone={() => window.location.replace("/account")} /></RequireAccount>;
+  }
   if (path === "/account/billing/success") return <BillingReturn />;
   if (path === "/account/billing/updated") return <BillingUpdated />;
   if (path === "/account/billing/cancelled")
