@@ -5,7 +5,7 @@
 #   - Dev uses the host Postgres on :5432 (the `sweep_platform` DB). It's expected to be running.
 #   - DB / worker targets read DATABASE_URL (+ API_FOOTBALL_KEY) from the git-ignored ./.env.
 #   - `make test` (api) needs Docker running — it spins up an ephemeral Postgres via Testcontainers.
-#   - `make deploy` ships to the portal test server (sweep-portal.yowiebay.au); it
+#   - `make deploy` ships to the portal test server (thesweep.au); it
 #     needs Docker + `gcloud auth login` and ssh access to the box.
 
 .DEFAULT_GOAL := help
@@ -83,7 +83,7 @@ deploy-status: ## Deployed container state + public health check
 	ssh $(SERVER) 'cd $(REMOTE_DIR) && docker compose ps'
 	@# containers need a few seconds after `up -d` — poll rather than fail on the first 502
 	@for i in 1 2 3 4 5 6 7 8 9 10; do \
-		curl -fsS https://sweep-portal.yowiebay.au/api/health && echo && exit 0; \
+		curl -fsS https://thesweep.au/api/health && echo && exit 0; \
 		sleep 3; \
 	done; echo "health check never came up"; exit 1
 

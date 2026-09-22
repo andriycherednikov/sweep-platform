@@ -6,4 +6,4 @@ Disallow: /g/
 Disallow: /account
 Disallow: /super
 
-Sitemap: https://sweep-portal.yowiebay.au/sitemap.xml
+Sitemap: https://thesweep.au/sitemap.xml

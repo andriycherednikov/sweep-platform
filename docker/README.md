@@ -8,7 +8,7 @@ pulled on the server. The stack plugs into the shared **Postgres**
 (`vcv-caddy`) over the `simulation-network`. No host ports are published.
 
 ```
-              sweep-portal.yowiebay.au (TLS auto)
+              thesweep.au (TLS auto)
                               │
                       ┌───────▼────────┐  shared vcv-caddy
                       │  /api/*  /photos/* → portal-api:3000  (SSE: flush_interval -1)
@@ -45,7 +45,7 @@ scp docker/docker-compose.yml root@134.199.153.212:/root/sweep-portal/
 cp docker/.env.docker.example docker/.env.docker      # fill in, then:
 scp docker/.env.docker root@134.199.153.212:/root/sweep-portal/.env.docker
 
-# 3. DNS: A sweep-portal.yowiebay.au → 134.199.153.212 (DNS-only, no proxy)
+# 3. DNS: A thesweep.au → 134.199.153.212 (DNS-only, no proxy)
 
 # 4. Caddy — only after DNS resolves
 ssh root@134.199.153.212
@@ -55,7 +55,7 @@ docker exec vcv-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
 **Stripe:** create a webhook endpoint at
-`https://sweep-portal.yowiebay.au/api/stripe/webhook` for the three events the
+`https://thesweep.au/api/stripe/webhook` for the three events the
 handler acts on — `checkout.session.completed`,
 `customer.subscription.updated`, `customer.subscription.deleted` — and put its
 signing secret in `STRIPE_WEBHOOK_SECRET`.
@@ -104,8 +104,8 @@ docker compose run --rm api node src/worker/catalog-curate.js apibasketball 12  
 ## Verify
 
 ```bash
-curl https://sweep-portal.yowiebay.au/api/health   # {"ok":true}
-curl https://sweep-portal.yowiebay.au/api/whoami   # {"sweepId":null,"role":null}
+curl https://thesweep.au/api/health   # {"ok":true}
+curl https://thesweep.au/api/whoami   # {"sweepId":null,"role":null}
 ```
 
 ## First sign-in, and the operator role

@@ -10,7 +10,7 @@
 #   2. Append:    cat sweep-portal.Caddyfile >> /root/caddy/Caddyfile
 #   3. Reload:    docker exec vcv-caddy caddy reload --config /etc/caddy/Caddyfile
 #
-# ⚠️ Append ONLY after sweep-portal.yowiebay.au's A record resolves to this host
+# ⚠️ Append ONLY after thesweep.au's (and www's) A record resolves to this host
 # (DNS-only, no proxy) — otherwise Caddy's ACME challenge fails on a loop and
 # can trip Let's Encrypt rate limits.
 #
@@ -19,7 +19,13 @@
 # session scoped to that one sweep.
 # =============================================================================
 
-sweep-portal.yowiebay.au {
+# One canonical origin. www and the old test-server hostname answer with a permanent
+# redirect, so join links and sign-in mail already sent to people still land.
+www.thesweep.au, sweep-portal.yowiebay.au {
+	redir https://thesweep.au{uri} permanent
+}
+
+thesweep.au {
 	encode gzip
 
 	# API — Fastify. flush_interval -1 disables response buffering so the
