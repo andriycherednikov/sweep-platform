@@ -513,19 +513,22 @@ function LoudCard({ s, href }) {
  *  story, the last one is a footnote. Every one of them is about the sweep it is handed,
  *  which is what lets the dashboard put a picker above the lot and have the heading mean
  *  something. */
-export function StoryGrid({ s }) {
+/** `lean` is the sweep's own page: one column, the race, where the season is and who
+ *  has joined — the group-story cards (luck, loud/quiet) are the dashboard's. */
+export function StoryGrid({ s, lean = false }) {
   const admin = `/s/${s.sweepId}/admin`;
   return (
     // The wrapper is what the cards are measured against — .ac-story is the container
     // the grid's own breakpoints are asked of, so this grid lays out the same in a
     // 464px column of the sweep page as it does in a 464px window.
-    <div className="ac-story"><div className="ac-grid">
+    <div className={"ac-story" + (lean ? " is-lean" : "")}><div className="ac-grid">
       <RaceCard s={s} />
+      {lean && <SeasonCard season={s.season} />}
       <JoinsCard joins={s.joins} href={admin} />
-      <SeasonCard season={s.season} />
-      <LuckCard s={s} />
+      {!lean && <SeasonCard season={s.season} />}
+      {!lean && <LuckCard s={s} />}
       {s.wagering && <PulseCard s={s} />}
-      <LoudCard s={s} href={admin} />
+      {!lean && <LoudCard s={s} href={admin} />}
     </div></div>
   );
 }

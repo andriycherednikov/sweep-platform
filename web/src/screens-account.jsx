@@ -122,7 +122,7 @@ export function Console({ here, wide, children }) {
   const sweepItem = (s, href) => item(s.id, href, (
     <>
       {s.competition?.logo
-        ? <img className="ac-nav-logo" src={s.competition.logo} alt="" loading="lazy" />
+        ? <span className="ac-nav-logo is-img"><img src={s.competition.logo} alt="" loading="lazy" /></span>
         : <span className="ac-nav-logo" aria-hidden="true">{(s.name || "?").trim().charAt(0).toUpperCase()}</span>}
       <span className="ac-nav-name">{s.name}</span>
     </>

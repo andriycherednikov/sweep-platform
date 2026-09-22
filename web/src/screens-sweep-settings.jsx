@@ -73,22 +73,24 @@ function Identity({ s }) {
           because the heading is what the sweep IS called and the field is what somebody
           is in the middle of typing. */}
       <h1 className="ac-sr">{saved}</h1>
-      <input
-        className="ac-h1 ac-rename"
-        aria-label="Sweep name"
-        value={name}
-        maxLength={80}
-        onChange={(e) => setName(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-      />
+      {/* The name and the way in share a line: going into the sweep is the thing to do
+          next, so it is the same call to action as New sweep, level with what it opens. */}
+      <div className="ac-title-row">
+        <input
+          className="ac-h1 ac-rename"
+          aria-label="Sweep name"
+          value={name}
+          maxLength={80}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        />
+        <a className="lp-btn ac-btn ac-open-cta" href={`/s/${s.id}`}>Open the sweep</a>
+      </div>
       <CompetitionLine s={s} />
       <p className="ac-sub">
         {since ? `Running since ${since} · ` : ""}{s.members.total} in the sweep
       </p>
-      {/* The page is about the sweep; going into it is the thing to do next, so it is
-          the same call to action as New sweep rather than an inline link. */}
-      <a className="lp-btn ac-btn ac-open-cta" href={`/s/${s.id}`}>Open the sweep</a>
       <SaveError code={err} />
     </>
   );
@@ -289,10 +291,9 @@ export function SweepSettings({ id }) {
               call, not this file's. Reading order is the same either way: how it is
               going, then what you can change about it. */}
           <div className={`ac-sweep${story === false ? " is-solo" : ""}`} style={{ marginTop: 22 }}>
-            {story !== false && <div>{story && <StoryGrid s={story} />}</div>}
+            {story !== false && <div>{story && <StoryGrid s={story} lean />}</div>}
             <div className="ac-sweep-set">
-              <h2 className="ac-group">What you can change</h2>
-              <div className="ac-stack" style={{ marginTop: 14 }}>
+              <div className="ac-stack">
                 <Share s={sweep} />
                 <Settings s={sweep} />
                 <Operations s={sweep} />

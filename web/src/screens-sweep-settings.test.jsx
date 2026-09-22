@@ -232,6 +232,18 @@ test("the sweep's own page carries the sweep's own charts", async () => {
   expect(pane().getByText(/3 of 5/)).toBeTruthy()
 })
 
+// The dashboard is where the group's story is told; this page is for running one sweep.
+// Luck vs skill and the loud/quiet leaderboard read as noise beside the controls.
+test("the sweep's page keeps the race, the season and the joins, and drops the rest", async () => {
+  render(<SweepSettings id="sw1" />)
+  expect(await pane().findByRole('heading', { name: /the race/i })).toBeTruthy()
+  expect(pane().getByRole('heading', { name: /the season/i })).toBeTruthy()
+  expect(pane().queryByRole('heading', { name: /luck vs skill/i })).toBeNull()
+  expect(pane().queryByRole('heading', { name: /the loud and the quiet/i })).toBeNull()
+  expect(pane().queryByRole('heading', { name: /what you can change/i })).toBeNull()
+  expect(pane().getByRole('link', { name: /open the sweep/i })).toHaveAttribute('href', '/s/sw1')
+})
+
 // The route ships a bucket for the days somebody was added or joined and nothing at all
 // for the rest, so a chart drawn straight off those buckets spaces a fortnight of silence
 // like one quiet day. The dashboard filled the gaps at the call site, which left the same

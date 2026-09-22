@@ -1321,11 +1321,15 @@ body.marketing .device{ width:100%; height:auto; max-height:none; overflow:visib
    no disclosure and nothing to collapse */
 .ac-nav-i.is-sweep{ justify-content:flex-start; gap:9px; padding:7px 11px; font-size:13.5px; }
 .ac-nav-name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ac-nav-logo{ flex-shrink:0; width:16px; height:16px; border-radius:4px; object-fit:contain; }
-/* nothing from the feed: the same 16px block carrying an initial, so the names still
-   line up rather than stepping left on the rows that have no logo */
-span.ac-nav-logo{ display:grid; place-items:center; font-size:9px; font-weight:800;
+/* A fixed tile, never the logo's own shape: feed crests come tall (NBA), wide (Ligue 1)
+   and dark, and on the ink rail a dark crest simply vanished. The light tile gives every
+   crest the ground it was drawn for; the img inside is contained, so no shape leaks. */
+.ac-nav-logo{ flex-shrink:0; display:grid; place-items:center; width:22px; height:22px;
+  border-radius:6px; font-size:10px; font-weight:800;
   background:var(--glass2); color:var(--ink3); }
+/* nothing from the feed: the same tile carrying an initial, so the names still line up */
+.ac-nav-logo.is-img{ background:#f4f2ee; }
+.ac-nav-logo img{ display:block; width:16px; height:16px; max-width:none; object-fit:contain; }
 .ac-nav-i.is-more{ font-size:12.5px; color:var(--ink3); }
 /* the picker IS the rail below 820px, where the rail itself lies down — never both */
 .ac-pick, .ac-pick-go{ display:none; }
@@ -1371,7 +1375,10 @@ span.ac-nav-logo{ display:grid; place-items:center; font-size:9px; font-weight:8
 .ac-ghost.is-go{ color:var(--lp-accent); border-color:rgba(236,48,19,.35); }
 .ac-ghost.is-go:hover{ background:rgba(236,48,19,.07); color:var(--lp-accent); }
 .ac-btn{ border:0; cursor:pointer; font-size:22px; }
-.ac-open-cta{ margin-top:14px; }
+.ac-title-row{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+/* the name keeps a readable width; below it, the button wraps under rather than clipping */
+.ac-title-row .ac-rename{ flex:1 1 280px; min-width:0; }
+.ac-open-cta{ flex-shrink:0; text-decoration:none; white-space:nowrap; }
 .ac-ghost{ padding:7px 14px 8px; border-radius:9px; cursor:pointer; font-family:inherit;
   font-size:13px; font-weight:600; color:var(--ink2);
   background:var(--glass); border:1px solid var(--edge); }
@@ -1451,7 +1458,8 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
      third of a 1440px pane of nothing to its right. 404px is the settings column plus the
      gap. :has() because the head is the split's older sibling and there is nothing else to
      ask — same browser baseline as the container queries below. */
-  .ac-col:has(.ac-sweep:not(.is-solo)) .ac-sweep-head{ max-width:calc(100% - 404px); margin-inline:0; }
+  /* Full width, so the Open button sits level with the settings column's right edge. */
+  .ac-col:has(.ac-sweep:not(.is-solo)) .ac-sweep-head{ max-width:none; margin-inline:0; }
 }
 /* Sticky, but only where the whole column fits on the screen. It stands about 900px tall,
    so on a laptop it never did: it became a 380px box with a scrollbar of its own, and
@@ -1469,6 +1477,9 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
    pane, because .ac-col's own auto margins stop at its 720/1440 cap and a 720px page
    pinned to the left of a 1440px one just looks dropped. */
 .ac-sweep-head, .ac-sweep{ max-width:720px; margin-inline:auto; }
+/* one column: the story, then the controls, with the cards' own gap between them
+   (the 1500px split swaps this for its grid) */
+.ac-sweep{ display:flex; flex-direction:column; gap:16px; }
 
 /* The charts ------------------------------------------------------------------ */
 /* How tall a chart is, is a decision, and this is where it is made. It used to be a side
@@ -1518,6 +1529,9 @@ a.ac-ghost{ display:inline-block; text-decoration:none; }
    One column, two from 620px of column, three from 1000. Three is the cap: a fourth puts
    a time-series chart in a 340px box, where it has nothing left to say. */
 .ac-story{ container-type:inline-size; }
+/* the sweep's own page: one column at every width, so the cards line up edge to edge */
+.ac-story.is-lean .ac-grid{ grid-template-columns:minmax(0,1fr); }
+.ac-story.is-lean .ac-grid .is-double{ grid-column:auto; }
 .ac-grid{ display:grid; grid-template-columns:minmax(0,1fr); gap:16px; align-items:start; }
 @container (min-width:620px){
   .ac-grid{ grid-template-columns:repeat(2,minmax(0,1fr)); }
