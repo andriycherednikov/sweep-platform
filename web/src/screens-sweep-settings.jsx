@@ -85,8 +85,10 @@ function Identity({ s }) {
       <CompetitionLine s={s} />
       <p className="ac-sub">
         {since ? `Running since ${since} · ` : ""}{s.members.total} in the sweep
-        {" · "}<a className="ac-inline" href={`/s/${s.id}`}>Open the sweep</a>
       </p>
+      {/* The page is about the sweep; going into it is the thing to do next, so it is
+          the same call to action as New sweep rather than an inline link. */}
+      <a className="lp-btn ac-btn ac-open-cta" href={`/s/${s.id}`}>Open the sweep</a>
       <SaveError code={err} />
     </>
   );
